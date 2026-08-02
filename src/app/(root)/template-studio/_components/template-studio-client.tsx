@@ -57,10 +57,8 @@ import {
   StudioInputScope,
   StudioInputType,
   StudioRuntimeValues,
-  StudioSelectOption,
   StudioTemplateDocument,
   StudioWebFontSource,
-  StudioTimetableCapabilityKey,
   StudioTimetableCompositionObject,
   StudioTimetableComponentId,
   StudioTimetableDayId,
@@ -75,8 +73,6 @@ import {
 } from "@/utils/template-studio/binding-resolver";
 import { getStudioBuiltinField } from "@/utils/template-studio/builtin-fields";
 import {
-  cloneStudioTimetableComponentSet,
-  deleteStudioTimetableComponentSet,
   getStudioTimetableComponentSetDeleteReason,
   getStudioTimetableDayComponent,
 } from "@/utils/template-studio/component-sets";
@@ -97,7 +93,6 @@ import {
 } from "@/utils/template-studio/graph-commands";
 import { getStudioGraphNodeTypeLabel } from "@/utils/template-studio/graph-node-label";
 import { getStudioTopLevelNodeIds } from "@/utils/template-studio/graph-nodes";
-import { createStudioId } from "@/utils/template-studio/id";
 import {
   applyStudioAddSelectOption,
   applyStudioRemoveSelectOption,
@@ -111,12 +106,9 @@ import {
   applyStudioDeleteNodes,
   applyStudioInsertNode,
   createStudioSelectConsumerNode,
-  planStudioAddCardContextObject,
-  planStudioAddCardStatusBackground,
   planStudioAddNode,
   planStudioDeleteNodes,
   resolveStudioNodeInsertionParentId,
-  type StudioSelectConsumerInput,
 } from "@/utils/template-studio/node-commands";
 import { getStudioLayerPanelOrder } from "@/utils/template-studio/layer-order";
 import {
@@ -151,15 +143,9 @@ import {
   setStudioRuntimeInputValue,
   type StudioRuntimeContext,
 } from "@/utils/template-studio/input-values";
-import { ensureStudioPresetImageInput } from "@/utils/template-studio/preset-inputs";
 import { resolveStudioRuntimeCropSize } from "@/utils/template-studio/runtime-image-crop";
 import {
-  getStudioPresetExistingTargetId,
-  getStudioPresetCreationRule,
   getStudioPresetGroups,
-  type StudioCardSelectInputBundlePreset,
-  type StudioCardStatusBackgroundPreset,
-  type StudioCardContextObjectPreset,
 } from "@/utils/template-studio/preset-registry";
 import {
   createInitialStudioRuntimeValues,
@@ -176,33 +162,21 @@ import {
   setStudioStatusCardBackgroundAssetSlot,
 } from "@/utils/template-studio/status-card-background";
 import {
-  addStudioTimetableEntry,
   getStudioTimetableAddEntryDisabledReason,
-  getStudioTimetableDaysWithMultipleEntries,
   getStudioTimetableEffectiveMaxEntriesPerDay,
   getStudioTimetableEntriesForDay,
-  removeStudioTimetableEntry,
   resolveStudioTimetableComponentVariant,
-  setStudioTimetableEntryStatus,
   validateStudioRuntimeValuesForDocument,
 } from "@/utils/template-studio/timetable-runtime";
 import { applyStudioTimetableComponentFrames } from "@/utils/template-studio/entry-groups";
 import {
-  ensureStudioTimetableCapabilityStatus,
   getStudioAvailableTimetableStatuses,
   getStudioTimetableCapabilities,
 } from "@/utils/template-studio/timetable-capabilities";
 import {
   getStudioCardsGuide,
   getStudioTimetableGuide,
-  setStudioCardsGuideAsset,
-  setStudioCardsGuideOpacity,
-  setStudioCardsGuideVisibility,
-  setStudioTimetableGuideAsset,
-  setStudioTimetableGuideOpacity,
-  setStudioTimetableGuideVisibility,
 } from "@/utils/template-studio/timetable-guide";
-import { ensureStudioCapabilityVariant } from "@/utils/template-studio/status-variants";
 import {
   applyStudioVariantStyle,
   type StudioVariantStyleScope,
@@ -398,51 +372,6 @@ const cloneRuntimeValues = (
   runtimeValues: StudioRuntimeValues,
 ): StudioRuntimeValues =>
   JSON.parse(JSON.stringify(runtimeValues)) as StudioRuntimeValues;
-
-const getUniqueStudioInputLabel = (
-  document: StudioTemplateDocument,
-  baseLabel: string,
-): string => {
-  const labels = new Set(
-    Object.values(document.inputs).map((input) =>
-      input.label.trim().toLowerCase(),
-    ),
-  );
-  let label = baseLabel;
-  let index = 2;
-
-  while (labels.has(label.trim().toLowerCase())) {
-    label = `${baseLabel} ${index}`;
-    index += 1;
-  }
-
-  return label;
-};
-
-const getUniqueStudioAssetLabel = (
-  document: StudioTemplateDocument,
-  baseLabel: string,
-): string => {
-  const labels = new Set(
-    Object.values(document.assets).map((asset) =>
-      asset.label.trim().toLowerCase(),
-    ),
-  );
-  let label = baseLabel;
-  let index = 2;
-
-  while (labels.has(label.trim().toLowerCase())) {
-    label = `${baseLabel} ${index}`;
-    index += 1;
-  }
-
-  return label;
-};
-
-const getStudioAssetLabelFromFile = (file: File, fallbackLabel: string) => {
-  const fileLabel = file.name.replace(/\.[^.]+$/, "").trim();
-  return fileLabel || fallbackLabel;
-};
 
 const addRuntimeDefaultForInput = (
   document: StudioTemplateDocument,
@@ -1106,30 +1035,6 @@ export function TemplateStudioClient({
     activeWorkspaceMode === "cards" ? cardsGuide : timetableGuide;
   const activeGuideAsset =
     activeWorkspaceMode === "cards" ? cardsGuideAsset : timetableGuideAsset;
-  const setActiveGuideVisibility = (visible: boolean) => {
-    updateDocument(
-      (nextDocument) => {
-        if (activeWorkspaceMode === "cards") {
-          setStudioCardsGuideVisibility(nextDocument, visible);
-        } else {
-          setStudioTimetableGuideVisibility(nextDocument, visible);
-        }
-      },
-      { history: false },
-    );
-  };
-  const setActiveGuideOpacity = (opacity: number) => {
-    updateDocument(
-      (nextDocument) => {
-        if (activeWorkspaceMode === "cards") {
-          setStudioCardsGuideOpacity(nextDocument, opacity);
-        } else {
-          setStudioTimetableGuideOpacity(nextDocument, opacity);
-        }
-      },
-      { history: false },
-    );
-  };
   const activePanelMode: PanelMode =
     activeWorkspaceMode === "timetable" && panelMode === "timetable"
       ? "layers"
@@ -1504,127 +1409,6 @@ export function TemplateStudioClient({
     [captureHistory, setDocument, studioStore],
   );
 
-  const selectCardComponent = useCallback(
-    (componentId: StudioTimetableComponentId) => {
-      const nextDocument = studioStore.getState().document;
-      const component =
-        nextDocument.domains?.timetable?.components[componentId];
-      if (!component) return;
-
-      setSelectedCardComponentId(componentId);
-      setComponentLabelDraft(component.label);
-      const resolution = resolveStudioTimetableComponentVariant(
-        nextDocument,
-        component,
-        selectedCardStatusId,
-      );
-      const rootNodeId = resolution?.variant.rootNodeId;
-      if (rootNodeId) {
-        restoreSelection([rootNodeId], rootNodeId);
-      }
-    },
-    [
-      restoreSelection,
-      selectedCardStatusId,
-      setSelectedCardComponentId,
-      studioStore,
-    ],
-  );
-
-  const duplicateSelectedCardComponent = () => {
-    if (!activeCardComponentId) return;
-
-    let nextComponentId: StudioTimetableComponentId | null = null;
-    let failureReason: string | null = null;
-    updateDocument((nextDocument) => {
-      const result = cloneStudioTimetableComponentSet(
-        nextDocument,
-        activeCardComponentId,
-      );
-      if (result.ok) {
-        nextComponentId = result.componentId;
-      } else {
-        failureReason = result.reason;
-      }
-    });
-
-    if (!nextComponentId) {
-      showShortcutStatus(failureReason ?? "Component set duplicate failed");
-      return;
-    }
-    selectCardComponent(nextComponentId);
-    showShortcutStatus("Component set duplicated");
-  };
-
-  const commitSelectedCardComponentLabel = () => {
-    if (!activeCardComponentId || !cardEntryComponent) return;
-    const nextLabel = componentLabelDraft.trim();
-    if (!nextLabel) {
-      setComponentLabelDraft(cardEntryComponent.label);
-      return;
-    }
-    if (nextLabel === cardEntryComponent.label) return;
-
-    updateDocument((nextDocument) => {
-      const component =
-        nextDocument.domains?.timetable?.components[activeCardComponentId];
-      if (component) component.label = nextLabel;
-    });
-    setComponentLabelDraft(nextLabel);
-    showShortcutStatus("Component set renamed");
-  };
-
-  const deleteSelectedCardComponent = () => {
-    if (!activeCardComponentId) return;
-    const reason = getStudioTimetableComponentSetDeleteReason(
-      studioStore.getState().document,
-      activeCardComponentId,
-    );
-    if (reason) {
-      showShortcutStatus(reason);
-      return;
-    }
-    if (!window.confirm("Delete this unused component set?")) return;
-
-    let failureReason: string | null = null;
-    updateDocument((nextDocument) => {
-      const result = deleteStudioTimetableComponentSet(
-        nextDocument,
-        activeCardComponentId,
-      );
-      if (!result.ok) failureReason = result.reason;
-    });
-    if (failureReason) {
-      showShortcutStatus(failureReason);
-      return;
-    }
-
-    const timetable = studioStore.getState().document.domains?.timetable;
-    const fallbackComponentId = timetable?.entryComponentId;
-    if (fallbackComponentId) selectCardComponent(fallbackComponentId);
-    showShortcutStatus("Component set deleted");
-  };
-
-  const assignComponentSetToSelectedDay = (
-    componentId: StudioTimetableComponentId,
-  ) => {
-    if (!selectedTimetableDayId) return;
-    updateDocument((nextDocument) => {
-      const timetable = nextDocument.domains?.timetable;
-      const day = timetable?.days[selectedTimetableDayId];
-      if (!timetable || !day || !timetable.components[componentId]) return;
-
-      if (componentId === timetable.entryComponentId) {
-        delete day.componentId;
-      } else {
-        day.componentId = componentId;
-      }
-    });
-    showShortcutStatus(
-      `${selectedTimetableDay?.label ?? "Day"} component set updated`,
-    );
-  };
-
   const updateNode = useCallback(
     (
       nodeId: string,
@@ -1733,34 +1517,6 @@ export function TemplateStudioClient({
     });
   };
 
-  const updateTimetableCanvasSize = (nextSize: {
-    width?: number;
-    height?: number;
-    backgroundColor?: string;
-  }) => {
-    updateDocument((nextDocument) => {
-      const timetable = nextDocument.domains?.timetable;
-      if (!timetable) return;
-      const currentCanvas = timetable.canvas ?? {
-        width: 4000,
-        height: 2250,
-        backgroundColor: "#eef2f7",
-      };
-      timetable.canvas = {
-        width: normalizeStudioDimension(
-          nextSize.width ?? currentCanvas.width,
-          currentCanvas.width,
-        ),
-        height: normalizeStudioDimension(
-          nextSize.height ?? currentCanvas.height,
-          currentCanvas.height,
-        ),
-        backgroundColor:
-          nextSize.backgroundColor ?? currentCanvas.backgroundColor,
-      };
-    });
-  };
-
   const updateWebFonts = (webFonts: StudioWebFontSource[]) => {
     updateDocument((nextDocument) => {
       nextDocument.resources = {
@@ -1818,64 +1574,6 @@ export function TemplateStudioClient({
     setPanelMode("layers");
   };
 
-  const addCardContextObject = (preset: StudioCardContextObjectPreset) => {
-    const existingNodeId = getStudioPresetExistingTargetId(document, preset, {
-      cardRootNodeId: selectedCardVariantRootId,
-    });
-
-    if (existingNodeId) {
-      selectSingleNode(existingNodeId);
-      setPanelMode("layers");
-      showShortcutStatus(`Selected existing ${preset.label}`);
-      return;
-    }
-
-    const plan = planStudioAddCardContextObject(
-      document,
-      preset,
-      selectedNode,
-      selectedCardVariantRootId,
-    );
-
-    updateDocument((nextDocument) => {
-      applyStudioInsertNode(nextDocument, plan);
-    });
-
-    selectSingleNode(plan.node.id);
-    setPanelMode("layers");
-    showShortcutStatus(`Added ${preset.label}`);
-  };
-
-  const addCardStatusBackgroundObject = (
-    preset: StudioCardStatusBackgroundPreset,
-  ) => {
-    const existingNodeId = getStudioPresetExistingTargetId(document, preset, {
-      cardRootNodeId: selectedCardVariantRootId,
-    });
-
-    if (existingNodeId) {
-      selectSingleNode(existingNodeId);
-      setPanelMode("layers");
-      showShortcutStatus(`Selected existing ${preset.label}`);
-      return;
-    }
-
-    const plan = planStudioAddCardStatusBackground(
-      document,
-      preset,
-      selectedNode,
-      selectedCardVariantRootId,
-    );
-
-    updateDocument((nextDocument) => {
-      applyStudioInsertNode(nextDocument, plan);
-    });
-
-    selectSingleNode(plan.node.id);
-    setPanelMode("layers");
-    showShortcutStatus(`Added ${preset.label}`);
-  };
-
   const addInput = (type: StudioInputType) => {
     const input = createStudioInputDefinition(type, inputScopeFilter);
 
@@ -1890,16 +1588,6 @@ export function TemplateStudioClient({
   };
   const getCardInsertionParentId = (): string | null =>
     resolveStudioNodeInsertionParentId(document, selectedNode);
-
-  const getAssetIdByLabel = (label: string): string | null =>
-    assets.find(
-      (asset) => asset.label.trim().toLowerCase() === label.toLowerCase(),
-    )?.id ?? null;
-
-  const createSelectConsumerNode = (
-    nextDocument: StudioTemplateDocument,
-    input: StudioSelectConsumerInput,
-  ): string => createStudioSelectConsumerNode(nextDocument, input);
 
   const addSelectConsumerForInput = (
     input: StudioInputDefinition,
@@ -1931,156 +1619,6 @@ export function TemplateStudioClient({
     setPanelMode("layers");
     showShortcutStatus(`Added ${kind === "image" ? "image" : "text"} consumer`);
   };
-  const addCardSelectInputBundle = (
-    preset: StudioCardSelectInputBundlePreset,
-  ) => {
-    const inputId = createStudioId("input");
-    const parentId = getCardInsertionParentId();
-    const isSticker = preset.bundleKind === "stickerSelect";
-    const creationRule = getStudioPresetCreationRule(preset);
-    const inputLabelBase =
-      creationRule.mode === "repeatable"
-        ? creationRule.labelBase
-        : isSticker
-          ? "Entry Sticker"
-          : "Entry Select";
-    const inputLabel = getUniqueStudioInputLabel(document, inputLabelBase);
-    const options: StudioSelectOption[] = isSticker
-      ? [
-          { value: "none", label: "None" },
-          { value: "spark", label: "Spark" },
-          { value: "heart", label: "Heart" },
-        ]
-      : [
-          { value: "option-a", label: "Option A" },
-          { value: "option-b", label: "Option B" },
-        ];
-    const input: Extract<StudioInputDefinition, { type: "select" }> = {
-      id: inputId,
-      type: "select",
-      scope: "entry",
-      label: inputLabel,
-      defaultValue: isSticker ? "spark" : "option-a",
-      options,
-    };
-
-    let nextPrimaryNodeId: string | null = null;
-
-    updateDocument((nextDocument) => {
-      nextDocument.inputs[inputId] = input;
-
-      const labelNodeId = createSelectConsumerNode(nextDocument, {
-        parentId,
-        input,
-        kind: "text",
-        label: isSticker ? "Selected Sticker Label" : `${inputLabel} Label`,
-      });
-      nextPrimaryNodeId = labelNodeId;
-
-      if (isSticker) {
-        nextPrimaryNodeId = createSelectConsumerNode(nextDocument, {
-          parentId,
-          input,
-          kind: "image",
-          label: "Sticker Preview",
-          assetByOption: {
-            none: null,
-            spark: getAssetIdByLabel("Spark Sticker"),
-            heart: getAssetIdByLabel("Heart Sticker"),
-          },
-        });
-      }
-    });
-
-    setRuntimeValues((currentValues) =>
-      addRuntimeDefaultForInput(document, currentValues, input),
-    );
-    setSelectedInputId(inputId);
-
-    if (nextPrimaryNodeId) {
-      selectSingleNode(nextPrimaryNodeId);
-      setPanelMode("layers");
-    } else {
-      setPanelMode("inputs");
-    }
-
-    showShortcutStatus(`Added ${preset.label}`);
-  };
-
-  const createTemplateAssetFromDataUrl = (
-    file: File,
-    src: string,
-    fallbackLabel: string,
-    onAssetCreated?: (
-      nextDocument: StudioTemplateDocument,
-      assetId: string,
-    ) => void,
-  ) => {
-    if (!src) return;
-    const assetId = createStudioId("asset");
-    const baseLabel = getStudioAssetLabelFromFile(file, fallbackLabel);
-
-    updateDocument((nextDocument) => {
-      nextDocument.assets[assetId] = {
-        id: assetId,
-        label: getUniqueStudioAssetLabel(nextDocument, baseLabel),
-        src,
-      };
-      onAssetCreated?.(nextDocument, assetId);
-    });
-    showShortcutStatus(`Uploaded ${baseLabel}`);
-  };
-
-  const uploadTimetableGuide = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const imageSrc = String(reader.result ?? "");
-      if (!imageSrc) return;
-
-      createTemplateAssetFromDataUrl(
-        file,
-        imageSrc,
-        "Timetable Guide",
-        (nextDocument, assetId) => {
-          setStudioTimetableGuideAsset(nextDocument, assetId);
-        },
-      );
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const uploadCardsGuide = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const imageSrc = String(reader.result ?? "");
-      if (!imageSrc) return;
-
-      createTemplateAssetFromDataUrl(
-        file,
-        imageSrc,
-        "Cards Guide",
-        (nextDocument, assetId) => {
-          setStudioCardsGuideAsset(nextDocument, assetId);
-        },
-      );
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const removeCardsGuide = () => {
-    updateDocument((nextDocument) => {
-      setStudioCardsGuideAsset(nextDocument, null);
-    });
-    showShortcutStatus("Removed cards guide");
-  };
-
-  const removeTimetableGuide = () => {
-    updateDocument((nextDocument) => {
-      setStudioTimetableGuideAsset(nextDocument, null);
-    });
-    showShortcutStatus("Removed timetable guide");
-  };
-
   const requestStudioImageCrop = (
     file: File,
     initialSize: { width: number; height: number },
@@ -2206,6 +1744,27 @@ export function TemplateStudioClient({
     updateDayCardsLayout: updateTimetableDayCardsLayout,
     moveCanvasLayer: moveTimetableCanvasLayer,
     resolveDragLayerId: resolveTimetableDragLayerId,
+    selectCardComponent,
+    duplicateSelectedCardComponent,
+    commitSelectedCardComponentLabel,
+    deleteSelectedCardComponent,
+    assignComponentSetToSelectedDay,
+    updateTimetableCanvasSize,
+    addCardContextObject,
+    addCardStatusBackgroundObject,
+    addCardSelectInputBundle,
+    uploadGuide,
+    removeGuide,
+    setGuideVisibility,
+    setGuideOpacity,
+    linkTimetableAssetSlotToInput,
+    createTimetableAssetForSlot,
+    createCardAssetForSlot,
+    resetRuntimeValues,
+    addEntryToActiveDay,
+    removeEntry,
+    updateEntryStatus,
+    setTimetableCapability,
   } = useTimetableObjectCommands({
     getDocument: useCallback(
       () => studioStore.getState().document,
@@ -2225,7 +1784,35 @@ export function TemplateStudioClient({
       [setPanelMode],
     ),
     onStatusMessage: showShortcutStatus,
+    captureHistory,
+    setDocument,
+    setRuntimeValues,
+    activeCardComponentId,
+    componentLabelDraft,
+    selectedCardStatusId,
+    selectedCardVariantRootId,
+    selectedNode,
+    selectedTimetableDayId,
+    selectedTimetableDayLabel: selectedTimetableDay?.label ?? null,
+    activeRuntimeDayId,
+    onSetPanelMode: setPanelMode,
+    onSetSelectedCardComponentId: setSelectedCardComponentId,
+    onSetComponentLabelDraft: setComponentLabelDraft,
+    onSetSelectedInputId: setSelectedInputId,
+    onSetSelectedRuntimeEntryIndex: setSelectedRuntimeEntryIndex,
+    onSelectNode: selectSingleNode,
+    onRestoreSelection: restoreSelection,
   });
+
+  const uploadCardsGuide = (file: File) => uploadGuide("cards", file);
+  const uploadTimetableGuide = (file: File) =>
+    uploadGuide("timetable", file);
+  const removeCardsGuide = () => removeGuide("cards");
+  const removeTimetableGuide = () => removeGuide("timetable");
+  const setActiveGuideVisibility = (visible: boolean) =>
+    setGuideVisibility(activeWorkspaceMode, visible);
+  const setActiveGuideOpacity = (opacity: number) =>
+    setGuideOpacity(activeWorkspaceMode, opacity);
 
   const focusTimetableRuntimeDay = useCallback(
     (dayId: StudioTimetableDayId) => {
@@ -2298,115 +1885,6 @@ export function TemplateStudioClient({
       }
     });
   };
-
-  const resetRuntimeValues = () => {
-    captureHistory();
-    setRuntimeValues(createInitialStudioRuntimeValues(document));
-  };
-
-  const addEntryToActiveDay = () => {
-    if (!activeRuntimeDayId) return;
-    if (activeRuntimeEntries.length >= maxRuntimeEntries) return;
-
-    const nextEntryIndex = activeRuntimeEntries.length;
-    captureHistory();
-    setRuntimeValues((currentValues) =>
-      addStudioTimetableEntry(
-        document,
-        currentValues,
-        activeRuntimeDayId,
-        createStudioId("entry"),
-      ),
-    );
-    setSelectedRuntimeEntryIndex(nextEntryIndex);
-    setPanelMode("timetable");
-  };
-
-  const removeEntry = (dayId: string, entryIndex: number) => {
-    const nextEntryIndex = Math.max(0, entryIndex - 1);
-    captureHistory();
-    setRuntimeValues((currentValues) =>
-      removeStudioTimetableEntry(document, currentValues, dayId, entryIndex),
-    );
-    setSelectedRuntimeEntryIndex(nextEntryIndex);
-  };
-
-  const updateEntryStatus = (
-    dayId: string,
-    entryIndex: number,
-    statusId: StudioTimetableStatusId,
-  ) => {
-    captureHistory();
-    setRuntimeValues((currentValues) =>
-      setStudioTimetableEntryStatus(
-        document,
-        currentValues,
-        dayId,
-        entryIndex,
-        statusId,
-      ),
-    );
-  };
-
-  const setTimetableCapability = useCallback(
-    (capabilityKey: StudioTimetableCapabilityKey, enabled: boolean) => {
-      const currentDocument = studioStore.getState().document;
-      const timetable = currentDocument.domains?.timetable;
-      if (!timetable) return;
-
-      const currentCapabilities = getStudioTimetableCapabilities(timetable);
-      if (currentCapabilities[capabilityKey].enabled === enabled) return;
-
-      if (
-        capabilityKey === "multi" &&
-        !enabled &&
-        getStudioTimetableDaysWithMultipleEntries(
-          studioStore.getState().runtimeValues,
-        ).length > 0
-      ) {
-        showShortcutStatus(
-          "Remove extra entries before disabling Multi Status",
-        );
-        return;
-      }
-
-      const nextCapabilities = {
-        ...currentCapabilities,
-        [capabilityKey]: { enabled },
-      };
-      const nextDocument = cloneDocument(currentDocument);
-      const nextTimetable = nextDocument.domains?.timetable;
-      if (!nextTimetable) return;
-
-      captureHistory();
-
-      nextTimetable.capabilities = nextCapabilities;
-      if (enabled) {
-        ensureStudioTimetableCapabilityStatus(nextTimetable, capabilityKey);
-        ensureStudioCapabilityVariant(nextDocument, capabilityKey);
-      }
-
-      const nextRuntimeValues = normalizeRuntimeValuesForTimetableCapabilities(
-        cloneRuntimeValues(studioStore.getState().runtimeValues),
-        nextCapabilities,
-      );
-
-      setDocument(nextDocument);
-      setRuntimeValues(nextRuntimeValues);
-      showShortcutStatus(
-        `${capabilityKey === "multi" ? "Multi" : "Offline memo"} ${
-          enabled ? "enabled" : "disabled"
-        }`,
-      );
-    },
-    [
-      captureHistory,
-      setDocument,
-      setRuntimeValues,
-      showShortcutStatus,
-      studioStore,
-    ],
-  );
 
   const deleteSelectedNode = useCallback(() => {
     const plan = planStudioDeleteNodes(document, selectedNodeIds);
@@ -3012,32 +2490,15 @@ export function TemplateStudioClient({
      */
     const useInputSource = () => {
       if (!onUpdateInput) return;
-
-      const currentDocument = studioStore.getState().document;
-      const defaultUrl = assetId
-        ? (currentDocument.assets[assetId]?.src ?? "")
-        : "";
-
-      updateDocument((nextDocument) => {
-        const timetable = nextDocument.domains?.timetable;
-        if (!timetable) return;
-
-        const composition = ensureStudioTimetableComposition(timetable);
-        const currentObject = composition.objects[object.id];
-        if (!currentObject) return;
-
-        const { inputId: nextInputId } = ensureStudioPresetImageInput(
-          nextDocument,
-          {
-            label: inputLabel,
-            placeholder: "Paste image URL",
-            defaultUrl,
-          },
-        );
-        onUpdateInput(currentObject, nextInputId, fit ?? defaultFit);
+      linkTimetableAssetSlotToInput({
+        objectId: object.id,
+        assetId,
+        inputLabel,
+        fit,
+        defaultFit,
+        label,
+        onUpdateInput,
       });
-
-      showShortcutStatus(`Linked ${label} to input`);
     };
 
     const uploadAsset = (file: File) => {
@@ -3048,21 +2509,15 @@ export function TemplateStudioClient({
       );
 
       requestStudioImageCrop(file, cropGeometry, (croppedSrc) => {
-        createTemplateAssetFromDataUrl(
+        createTimetableAssetForSlot({
           file,
-          croppedSrc,
-          inputLabel,
-          (nextDocument, nextAssetId) => {
-            const timetable = nextDocument.domains?.timetable;
-            if (!timetable) return;
-
-            const composition = ensureStudioTimetableComposition(timetable);
-            const currentObject = composition.objects[object.id];
-            if (!currentObject) return;
-
-            onUpdateAsset(currentObject, nextAssetId, fit ?? defaultFit);
-          },
-        );
+          src: croppedSrc,
+          fallbackLabel: inputLabel,
+          objectId: object.id,
+          fit,
+          defaultFit,
+          onUpdateAsset,
+        });
       });
     };
 
@@ -3152,21 +2607,13 @@ export function TemplateStudioClient({
           );
 
           requestStudioImageCrop(file, cropGeometry, (croppedSrc) => {
-            createTemplateAssetFromDataUrl(
+            createCardAssetForSlot({
               file,
-              croppedSrc,
-              `${node.label} ${statusLabel}`,
-              (nextDocument, nextAssetId) => {
-                const currentNode = nextDocument.graph.nodes[node.id];
-                if (!currentNode) return;
-
-                setStudioStatusCardBackgroundAssetSlot(
-                  currentNode,
-                  nextAssetId,
-                  slot?.fit ?? "cover",
-                );
-              },
-            );
+              src: croppedSrc,
+              fallbackLabel: `${node.label} ${statusLabel}`,
+              nodeId: node.id,
+              fit: slot?.fit ?? "cover",
+            });
           });
         }}
       />

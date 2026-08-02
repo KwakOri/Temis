@@ -1,14 +1,67 @@
 "use client";
 import { useCallback } from "react";
 import type {
+  StudioGraphNode,
+  StudioImageFit,
+  StudioInputDefinition,
   StudioRuntimeValues,
+  StudioSelectOption,
   StudioTemplateDocument,
+  StudioTimetableCapabilityKey,
+  StudioTimetableComponentId,
   StudioTimetableComposition,
   StudioTimetableCompositionObject,
   StudioTimetableDayCardsLayout,
   StudioTimetableDayId,
   StudioTimetableDomain,
+  StudioTimetableStatusId,
 } from "@/types/template-studio";
+import {
+  cloneStudioTimetableComponentSet,
+  deleteStudioTimetableComponentSet,
+  getStudioTimetableComponentSetDeleteReason,
+} from "@/utils/template-studio/component-sets";
+import { getStudioInputDefaultValue } from "@/utils/template-studio/input-values";
+import { createStudioId } from "@/utils/template-studio/id";
+import { ensureStudioPresetImageInput } from "@/utils/template-studio/preset-inputs";
+import {
+  applyStudioInsertNode,
+  createStudioSelectConsumerNode,
+  planStudioAddCardContextObject,
+  planStudioAddCardStatusBackground,
+  resolveStudioNodeInsertionParentId,
+} from "@/utils/template-studio/node-commands";
+import {
+  getStudioPresetCreationRule,
+  getStudioPresetExistingTargetId,
+  type StudioCardContextObjectPreset,
+  type StudioCardSelectInputBundlePreset,
+  type StudioCardStatusBackgroundPreset,
+} from "@/utils/template-studio/preset-registry";
+import {
+  setStudioCardsGuideAsset,
+  setStudioCardsGuideOpacity,
+  setStudioCardsGuideVisibility,
+  setStudioTimetableGuideAsset,
+  setStudioTimetableGuideOpacity,
+  setStudioTimetableGuideVisibility,
+} from "@/utils/template-studio/timetable-guide";
+import {
+  addStudioTimetableEntry,
+  getStudioTimetableDaysWithMultipleEntries,
+  getStudioTimetableEffectiveMaxEntriesPerDay,
+  getStudioTimetableEntriesForDay,
+  removeStudioTimetableEntry,
+  resolveStudioTimetableComponentVariant,
+  setStudioTimetableEntryStatus,
+} from "@/utils/template-studio/timetable-runtime";
+import {
+  ensureStudioTimetableCapabilityStatus,
+  getStudioTimetableCapabilities,
+} from "@/utils/template-studio/timetable-capabilities";
+import { ensureStudioCapabilityVariant } from "@/utils/template-studio/status-variants";
+import { setStudioStatusCardBackgroundAssetSlot } from "@/utils/template-studio/status-card-background";
+import { createInitialStudioRuntimeValues } from "@/utils/template-studio/sample-document";
 import {
   isStudioFillParentLayout,
   resolveStudioTimetableObjectGeometry,
@@ -38,10 +91,8 @@ import {
   relinkStudioTimetablePresetInput,
   type StudioTimetablePresetInsertResult,
 } from "@/utils/template-studio/timetable-preset-commands";
-import { getStudioPresetExistingTargetId } from "@/utils/template-studio/preset-registry";
 import type { StudioTimetableCompositionPreset } from "@/utils/template-studio/preset-registry";
 import { getStudioTimetableDayComponent } from "@/utils/template-studio/component-sets";
-import { getStudioTimetableEntriesForDay } from "@/utils/template-studio/timetable-runtime";
 import {
   getStudioTimetableDayCardGeometries,
   getStudioTimetableDayCardGeometry,
@@ -73,6 +124,183 @@ export interface TimetableObjectCommandOptions {
   onOpenLayersPanel: () => void;
   onStatusMessage: (message: string) => void;
 }
+
+export type StudioAdapterPanelMode =
+  | "layers"
+  | "inputs"
+  | "presets"
+  | "timetable";
+
+export type StudioAdapterWorkspaceMode = "cards" | "timetable";
+
+export interface TimetableAdapterCommandOptions
+  extends TimetableObjectCommandOptions {
+  /** 편집기 상태를 하나의 undo 단위로 묶을 때 호출한다. */
+  captureHistory: () => void;
+  setDocument: (document: StudioTemplateDocument) => void;
+  setRuntimeValues: (
+    values:
+      | StudioRuntimeValues
+      | ((currentValues: StudioRuntimeValues) => StudioRuntimeValues),
+  ) => void;
+  activeCardComponentId: StudioTimetableComponentId;
+  componentLabelDraft: string;
+  selectedCardStatusId: StudioTimetableStatusId;
+  selectedCardVariantRootId: string | null;
+  selectedNode: StudioGraphNode | null;
+  selectedTimetableDayId: StudioTimetableDayId | null;
+  selectedTimetableDayLabel: string | null;
+  activeRuntimeDayId: StudioTimetableDayId;
+  onSetPanelMode: (mode: StudioAdapterPanelMode) => void;
+  onSetSelectedCardComponentId: (
+    componentId: StudioTimetableComponentId,
+  ) => void;
+  onSetComponentLabelDraft: (label: string) => void;
+  onSetSelectedInputId: (inputId: string | null) => void;
+  onSetSelectedRuntimeEntryIndex: (entryIndex: number) => void;
+  onSelectNode: (nodeId: string | null) => void;
+  onRestoreSelection: (nodeIds: string[], primaryNodeId: string | null) => void;
+}
+
+export interface StudioCanvasSizeUpdate {
+  width?: number;
+  height?: number;
+  backgroundColor?: string;
+}
+
+const cloneStudioDocument = (
+  document: StudioTemplateDocument,
+): StudioTemplateDocument =>
+  JSON.parse(JSON.stringify(document)) as StudioTemplateDocument;
+
+const cloneStudioRuntimeValues = (
+  values: StudioRuntimeValues,
+): StudioRuntimeValues =>
+  JSON.parse(JSON.stringify(values)) as StudioRuntimeValues;
+
+const normalizeStudioDimension = (value: number, fallback: number) => {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(1, Number(value.toFixed(2)));
+};
+
+const getUniqueAssetLabel = (
+  document: StudioTemplateDocument,
+  baseLabel: string,
+) => {
+  const labels = new Set(
+    Object.values(document.assets).map((asset) =>
+      asset.label.trim().toLowerCase(),
+    ),
+  );
+  let label = baseLabel;
+  let index = 2;
+
+  while (labels.has(label.trim().toLowerCase())) {
+    label = `${baseLabel} ${index}`;
+    index += 1;
+  }
+
+  return label;
+};
+
+const getAssetLabelFromFile = (file: File, fallbackLabel: string) => {
+  const fileLabel = file.name.replace(/\.[^.]+$/, "").trim();
+  return fileLabel || fallbackLabel;
+};
+
+const getUniqueInputLabel = (
+  document: StudioTemplateDocument,
+  baseLabel: string,
+) => {
+  const labels = new Set(
+    Object.values(document.inputs).map((input) =>
+      input.label.trim().toLowerCase(),
+    ),
+  );
+  let label = baseLabel;
+  let index = 2;
+
+  while (labels.has(label.trim().toLowerCase())) {
+    label = `${baseLabel} ${index}`;
+    index += 1;
+  }
+
+  return label;
+};
+
+const addRuntimeDefaultForInput = (
+  document: StudioTemplateDocument,
+  values: StudioRuntimeValues,
+  input: StudioInputDefinition,
+): StudioRuntimeValues => {
+  const defaultValue = getStudioInputDefaultValue(input);
+
+  if (input.scope === "global") {
+    return {
+      ...values,
+      global: {
+        ...values.global,
+        [input.id]: values.global[input.id] ?? defaultValue,
+      },
+    };
+  }
+
+  const dayIds = document.domains?.timetable?.dayIds ?? [];
+  if (input.scope === "day") {
+    return {
+      ...values,
+      days: Object.fromEntries(
+        dayIds.map((dayId) => [
+          dayId,
+          {
+            ...(values.days[dayId] ?? {}),
+            [input.id]: values.days[dayId]?.[input.id] ?? defaultValue,
+          },
+        ]),
+      ),
+    };
+  }
+
+  return {
+    ...values,
+    entries: Object.fromEntries(
+      dayIds.map((dayId) => [
+        dayId,
+        (values.entries[dayId] ?? []).map((entryValues) => ({
+          ...entryValues,
+          [input.id]: entryValues[input.id] ?? defaultValue,
+        })),
+      ]),
+    ),
+  };
+};
+
+const normalizeRuntimeValuesForCapabilities = (
+  values: StudioRuntimeValues,
+  capabilities: ReturnType<typeof getStudioTimetableCapabilities>,
+): StudioRuntimeValues => ({
+  ...values,
+  timetable: {
+    ...values.timetable,
+    entriesByDay: Object.fromEntries(
+      Object.entries(values.timetable.entriesByDay).map(([dayId, entries]) => [
+        dayId,
+        entries.map((entry) => {
+          if (!capabilities.multi.enabled && entry.statusId === "multi") {
+            return { ...entry, statusId: "online" };
+          }
+          if (
+            !capabilities.offlineMemo.enabled &&
+            entry.statusId === "offlineMemo"
+          ) {
+            return { ...entry, statusId: "offline" };
+          }
+          return entry;
+        }),
+      ]),
+    ),
+  },
+});
 /**
  * 시간표 객체와 레이어를 고치는 명령.
  *
@@ -94,7 +322,25 @@ export function useTimetableObjectCommands({
   onSelectRuntimeEntryIndex,
   onOpenLayersPanel,
   onStatusMessage,
-}: TimetableObjectCommandOptions) {
+  captureHistory,
+  setDocument,
+  setRuntimeValues,
+  activeCardComponentId,
+  componentLabelDraft,
+  selectedCardStatusId,
+  selectedCardVariantRootId,
+  selectedNode,
+  selectedTimetableDayId,
+  selectedTimetableDayLabel,
+  activeRuntimeDayId,
+  onSetPanelMode,
+  onSetSelectedCardComponentId,
+  onSetComponentLabelDraft,
+  onSetSelectedInputId,
+  onSetSelectedRuntimeEntryIndex,
+  onSelectNode,
+  onRestoreSelection,
+}: TimetableAdapterCommandOptions) {
   const updateTimetableCompositionObject = useCallback(
     (
       objectId: string,
@@ -461,6 +707,698 @@ export function useTimetableObjectCommands({
     [selectedLayerId],
   );
 
+  const selectCardComponent = useCallback(
+    (componentId: StudioTimetableComponentId) => {
+      const document = getDocument();
+      const component = document.domains?.timetable?.components[componentId];
+      if (!component) return;
+
+      onSetSelectedCardComponentId(componentId);
+      onSetComponentLabelDraft(component.label);
+      const resolution = resolveStudioTimetableComponentVariant(
+        document,
+        component,
+        selectedCardStatusId,
+      );
+      const rootNodeId = resolution?.variant.rootNodeId;
+      if (rootNodeId) onRestoreSelection([rootNodeId], rootNodeId);
+    },
+    [
+      getDocument,
+      onRestoreSelection,
+      onSetComponentLabelDraft,
+      onSetSelectedCardComponentId,
+      selectedCardStatusId,
+    ],
+  );
+
+  const duplicateSelectedCardComponent = useCallback(() => {
+    if (!activeCardComponentId) return;
+
+    let nextComponentId: StudioTimetableComponentId | null = null;
+    let failureReason: string | null = null;
+    updateDocument((nextDocument) => {
+      const result = cloneStudioTimetableComponentSet(
+        nextDocument,
+        activeCardComponentId,
+      );
+      if (result.ok) nextComponentId = result.componentId;
+      else failureReason = result.reason;
+    });
+
+    if (!nextComponentId) {
+      onStatusMessage(failureReason ?? "Component set duplicate failed");
+      return;
+    }
+
+    selectCardComponent(nextComponentId);
+    onStatusMessage("Component set duplicated");
+  }, [
+    activeCardComponentId,
+    onStatusMessage,
+    selectCardComponent,
+    updateDocument,
+  ]);
+
+  const commitSelectedCardComponentLabel = useCallback(() => {
+    if (!activeCardComponentId) return;
+    const document = getDocument();
+    const component = document.domains?.timetable?.components[
+      activeCardComponentId
+    ];
+    if (!component) return;
+
+    const nextLabel = componentLabelDraft.trim();
+    if (!nextLabel) {
+      onSetComponentLabelDraft(component.label);
+      return;
+    }
+    if (nextLabel === component.label) return;
+
+    updateDocument((nextDocument) => {
+      const nextComponent =
+        nextDocument.domains?.timetable?.components[activeCardComponentId];
+      if (nextComponent) nextComponent.label = nextLabel;
+    });
+    onSetComponentLabelDraft(nextLabel);
+    onStatusMessage("Component set renamed");
+  }, [
+    activeCardComponentId,
+    componentLabelDraft,
+    getDocument,
+    onSetComponentLabelDraft,
+    onStatusMessage,
+    updateDocument,
+  ]);
+
+  const deleteSelectedCardComponent = useCallback(() => {
+    if (!activeCardComponentId) return;
+    const reason = getStudioTimetableComponentSetDeleteReason(
+      getDocument(),
+      activeCardComponentId,
+    );
+    if (reason) {
+      onStatusMessage(reason);
+      return;
+    }
+    if (!window.confirm("Delete this unused component set?")) return;
+
+    let failureReason: string | null = null;
+    updateDocument((nextDocument) => {
+      const result = deleteStudioTimetableComponentSet(
+        nextDocument,
+        activeCardComponentId,
+      );
+      if (!result.ok) failureReason = result.reason;
+    });
+    if (failureReason) {
+      onStatusMessage(failureReason);
+      return;
+    }
+
+    const fallbackComponentId =
+      getDocument().domains?.timetable?.entryComponentId;
+    if (fallbackComponentId) selectCardComponent(fallbackComponentId);
+    onStatusMessage("Component set deleted");
+  }, [
+    activeCardComponentId,
+    getDocument,
+    onStatusMessage,
+    selectCardComponent,
+    updateDocument,
+  ]);
+
+  const assignComponentSetToSelectedDay = useCallback(
+    (componentId: StudioTimetableComponentId) => {
+      if (!selectedTimetableDayId) return;
+      updateDocument((nextDocument) => {
+        const timetable = nextDocument.domains?.timetable;
+        const day = timetable?.days[selectedTimetableDayId];
+        if (!timetable || !day || !timetable.components[componentId]) return;
+
+        if (componentId === timetable.entryComponentId) delete day.componentId;
+        else day.componentId = componentId;
+      });
+      onStatusMessage(
+        `${selectedTimetableDayLabel ?? "Day"} component set updated`,
+      );
+    },
+    [
+      onStatusMessage,
+      selectedTimetableDayId,
+      selectedTimetableDayLabel,
+      updateDocument,
+    ],
+  );
+
+  const updateTimetableCanvasSize = useCallback(
+    (nextSize: StudioCanvasSizeUpdate) => {
+      updateDocument((nextDocument) => {
+        const timetable = nextDocument.domains?.timetable;
+        if (!timetable) return;
+        const currentCanvas = timetable.canvas ?? {
+          width: 4000,
+          height: 2250,
+          backgroundColor: "#eef2f7",
+        };
+        timetable.canvas = {
+          width: normalizeStudioDimension(
+            nextSize.width ?? currentCanvas.width,
+            currentCanvas.width,
+          ),
+          height: normalizeStudioDimension(
+            nextSize.height ?? currentCanvas.height,
+            currentCanvas.height,
+          ),
+          backgroundColor:
+            nextSize.backgroundColor ?? currentCanvas.backgroundColor,
+        };
+      });
+    },
+    [updateDocument],
+  );
+
+  const addCardContextObject = useCallback(
+    (preset: StudioCardContextObjectPreset) => {
+      const document = getDocument();
+      const existingNodeId = getStudioPresetExistingTargetId(document, preset, {
+        cardRootNodeId: selectedCardVariantRootId,
+      });
+      if (existingNodeId) {
+        onSelectNode(existingNodeId);
+        onSetPanelMode("layers");
+        onStatusMessage(`Selected existing ${preset.label}`);
+        return;
+      }
+
+      const plan = planStudioAddCardContextObject(
+        document,
+        preset,
+        selectedNode,
+        selectedCardVariantRootId,
+      );
+      updateDocument((nextDocument) => {
+        applyStudioInsertNode(nextDocument, plan);
+      });
+      onSelectNode(plan.node.id);
+      onSetPanelMode("layers");
+      onStatusMessage(`Added ${preset.label}`);
+    },
+    [
+      getDocument,
+      onSelectNode,
+      onSetPanelMode,
+      onStatusMessage,
+      selectedCardVariantRootId,
+      selectedNode,
+      updateDocument,
+    ],
+  );
+
+  const addCardStatusBackgroundObject = useCallback(
+    (preset: StudioCardStatusBackgroundPreset) => {
+      const document = getDocument();
+      const existingNodeId = getStudioPresetExistingTargetId(document, preset, {
+        cardRootNodeId: selectedCardVariantRootId,
+      });
+      if (existingNodeId) {
+        onSelectNode(existingNodeId);
+        onSetPanelMode("layers");
+        onStatusMessage(`Selected existing ${preset.label}`);
+        return;
+      }
+
+      const plan = planStudioAddCardStatusBackground(
+        document,
+        preset,
+        selectedNode,
+        selectedCardVariantRootId,
+      );
+      updateDocument((nextDocument) => {
+        applyStudioInsertNode(nextDocument, plan);
+      });
+      onSelectNode(plan.node.id);
+      onSetPanelMode("layers");
+      onStatusMessage(`Added ${preset.label}`);
+    },
+    [
+      getDocument,
+      onSelectNode,
+      onSetPanelMode,
+      onStatusMessage,
+      selectedCardVariantRootId,
+      selectedNode,
+      updateDocument,
+    ],
+  );
+
+  const addCardSelectInputBundle = useCallback(
+    (preset: StudioCardSelectInputBundlePreset) => {
+      const document = getDocument();
+      const inputId = createStudioId("input");
+      const parentId = resolveStudioNodeInsertionParentId(
+        document,
+        selectedNode,
+        selectedCardVariantRootId,
+      );
+      const isSticker = preset.bundleKind === "stickerSelect";
+      const creationRule = getStudioPresetCreationRule(preset);
+      const inputLabelBase =
+        creationRule.mode === "repeatable"
+          ? creationRule.labelBase
+          : isSticker
+            ? "Entry Sticker"
+            : "Entry Select";
+      const inputLabel = getUniqueInputLabel(document, inputLabelBase);
+      const options: StudioSelectOption[] = isSticker
+        ? [
+            { value: "none", label: "None" },
+            { value: "spark", label: "Spark" },
+            { value: "heart", label: "Heart" },
+          ]
+        : [
+            { value: "option-a", label: "Option A" },
+            { value: "option-b", label: "Option B" },
+          ];
+      const input: Extract<StudioInputDefinition, { type: "select" }> = {
+        id: inputId,
+        type: "select",
+        scope: "entry",
+        label: inputLabel,
+        defaultValue: isSticker ? "spark" : "option-a",
+        options,
+      };
+      let nextPrimaryNodeId: string | null = null;
+
+      updateDocument((nextDocument) => {
+        nextDocument.inputs[inputId] = input;
+        const labelNodeId = createStudioSelectConsumerNode(nextDocument, {
+          parentId,
+          input,
+          kind: "text",
+          label: isSticker ? "Selected Sticker Label" : `${inputLabel} Label`,
+        });
+        nextPrimaryNodeId = labelNodeId;
+
+        if (isSticker) {
+          nextPrimaryNodeId = createStudioSelectConsumerNode(nextDocument, {
+            parentId,
+            input,
+            kind: "image",
+            label: "Sticker Preview",
+            assetByOption: {
+              none: null,
+              spark:
+                Object.values(nextDocument.assets).find(
+                  (asset) => asset.label.trim().toLowerCase() === "spark sticker",
+                )?.id ?? null,
+              heart:
+                Object.values(nextDocument.assets).find(
+                  (asset) => asset.label.trim().toLowerCase() === "heart sticker",
+                )?.id ?? null,
+            },
+          });
+        }
+      });
+
+      setRuntimeValues((currentValues) =>
+        addRuntimeDefaultForInput(document, currentValues, input),
+      );
+      onSetSelectedInputId(inputId);
+      if (nextPrimaryNodeId) {
+        onSelectNode(nextPrimaryNodeId);
+        onSetPanelMode("layers");
+      } else {
+        onSetPanelMode("inputs");
+      }
+      onStatusMessage(`Added ${preset.label}`);
+    },
+    [
+      getDocument,
+      onSelectNode,
+      onSetPanelMode,
+      onSetSelectedInputId,
+      onStatusMessage,
+      selectedCardVariantRootId,
+      selectedNode,
+      setRuntimeValues,
+      updateDocument,
+    ],
+  );
+
+  const createTemplateAssetFromDataUrl = useCallback(
+    (
+      file: File,
+      src: string,
+      fallbackLabel: string,
+      onAssetCreated?: (
+        nextDocument: StudioTemplateDocument,
+        assetId: string,
+      ) => void,
+    ) => {
+      if (!src) return;
+      const assetId = createStudioId("asset");
+      const baseLabel = getAssetLabelFromFile(file, fallbackLabel);
+      updateDocument((nextDocument) => {
+        nextDocument.assets[assetId] = {
+          id: assetId,
+          label: getUniqueAssetLabel(nextDocument, baseLabel),
+          src,
+        };
+        onAssetCreated?.(nextDocument, assetId);
+      });
+      onStatusMessage(`Uploaded ${baseLabel}`);
+    },
+    [onStatusMessage, updateDocument],
+  );
+
+  const uploadGuide = useCallback(
+    (workspaceMode: StudioAdapterWorkspaceMode, file: File) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const imageSrc = String(reader.result ?? "");
+        if (!imageSrc) return;
+        createTemplateAssetFromDataUrl(
+          file,
+          imageSrc,
+          workspaceMode === "cards" ? "Cards Guide" : "Timetable Guide",
+          (nextDocument, assetId) => {
+            if (workspaceMode === "cards") {
+              setStudioCardsGuideAsset(nextDocument, assetId);
+            } else {
+              setStudioTimetableGuideAsset(nextDocument, assetId);
+            }
+          },
+        );
+      };
+      reader.readAsDataURL(file);
+    },
+    [createTemplateAssetFromDataUrl],
+  );
+
+  const removeGuide = useCallback(
+    (workspaceMode: StudioAdapterWorkspaceMode) => {
+      updateDocument((nextDocument) => {
+        if (workspaceMode === "cards") {
+          setStudioCardsGuideAsset(nextDocument, null);
+        } else {
+          setStudioTimetableGuideAsset(nextDocument, null);
+        }
+      });
+      onStatusMessage(
+        workspaceMode === "cards"
+          ? "Removed cards guide"
+          : "Removed timetable guide",
+      );
+    },
+    [onStatusMessage, updateDocument],
+  );
+
+  const setGuideVisibility = useCallback(
+    (workspaceMode: StudioAdapterWorkspaceMode, visible: boolean) => {
+      updateDocument(
+        (nextDocument) => {
+          if (workspaceMode === "cards") {
+            setStudioCardsGuideVisibility(nextDocument, visible);
+          } else {
+            setStudioTimetableGuideVisibility(nextDocument, visible);
+          }
+        },
+        { history: false },
+      );
+    },
+    [updateDocument],
+  );
+
+  const setGuideOpacity = useCallback(
+    (workspaceMode: StudioAdapterWorkspaceMode, opacity: number) => {
+      updateDocument(
+        (nextDocument) => {
+          if (workspaceMode === "cards") {
+            setStudioCardsGuideOpacity(nextDocument, opacity);
+          } else {
+            setStudioTimetableGuideOpacity(nextDocument, opacity);
+          }
+        },
+        { history: false },
+      );
+    },
+    [updateDocument],
+  );
+
+  const linkTimetableAssetSlotToInput = useCallback(
+    ({
+      objectId,
+      assetId,
+      inputLabel,
+      fit,
+      defaultFit = "cover",
+      label,
+      onUpdateInput,
+    }: {
+      objectId: string;
+      assetId?: string | null;
+      inputLabel: string;
+      fit?: StudioImageFit;
+      defaultFit?: StudioImageFit;
+      label: string;
+      onUpdateInput: (
+        object: StudioTimetableCompositionObject,
+        inputId: string,
+        fit: StudioImageFit,
+      ) => void;
+    }) => {
+      const currentDocument = getDocument();
+      const defaultUrl = assetId
+        ? (currentDocument.assets[assetId]?.src ?? "")
+        : "";
+
+      updateDocument((nextDocument) => {
+        const timetable = nextDocument.domains?.timetable;
+        if (!timetable) return;
+        const composition = ensureStudioTimetableComposition(timetable);
+        const currentObject = composition.objects[objectId];
+        if (!currentObject) return;
+
+        const { inputId } = ensureStudioPresetImageInput(nextDocument, {
+          label: inputLabel,
+          placeholder: "Paste image URL",
+          defaultUrl,
+        });
+        onUpdateInput(currentObject, inputId, fit ?? defaultFit);
+      });
+      onStatusMessage(`Linked ${label} to input`);
+    },
+    [getDocument, onStatusMessage, updateDocument],
+  );
+
+  const createTimetableAssetForSlot = useCallback(
+    ({
+      file,
+      src,
+      fallbackLabel,
+      objectId,
+      fit,
+      defaultFit = "cover",
+      onUpdateAsset,
+    }: {
+      file: File;
+      src: string;
+      fallbackLabel: string;
+      objectId: string;
+      fit?: StudioImageFit;
+      defaultFit?: StudioImageFit;
+      onUpdateAsset: (
+        object: StudioTimetableCompositionObject,
+        assetId: string | null,
+        fit: StudioImageFit,
+      ) => void;
+    }) => {
+      createTemplateAssetFromDataUrl(
+        file,
+        src,
+        fallbackLabel,
+        (nextDocument, nextAssetId) => {
+          const timetable = nextDocument.domains?.timetable;
+          if (!timetable) return;
+          const composition = ensureStudioTimetableComposition(timetable);
+          const currentObject = composition.objects[objectId];
+          if (!currentObject) return;
+          onUpdateAsset(currentObject, nextAssetId, fit ?? defaultFit);
+        },
+      );
+    },
+    [createTemplateAssetFromDataUrl],
+  );
+
+  const createCardAssetForSlot = useCallback(
+    ({
+      file,
+      src,
+      fallbackLabel,
+      nodeId,
+      fit = "cover",
+    }: {
+      file: File;
+      src: string;
+      fallbackLabel: string;
+      nodeId: string;
+      fit?: StudioImageFit;
+    }) => {
+      createTemplateAssetFromDataUrl(
+        file,
+        src,
+        fallbackLabel,
+        (nextDocument, nextAssetId) => {
+          const currentNode = nextDocument.graph.nodes[nodeId];
+          if (!currentNode) return;
+          setStudioStatusCardBackgroundAssetSlot(
+            currentNode,
+            nextAssetId,
+            fit,
+          );
+        },
+      );
+    },
+    [createTemplateAssetFromDataUrl],
+  );
+
+  const resetRuntimeValues = useCallback(() => {
+    captureHistory();
+    setRuntimeValues(createInitialStudioRuntimeValues(getDocument()));
+  }, [captureHistory, getDocument, setRuntimeValues]);
+
+  const addEntryToActiveDay = useCallback(() => {
+    if (!activeRuntimeDayId) return;
+    const document = getDocument();
+    const runtimeValues = getRuntimeValues();
+    const activeEntries = getStudioTimetableEntriesForDay(
+      document,
+      runtimeValues,
+      activeRuntimeDayId,
+    );
+    if (
+      activeEntries.length >= getStudioTimetableEffectiveMaxEntriesPerDay(document)
+    ) {
+      return;
+    }
+
+    captureHistory();
+    setRuntimeValues((currentValues) =>
+      addStudioTimetableEntry(
+        document,
+        currentValues,
+        activeRuntimeDayId,
+        createStudioId("entry"),
+      ),
+    );
+    onSetSelectedRuntimeEntryIndex(activeEntries.length);
+    onSetPanelMode("timetable");
+  }, [
+    activeRuntimeDayId,
+    captureHistory,
+    getDocument,
+    getRuntimeValues,
+    onSetPanelMode,
+    onSetSelectedRuntimeEntryIndex,
+    setRuntimeValues,
+  ]);
+
+  const removeEntry = useCallback(
+    (dayId: string, entryIndex: number) => {
+      captureHistory();
+      setRuntimeValues((currentValues) =>
+        removeStudioTimetableEntry(
+          getDocument(),
+          currentValues,
+          dayId,
+          entryIndex,
+        ),
+      );
+      onSetSelectedRuntimeEntryIndex(Math.max(0, entryIndex - 1));
+    },
+    [
+      captureHistory,
+      getDocument,
+      onSetSelectedRuntimeEntryIndex,
+      setRuntimeValues,
+    ],
+  );
+
+  const updateEntryStatus = useCallback(
+    (
+      dayId: string,
+      entryIndex: number,
+      statusId: StudioTimetableStatusId,
+    ) => {
+      captureHistory();
+      setRuntimeValues((currentValues) =>
+        setStudioTimetableEntryStatus(
+          getDocument(),
+          currentValues,
+          dayId,
+          entryIndex,
+          statusId,
+        ),
+      );
+    },
+    [captureHistory, getDocument, setRuntimeValues],
+  );
+
+  const setTimetableCapability = useCallback(
+    (capabilityKey: StudioTimetableCapabilityKey, enabled: boolean) => {
+      const currentDocument = getDocument();
+      const timetable = currentDocument.domains?.timetable;
+      if (!timetable) return;
+
+      const currentCapabilities = getStudioTimetableCapabilities(timetable);
+      if (currentCapabilities[capabilityKey].enabled === enabled) return;
+      if (
+        capabilityKey === "multi" &&
+        !enabled &&
+        getStudioTimetableDaysWithMultipleEntries(getRuntimeValues()).length > 0
+      ) {
+        onStatusMessage("Remove extra entries before disabling Multi Status");
+        return;
+      }
+
+      const nextCapabilities = {
+        ...currentCapabilities,
+        [capabilityKey]: { enabled },
+      };
+      const nextDocument = cloneStudioDocument(currentDocument);
+      const nextTimetable = nextDocument.domains?.timetable;
+      if (!nextTimetable) return;
+
+      captureHistory();
+      nextTimetable.capabilities = nextCapabilities;
+      if (enabled) {
+        ensureStudioTimetableCapabilityStatus(nextTimetable, capabilityKey);
+        ensureStudioCapabilityVariant(nextDocument, capabilityKey);
+      }
+
+      const nextRuntimeValues = normalizeRuntimeValuesForCapabilities(
+        cloneStudioRuntimeValues(getRuntimeValues()),
+        nextCapabilities,
+      );
+      setDocument(nextDocument);
+      setRuntimeValues(nextRuntimeValues);
+      onStatusMessage(
+        `${capabilityKey === "multi" ? "Multi" : "Offline memo"} ${
+          enabled ? "enabled" : "disabled"
+        }`,
+      );
+    },
+    [
+      captureHistory,
+      getDocument,
+      getRuntimeValues,
+      onStatusMessage,
+      setDocument,
+      setRuntimeValues,
+    ],
+  );
+
   /**
    * 요일 카드를 골랐을 때 미리보기가 그 요일을 보게 한다.
    *
@@ -478,5 +1416,27 @@ export function useTimetableObjectCommands({
     updateDayCardsLayout: updateTimetableDayCardsLayout,
     moveCanvasLayer: moveTimetableCanvasLayer,
     resolveDragLayerId: resolveTimetableDragLayerId,
+    selectCardComponent,
+    duplicateSelectedCardComponent,
+    commitSelectedCardComponentLabel,
+    deleteSelectedCardComponent,
+    assignComponentSetToSelectedDay,
+    updateTimetableCanvasSize,
+    addCardContextObject,
+    addCardStatusBackgroundObject,
+    addCardSelectInputBundle,
+    createTemplateAssetFromDataUrl,
+    uploadGuide,
+    removeGuide,
+    setGuideVisibility,
+    setGuideOpacity,
+    linkTimetableAssetSlotToInput,
+    createTimetableAssetForSlot,
+    createCardAssetForSlot,
+    resetRuntimeValues,
+    addEntryToActiveDay,
+    removeEntry,
+    updateEntryStatus,
+    setTimetableCapability,
   };
 }

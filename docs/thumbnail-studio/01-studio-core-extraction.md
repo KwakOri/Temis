@@ -1,6 +1,6 @@
 # Phase 1. Studio Core와 Adapter 분리
 
-상태: 구현 진행 중. §14 완료 조건 충족, §12 9번 마무리 단계 (→ [§16 구현 현황](#16-구현-현황))  
+상태: 구현 완료. §14 완료 조건과 §12 9번 완료 (→ [§16 구현 현황](#16-구현-현황))
 선행 단계:
 [Phase 0 — 제품 계약과 문서 모델](./00-product-contract.md),
 [Phase 0A — PNG 렌더링 선행 스파이크](./00a-rendering-feasibility-spike.md)  
@@ -502,7 +502,7 @@ Phase 1에서는 최소 골격만 만든다.
 | 6. settings frame | 완료 | `settings/*` 4개 파일 |
 | 7. 일반 graph용 layer panel | 완료 | `layers/studio-layer-panel.tsx` |
 | 8. selection/history/clipboard 훅 | 완료 | `src/hooks/studio/*` |
-| 9. Timetable Adapter 형태로 정리 | 진행 중 | → §16.4 |
+| 9. Timetable Adapter 형태로 정리 | 완료 | `_hooks/use-timetable-object-commands.ts` → §16.4 |
 | 10. 최소 Thumbnail Adapter | 완료 | `thumbnail-studio-client.tsx` (643줄) |
 
 되돌리기 한 단위는 `src/stores/studio/studio-editor-store.ts` 한 곳이 소유한다.
@@ -544,37 +544,26 @@ Phase 1에서는 최소 골격만 만든다.
 내용은 [Phase 2 §20.4](./02-basic-thumbnail-editor.md#204-공통-렌더러의-시간표-의존-정리)에
 있다.
 
-### 16.4 9번에 남은 정리
+### 16.4 9번 완료
 
-`template-studio-client.tsx`는 10,596줄에서 4,020줄로 줄었다. Phase 2에서 배경 자리
-판단 함수를 넘기는 배선이 붙어 4,026줄이 됐다. 본문 3,441줄을
-성격별로 묶으면 다음과 같다.
+`template-studio-client.tsx`는 10,596줄에서 현재 3,573줄로 줄었다. §12 9번의
+시간표·카드 명령과 이미지 자리의 문서 변경 배선은
+`_hooks/use-timetable-object-commands.ts`가 소유한다.
 
-| 묶음 | 줄수 | 블록 | 판단 |
-| --- | --- | --- | --- |
-| 시간표·카드 명령 | 756 | 48 | 남은 큰 묶음. 아래 1번 |
-| 메인 JSX return | 681 | 1 | 배선이라 남는다. 아래 3번 |
-| `render*` 화면 그리기 | 325 | 9 | 이미지 자리만 남았다. 아래 2번 |
-| 노드·그래프 명령 | 274 | 15 | 대부분 순수 함수 감싸기 |
-| 입력 관련 | 194 | 15 | 남는 것이 맞다 |
-| `build*` 섹션 조립 | 182 | 4 | 남는 것이 맞다 |
-| 잔 블록 92개 | 1,025 | 92 | 문서 상태 파생값이 대부분 |
+- Component Set 선택·복제·이름 변경·삭제·요일 할당
+- 카드 컨텍스트/상태 배경/선택 입력 프리셋 삽입
+- 일정 추가·삭제·상태 변경과 timetable capability 전환
+- 카드·시간표 가이드 에셋 업로드·삭제·표시·투명도 변경
+- 시간표 캔버스 크기 변경
+- 시간표 이미지 자리의 입력 연결·에셋 업로드와 상태 카드 배경 에셋 생성
 
-이미 옮긴 것은 §16.5에 있다. 남은 것:
+`render*` 함수와 메인 JSX return은 화면 조립과 셸 배선으로 남긴다. 이 함수들은
+어댑터 훅이 제공하는 명령을 호출할 뿐 문서를 직접 바꾸지 않는다. 입력 편집,
+공통 그래프 명령, 인스펙터 섹션 조립, 파생 상태 계산도 각자의 현재 소유 경계를
+유지한다.
 
-1. **시간표·카드 명령 756줄(48블록).** Component Set 명령, 카드 프리셋 삽입,
-   일정 늘리기·줄이기, capability, 가이드 이미지가 남았다. 객체·레이어 명령은
-   어댑터 훅으로 옮겼다. 남은 것도 같은 훅 계열로 모으면 되지만, 하나하나가 작고
-   `updateDocument` 감싸기라 이득은 줄수만큼 크지 않다.
-2. **`renderTimetableAssetSlot` 133줄과 `renderStatusCardBackgroundAssetSlot`
-   58줄.** 표시부는 이미 공통 칸으로 나가 있고 남은 것은 문서를 바꾸는 배선이다.
-   컴포넌트로 옮겨도 props만 늘어난다. 그 배선을 명령 쪽으로 옮긴 뒤에 다룬다.
-3. **메인 JSX return 681줄.** 판단이 들어 있던 부분(캔버스에서 무엇을 끌 수
-   있는지)은 순수 함수로 뺐다. 남은 것은 셸에 값을 넘기는 배선이라 슬롯별로 쪼개도
-   props 이름만 옮겨 다닌다. 지금은 나누지 않는 것으로 판단했다.
-
-바닥은 3,000줄 근처로 본다. 셸·훅·store에 넘길 props 배선과 문서 상태 파생값은
-어댑터가 갖고 있어야 하므로 그 아래로는 줄지 않는다.
+따라서 Phase 1의 §12 9번은 완료로 닫고, 이후에는 Phase 2 기능 범위에서 필요한
+새 명령만 같은 어댑터 훅에 추가한다.
 
 ### 16.5 client에서 옮긴 것
 
@@ -589,6 +578,7 @@ Phase 1에서는 최소 골격만 만든다.
 | 저장·발행·미리보기 | `use-studio-template-persistence` + `asset-sync` | 같은 순서가 세 곳에 적혀 있어 새 경로에서 사진 올리기를 빼먹기 쉬웠다 |
 | 편집기 단축키 | `use-studio-keyboard-shortcuts` + `keyboard-shortcuts` | 단축키 표 200줄이 effect 안에 있어 검증할 수 없었다 |
 | 시간표 객체·레이어 명령 | `_hooks/use-timetable-object-commands` | 요일 카드 보정 좌표 뺄셈이 client 안에 있었다 |
+| 시간표·카드 어댑터 명령 | `_hooks/use-timetable-object-commands` | Component Set, 카드 프리셋, 일정·capability, 가이드와 이미지 자리 변경을 client에서 분리했다 |
 | 요일·일정 편집 패널 | `studio-timetable-day-panel` | 일정이 여러 개일 때 상태를 못 바꾸는 규칙에 가드가 없었다 |
 | 캔버스 끌기 허용 판단 | `layer-drag` | 판단 75줄이 메인 JSX 안에 박혀 있었다 |
 
