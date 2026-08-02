@@ -1,6 +1,5 @@
 import type { NextConfig } from "next";
-// @ts-ignore
-import withPWA from "next-pwa";
+import withPWA from "@ducanh2912/next-pwa";
 
 const nextConfig: NextConfig = {
   eslint: {
@@ -11,21 +10,25 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withPWA({
+const withPWAConfig = withPWA({
   dest: "public",
   register: true,
-  skipWaiting: true,
   disable: process.env.NODE_ENV === "development",
-  runtimeCaching: [
-    {
-      urlPattern: /^https?.*/,
-      handler: "NetworkFirst",
-      options: {
-        cacheName: "offlineCache",
-        expiration: {
-          maxEntries: 200,
+  workboxOptions: {
+    skipWaiting: true,
+    runtimeCaching: [
+      {
+        urlPattern: /^https?.*/,
+        handler: "NetworkFirst",
+        options: {
+          cacheName: "offlineCache",
+          expiration: {
+            maxEntries: 200,
+          },
         },
       },
-    },
-  ],
-})(nextConfig);
+    ],
+  },
+});
+
+export default withPWAConfig(nextConfig);
