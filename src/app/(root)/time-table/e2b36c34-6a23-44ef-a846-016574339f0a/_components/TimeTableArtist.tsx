@@ -20,7 +20,7 @@ const TimeTableArtist = ({
         width: 4000,
         height: 2250,
       }}
-      className="absolute z-40 flex justify-center items-center "
+      className="absolute z-30 flex justify-center items-center "
     >
       <div
         style={{
