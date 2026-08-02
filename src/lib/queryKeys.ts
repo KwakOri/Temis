@@ -18,14 +18,19 @@ export const queryKeys = {
       [...queryKeys.template.all, "detail", id] as const,
     shopDetail: (id: string | number) =>
       [...queryKeys.template.all, "shopDetail", id] as const,
-    v2Templates: (params?: { limit?: number; offset?: number; search?: string }) =>
-      [...queryKeys.template.all, "v2Templates", params] as const,
+    v2Templates: (params?: {
+      limit?: number;
+      offset?: number;
+      search?: string;
+    }) => [...queryKeys.template.all, "v2Templates", params] as const,
     renderConfig: (id: string | number) =>
       [...queryKeys.template.all, "renderConfig", id] as const,
     templateStudioPreview: (id: string | number) =>
       [...queryKeys.template.all, "templateStudioPreview", id] as const,
     templateStudioRuntime: (id: string | number) =>
       [...queryKeys.template.all, "templateStudioRuntime", id] as const,
+    thumbnailStudioRuntime: (id: string | number) =>
+      [...queryKeys.template.all, "thumbnailStudioRuntime", id] as const,
   },
   customOrder: {
     all: ["customOrder"] as const,
@@ -75,7 +80,12 @@ export const queryKeys = {
     userSchedule: (teamId: string, weekStartDate: string) =>
       [...queryKeys.team.all, "userSchedule", teamId, weekStartDate] as const,
     schedulesByWeek: (teamId: string, weekStartDate: string) =>
-      [...queryKeys.team.all, "schedulesByWeek", teamId, weekStartDate] as const,
+      [
+        ...queryKeys.team.all,
+        "schedulesByWeek",
+        teamId,
+        weekStartDate,
+      ] as const,
   },
   admin: {
     all: ["admin"] as const,
@@ -105,7 +115,7 @@ export const queryKeys = {
     customOrdersRoot: () => [...queryKeys.admin.all, "customOrders"] as const,
     customOrders: (params?: GetCustomOrdersParams) =>
       params
-        ? [...queryKeys.admin.customOrdersRoot(), params] as const
+        ? ([...queryKeys.admin.customOrdersRoot(), params] as const)
         : queryKeys.admin.customOrdersRoot(),
     calendarRoot: (type: "custom" | "legacy") =>
       [...queryKeys.admin.all, "calendar", type] as const,
@@ -146,7 +156,11 @@ export const queryKeys = {
     royaltySettingsArtists: () =>
       [...queryKeys.admin.all, "royaltySettingsArtists"] as const,
     royaltySettingsArtistTemplates: (artistId?: string) =>
-      [...queryKeys.admin.all, "royaltySettingsArtistTemplates", artistId] as const,
+      [
+        ...queryKeys.admin.all,
+        "royaltySettingsArtistTemplates",
+        artistId,
+      ] as const,
     royaltySettingsTemplate: (templateId?: string) =>
       [...queryKeys.admin.all, "royaltySettingsTemplate", templateId] as const,
   },

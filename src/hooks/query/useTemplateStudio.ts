@@ -152,6 +152,18 @@ export const useTemplateStudioRuntime = (templateId?: string) =>
     gcTime: 5 * 60 * 1000,
   });
 
+export const useThumbnailStudioRuntime = (templateId?: string) =>
+  useQuery({
+    queryKey: queryKeys.template.thumbnailStudioRuntime(
+      templateId || "unknown",
+    ),
+    queryFn: () =>
+      TemplateStudioRuntimeService.getThumbnailRuntime(templateId!),
+    enabled: Boolean(templateId),
+    staleTime: 0,
+    gcTime: 5 * 60 * 1000,
+  });
+
 export const useSaveTemplateStudioRuntime = () => {
   const queryClient = useQueryClient();
 

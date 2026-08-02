@@ -1483,6 +1483,19 @@ export function ThumbnailStudioClient({
                   <span className="text-[11px] font-semibold text-white/70">
                     {document.canvas.width} × {document.canvas.height}
                   </span>
+                  {templateId ? (
+                    <button
+                      className="h-7 rounded-md bg-white/10 px-2 text-[10px] font-bold text-white transition hover:bg-white/20"
+                      type="button"
+                      onClick={() =>
+                        router.push(
+                          `/admin/thumbnail-studio/${templateId}/preview`,
+                        )
+                      }
+                    >
+                      Runtime preview
+                    </button>
+                  ) : null}
                   <button
                     aria-label="Close draft preview"
                     className="flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-white transition hover:bg-white/20"

@@ -31,6 +31,7 @@ interface StudioRuntimeInputFieldProps extends StudioRuntimeFieldBaseProps {
   type?: React.HTMLInputTypeAttribute;
   placeholder?: string;
   autoComplete?: string;
+  maxLength?: number;
   onValueChange: (value: string) => void;
 }
 
@@ -38,6 +39,7 @@ interface StudioRuntimeTextareaFieldProps extends StudioRuntimeFieldBaseProps {
   control: "textarea";
   value: string;
   placeholder?: string;
+  maxLength?: number;
   rows?: number;
   onValueChange: (value: string) => void;
 }
@@ -76,6 +78,7 @@ export function StudioRuntimeField(props: StudioRuntimeFieldProps) {
     "aria-invalid": props.error ? true : undefined,
     disabled: props.disabled,
     id: controlId,
+    maxLength: props.control === "select" ? undefined : props.maxLength,
     required: props.required,
   };
 

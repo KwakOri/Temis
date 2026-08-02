@@ -7,6 +7,7 @@ import {
   StudioAsset,
   StudioAssetSlot,
   StudioGraphNode,
+  StudioImageFit,
   StudioRuntimeValues,
   StudioStyleRecord,
   StudioTemplateDocument,
@@ -29,7 +30,6 @@ import {
   getStudioImageBorderRadius,
   getStudioImageObjectPosition,
 } from "@/utils/thumbnail-studio/image-object-position";
-
 import { StudioWebFontLoader } from "@/components/studio/canvas/studio-web-font-loader";
 import { StudioText } from "@/components/studio/text/studio-text";
 
@@ -54,6 +54,15 @@ interface StudioRendererProps {
   onSelectNode?: (
     nodeId: string,
     event?: React.MouseEvent<HTMLDivElement>,
+  ) => void;
+  /** Runtime-only image controls. The document itself remains immutable. */
+  runtimeImageOverrides?: Record<
+    string,
+    { fit?: StudioImageFit; objectPosition?: string }
+  >;
+  backgroundOverride?: string | null;
+  onFontLoadStateChange?: (
+    state: import("./studio-web-font-loader").StudioWebFontLoadState,
   ) => void;
 }
 
@@ -115,6 +124,9 @@ export function StudioRenderer({
   selectedNodeIds = [],
   resolveNodeBackgroundAssetSlot,
   onSelectNode,
+  runtimeImageOverrides,
+  backgroundOverride,
+  onFontLoadStateChange,
 }: StudioRendererProps) {
   const selectedNodeIdsSet = new Set(selectedNodeIds);
 
@@ -208,6 +220,11 @@ export function StudioRenderer({
           nodeRuntimeContext,
         );
         const objectPosition = getStudioImageObjectPosition(styleRecord);
+        const imageInputId =
+          node.binding?.kind === "inputImage" ? node.binding.inputId : null;
+        const runtimeImageOverride = imageInputId
+          ? runtimeImageOverrides?.[imageInputId]
+          : undefined;
 
         return (
           <div key={node.id} {...commonProps}>
@@ -220,8 +237,12 @@ export function StudioRenderer({
                 src={asset.src}
                 style={{
                   objectFit: node.fit ?? "cover",
-                  objectPosition:
-                    formatStudioImageObjectPosition(objectPosition),
+                  objectPosition: runtimeImageOverride?.objectPosition
+                    ? runtimeImageOverride.objectPosition
+                    : formatStudioImageObjectPosition(objectPosition),
+                  ...(runtimeImageOverride?.fit
+                    ? { objectFit: runtimeImageOverride.fit }
+                    : {}),
                   borderRadius: getStudioImageBorderRadius(styleRecord),
                 }}
               />
@@ -319,10 +340,16 @@ export function StudioRenderer({
       style={{
         width: document.canvas.width,
         height: document.canvas.height,
-        background: document.canvas.background,
+        background:
+          backgroundOverride === undefined
+            ? document.canvas.background
+            : (backgroundOverride ?? "transparent"),
       }}
     >
-      <StudioWebFontLoader document={document} />
+      <StudioWebFontLoader
+        document={document}
+        onLoadStateChange={onFontLoadStateChange}
+      />
       {getStudioPaintOrder(rootNodeIds ?? document.graph.rootNodeIds)
         .map((nodeId) => document.graph.nodes[nodeId])
         .filter(Boolean)

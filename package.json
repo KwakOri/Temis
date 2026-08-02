@@ -72,6 +72,7 @@
     "check:studio:transform-commands": "tsx scripts/check-studio-transform-commands.ts",
     "check:studio:align-commands": "tsx scripts/check-studio-align-commands.ts",
     "check:studio:thumbnail-shell": "tsx scripts/check-studio-thumbnail-shell.tsx",
+    "check:thumbnail-studio:runtime": "tsx scripts/check-thumbnail-studio-runtime.ts",
     "check:thumbnail-studio:node-defaults": "tsx scripts/check-thumbnail-studio-node-defaults.ts",
     "check:thumbnail-studio:editor": "tsx scripts/check-thumbnail-studio-editor.tsx",
     "check:thumbnail-studio:input-commands": "tsx scripts/check-thumbnail-studio-input-commands.ts",

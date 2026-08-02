@@ -1,6 +1,6 @@
 # Phase 5. 사용자 런타임과 PNG 내보내기
 
-상태: 계획 완료, 구현 전  
+상태: 구현 완료(코드·자동 검증·route 렌더 확인)
 선행 단계:
 [Phase 0A — PNG 렌더링 선행 스파이크](./00a-rendering-feasibility-spike.md),
 [Phase 4 — 입력, 이미지와 에셋](./04-inputs-assets.md)  

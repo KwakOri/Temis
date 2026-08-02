@@ -11,6 +11,7 @@ import {
   pruneStudioRuntimeValuesForDocument,
   reconcileStudioUserRuntimeValues,
 } from "@/utils/template-studio/runtime-state";
+import { createStudioInitialRuntimeValues } from "@/utils/template-studio/input-values";
 import { stripStudioRuntimeImageValues } from "@/utils/template-studio/runtime-image-strip";
 import {
   MAX_RUNTIME_PAYLOAD_BYTES,
@@ -20,6 +21,8 @@ import {
   isStudioRuntimeValuesLike,
   validateStudioRuntimeValuesForDocument,
 } from "@/utils/template-studio/timetable-runtime";
+import { getStudioTemplateKind } from "@/utils/template-studio/template-kind";
+import { validateStudioDocument } from "@/utils/template-studio/validator";
 import { NextRequest, NextResponse } from "next/server";
 
 const UUID_REGEX =
@@ -37,7 +40,7 @@ type AuthorizedContext = {
  */
 async function authorize(
   request: NextRequest,
-  templateId: string
+  templateId: string,
 ): Promise<AuthorizedContext | NextResponse> {
   if (!UUID_REGEX.test(templateId)) {
     return NextResponse.json({ error: "Invalid template ID" }, { status: 400 });
@@ -49,7 +52,7 @@ async function authorize(
 
   const entitlement = await TemplateService.resolveEntitlement(
     templateId,
-    user
+    user,
   );
   if (!entitlement.hasAccess) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -70,7 +73,7 @@ async function authorize(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: templateId } = await params;
 
@@ -82,21 +85,72 @@ export async function GET(
     if (!documentRecord) {
       return NextResponse.json(
         { error: "Published document not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    const state = await getTemplateStudioUserState(templateId, auth.userId);
-    const reconciled = reconcileStudioUserRuntimeValues(
-      documentRecord.document,
-      state
-        ? {
-            runtimeValues: state.runtimeValues,
-            baseRevisionNo: state.baseRevisionNo,
-          }
-        : null,
-      documentRecord.publishedRevisionNo
-    );
+    const requestedKind = request.nextUrl.searchParams.get("kind");
+    if (
+      requestedKind &&
+      requestedKind !== "thumbnail" &&
+      requestedKind !== "timetable"
+    ) {
+      return NextResponse.json(
+        { error: "Invalid template kind" },
+        { status: 400 },
+      );
+    }
+
+    const documentKind = getStudioTemplateKind(documentRecord.document);
+    if (requestedKind && documentKind !== requestedKind) {
+      return NextResponse.json(
+        { error: "Template kind mismatch" },
+        { status: 404 },
+      );
+    }
+    if (
+      requestedKind === "thumbnail" &&
+      documentRecord.publishedRevisionNo === null
+    ) {
+      return NextResponse.json(
+        { error: "Published revision not found" },
+        { status: 404 },
+      );
+    }
+    if (
+      requestedKind === "thumbnail" &&
+      validateStudioDocument(documentRecord.document).some(
+        (diagnostic) => diagnostic.severity === "error",
+      )
+    ) {
+      return NextResponse.json(
+        { error: "Published thumbnail document is invalid" },
+        { status: 422 },
+      );
+    }
+
+    const isThumbnailRuntime = requestedKind === "thumbnail";
+    const state = isThumbnailRuntime
+      ? null
+      : await getTemplateStudioUserState(templateId, auth.userId);
+    const reconciled = isThumbnailRuntime
+      ? {
+          runtimeValues: createStudioInitialRuntimeValues(
+            documentRecord.document,
+          ),
+          baseRevisionNo: documentRecord.publishedRevisionNo,
+          changed: false,
+        }
+      : reconcileStudioUserRuntimeValues(
+          documentRecord.document,
+          state
+            ? {
+                runtimeValues: state.runtimeValues,
+                baseRevisionNo: state.baseRevisionNo,
+              }
+            : null,
+          documentRecord.publishedRevisionNo,
+        );
 
     // Only user id from the token is ever written; body/query user ids are never trusted.
     let runtimeValues = reconciled.runtimeValues;
@@ -107,12 +161,12 @@ export async function GET(
     // them from every response and persist the cleanup once.
     const stripped = stripStudioRuntimeImageValues(
       documentRecord.document,
-      runtimeValues
+      runtimeValues,
     );
     runtimeValues = stripped.values;
     shouldPersist = shouldPersist || stripped.changed;
 
-    if (shouldPersist && state) {
+    if (shouldPersist && state && !isThumbnailRuntime) {
       const saved = await saveTemplateStudioUserState({
         templateId,
         userId: auth.userId,
@@ -123,7 +177,13 @@ export async function GET(
     }
 
     return NextResponse.json({
-      template: { id: templateId, name: auth.templateName },
+      template: {
+        id: templateId,
+        name: auth.templateName,
+        ...(documentKind ? { kind: documentKind } : {}),
+      },
+      kind: documentKind,
+      revisionNo: documentRecord.publishedRevisionNo,
       document: documentRecord.document,
       runtimeValues,
       baseRevisionNo: reconciled.baseRevisionNo,
@@ -135,14 +195,14 @@ export async function GET(
     console.error("Template Studio runtime fetch error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: templateId } = await params;
 
@@ -152,18 +212,18 @@ export async function PUT(
 
     const bodyResult = await readJsonBodyWithLimit(
       request,
-      MAX_RUNTIME_PAYLOAD_BYTES
+      MAX_RUNTIME_PAYLOAD_BYTES,
     );
     if (!bodyResult.ok) {
       if (bodyResult.reason === "too_large") {
         return NextResponse.json(
           { error: "Request payload too large" },
-          { status: 413 }
+          { status: 413 },
         );
       }
       return NextResponse.json(
         { error: "Invalid runtimeValues payload" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -171,7 +231,7 @@ export async function PUT(
     if (!isStudioRuntimeValuesLike(body?.runtimeValues)) {
       return NextResponse.json(
         { error: "Invalid runtimeValues payload" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -179,7 +239,14 @@ export async function PUT(
     if (!documentRecord) {
       return NextResponse.json(
         { error: "Published document not found" },
-        { status: 404 }
+        { status: 404 },
+      );
+    }
+
+    if (getStudioTemplateKind(documentRecord.document) === "thumbnail") {
+      return NextResponse.json(
+        { error: "Thumbnail runtime values are browser-local" },
+        { status: 405 },
       );
     }
 
@@ -188,21 +255,24 @@ export async function PUT(
     // the browser's IndexedDB, see runtime-image-strip.ts).
     const { values: imagesStripped } = stripStudioRuntimeImageValues(
       documentRecord.document,
-      body.runtimeValues
+      body.runtimeValues,
     );
 
     const pruned = pruneStudioRuntimeValuesForDocument(
       documentRecord.document,
-      imagesStripped
+      imagesStripped,
     );
     const diagnostics = [
-      ...validateStudioRuntimeValuesForDocument(documentRecord.document, pruned),
+      ...validateStudioRuntimeValuesForDocument(
+        documentRecord.document,
+        pruned,
+      ),
       ...validateStudioRuntimePayloadLimits(documentRecord.document, pruned),
     ];
     if (diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
       return NextResponse.json(
         { error: "runtimeValues failed validation", diagnostics },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -222,7 +292,7 @@ export async function PUT(
     console.error("Template Studio runtime save error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

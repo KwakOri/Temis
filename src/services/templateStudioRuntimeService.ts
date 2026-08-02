@@ -1,17 +1,29 @@
 import type {
   StudioDiagnostic,
   StudioRuntimeValues,
+  StudioTemplateKind,
   StudioTemplateDocument,
 } from "@/types/template-studio";
 
 export interface TemplateStudioRuntimeResponse {
   template: { id: string; name: string };
+  kind?: StudioTemplateKind;
+  revisionNo?: number | null;
   document: StudioTemplateDocument;
   runtimeValues: StudioRuntimeValues;
   baseRevisionNo: number | null;
   hasSavedState: boolean;
   /** Stable identity for this browser's local (IndexedDB) runtime image storage. */
   storageOwnerId: string;
+}
+
+export interface ThumbnailStudioRuntimeResponse extends Omit<
+  TemplateStudioRuntimeResponse,
+  "kind"
+> {
+  template: { id: string; name: string; kind: "thumbnail" };
+  kind: "thumbnail";
+  revisionNo: number;
 }
 
 export interface TemplateStudioSaveRuntimeResponse {
@@ -53,6 +65,24 @@ export class TemplateStudioRuntimeService {
       response,
       "저장된 값을 불러오는데 실패했습니다.",
     );
+  }
+
+  static async getThumbnailRuntime(
+    templateId: string,
+  ): Promise<ThumbnailStudioRuntimeResponse> {
+    const response = await fetch(
+      `${this.baseUrl}/${templateId}/runtime?kind=thumbnail`,
+    );
+    const result = await parseJsonResponse<ThumbnailStudioRuntimeResponse>(
+      response,
+      "썸네일 템플릿을 불러오는데 실패했습니다.",
+    );
+
+    if (result.kind !== "thumbnail" || result.template.kind !== "thumbnail") {
+      throw new Error("썸네일 템플릿이 아닙니다.");
+    }
+
+    return result;
   }
 
   static async saveRuntime(
