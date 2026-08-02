@@ -45,6 +45,10 @@ next-env.d.ts
 /supabase/.temp/
 /supabase/.branches/
 public/sw.js
+public/workbox-*.js
+public/worker-*.js
+public/sw.js.map
+public/workbox-*.js.map
 
 # local browser automation artifacts
 .playwright-cli/
