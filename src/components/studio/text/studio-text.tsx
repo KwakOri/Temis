@@ -60,6 +60,8 @@ export interface StudioTextProps {
  *
  * 외곽선은 중앙 정렬로 그려지므로 절반이 글자 안쪽을 덮는다. `paint-order`로 외곽선을
  * 먼저 그리게 하고, 안쪽으로 들어온 부분은 위에 놓이는 다음 레이어와 foreground가 덮는다.
+ * 굵은 stroke의 기본 miter join은 글리프 예각에서 긴 삼각형을 만들므로 round join으로
+ * 제한한다. miter limit도 낮춰 round를 무시하는 렌더러의 돌출을 줄인다.
  */
 const getStrokeLayerStyle = (
   color: string,
@@ -68,6 +70,8 @@ const getStrokeLayerStyle = (
 ): React.CSSProperties => ({
   color,
   WebkitTextStroke: `${toStudioCssStrokeWidth(outset)}px ${color}`,
+  strokeLinejoin: "round",
+  strokeMiterlimit: 1,
   paintOrder: "stroke fill",
   opacity,
 });

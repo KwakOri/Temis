@@ -160,6 +160,14 @@ assert.ok(
   singleStrokeMarkup.includes("paint-order:stroke fill"),
   "외곽선을 먼저 그려야 글자가 그 위에 온다.",
 );
+assert.ok(
+  singleStrokeMarkup.includes("stroke-linejoin:round"),
+  "굵은 외곽선은 round join을 사용해야 글리프 예각이 삼각형으로 돌출되지 않는다.",
+);
+assert.ok(
+  singleStrokeMarkup.includes("stroke-miterlimit:1"),
+  "round join을 무시하는 렌더러에서도 miter 돌출을 제한해야 한다.",
+);
 
 // --- 레이어는 클릭도 낭독도 받지 않는다 ---
 
