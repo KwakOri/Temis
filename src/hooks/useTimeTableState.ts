@@ -2,8 +2,87 @@
 
 import { CroppedAreaPixels, ImageEditData } from "@/types/image-edit";
 import { pageAwareStorage } from "@/utils/pageAwareLocalStorage";
-import { domToPng } from "modern-screenshot";
+import { domToBlob } from "modern-screenshot";
 import { useEffect, useState } from "react";
+
+const DOWNLOAD_URL_REVOKE_DELAY_MS = 10_000;
+
+const createPngBlob = (
+  canvas: HTMLCanvasElement,
+  errorMessage: string
+): Promise<Blob> =>
+  new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve(blob);
+          return;
+        }
+
+        reject(new Error(errorMessage));
+      },
+      "image/png",
+      1
+    );
+  });
+
+const resizePngBlob = async (
+  sourceBlob: Blob,
+  targetWidth: number,
+  targetHeight: number
+): Promise<Blob> => {
+  const sourceUrl = URL.createObjectURL(sourceBlob);
+  const canvas = document.createElement("canvas");
+
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () =>
+        reject(new Error("캡처된 이미지를 불러오지 못했습니다."));
+      img.src = sourceUrl;
+    });
+
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+
+    const context = canvas.getContext("2d");
+    if (!context) {
+      throw new Error("이미지 리사이즈용 캔버스를 생성하지 못했습니다.");
+    }
+
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+    return await createPngBlob(
+      canvas,
+      "리사이즈된 PNG 이미지를 생성하지 못했습니다."
+    );
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+    canvas.width = 0;
+    canvas.height = 0;
+  }
+};
+
+const triggerBlobDownload = (blob: Blob, fileName: string) => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.download = fileName;
+  link.href = url;
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  // iOS WebKit은 다운로드 직후 URL을 폐기하면 파일 읽기가 중단될 수 있다.
+  window.setTimeout(
+    () => URL.revokeObjectURL(url),
+    DOWNLOAD_URL_REVOKE_DELAY_MS
+  );
+};
 
 // 옵션 타입 정의
 export type OptionType = "profile" | "memo" | "none";
@@ -404,7 +483,21 @@ export const useTimeTableState = (captureSize?: {
 
     downloadImage: async (targetWidth: number, targetHeight: number) => {
       const node = document.getElementById("timetable");
-      if (!node) return;
+      if (!node) {
+        throw new Error("저장할 시간표 영역을 찾지 못했습니다.");
+      }
+
+      // 현재 스케일과 크기를 캡처 후 정확히 복원하기 위해 보관한다.
+      const originalTransform = node.style.transform;
+      const originalTransformOrigin = node.style.transformOrigin;
+      const originalWidth = node.style.width;
+      const originalHeight = node.style.height;
+      const restoreNodeStyle = () => {
+        node.style.transform = originalTransform;
+        node.style.transformOrigin = originalTransformOrigin;
+        node.style.width = originalWidth;
+        node.style.height = originalHeight;
+      };
 
       try {
         // 현재 시간을 기반으로 파일명 생성
@@ -421,11 +514,6 @@ export const useTimeTableState = (captureSize?: {
         const templateWidth = captureSize?.width || 1280;
         const templateHeight = captureSize?.height || 720;
 
-        // 현재 스케일 임시 저장 및 원본 크기로 복원
-        const originalTransform = node.style.transform;
-        const originalWidth = node.style.width;
-        const originalHeight = node.style.height;
-
         // 캡처를 위해 원본 크기로 설정 (스케일 제거)
         node.style.transform = "scale(1)";
         node.style.width = `${templateWidth}px`;
@@ -435,75 +523,28 @@ export const useTimeTableState = (captureSize?: {
         // 폰트와 이미지 로딩 대기
         await new Promise((resolve) => setTimeout(resolve, 100));
 
-        // 원본 사이즈로 캡처
-        const originalDataUrl = await domToPng(node, {
+        // 원본 사이즈의 PNG Blob으로 캡처한다. 큰 data URL을 만들지 않는다.
+        const originalBlob = await domToBlob(node, {
           width: templateWidth,
           height: templateHeight,
           quality: 1,
           backgroundColor: "transparent",
         });
+        restoreNodeStyle();
 
-        // 원래 스타일 복원
-        node.style.transform = originalTransform;
-        node.style.width = originalWidth;
-        node.style.height = originalHeight;
+        const downloadBlob =
+          targetWidth === templateWidth && targetHeight === templateHeight
+            ? originalBlob
+            : await resizePngBlob(originalBlob, targetWidth, targetHeight);
 
-        // 캡처된 이미지를 타겟 크기로 리사이징
-        if (targetWidth === templateWidth && targetHeight === templateHeight) {
-          // 원본 크기와 같은 경우 원본 그대로 다운로드
-          const link = document.createElement("a");
-          link.download = fileName;
-          link.href = originalDataUrl;
-          link.click();
-        } else {
-          // 리사이징이 필요한 경우
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement("canvas");
-            const ctx = canvas.getContext("2d");
-
-            if (!ctx) return;
-
-            canvas.width = targetWidth;
-            canvas.height = targetHeight;
-
-            // 고품질 리샘플링 설정
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = "high";
-
-            // 타겟 크기로 리사이징된 이미지 그리기
-            ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-
-            // 리사이징된 이미지를 다운로드
-            canvas.toBlob(
-              (blob) => {
-                if (!blob) return;
-
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                link.download = fileName;
-                link.href = url;
-                link.click();
-
-                // 메모리 정리
-                URL.revokeObjectURL(url);
-              },
-              "image/png",
-              1
-            );
-          };
-
-          img.src = originalDataUrl;
-        }
+        triggerBlobDownload(downloadBlob, fileName);
       } catch (err) {
         console.error("이미지 생성 실패:", err);
-        // 에러 발생 시 원래 스타일 복원
-        const node = document.getElementById("timetable");
-        if (node) {
-          node.style.transform = `scale(${scale})`;
-          node.style.width = "";
-          node.style.height = "";
-        }
+        throw err instanceof Error
+          ? err
+          : new Error("이미지 생성 중 알 수 없는 오류가 발생했습니다.");
+      } finally {
+        restoreNodeStyle();
       }
     },
   };
