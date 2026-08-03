@@ -79,6 +79,8 @@
     "check:thumbnail-studio:bindings": "tsx scripts/check-thumbnail-studio-bindings.ts",
     "check:thumbnail-studio:input-order": "tsx scripts/check-thumbnail-studio-input-order.ts",
     "check:thumbnail-studio:assets": "tsx scripts/check-thumbnail-studio-assets.tsx",
+    "check:thumbnail-studio:shape-fill": "tsx scripts/check-thumbnail-studio-shape-fill.tsx",
+    "check:thumbnail-studio:guide": "tsx scripts/check-thumbnail-studio-guide.ts",
     "check:thumbnail-studio:font-consumers": "tsx scripts/check-thumbnail-studio-font-consumers.ts",
     "check:thumbnail-studio:image-renderer": "tsx scripts/check-thumbnail-studio-image-renderer.tsx",
     "check:thumbnail-studio:integration": "tsx scripts/check-thumbnail-studio-integration.tsx",

@@ -36,6 +36,7 @@ import { getStudioVariantEntryGroups } from "@/utils/template-studio/entry-group
 import { getStudioOfflineMemoTextNode } from "@/utils/template-studio/status-variants";
 import { validateStudioTextAppearance } from "@/utils/template-studio/text-appearance-commands";
 import { getThumbnailWeekDates } from "@/utils/thumbnail-studio/week-dates";
+import { isStudioShapeFillColor } from "@/utils/thumbnail-studio/shape-fill";
 
 const createDiagnostic = (
   severity: StudioDiagnostic["severity"],
@@ -229,6 +230,114 @@ const getGraphNodeHiddenReasons = (
   }
 
   return reasons;
+};
+
+const validateStudioShapeFill = (node: StudioGraphNode): StudioDiagnostic[] => {
+  const rawFill: unknown = node.shapeFill;
+  if (rawFill === undefined) return [];
+
+  if (node.type !== "shape") {
+    return [
+      createDiagnostic(
+        "error",
+        `shape-fill-node-type:${node.id}`,
+        "Shape fill on non-shape node",
+        `${node.label} has shapeFill, but only Shape nodes may store a shape fill.`,
+      ),
+    ];
+  }
+
+  if (!rawFill || typeof rawFill !== "object") {
+    return [
+      createDiagnostic(
+        "error",
+        `shape-fill-type-invalid:${node.id}`,
+        "Invalid shape fill type",
+        `${node.label} has a shapeFill value that is not an object.`,
+      ),
+    ];
+  }
+
+  const fill = rawFill as Record<string, unknown>;
+  if (fill.type !== "solid" && fill.type !== "linearGradient") {
+    return [
+      createDiagnostic(
+        "error",
+        `shape-fill-type-invalid:${node.id}`,
+        "Unsupported shape fill type",
+        `${node.label} uses unsupported shape fill type ${String(fill.type)}.`,
+      ),
+    ];
+  }
+
+  const diagnostics: StudioDiagnostic[] = [];
+  const validateColor = (key: "color" | "startColor" | "endColor") => {
+    const value = fill[key];
+    if (typeof value !== "string" || value.trim().length === 0) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `shape-fill-color-empty:${node.id}:${key}`,
+          "Empty shape fill color",
+          `${node.label} shape fill ${key} must be a non-empty color.`,
+        ),
+      );
+      return;
+    }
+
+    if (!isStudioShapeFillColor(value)) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `shape-fill-color-invalid:${node.id}:${key}`,
+          "Invalid shape fill color",
+          `${node.label} shape fill ${key} is not a supported CSS color.`,
+        ),
+      );
+    }
+  };
+
+  if (fill.type === "solid") {
+    validateColor("color");
+    return diagnostics;
+  }
+
+  validateColor("startColor");
+  validateColor("endColor");
+
+  if (fill.angleDeg === undefined) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `shape-fill-angle-missing:${node.id}`,
+        "Missing shape fill angle",
+        `${node.label} linear gradient must define angleDeg.`,
+      ),
+    );
+  } else if (
+    typeof fill.angleDeg !== "number" ||
+    !Number.isFinite(fill.angleDeg)
+  ) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `shape-fill-angle-invalid:${node.id}`,
+        "Invalid shape fill angle",
+        `${node.label} linear gradient angleDeg must be a finite number.`,
+      ),
+    );
+  } else if (fill.angleDeg < 0 || fill.angleDeg > 360) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `shape-fill-angle-out-of-range:${node.id}`,
+        "Shape fill angle out of range",
+        `${node.label} linear gradient angleDeg must be between 0 and 360.`,
+      ),
+    );
+  }
+
+  return diagnostics;
 };
 
 const validateBuiltinFieldReference = (
@@ -1966,6 +2075,75 @@ const validateThumbnailDomain = (
     );
   }
 
+  const guide = thumbnail.guide;
+  if (guide) {
+    const guideAssetId: unknown = guide.assetId;
+    if (guideAssetId !== undefined && guideAssetId !== null) {
+      if (
+        typeof guideAssetId !== "string" ||
+        guideAssetId.trim().length === 0
+      ) {
+        diagnostics.push(
+          createDiagnostic(
+            "error",
+            "thumbnail-guide-asset-id-invalid",
+            "Invalid Thumbnail guide asset reference",
+            "Thumbnail guide assetId must be a non-empty asset id when present.",
+          ),
+        );
+      } else if (!document.assets[guideAssetId]) {
+        diagnostics.push(
+          createDiagnostic(
+            "error",
+            `thumbnail-guide-asset-missing:${guideAssetId}`,
+            "Missing Thumbnail guide asset",
+            `Thumbnail guide references ${guideAssetId}, but that asset does not exist.`,
+          ),
+        );
+      }
+    }
+
+    if (guide.visible !== undefined && typeof guide.visible !== "boolean") {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          "thumbnail-guide-visible-invalid",
+          "Invalid Thumbnail guide visibility",
+          "Thumbnail guide visible must be a boolean when present.",
+        ),
+      );
+    }
+
+    if (
+      guide.opacity !== undefined &&
+      (typeof guide.opacity !== "number" ||
+        !Number.isFinite(guide.opacity) ||
+        guide.opacity < 0 ||
+        guide.opacity > 1)
+    ) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          "thumbnail-guide-opacity-invalid",
+          "Invalid Thumbnail guide opacity",
+          "Thumbnail guide opacity must be a finite number from 0 to 1.",
+        ),
+      );
+    }
+  }
+
+  (["cardsGuide", "timetableGuide"] as const).forEach((resourceKey) => {
+    if (document.resources?.[resourceKey] === undefined) return;
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `thumbnail-resource-guide-forbidden:${resourceKey}`,
+        "Thumbnail document has a legacy guide resource",
+        `Thumbnail documents must store guides in domains.thumbnail.guide, not resources.${resourceKey}.`,
+      ),
+    );
+  });
+
   const weekDates = thumbnail.weekDates;
   if (!weekDates) return diagnostics;
 
@@ -2585,6 +2763,7 @@ export const validateStudioDocument = (
       ...validateBindingFallback(document, node),
       ...validateGraphNodeAssetSlots(document, node),
       ...validateTextAppearance(node),
+      ...validateStudioShapeFill(node),
     );
   });
 

@@ -8,6 +8,7 @@ import type { StudioStyleRecord } from "@/types/template-studio";
 import {
   shouldRenderStudioTextEffectLayers,
   getStudioDrawableTextStrokes,
+  getStudioTextFillRenderStyle,
   toStudioCssColor,
   toStudioCssStrokeWidth,
   type ResolvedStudioTextAppearance,
@@ -182,10 +183,7 @@ export function StudioText({
   const shadowFilter = getShadowFilter(appearance);
   const { fill } = appearance;
   const strokes = getStudioDrawableTextStrokes(appearance.strokes);
-  const fillStyle: React.CSSProperties = {
-    ...(fill.color ? { color: fill.color } : {}),
-    opacity: fill.opacity,
-  };
+  const fillStyle: React.CSSProperties = getStudioTextFillRenderStyle(fill);
 
   const effectLayers = (
     fillLayer: StudioTextEffectLayersProps["fillLayer"],

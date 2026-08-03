@@ -39,6 +39,8 @@ export interface StudioGuideLayerSettingsProps {
   assetLabel: string | null;
   description: string;
   removeAriaLabel: string;
+  accept?: string;
+  errorMessage?: string | null;
   onRemove: () => void;
   onUpload: (file: File) => void;
 }
@@ -52,6 +54,8 @@ export function StudioGuideLayerSettings({
   assetLabel,
   description,
   removeAriaLabel,
+  accept = "image/*",
+  errorMessage,
   onRemove,
   onUpload,
 }: StudioGuideLayerSettingsProps) {
@@ -91,7 +95,7 @@ export function StudioGuideLayerSettings({
         <Upload size={13} />
         {assetLabel ? "Replace guide" : "Upload guide"}
         <input
-          accept="image/*"
+          accept={accept}
           className="hidden"
           type="file"
           onChange={(event) => {
@@ -101,6 +105,15 @@ export function StudioGuideLayerSettings({
           }}
         />
       </label>
+      {errorMessage ? (
+        <p
+          aria-live="polite"
+          className="text-[10px] font-semibold leading-4 text-red-400"
+          role="alert"
+        >
+          {errorMessage}
+        </p>
+      ) : null}
       <p className="text-[9px] font-medium leading-4 text-[var(--fg3)]">
         The guide is not included in previews or exported images.
       </p>

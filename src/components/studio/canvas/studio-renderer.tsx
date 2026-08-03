@@ -30,6 +30,10 @@ import {
   getStudioImageBorderRadius,
   getStudioImageObjectPosition,
 } from "@/utils/thumbnail-studio/image-object-position";
+import {
+  getStudioShapeFillRenderStyle,
+  resolveStudioShapeFill,
+} from "@/utils/thumbnail-studio/shape-fill";
 import { StudioWebFontLoader } from "@/components/studio/canvas/studio-web-font-loader";
 import { StudioText } from "@/components/studio/text/studio-text";
 
@@ -145,9 +149,21 @@ export function StudioRenderer({
     const styleRecord = node.styleId
       ? document.styles[node.styleId]
       : undefined;
-    const style = toCssStyle(
+    const baseStyle = toCssStyle(
       getStudioObjectRenderStyle(styleRecord ?? {}, node.layoutMode),
     );
+    const style =
+      node.type === "shape"
+        ? {
+            ...baseStyle,
+            ...getStudioShapeFillRenderStyle(
+              resolveStudioShapeFill(
+                node.shapeFill,
+                styleRecord?.backgroundColor,
+              ),
+            ),
+          }
+        : baseStyle;
     const backgroundSlot = resolveNodeBackgroundAssetSlot
       ? resolveNodeBackgroundAssetSlot(node, nodeRuntimeContext)
       : getStudioNodeBackgroundAssetSlot(node);

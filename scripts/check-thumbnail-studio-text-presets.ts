@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import type { StudioTextAppearance } from "../src/types/template-studio";
+import { getStudioTextFillPrimaryColor } from "../src/utils/template-studio/text-appearance";
 import {
   STUDIO_TEXT_EFFECT_PRESETS,
   STUDIO_TEXT_PRESET_TYPOGRAPHY_KEYS,
@@ -55,10 +56,13 @@ assert.equal(
 );
 
 const copied = cloneStudioTextEffectPreset(STUDIO_TEXT_EFFECT_PRESETS[0]);
-copied.appearance.fill.color = "#000000";
+assert.equal(copied.appearance.fill.type, "solid");
+if (copied.appearance.fill.type === "solid") {
+  copied.appearance.fill.color = "#000000";
+}
 assert.notEqual(
-  copied.appearance.fill.color,
-  STUDIO_TEXT_EFFECT_PRESETS[0].appearance.fill.color,
+  getStudioTextFillPrimaryColor(copied.appearance.fill),
+  getStudioTextFillPrimaryColor(STUDIO_TEXT_EFFECT_PRESETS[0].appearance.fill),
   "preset consumers receive a deep copy",
 );
 const typography = pickStudioTextPresetTypography({
@@ -98,8 +102,47 @@ assert.deepEqual(deleteStudioCustomTextPreset([custom, renamed], custom.id), [
   renamed,
 ]);
 
-renamed.appearance.fill.color = "#ef4444";
-assert.equal(custom.appearance.fill.color, "#ffffff");
-assert.equal(duplicate.appearance.fill.color, "#ffffff");
+const gradientAppearance: StudioTextAppearance = {
+  fill: {
+    type: "linearGradient",
+    startColor: "#ef4444",
+    endColor: "#3b82f6",
+    angleDeg: 180,
+    opacity: 0.6,
+  },
+  strokes: [],
+};
+const gradientPreset = createStudioCustomTextPreset({
+  id: "custom-gradient",
+  label: "Gradient Text",
+  previewText: "Gradient",
+  typography: { fontSize: 48 },
+  appearance: gradientAppearance,
+});
+assert.deepEqual(gradientPreset.appearance.fill, gradientAppearance.fill);
+const gradientCopy = duplicateStudioCustomTextPreset(
+  gradientPreset,
+  "custom-gradient-copy",
+);
+if (gradientCopy.appearance.fill.type === "linearGradient") {
+  gradientCopy.appearance.fill.startColor = "#000000";
+}
+assert.equal(
+  gradientPreset.appearance.fill.type === "linearGradient"
+    ? gradientPreset.appearance.fill.startColor
+    : "",
+  "#ef4444",
+  "gradient preset copies keep nested fill values independent",
+);
+
+assert.equal(renamed.appearance.fill.type, "solid");
+if (renamed.appearance.fill.type === "solid") {
+  renamed.appearance.fill.color = "#ef4444";
+}
+assert.equal(getStudioTextFillPrimaryColor(custom.appearance.fill), "#ffffff");
+assert.equal(
+  getStudioTextFillPrimaryColor(duplicate.appearance.fill),
+  "#ffffff",
+);
 
 console.log("Thumbnail Studio text preset checks passed.");

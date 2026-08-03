@@ -26,6 +26,7 @@ import {
   getStudioDrawableTextStrokes,
   getStudioOrderedTextStrokes,
   getStudioTextStrokeStack,
+  normalizeStudioTextFill,
   parseLegacyStudioTextShadow,
   resolveStudioTextAppearance,
 } from "../src/utils/template-studio/text-appearance";
@@ -199,6 +200,63 @@ const baseAppearance: StudioTextAppearance = {
   strokes: [],
 };
 assert.equal(validateStudioTextAppearance(baseAppearance).length, 0);
+const validGradientAppearance: StudioTextAppearance = {
+  fill: {
+    type: "linearGradient",
+    startColor: "#ef4444",
+    endColor: "#3b82f6",
+    angleDeg: 90,
+    opacity: 0.75,
+  },
+  strokes: [],
+};
+assert.equal(validateStudioTextAppearance(validGradientAppearance).length, 0);
+assert.ok(
+  validateStudioTextAppearance({
+    ...validGradientAppearance,
+    fill: {
+      type: "linearGradient",
+      startColor: "not-a-color",
+      endColor: "#3b82f6",
+      angleDeg: 361,
+      opacity: Number.NaN,
+    },
+  }).some((item) => item.code === "fill-startColor-invalid"),
+  "gradient start color must be validated",
+);
+assert.ok(
+  validateStudioTextAppearance({
+    ...validGradientAppearance,
+    fill: {
+      type: "linearGradient",
+      startColor: "#ef4444",
+      endColor: "#3b82f6",
+      angleDeg: -1,
+      opacity: 0.75,
+    },
+  }).some((item) => item.code === "fill-angle-out-of-range"),
+  "gradient angle outside 0..360 must be rejected by the validator",
+);
+assert.deepEqual(
+  normalizeStudioTextFill(
+    {
+      type: "linearGradient",
+      startColor: "#111827",
+      endColor: "#ffffff",
+      angleDeg: 450,
+      opacity: 1.5,
+    },
+    "#000000",
+  ),
+  {
+    type: "linearGradient",
+    startColor: "#111827",
+    endColor: "#ffffff",
+    angleDeg: 90,
+    opacity: 1,
+  },
+  "editor normalization clamps opacity and normalizes angle",
+);
 assert.ok(
   validateStudioTextAppearance({
     ...baseAppearance,
@@ -381,17 +439,40 @@ assert.equal(
   "image object-position command must clamp focus values",
 );
 const unlockedImageHistory = historyCaptures;
-commands.setTextFill("text", { color: "#ef4444" });
+commands.setTextFill("text", {
+  type: "solid",
+  color: "#ef4444",
+  opacity: 1,
+});
 assert.equal(currentDocument.styles["text-style"].fontSize, 42);
 assert.equal(currentDocument.styles["text-style"].WebkitTextStroke, undefined);
 assert.equal(currentDocument.styles["text-style"].webkitTextStroke, undefined);
 assert.equal(currentDocument.styles["text-style"].textShadow, undefined);
 assert.equal(historyCaptures, unlockedImageHistory + 1);
 
+commands.setTextFill("text", {
+  type: "linearGradient",
+  startColor: "#ef4444",
+  endColor: "#3b82f6",
+  angleDeg: 450,
+  opacity: 0.35,
+});
+assert.deepEqual(currentDocument.graph.nodes.text.textAppearance?.fill, {
+  type: "linearGradient",
+  startColor: "#ef4444",
+  endColor: "#3b82f6",
+  angleDeg: 90,
+  opacity: 0.35,
+});
+
 currentDocument.styles["text-style"].textShadow = "1px 1px #000, 2px 2px #111";
 const unsupportedCommandSnapshot = JSON.stringify(currentDocument);
 const unsupportedCommandHistory = historyCaptures;
-commands.setTextFill("text", { color: "#22c55e" });
+commands.setTextFill("text", {
+  type: "solid",
+  color: "#22c55e",
+  opacity: 1,
+});
 assert.equal(JSON.stringify(currentDocument), unsupportedCommandSnapshot);
 assert.equal(historyCaptures, unsupportedCommandHistory);
 delete currentDocument.styles["text-style"].textShadow;
@@ -587,7 +668,11 @@ assert.deepEqual(
 const lockedHistory = historyCaptures;
 currentDocument.graph.nodes.text.locked = true;
 const lockedSnapshot = JSON.stringify(currentDocument);
-commands.setTextFill("text", { color: "#000000" });
+commands.setTextFill("text", {
+  type: "solid",
+  color: "#000000",
+  opacity: 1,
+});
 commands.addTextStroke("text");
 commands.updateTextStroke("text", "disabled", { enabled: true });
 commands.duplicateTextStroke("text", "disabled");

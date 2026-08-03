@@ -25,6 +25,7 @@ import {
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
 import { StudioSelectionOverlay } from "@/components/studio/canvas/studio-selection-overlay";
 import { StudioEditorShell } from "@/components/studio/editor-shell/studio-editor-shell";
+import { StudioGuideControl } from "@/components/studio/editor-shell/studio-guide-control";
 import {
   StudioLeftSidebar,
   type StudioPanelTab,
@@ -126,7 +127,16 @@ import {
   applyThumbnailStudioReplaceImageAsset,
 } from "@/utils/thumbnail-studio/asset-commands";
 import { collectThumbnailStudioAssetConsumers } from "@/utils/thumbnail-studio/asset-consumers";
-import { importThumbnailStudioAssetFiles } from "@/utils/thumbnail-studio/asset-policy";
+import {
+  THUMBNAIL_STUDIO_ASSET_ACCEPT,
+  importThumbnailStudioAssetFiles,
+} from "@/utils/thumbnail-studio/asset-policy";
+import {
+  getThumbnailStudioGuide,
+  setThumbnailStudioGuideAsset,
+  setThumbnailStudioGuideOpacity,
+  setThumbnailStudioGuideVisibility,
+} from "@/utils/thumbnail-studio/guide";
 import {
   collectThumbnailStudioFontConsumers,
   getThumbnailStudioFontChangeImpacts,
@@ -295,6 +305,9 @@ export function ThumbnailStudioClient({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [fitRequestKey, setFitRequestKey] = useState(0);
   const [statusMessage, setStatusMessage] = useState("Local draft");
+  const [thumbnailGuideUploadError, setThumbnailGuideUploadError] = useState<
+    string | null
+  >(null);
   const [pendingImageCrop, setPendingImageCrop] =
     useState<PendingThumbnailImageCrop | null>(null);
   const viewportHandleRef = useRef<StudioCanvasViewportHandle | null>(null);
@@ -532,6 +545,13 @@ export function ThumbnailStudioClient({
     () => collectThumbnailStudioAssetConsumers(document),
     [document],
   );
+  const thumbnailGuide = useMemo(
+    () => getThumbnailStudioGuide(document),
+    [document],
+  );
+  const thumbnailGuideAsset = thumbnailGuide.assetId
+    ? (document.assets[thumbnailGuide.assetId] ?? null)
+    : null;
   const fontConsumers = useMemo(
     () => collectThumbnailStudioFontConsumers(document, customTextPresets),
     [customTextPresets, document],
@@ -774,6 +794,72 @@ export function ThumbnailStudioClient({
       }
     },
     [showStatus, studioStore, updateDocument],
+  );
+
+  const uploadThumbnailGuide = useCallback(
+    async (file: File) => {
+      setThumbnailGuideUploadError(null);
+      const result = await importThumbnailStudioAssetFiles(
+        [file],
+        Object.keys(studioStore.getState().document.assets),
+      );
+      const importedAsset = result.assets[0];
+
+      if (!importedAsset) {
+        const message =
+          result.failures[0]?.reason ?? "The guide image import failed.";
+        setThumbnailGuideUploadError(message);
+        showStatus(`Guide upload failed: ${message}`);
+        return;
+      }
+
+      let applied = false;
+      updateDocument((draft) => {
+        const addedIds = applyThumbnailStudioAddAssets(draft, [importedAsset]);
+        if (addedIds.includes(importedAsset.id)) {
+          setThumbnailStudioGuideAsset(draft, importedAsset.id);
+          applied = true;
+        }
+      });
+
+      if (!applied) {
+        const message = "The guide image could not be added to the document.";
+        setThumbnailGuideUploadError(message);
+        showStatus(`Guide upload failed: ${message}`);
+        return;
+      }
+
+      showStatus(
+        thumbnailGuideAsset
+          ? "Thumbnail guide replaced"
+          : "Thumbnail guide uploaded",
+      );
+    },
+    [showStatus, studioStore, thumbnailGuideAsset, updateDocument],
+  );
+
+  const removeThumbnailGuide = useCallback(() => {
+    if (!thumbnailGuide.assetId) return;
+    updateDocument((draft) => {
+      setThumbnailStudioGuideAsset(draft, null);
+    });
+    setThumbnailGuideUploadError(null);
+    showStatus("Thumbnail guide removed; asset kept in the document");
+  }, [showStatus, thumbnailGuide.assetId, updateDocument]);
+
+  const toggleThumbnailGuideVisibility = useCallback(() => {
+    updateDocument((draft) => {
+      setThumbnailStudioGuideVisibility(draft, !thumbnailGuide.visible);
+    });
+  }, [thumbnailGuide.visible, updateDocument]);
+
+  const updateThumbnailGuideOpacity = useCallback(
+    (opacity: number) => {
+      updateDocument((draft) => {
+        setThumbnailStudioGuideOpacity(draft, opacity);
+      });
+    },
+    [updateDocument],
   );
 
   const addImageNodeFromAsset = useCallback(
@@ -1470,6 +1556,23 @@ export function ThumbnailStudioClient({
                     }
                   }}
                 />
+                {thumbnailGuideAsset && thumbnailGuide.visible ? (
+                  // Thumbnail Studio 편집 캔버스 전용이다. 공통 renderer/export root에는
+                  // 넣지 않아 Runtime Preview와 PNG export에 포함되지 않는다.
+                  // eslint-disable-next-line @next/next/no-img-element -- Editor-only guide overlay uses a document asset directly.
+                  <img
+                    alt="Thumbnail alignment guide"
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 z-10 h-full w-full"
+                    data-thumbnail-guide-overlay="true"
+                    draggable={false}
+                    src={thumbnailGuideAsset.src}
+                    style={{
+                      objectFit: "fill",
+                      opacity: thumbnailGuide.opacity,
+                    }}
+                  />
+                ) : null}
                 {selectionBounds ? (
                   <StudioSelectionOverlay
                     bounds={selectionBounds}
@@ -1604,11 +1707,13 @@ export function ThumbnailStudioClient({
                         ))}
                       </div>
                       <StudioGuideLayerSettings
-                        assetLabel={null}
+                        accept={THUMBNAIL_STUDIO_ASSET_ACCEPT}
+                        assetLabel={thumbnailGuideAsset?.label ?? null}
                         description="Editor-only overlay for thumbnail alignment."
+                        errorMessage={thumbnailGuideUploadError}
                         removeAriaLabel="Remove thumbnail guide"
-                        onRemove={() => {}}
-                        onUpload={() => {}}
+                        onRemove={removeThumbnailGuide}
+                        onUpload={(file) => void uploadThumbnailGuide(file)}
                       />
                     </>
                   ),
@@ -1667,7 +1772,15 @@ export function ThumbnailStudioClient({
               onClick: () => setSettingsOpen(true),
             }}
             centerSlot={
-              <div className="flex h-[30px] shrink-0 items-center gap-1">
+              <div className="flex h-[30px] min-w-0 shrink-0 items-center gap-2">
+                <StudioGuideControl
+                  hasAsset={Boolean(thumbnailGuideAsset)}
+                  opacity={thumbnailGuide.opacity}
+                  visible={thumbnailGuide.visible}
+                  onOpacityChange={updateThumbnailGuideOpacity}
+                  onRequestAsset={() => setSettingsOpen(true)}
+                  onToggleVisible={toggleThumbnailGuideVisibility}
+                />
                 <span
                   className="max-w-[190px] truncate rounded-md bg-[var(--field)] px-2 py-1 text-[10px] font-semibold text-[var(--fg2)]"
                   data-thumbnail-status="true"

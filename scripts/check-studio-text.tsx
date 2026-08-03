@@ -406,6 +406,33 @@ assert.ok(
   ).includes("color:#123456"),
   "구조화된 효과가 있으면 style의 색을 쓰지 않는다.",
 );
+const gradientMarkup = render(
+  createNode({
+    textAppearance: appearance({
+      fill: {
+        type: "linearGradient",
+        startColor: "#ef4444",
+        endColor: "#3b82f6",
+        angleDeg: 90,
+        opacity: 0.75,
+      },
+    }),
+  }),
+  {},
+);
+assert.ok(
+  gradientMarkup.includes(
+    "background-image:linear-gradient(90deg, #ef4444, #3b82f6)",
+  ),
+  "gradient fill uses the shared CSS gradient helper",
+);
+assert.ok(
+  gradientMarkup.includes("background-clip:text") &&
+    gradientMarkup.includes("-webkit-background-clip:text") &&
+    gradientMarkup.includes("-webkit-text-fill-color:transparent") &&
+    gradientMarkup.includes("color:transparent"),
+  "gradient fill is clipped to glyphs and does not paint the text box",
+);
 
 // --- 공용 렌더러에 붙였을 때 ---
 
@@ -538,6 +565,24 @@ const autoFitEffectMarkup = renderAutoFit(
     }),
   },
   {},
+);
+const autoFitGradientMarkup = renderAutoFit(
+  {
+    textAppearance: appearance({
+      fill: {
+        type: "linearGradient",
+        startColor: "#ef4444",
+        endColor: "#3b82f6",
+        angleDeg: 0,
+        opacity: 0.8,
+      },
+    }),
+  },
+  {},
+);
+assert.ok(
+  autoFitGradientMarkup.includes("linear-gradient(0deg, #ef4444, #3b82f6)"),
+  "Auto-fit text uses the same gradient fill renderer",
 );
 
 /**

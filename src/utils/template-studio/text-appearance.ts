@@ -1,6 +1,7 @@
 import type {
   StudioGraphNode,
   StudioStyleRecord,
+  StudioTextFill,
   StudioTextPresetReference,
   StudioTextShadow,
   StudioTextStroke,
@@ -19,6 +20,240 @@ export const STUDIO_TEXT_STROKE_CSS_SCALE = 2;
 export const STUDIO_TEXT_MAX_STROKES = 8;
 export const STUDIO_TEXT_MAX_OUTSET = 64;
 export const STUDIO_TEXT_MAX_OPACITY = 1;
+export const STUDIO_TEXT_DEFAULT_FILL_COLOR = "#111827";
+export const STUDIO_TEXT_DEFAULT_GRADIENT_END_COLOR = "#ffffff";
+export const STUDIO_TEXT_DEFAULT_GRADIENT_ANGLE = 90;
+
+const COLOR_FUNCTION_PATTERN = /^(?:rgb|rgba|hsl|hsla|color)\([^()]+\)$/i;
+const HEX_COLOR_PATTERN =
+  /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+const CSS_COLOR_KEYWORDS = new Set(
+  `aliceblue antiquewhite aqua aquamarine azure beige bisque black
+  blanchedalmond blue blueviolet brown burlywood cadetblue chartreuse
+  chocolate coral cornflowerblue cornsilk crimson cyan darkblue darkcyan
+  darkgoldenrod darkgray darkgreen darkgrey darkkhaki darkmagenta
+  darkolivegreen darkorange darkorchid darkred darksalmon darkseagreen
+  darkslateblue darkslategray darkslategrey darkturquoise darkviolet deeppink
+  deepskyblue dimgray dimgrey dodgerblue firebrick floralwhite forestgreen
+  fuchsia gainsboro ghostwhite gold goldenrod gray green greenyellow grey
+  honeydew hotpink indianred indigo ivory khaki lavender lavenderblush
+  lawngreen lemonchiffon lightblue lightcoral lightcyan lightgoldenrodyellow
+  lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen
+  lightskyblue lightslategray lightslategrey lightsteelblue lightyellow lime
+  limegreen linen magenta maroon mediumaquamarine mediumblue mediumorchid
+  mediumpurple mediumseagreen mediumslateblue mediumspringgreen mediumturquoise
+  mediumvioletred midnightblue mintcream mistyrose moccasin navajowhite navy
+  oldlace olive olivedrab orange orangered orchid palegoldenrod palegreen
+  paleturquoise palevioletred papayawhip peachpuff peru pink plum powderblue
+  purple rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown
+  seagreen seashell sienna silver skyblue slateblue slategray slategrey snow
+  springgreen steelblue tan teal thistle tomato turquoise violet wheat white
+  whitesmoke yellow yellowgreen`.split(/\s+/),
+);
+
+/** 텍스트 Fill에서 저장·렌더링에 허용하는 CSS 색상 표현이다. */
+export const isStudioTextFillColor = (value: unknown): value is string => {
+  if (typeof value !== "string") return false;
+
+  const color = value.trim();
+  if (color.length === 0) return false;
+  if (
+    color === "transparent" ||
+    color === "currentColor" ||
+    CSS_COLOR_KEYWORDS.has(color.toLowerCase())
+  ) {
+    return true;
+  }
+  if (HEX_COLOR_PATTERN.test(color)) return true;
+  return COLOR_FUNCTION_PATTERN.test(color);
+};
+
+export const normalizeStudioTextFillOpacity = (
+  value: unknown,
+  fallback = 1,
+): number => {
+  const numericValue = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numericValue)) return fallback;
+  return Math.min(STUDIO_TEXT_MAX_OPACITY, Math.max(0, numericValue));
+};
+
+/** CSS가 허용하는 0° 이상 360° 미만의 회전값으로 해석한다. */
+export const normalizeStudioTextFillAngle = (
+  value: unknown,
+  fallback = STUDIO_TEXT_DEFAULT_GRADIENT_ANGLE,
+): number => {
+  const numericValue = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numericValue)) return fallback;
+  if (numericValue === 360) return 360;
+
+  const normalized = numericValue % 360;
+  return normalized < 0 ? normalized + 360 : normalized;
+};
+
+/** 편집기 입력 경계에서 0~360 범위를 강제한다. */
+export const clampStudioTextFillAngle = (value: number): number =>
+  Math.min(
+    360,
+    Math.max(
+      0,
+      Number.isFinite(value) ? value : STUDIO_TEXT_DEFAULT_GRADIENT_ANGLE,
+    ),
+  );
+
+export type ResolvedStudioTextFill =
+  | {
+      type: "solid";
+      color: string | null;
+      opacity: number;
+    }
+  | {
+      type: "linearGradient";
+      startColor: string;
+      endColor: string;
+      angleDeg: number;
+      opacity: number;
+    };
+
+/** 저장값과 legacy style.color를 같은 구조로 해석한다. */
+export const resolveStudioTextFill = (
+  fill: unknown,
+  fallbackColor: string | null = null,
+): ResolvedStudioTextFill => {
+  if (!fill || typeof fill !== "object") {
+    return { type: "solid", color: fallbackColor, opacity: 1 };
+  }
+
+  const candidate = fill as Record<string, unknown>;
+  const opacity = normalizeStudioTextFillOpacity(candidate.opacity);
+
+  if (candidate.type === "solid") {
+    return {
+      type: "solid",
+      color: isStudioTextFillColor(candidate.color)
+        ? candidate.color.trim()
+        : fallbackColor,
+      opacity,
+    };
+  }
+
+  if (candidate.type === "linearGradient") {
+    return {
+      type: "linearGradient",
+      startColor: isStudioTextFillColor(candidate.startColor)
+        ? candidate.startColor.trim()
+        : (fallbackColor ?? STUDIO_TEXT_DEFAULT_FILL_COLOR),
+      endColor: isStudioTextFillColor(candidate.endColor)
+        ? candidate.endColor.trim()
+        : STUDIO_TEXT_DEFAULT_GRADIENT_END_COLOR,
+      angleDeg: normalizeStudioTextFillAngle(candidate.angleDeg),
+      opacity,
+    };
+  }
+
+  return { type: "solid", color: fallbackColor, opacity };
+};
+
+export const createStudioTextFillGradient = (
+  fill: StudioTextFill,
+): StudioTextFill => {
+  const resolved = resolveStudioTextFill(fill, STUDIO_TEXT_DEFAULT_FILL_COLOR);
+  return resolved.type === "linearGradient"
+    ? {
+        type: "linearGradient",
+        startColor: resolved.startColor,
+        endColor: resolved.endColor,
+        angleDeg: resolved.angleDeg,
+        opacity: resolved.opacity,
+      }
+    : {
+        type: "linearGradient",
+        startColor: resolved.color ?? STUDIO_TEXT_DEFAULT_FILL_COLOR,
+        endColor: STUDIO_TEXT_DEFAULT_GRADIENT_END_COLOR,
+        angleDeg: STUDIO_TEXT_DEFAULT_GRADIENT_ANGLE,
+        opacity: resolved.opacity,
+      };
+};
+
+export const createStudioTextFillSolid = (
+  fill: StudioTextFill,
+): StudioTextFill => {
+  const resolved = resolveStudioTextFill(fill, STUDIO_TEXT_DEFAULT_FILL_COLOR);
+  return resolved.type === "solid"
+    ? {
+        type: "solid",
+        color: resolved.color ?? STUDIO_TEXT_DEFAULT_FILL_COLOR,
+        opacity: resolved.opacity,
+      }
+    : {
+        type: "solid",
+        color: resolved.startColor,
+        opacity: resolved.opacity,
+      };
+};
+
+export const normalizeStudioTextFill = (
+  fill: unknown,
+  fallbackColor = STUDIO_TEXT_DEFAULT_FILL_COLOR,
+): StudioTextFill => {
+  const resolved = resolveStudioTextFill(fill, fallbackColor);
+  return resolved.type === "solid"
+    ? {
+        type: "solid",
+        color: resolved.color ?? fallbackColor,
+        opacity: resolved.opacity,
+      }
+    : {
+        type: "linearGradient",
+        startColor: resolved.startColor,
+        endColor: resolved.endColor,
+        angleDeg: clampStudioTextFillAngle(resolved.angleDeg),
+        opacity: resolved.opacity,
+      };
+};
+
+export const getStudioTextFillPrimaryColor = (
+  fill: ResolvedStudioTextFill | StudioTextFill,
+): string | null => (fill.type === "solid" ? fill.color : fill.startColor);
+
+export const getStudioTextFillCss = (
+  fill: ResolvedStudioTextFill | StudioTextFill,
+): string | undefined => {
+  const resolved = resolveStudioTextFill(fill, STUDIO_TEXT_DEFAULT_FILL_COLOR);
+  return resolved.type === "linearGradient"
+    ? `linear-gradient(${resolved.angleDeg}deg, ${resolved.startColor}, ${resolved.endColor})`
+    : undefined;
+};
+
+export interface StudioTextFillRenderStyle {
+  color?: string;
+  backgroundImage?: string;
+  backgroundClip?: "text";
+  WebkitBackgroundClip?: "text";
+  WebkitTextFillColor?: "transparent";
+  opacity: number;
+}
+
+/** StudioText의 고정 크기·Auto-fit·효과 레이어가 공유하는 Fill CSS다. */
+export const getStudioTextFillRenderStyle = (
+  fill: ResolvedStudioTextFill | StudioTextFill,
+): StudioTextFillRenderStyle => {
+  const resolved = resolveStudioTextFill(fill);
+  if (resolved.type === "solid") {
+    return {
+      ...(resolved.color ? { color: resolved.color } : {}),
+      opacity: resolved.opacity,
+    };
+  }
+
+  return {
+    backgroundImage: getStudioTextFillCss(resolved),
+    backgroundClip: "text",
+    WebkitBackgroundClip: "text",
+    color: "transparent",
+    WebkitTextFillColor: "transparent",
+    opacity: resolved.opacity,
+  };
+};
 
 /**
  * 실효 두께를 CSS stroke 두께로 바꾼다.
@@ -199,17 +434,6 @@ export const rebuildStudioTextStrokeOutsetsFromPanelOrder = (
 
   return rebuilt.reverse();
 };
-
-export interface ResolvedStudioTextFill {
-  /**
-   * 글자색. 지정된 색이 없으면 `null`이다.
-   *
-   * `null`일 때 렌더러는 색을 지정하지 않고 물려받는다. 기본색을 채워 넣으면 색을 지정하지
-   * 않고 물려받던 기존 문서의 글자색이 바뀐다.
-   */
-  color: string | null;
-  opacity: number;
-}
 
 export interface ResolvedStudioTextAppearance {
   fill: ResolvedStudioTextFill;
@@ -404,12 +628,7 @@ export const resolveStudioTextAppearance = (
 
   if (appearance) {
     return {
-      fill: {
-        color: appearance.fill.color,
-        opacity: Number.isFinite(appearance.fill.opacity)
-          ? appearance.fill.opacity
-          : 1,
-      },
+      fill: resolveStudioTextFill(appearance.fill),
       strokes: getStudioOrderedTextStrokes(appearance.strokes),
       // 꺼 둔 그림자는 없는 것과 같다. 렌더러가 다시 판단하지 않게 여기서 걸러낸다.
       shadow: appearance.shadow?.enabled ? appearance.shadow : undefined,
@@ -423,6 +642,7 @@ export const resolveStudioTextAppearance = (
 
   return {
     fill: {
+      type: "solid",
       color: readStyleString(style, "color"),
       opacity: 1,
     },
@@ -448,7 +668,8 @@ export const shouldRenderStudioTextEffectLayers = (
   appearance: ResolvedStudioTextAppearance,
 ): boolean =>
   appearance.source === "appearance" &&
-  (getStudioDrawableTextStrokes(appearance.strokes).length > 0 ||
+  (appearance.fill.type === "linearGradient" ||
+    getStudioDrawableTextStrokes(appearance.strokes).length > 0 ||
     Boolean(appearance.shadow));
 
 /**

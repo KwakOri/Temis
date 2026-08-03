@@ -8,6 +8,7 @@ import type {
   StudioRuntimeValues,
   StudioTemplateDocument,
   StudioTextAppearance,
+  StudioTextFill,
   StudioTextShadow,
   StudioTextStroke,
 } from "@/types/template-studio";
@@ -57,7 +58,9 @@ import {
 import { resolveStudioGraphNodeGeometry } from "@/utils/template-studio/object-layout";
 import {
   getStudioTextOutermostConfiguredOutset,
+  getStudioTextFillPrimaryColor,
   getStudioTextStrokeStack,
+  normalizeStudioTextFill,
   rebuildStudioTextStrokeOutsetsFromPanelOrder,
 } from "@/utils/template-studio/text-appearance";
 import {
@@ -107,6 +110,10 @@ import {
   parseStudioImageObjectPosition,
 } from "@/utils/thumbnail-studio/image-object-position";
 import { ensureThumbnailWeekDatesContract } from "@/utils/thumbnail-studio/week-dates";
+import {
+  applyStudioShapeFill,
+  type StudioShapeFillUpdate,
+} from "@/utils/thumbnail-studio/shape-fill";
 
 /** 되돌리기 한 단위를 이 변경이 시작하는지. 끌고 있는 중이면 시작하지 않는다. */
 export interface ThumbnailUpdateOptions {
@@ -161,6 +168,11 @@ export interface ThumbnailNodeCommands {
     value: string | number | undefined,
     options?: ThumbnailUpdateOptions,
   ) => void;
+  setShapeFill: (
+    nodeIds: string | readonly string[],
+    fill: StudioShapeFillUpdate,
+    options?: ThumbnailUpdateOptions,
+  ) => void;
   setGeometry: (
     nodeId: string,
     geometry: Partial<StudioResizeGeometry>,
@@ -196,7 +208,7 @@ export interface ThumbnailNodeCommands {
   materializeTextAppearance: (nodeId: string) => void;
   setTextFill: (
     nodeId: string,
-    patch: Partial<StudioTextAppearance["fill"]>,
+    nextFill: StudioTextFill,
     options?: ThumbnailUpdateOptions,
   ) => void;
   addTextStroke: (nodeId: string) => void;
@@ -330,18 +342,16 @@ export function useThumbnailNodeCommands({
   const setTextFill = useCallback(
     (
       nodeId: string,
-      patch: Partial<StudioTextAppearance["fill"]>,
+      nextFill: StudioTextFill,
       options?: ThumbnailUpdateOptions,
     ) => {
       applyTextAppearanceMutation(
         nodeId,
         (appearance) => {
-          if (typeof patch.color === "string") {
-            appearance.fill.color = patch.color;
-          }
-          if (typeof patch.opacity === "number") {
-            appearance.fill.opacity = patch.opacity;
-          }
+          appearance.fill = normalizeStudioTextFill(
+            nextFill,
+            getStudioTextFillPrimaryColor(appearance.fill) ?? "#111827",
+          );
         },
         options,
       );
@@ -1152,6 +1162,29 @@ export function useThumbnailNodeCommands({
     [getDocument, updateDocument],
   );
 
+  const setShapeFill = useCallback(
+    (
+      nodeIds: string | readonly string[],
+      fill: StudioShapeFillUpdate,
+      options?: ThumbnailUpdateOptions,
+    ) => {
+      const ids = typeof nodeIds === "string" ? [nodeIds] : nodeIds;
+      if (
+        !ids.some((nodeId) => {
+          const node = getDocument().graph.nodes[nodeId];
+          return node?.type === "shape" && !node.locked;
+        })
+      ) {
+        return;
+      }
+
+      updateDocument((draft) => {
+        applyStudioShapeFill(draft, ids, fill);
+      }, options);
+    },
+    [getDocument, updateDocument],
+  );
+
   const setGeometry = useCallback(
     (
       nodeId: string,
@@ -1462,6 +1495,7 @@ export function useThumbnailNodeCommands({
       beginNodeMove,
       moveNodeByDrag,
       setStyleValue,
+      setShapeFill,
       setGeometry,
       setRotation,
       setTextAlignment,
@@ -1527,6 +1561,7 @@ export function useThumbnailNodeCommands({
       setSelectTextOutput,
       setSelectAssetMapping,
       setStyleValue,
+      setShapeFill,
       setTextAlignment,
       setTextFill,
       addTextStroke,

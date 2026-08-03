@@ -2,13 +2,17 @@ import type {
   StudioGraphNode,
   StudioStyleRecord,
   StudioTextAppearance,
+  StudioTextFill,
   StudioTextShadow,
   StudioTextStroke,
 } from "@/types/template-studio";
 import {
+  getStudioTextFillPrimaryColor,
   hasLegacyStudioTextShadow,
+  isStudioTextFillColor,
   parseLegacyStudioTextShadow,
   resolveStudioTextAppearance,
+  STUDIO_TEXT_DEFAULT_FILL_COLOR,
   STUDIO_TEXT_MAX_OPACITY,
   STUDIO_TEXT_MAX_OUTSET,
   STUDIO_TEXT_MAX_STROKES,
@@ -21,6 +25,8 @@ export {
 };
 export const STUDIO_TEXT_MIN_OUTSET = 0;
 export const STUDIO_TEXT_MIN_OPACITY = 0;
+export const STUDIO_TEXT_MIN_FILL_ANGLE = 0;
+export const STUDIO_TEXT_MAX_FILL_ANGLE = 360;
 export const STUDIO_TEXT_DEFAULT_STROKE_THICKNESS = 4;
 
 export const isStudioTextOutset = (value: unknown): value is number =>
@@ -114,19 +120,79 @@ export const validateStudioTextAppearance = (
 ): StudioTextAppearanceDiagnostic[] => {
   const diagnostics: StudioTextAppearanceDiagnostic[] = [];
 
-  if (!appearance.fill || appearance.fill.type !== "solid") {
+  const fill = appearance?.fill as
+    (StudioTextFill & Record<string, unknown>) | undefined;
+  if (!fill || (fill.type !== "solid" && fill.type !== "linearGradient")) {
     diagnostics.push(
-      diagnostic("fill-type", "Text fill must be a solid fill."),
+      diagnostic(
+        "fill-type",
+        "Text fill type must be solid or linearGradient.",
+      ),
     );
-  } else if (
-    typeof appearance.fill.color !== "string" ||
-    !Number.isFinite(appearance.fill.opacity) ||
-    appearance.fill.opacity < STUDIO_TEXT_MIN_OPACITY ||
-    appearance.fill.opacity > STUDIO_TEXT_MAX_OPACITY
-  ) {
-    diagnostics.push(
-      diagnostic("fill-value", "Text fill has an invalid color or opacity."),
-    );
+  } else {
+    const validateColor = (key: "color" | "startColor" | "endColor") => {
+      const value = fill[key];
+      if (typeof value !== "string" || value.trim() === "") {
+        diagnostics.push(
+          diagnostic(`fill-${key}-empty`, `Text fill ${key} is required.`),
+        );
+        return;
+      }
+      if (!isStudioTextFillColor(value)) {
+        diagnostics.push(
+          diagnostic(`fill-${key}-invalid`, `Text fill ${key} is invalid.`),
+        );
+      }
+    };
+
+    if (fill.type === "solid") {
+      validateColor("color");
+    } else {
+      validateColor("startColor");
+      validateColor("endColor");
+      if (fill.angleDeg === undefined) {
+        diagnostics.push(
+          diagnostic(
+            "fill-angle-missing",
+            "Text gradient angleDeg is required.",
+          ),
+        );
+      } else if (
+        typeof fill.angleDeg !== "number" ||
+        !Number.isFinite(fill.angleDeg)
+      ) {
+        diagnostics.push(
+          diagnostic(
+            "fill-angle-invalid",
+            "Text gradient angleDeg must be a finite number.",
+          ),
+        );
+      } else if (
+        fill.angleDeg < STUDIO_TEXT_MIN_FILL_ANGLE ||
+        fill.angleDeg > STUDIO_TEXT_MAX_FILL_ANGLE
+      ) {
+        diagnostics.push(
+          diagnostic(
+            "fill-angle-out-of-range",
+            `Text gradient angleDeg must be between ${STUDIO_TEXT_MIN_FILL_ANGLE} and ${STUDIO_TEXT_MAX_FILL_ANGLE}.`,
+          ),
+        );
+      }
+    }
+
+    if (
+      typeof fill.opacity !== "number" ||
+      !Number.isFinite(fill.opacity) ||
+      fill.opacity < STUDIO_TEXT_MIN_OPACITY ||
+      fill.opacity > STUDIO_TEXT_MAX_OPACITY
+    ) {
+      diagnostics.push(
+        diagnostic(
+          "fill-opacity",
+          "Text fill opacity must be between 0 and 1.",
+        ),
+      );
+    }
   }
 
   if (!Array.isArray(appearance.strokes)) {
@@ -258,7 +324,9 @@ export const materializeStudioTextAppearance = (
     : {
         fill: {
           type: "solid" as const,
-          color: resolved.fill.color ?? "#111827",
+          color:
+            getStudioTextFillPrimaryColor(resolved.fill) ??
+            STUDIO_TEXT_DEFAULT_FILL_COLOR,
           opacity: resolved.fill.opacity,
         },
         strokes: clone(resolved.strokes),
@@ -267,7 +335,9 @@ export const materializeStudioTextAppearance = (
   if (legacyShadow && !appearance.shadow) {
     const shadow = materializeLegacyShadowColor(
       legacyShadow,
-      node.textAppearance?.fill.color ?? resolved.fill.color,
+      node.textAppearance
+        ? getStudioTextFillPrimaryColor(node.textAppearance.fill)
+        : getStudioTextFillPrimaryColor(resolved.fill),
     );
     if (!shadow) {
       return {

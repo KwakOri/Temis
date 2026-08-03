@@ -27,8 +27,10 @@ import {
 import type {
   StudioGraphNode,
   StudioImageFit,
+  StudioShapeFill,
   StudioStyleRecord,
   StudioTemplateDocument,
+  StudioTextFill,
 } from "@/types/template-studio";
 import { getStudioBuiltinField } from "@/utils/template-studio/builtin-fields";
 import {
@@ -57,7 +59,12 @@ import type { StudioGroupOverflowDiagnostic } from "@/utils/template-studio/grap
 import { resolveStudioGraphNodeGeometry } from "@/utils/template-studio/object-layout";
 import { isStudioFillParentLayout } from "@/utils/template-studio/object-layout";
 import {
+  createStudioTextFillGradient,
+  createStudioTextFillSolid,
+  getStudioTextFillCss,
+  getStudioTextFillPrimaryColor,
   getStudioTextStrokeStack,
+  normalizeStudioTextFill,
   parseLegacyStudioTextShadow,
   resolveStudioTextAppearance,
 } from "@/utils/template-studio/text-appearance";
@@ -76,6 +83,12 @@ import {
   getStudioImageObjectPosition,
 } from "@/utils/thumbnail-studio/image-object-position";
 import type { ThumbnailCanvasPreset } from "@/utils/thumbnail-studio/document-factory";
+import {
+  createStudioShapeFillGradient,
+  createStudioShapeFillSolid,
+  getStudioShapeFillCss,
+  resolveStudioShapeFill,
+} from "@/utils/thumbnail-studio/shape-fill";
 
 import type { ThumbnailNodeCommands } from "../_hooks/use-thumbnail-node-commands";
 import { StudioWeekDatesFormatControls } from "../../../template-studio/_components/studio-timetable-object-inspector-controls";
@@ -726,6 +739,8 @@ export const buildThumbnailInspectorSections = ({
     const isSingleTextNode =
       selectedNodes.length === 1 &&
       (selectedNode.type === "text" || selectedNode.type === "flexibleText");
+    const textNodes = selectedNodes.filter(isStudioTextNode);
+    const isTextSelection = textNodes.length > 0;
     const resolvedTextAppearance = isSingleTextNode
       ? resolveStudioTextAppearance(selectedNode, primaryStyle)
       : null;
@@ -736,7 +751,10 @@ export const buildThumbnailInspectorSections = ({
       ? (selectedNode.textAppearance ?? {
           fill: {
             type: "solid" as const,
-            color: resolvedTextAppearance?.fill.color ?? color.value,
+            color:
+              (resolvedTextAppearance
+                ? getStudioTextFillPrimaryColor(resolvedTextAppearance.fill)
+                : null) ?? color.value,
             opacity: resolvedTextAppearance?.fill.opacity ?? 1,
           },
           strokes: resolvedTextAppearance?.strokes ?? [],
@@ -745,6 +763,60 @@ export const buildThumbnailInspectorSections = ({
             : {}),
         })
       : null;
+    const textFills = textNodes.map((node) =>
+      normalizeStudioTextFill(
+        resolveStudioTextAppearance(node, getNodeStyle(document, node)).fill,
+        color.value,
+      ),
+    );
+    const representativeTextFill: StudioTextFill =
+      textFills[0] ??
+      ({
+        type: "solid",
+        color: color.value,
+        opacity: 1,
+      } satisfies StudioTextFill);
+    const textFillMode = getStudioSharedStringValue(
+      textFills.map((fillValue) => fillValue.type),
+      "solid",
+    );
+    const textFillStartColor = getStudioSharedStringValue(
+      textFills.map((fillValue) =>
+        fillValue.type === "solid" ? fillValue.color : fillValue.startColor,
+      ),
+      color.value,
+    );
+    const textFillEndColor = getStudioSharedStringValue(
+      textFills.map((fillValue) =>
+        fillValue.type === "linearGradient" ? fillValue.endColor : "#ffffff",
+      ),
+      "#ffffff",
+    );
+    const textFillAngle = getStudioSharedNumberValue(
+      textFills.map((fillValue) =>
+        fillValue.type === "linearGradient" ? fillValue.angleDeg : 90,
+      ),
+      90,
+    );
+    const textFillOpacity = getStudioSharedNumberValue(
+      textFills.map((fillValue) => fillValue.opacity),
+      1,
+    );
+    const textFillPreviewStyle =
+      representativeTextFill.type === "linearGradient"
+        ? { backgroundImage: getStudioTextFillCss(representativeTextFill) }
+        : { backgroundColor: representativeTextFill.color };
+    const updateSelectedTextFill = (
+      update: (current: StudioTextFill) => StudioTextFill,
+      options?: { history?: boolean },
+    ) =>
+      textNodes.forEach((node, index) =>
+        commands.setTextFill(
+          node.id,
+          update(textFills[index] ?? representativeTextFill),
+          options,
+        ),
+      );
     const inspectorStrokes = inspectorAppearance?.strokes ?? [];
     const inspectorStrokeStack = getStudioTextStrokeStack(inspectorStrokes);
     const inspectorOutermostOutset = inspectorStrokeStack.reduce(
@@ -832,42 +904,145 @@ export const buildThumbnailInspectorSections = ({
               }
             />
           ) : null}
-          <div className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-            <span>{isSingleTextNode ? "Fill" : "Color"}</span>
-            <StudioHexColorPicker
-              ariaLabel={isSingleTextNode ? "Text fill" : "Text color"}
-              disabled={isLocked}
-              value={
-                isSingleTextNode
-                  ? (inspectorAppearance?.fill.color ?? color.value)
-                  : color.value
-              }
-              onChange={(value) =>
-                isSingleTextNode
-                  ? commands.setTextFill(
-                      selectedNode.id,
-                      { color: value },
-                      { history: false },
-                    )
-                  : selectedNodes.forEach((node) =>
-                      commands.setStyleValue(node.id, "color", value, {
-                        history: false,
-                      }),
-                    )
-              }
-              onChangeStart={captureHistory}
-            />
-          </div>
-          {isSingleTextNode && inspectorAppearance ? (
-            <StudioNumberField
-              disabled={isLocked}
-              label="Fill opacity %"
-              value={inspectorAppearance.fill.opacity * 100}
-              onChange={(value) =>
-                commands.setTextFill(selectedNode.id, { opacity: value / 100 })
-              }
-            />
-          ) : null}
+          {isTextSelection ? (
+            <>
+              <StudioSelectField
+                disabled={isLocked}
+                label="Fill type"
+                options={[
+                  { value: "__mixed__", label: "Mixed" },
+                  { value: "solid", label: "Solid" },
+                  { value: "linearGradient", label: "Linear gradient" },
+                ]}
+                value={textFillMode.mixed ? "__mixed__" : textFillMode.value}
+                onChange={(value) => {
+                  if (value !== "solid" && value !== "linearGradient") return;
+                  captureHistory();
+                  updateSelectedTextFill(
+                    (current) =>
+                      value === "solid"
+                        ? createStudioTextFillSolid(current)
+                        : createStudioTextFillGradient(current),
+                    { history: false },
+                  );
+                }}
+              />
+              <div className="grid grid-cols-[1fr_auto] items-center gap-2 text-[11px] font-semibold text-[var(--fg2)]">
+                <span>Preview{textFillMode.mixed ? " (Mixed)" : ""}</span>
+                <span
+                  aria-label="Text fill preview"
+                  className="h-7 w-16 rounded-md border border-[var(--field-border)]"
+                  style={textFillPreviewStyle}
+                />
+              </div>
+              {!textFillMode.mixed && textFillMode.value === "solid" ? (
+                <div className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+                  <span>Color{textFillStartColor.mixed ? " (Mixed)" : ""}</span>
+                  <StudioHexColorPicker
+                    ariaLabel="Text fill"
+                    disabled={isLocked}
+                    value={textFillStartColor.value}
+                    onChange={(value) =>
+                      updateSelectedTextFill(
+                        (current) => ({
+                          ...createStudioTextFillSolid(current),
+                          color: value,
+                        }),
+                        { history: false },
+                      )
+                    }
+                    onChangeStart={captureHistory}
+                  />
+                </div>
+              ) : null}
+              {!textFillMode.mixed &&
+              textFillMode.value === "linearGradient" ? (
+                <>
+                  <div className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+                    <span>
+                      Start color{textFillStartColor.mixed ? " (Mixed)" : ""}
+                    </span>
+                    <StudioHexColorPicker
+                      ariaLabel="Text gradient start color"
+                      disabled={isLocked}
+                      value={textFillStartColor.value}
+                      onChange={(value) =>
+                        updateSelectedTextFill(
+                          (current) => ({
+                            ...createStudioTextFillGradient(current),
+                            startColor: value,
+                          }),
+                          { history: false },
+                        )
+                      }
+                      onChangeStart={captureHistory}
+                    />
+                  </div>
+                  <div className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+                    <span>
+                      End color{textFillEndColor.mixed ? " (Mixed)" : ""}
+                    </span>
+                    <StudioHexColorPicker
+                      ariaLabel="Text gradient end color"
+                      disabled={isLocked}
+                      value={textFillEndColor.value}
+                      onChange={(value) =>
+                        updateSelectedTextFill(
+                          (current) => ({
+                            ...createStudioTextFillGradient(current),
+                            endColor: value,
+                          }),
+                          { history: false },
+                        )
+                      }
+                      onChangeStart={captureHistory}
+                    />
+                  </div>
+                  <StudioNumberField
+                    disabled={isLocked}
+                    label="Angle °"
+                    mixed={textFillAngle.mixed}
+                    value={textFillAngle.value}
+                    onChange={(value) =>
+                      updateSelectedTextFill((current) => ({
+                        ...createStudioTextFillGradient(current),
+                        angleDeg: Math.min(360, Math.max(0, value)),
+                      }))
+                    }
+                  />
+                </>
+              ) : null}
+              <StudioNumberField
+                disabled={isLocked}
+                label="Fill opacity %"
+                mixed={textFillOpacity.mixed}
+                value={textFillOpacity.value * 100}
+                onChange={(value) =>
+                  updateSelectedTextFill((current) => ({
+                    ...current,
+                    opacity: Math.min(100, Math.max(0, value)) / 100,
+                  }))
+                }
+              />
+            </>
+          ) : (
+            <div className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+              <span>Color</span>
+              <StudioHexColorPicker
+                ariaLabel="Text color"
+                disabled={isLocked}
+                value={color.value}
+                onChange={(value) =>
+                  selectedNodes.forEach((node) =>
+                    commands.setStyleValue(node.id, "color", value, {
+                      history: false,
+                    }),
+                  )
+                }
+                onChangeStart={captureHistory}
+              />
+            </div>
+          )}
           {isSingleTextNode && inspectorAppearance ? (
             <div className="grid gap-2 rounded-xl border border-[var(--field-border)] p-2">
               <div className="flex items-center justify-between gap-2">
@@ -1290,11 +1465,55 @@ export const buildThumbnailInspectorSections = ({
     );
   }
 
-  if (hasStudioNodeInspectorSection(selectedNode.type, "shape")) {
-    const fill = getStudioSharedStringValue(
-      styles.map((style) => style.backgroundColor),
+  const shapeNodes = selectedNodes.filter((node) =>
+    hasStudioNodeInspectorSection(node.type, "shape"),
+  );
+
+  if (shapeNodes.length > 0) {
+    const shapeNodeIds = shapeNodes.map((node) => node.id);
+    const editableShapeNodeIds = shapeNodes
+      .filter((node) => !node.locked)
+      .map((node) => node.id);
+    const shapeFills = shapeNodes.map((node) =>
+      resolveStudioShapeFill(
+        node.shapeFill,
+        getNodeStyle(document, node).backgroundColor,
+      ),
+    );
+    const representativeFill: StudioShapeFill =
+      shapeFills[0] ?? resolveStudioShapeFill(undefined);
+    const fillMode = getStudioSharedStringValue(
+      shapeFills.map((fillValue) => fillValue.type),
+      "solid",
+    );
+    const startColor = getStudioSharedStringValue(
+      shapeFills.map((fillValue) =>
+        fillValue.type === "solid" ? fillValue.color : fillValue.startColor,
+      ),
       "#4f8cff",
     );
+    const endColor = getStudioSharedStringValue(
+      shapeFills.map((fillValue) =>
+        fillValue.type === "linearGradient" ? fillValue.endColor : "#ffffff",
+      ),
+      "#ffffff",
+    );
+    const angle = getStudioSharedNumberValue(
+      shapeFills.map((fillValue) =>
+        fillValue.type === "linearGradient" ? fillValue.angleDeg : 90,
+      ),
+      90,
+    );
+    const shapeFillPreviewStyle =
+      representativeFill.type === "linearGradient"
+        ? { backgroundImage: getStudioShapeFillCss(representativeFill) }
+        : { backgroundColor: representativeFill.color };
+    const setShapeFillPatch = (
+      update: (current: StudioShapeFill) => StudioShapeFill,
+    ) =>
+      commands.setShapeFill(shapeNodeIds, (current) => update(current), {
+        history: false,
+      });
     const borderColor = getStudioSharedStringValue(
       styles.map((style) => style.borderColor),
       "#111827",
@@ -1308,22 +1527,98 @@ export const buildThumbnailInspectorSections = ({
         "shape",
         "Shape",
         <div className="grid gap-2">
-          <div className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-            <span>Fill</span>
-            <StudioHexColorPicker
-              allowTransparent
-              ariaLabel="Shape fill"
-              value={fill.value}
-              onChange={(value) =>
-                selectedNodes.forEach((node) =>
-                  commands.setStyleValue(node.id, "backgroundColor", value, {
-                    history: false,
-                  }),
-                )
-              }
-              onChangeStart={captureHistory}
+          <StudioSelectField
+            disabled={editableShapeNodeIds.length === 0}
+            label="Fill type"
+            options={[
+              { value: "__mixed__", label: "Mixed" },
+              { value: "solid", label: "Solid" },
+              { value: "linearGradient", label: "Gradient" },
+            ]}
+            value={fillMode.mixed ? "__mixed__" : fillMode.value}
+            onChange={(value) => {
+              if (value !== "solid" && value !== "linearGradient") return;
+              commands.setShapeFill(shapeNodeIds, (current) =>
+                value === "solid"
+                  ? createStudioShapeFillSolid(current)
+                  : createStudioShapeFillGradient(current),
+              );
+            }}
+          />
+          <div className="grid grid-cols-[1fr_auto] items-center gap-2 text-[11px] font-semibold text-[var(--fg2)]">
+            <span>Preview{fillMode.mixed ? " (Mixed)" : ""}</span>
+            <span
+              aria-label="Shape fill preview"
+              className="h-7 w-16 rounded-md border border-[var(--field-border)]"
+              style={shapeFillPreviewStyle}
             />
           </div>
+          {!fillMode.mixed && fillMode.value === "solid" ? (
+            <div className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+              <span>Color{startColor.mixed ? " (Mixed)" : ""}</span>
+              <StudioHexColorPicker
+                allowTransparent
+                ariaLabel="Shape fill"
+                value={startColor.value}
+                onChange={(value) =>
+                  setShapeFillPatch((current) => ({
+                    ...createStudioShapeFillSolid(current),
+                    color: value,
+                  }))
+                }
+                disabled={editableShapeNodeIds.length === 0}
+                onChangeStart={captureHistory}
+              />
+            </div>
+          ) : null}
+          {!fillMode.mixed && fillMode.value === "linearGradient" ? (
+            <>
+              <div className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+                <span>Start color{startColor.mixed ? " (Mixed)" : ""}</span>
+                <StudioHexColorPicker
+                  allowTransparent
+                  ariaLabel="Shape gradient start color"
+                  value={startColor.value}
+                  onChange={(value) =>
+                    setShapeFillPatch((current) => ({
+                      ...createStudioShapeFillGradient(current),
+                      startColor: value,
+                    }))
+                  }
+                  disabled={editableShapeNodeIds.length === 0}
+                  onChangeStart={captureHistory}
+                />
+              </div>
+              <div className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+                <span>End color{endColor.mixed ? " (Mixed)" : ""}</span>
+                <StudioHexColorPicker
+                  allowTransparent
+                  ariaLabel="Shape gradient end color"
+                  value={endColor.value}
+                  onChange={(value) =>
+                    setShapeFillPatch((current) => ({
+                      ...createStudioShapeFillGradient(current),
+                      endColor: value,
+                    }))
+                  }
+                  disabled={editableShapeNodeIds.length === 0}
+                  onChangeStart={captureHistory}
+                />
+              </div>
+              <StudioNumberField
+                disabled={editableShapeNodeIds.length === 0}
+                label="Angle °"
+                mixed={angle.mixed}
+                value={angle.value}
+                onChange={(value) =>
+                  setShapeFillPatch((current) => ({
+                    ...createStudioShapeFillGradient(current),
+                    angleDeg: value,
+                  }))
+                }
+              />
+            </>
+          ) : null}
           <div className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
             <span>Border color</span>
             <StudioHexColorPicker

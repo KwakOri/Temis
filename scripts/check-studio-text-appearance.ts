@@ -24,12 +24,18 @@ import type {
   StudioTextStroke,
 } from "../src/types/template-studio";
 import {
+  createStudioTextFillGradient,
+  createStudioTextFillSolid,
   getStudioDrawableTextStrokes,
   getStudioOrderedTextStrokes,
+  getStudioTextFillCss,
   getStudioTextStrokeStack,
   getStudioTextStrokeBands,
+  getStudioTextFillRenderStyle,
   rebuildStudioTextStrokeOutsetsFromPanelOrder,
   hasStudioTextAppearance,
+  getStudioTextFillPrimaryColor,
+  normalizeStudioTextFillAngle,
   resolveStudioTextAppearance,
   shouldRenderStudioTextEffectLayers,
   STUDIO_TEXT_STROKE_CSS_SCALE,
@@ -183,7 +189,11 @@ const resolved = resolveStudioTextAppearance(
   { color: "#000000" },
 );
 assert.equal(resolved.source, "appearance");
-assert.deepEqual(resolved.fill, { color: "#fde047", opacity: 0.8 });
+assert.deepEqual(resolved.fill, {
+  type: "solid",
+  color: "#fde047",
+  opacity: 0.8,
+});
 assert.deepEqual(
   resolved.strokes.map((item) => item.id),
   ["inner", "outer"],
@@ -196,9 +206,54 @@ assert.deepEqual(resolved.presetRef, {
   presetVersion: 3,
 });
 assert.equal(
-  resolved.fill.color,
+  getStudioTextFillPrimaryColor(resolved.fill),
   "#fde047",
   "구조화된 효과가 있으면 style의 색보다 그것을 쓴다.",
+);
+
+const gradientFill = {
+  type: "linearGradient" as const,
+  startColor: "#ef4444",
+  endColor: "#3b82f6",
+  angleDeg: 450,
+  opacity: 0.75,
+};
+const resolvedGradient = resolveStudioTextAppearance(
+  createTextNode({
+    textAppearance: { fill: gradientFill, strokes: [] },
+  }),
+  {},
+);
+assert.deepEqual(resolvedGradient.fill, {
+  type: "linearGradient",
+  startColor: "#ef4444",
+  endColor: "#3b82f6",
+  angleDeg: 90,
+  opacity: 0.75,
+});
+assert.equal(
+  getStudioTextFillCss(resolvedGradient.fill),
+  "linear-gradient(90deg, #ef4444, #3b82f6)",
+);
+assert.deepEqual(getStudioTextFillRenderStyle(resolvedGradient.fill), {
+  backgroundImage: "linear-gradient(90deg, #ef4444, #3b82f6)",
+  backgroundClip: "text",
+  WebkitBackgroundClip: "text",
+  color: "transparent",
+  WebkitTextFillColor: "transparent",
+  opacity: 0.75,
+});
+assert.equal(normalizeStudioTextFillAngle(-90), 270);
+assert.deepEqual(
+  createStudioTextFillSolid(
+    createStudioTextFillGradient({
+      type: "solid",
+      color: "#111827",
+      opacity: 0.4,
+    }),
+  ),
+  { type: "solid", color: "#111827", opacity: 0.4 },
+  "solid -> gradient -> solid keeps the starting color and opacity",
 );
 
 // 꺼 둔 그림자는 없는 것과 같다.
@@ -251,7 +306,7 @@ const legacyResolved = resolveStudioTextAppearance(
 assert.equal(legacyResolved.source, "legacyStyle");
 assert.deepEqual(
   legacyResolved.fill,
-  { color: "#475569", opacity: 1 },
+  { type: "solid", color: "#475569", opacity: 1 },
   "노드 투명도를 채우기 투명도로 가져오면 두 번 곱해져 글자가 더 흐려진다.",
 );
 assert.deepEqual(legacyResolved.strokes, []);
@@ -263,17 +318,23 @@ assert.deepEqual(legacyResolved.strokes, []);
  * 전부 이 경로를 탄다.
  */
 assert.equal(
-  resolveStudioTextAppearance(createTextNode(), { fontSize: 20 }).fill.color,
+  getStudioTextFillPrimaryColor(
+    resolveStudioTextAppearance(createTextNode(), { fontSize: 20 }).fill,
+  ),
   null,
   "색이 없으면 null이어야 한다. 기본색을 채우면 기존 문서의 글자색이 바뀐다.",
 );
 assert.equal(
-  resolveStudioTextAppearance(createTextNode(), undefined).fill.color,
+  getStudioTextFillPrimaryColor(
+    resolveStudioTextAppearance(createTextNode(), undefined).fill,
+  ),
   null,
   "style이 아예 없어도 색을 만들어내지 않는다.",
 );
 assert.equal(
-  resolveStudioTextAppearance(createTextNode(), { color: "   " }).fill.color,
+  getStudioTextFillPrimaryColor(
+    resolveStudioTextAppearance(createTextNode(), { color: "   " }).fill,
+  ),
   null,
   "빈 문자열은 색이 아니다.",
 );
@@ -354,6 +415,11 @@ assert.equal(
     resolveStudioTextAppearance(layeredAppearance, {}),
   ),
   true,
+);
+assert.equal(
+  shouldRenderStudioTextEffectLayers(resolvedGradient),
+  true,
+  "gradient fill needs the text effect layer path",
 );
 assert.equal(
   shouldRenderStudioTextEffectLayers(

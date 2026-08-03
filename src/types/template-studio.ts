@@ -110,6 +110,12 @@ export interface StudioTimetableGuideResource {
   opacity?: number;
 }
 
+export interface StudioThumbnailGuide {
+  assetId?: StudioAssetId | null;
+  visible?: boolean;
+  opacity?: number;
+}
+
 export interface StudioTemplateResources {
   webFonts?: StudioWebFontSource[];
   cardsGuide?: StudioTimetableGuideResource;
@@ -133,11 +139,19 @@ export interface StudioExceptionObjectMeta {
   capabilityFlags?: StudioTimetableCapabilityKey[];
 }
 
-export interface StudioTextFill {
-  type: "solid";
-  color: string;
-  opacity: number;
-}
+export type StudioTextFill =
+  | {
+      type: "solid";
+      color: string;
+      opacity: number;
+    }
+  | {
+      type: "linearGradient";
+      startColor: string;
+      endColor: string;
+      angleDeg: number;
+      opacity: number;
+    };
 
 export interface StudioTextStroke {
   id: string;
@@ -192,6 +206,18 @@ export interface StudioTextAppearance {
   shadow?: StudioTextShadow;
   presetRef?: StudioTextPresetReference;
 }
+
+export type StudioShapeFill =
+  | {
+      type: "solid";
+      color: string;
+    }
+  | {
+      type: "linearGradient";
+      startColor: string;
+      endColor: string;
+      angleDeg: number;
+    };
 
 /**
  * 동적 바인딩을 끊을 때 돌아갈 편집 시점의 정적 값.
@@ -259,6 +285,8 @@ export interface StudioGraphNode {
   hidden?: boolean;
   /** `text`와 `flexibleText`에만 유효하다. */
   textAppearance?: StudioTextAppearance;
+  /** `shape`에만 유효하다. 없으면 style.backgroundColor를 단색으로 읽는다. */
+  shapeFill?: StudioShapeFill;
   meta?: StudioGraphNodeMeta;
 }
 
@@ -548,7 +576,7 @@ export interface StudioThumbnailDomain {
     defaultFormat: "png";
     transparentBackground: boolean;
   };
-  guide?: StudioTimetableGuideResource;
+  guide?: StudioThumbnailGuide;
   weekDates?: StudioThumbnailWeekDates;
 }
 

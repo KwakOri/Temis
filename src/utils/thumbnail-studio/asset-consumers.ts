@@ -79,19 +79,12 @@ export const collectThumbnailStudioAssetConsumers = (
     addNodeAssetConsumers(consumers, node),
   );
 
-  const guides = [
-    ["thumbnail-guide", document.domains?.thumbnail?.guide],
-    ["cards-guide", document.resources?.cardsGuide],
-    ["timetable-guide", document.resources?.timetableGuide],
-  ] as const;
-  guides.forEach(([id, guide]) => {
-    addConsumer(consumers, guide?.assetId, {
-      id,
-      nodeId: null,
-      label: "Guide",
-      detail: id,
-      locked: false,
-    });
+  addConsumer(consumers, document.domains?.thumbnail?.guide?.assetId, {
+    id: "thumbnail-guide",
+    nodeId: null,
+    label: "Thumbnail guide",
+    detail: "Thumbnail guide",
+    locked: false,
   });
 
   return consumers;
