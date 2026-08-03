@@ -6,7 +6,7 @@ import React, { useEffect, useMemo, useState } from "react";
 interface ImageSaveModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (width: number, height: number) => void;
+  onSave: (width: number, height: number) => Promise<void>;
   templateSize?: { width: number; height: number };
   isTeam?: boolean;
   mondayDateStr?: string;
@@ -310,7 +310,9 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
       }
     } catch (error) {
       console.error("저장 중 오류 발생:", error);
-      alert("저장 중 오류가 발생했습니다. 다시 시도해주세요.");
+      alert(
+        "이미지 생성 또는 시간표 저장 중 오류가 발생했습니다. 다시 시도해주세요."
+      );
     } finally {
       setIsSaving(false);
     }
@@ -409,10 +411,10 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
             </div>
             <div className="text-center">
               <h3 className="text-lg font-bold text-gray-900 mb-2">
-                저장이 완료되었습니다!
+                저장 요청이 완료되었습니다!
               </h3>
               <p className="text-sm text-gray-600">
-                이미지와 팀 시간표가 성공적으로 저장되었습니다.
+                이미지 다운로드를 시작했고 팀 시간표가 저장되었습니다.
               </p>
             </div>
           </div>

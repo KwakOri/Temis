@@ -204,7 +204,7 @@ const TeamTimeTableForm = ({
 
   const handleImageSave = async (width: number, height: number) => {
     try {
-      downloadImage(width, height);
+      await downloadImage(width, height);
 
       if (isTeam && !isTeamCalendar && saveable && teamData) {
         const weekStartDate =
@@ -218,7 +218,7 @@ const TeamTimeTableForm = ({
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
     } catch (error) {
-      console.error('팀 시간표 자동 저장 실패:', error);
+      console.error('이미지 또는 팀 시간표 저장 실패:', error);
       throw error;
     }
   };
