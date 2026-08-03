@@ -30,6 +30,7 @@ import type {
   StudioStyleRecord,
   StudioTemplateDocument,
 } from "@/types/template-studio";
+import { getStudioBuiltinField } from "@/utils/template-studio/builtin-fields";
 import {
   getStudioBindingInputId,
   isStudioImageNode,
@@ -37,6 +38,7 @@ import {
   isStudioTextNode,
 } from "@/utils/template-studio/binding-resolver";
 import { getStudioInputTypeLabel } from "@/utils/template-studio/input-commands";
+import { getStudioInputScopeLabel } from "@/utils/template-studio/input-scope";
 import type {
   StudioAlignAxis,
   StudioAlignment,
@@ -76,6 +78,7 @@ import {
 import type { ThumbnailCanvasPreset } from "@/utils/thumbnail-studio/document-factory";
 
 import type { ThumbnailNodeCommands } from "../_hooks/use-thumbnail-node-commands";
+import { StudioWeekDatesFormatControls } from "../../../template-studio/_components/studio-timetable-object-inspector-controls";
 
 export interface ThumbnailInspectorParams {
   document: StudioTemplateDocument;
@@ -423,6 +426,14 @@ export const buildThumbnailInspectorSections = ({
       ? (document.inputs[bindingInputId] ?? null)
       : null;
     const isBoundBinding = Boolean(bindingInputId);
+    const builtinField =
+      selectedNode.binding?.kind === "builtinField"
+        ? getStudioBuiltinField(selectedNode.binding.fieldId)
+        : null;
+    const isWeekDatesBinding =
+      selectedNode.meta?.semantic?.type === "weekDates" &&
+      selectedNode.binding?.kind === "builtinField" &&
+      selectedNode.binding.fieldId === "week.date_range";
     const bindingSourceValue = bindingInputId ? `input:${bindingInputId}` : "";
     const assets = Object.values(document.assets);
     const selectedAssetBinding =
@@ -437,7 +448,7 @@ export const buildThumbnailInspectorSections = ({
         <div className="grid min-w-0 gap-3">
           <div className="grid grid-cols-2 gap-0.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-0.5">
             <button
-              className={`h-7 rounded-[5px] text-[11px] font-semibold transition ${!isBoundBinding ? "bg-[var(--accent)] text-white" : "text-[var(--fg2)] hover:bg-[var(--hover)]"}`}
+              className={`h-7 rounded-[5px] text-[11px] font-semibold transition ${!isBoundBinding && !builtinField ? "bg-[var(--accent)] text-white" : "text-[var(--fg2)] hover:bg-[var(--hover)]"}`}
               disabled={isLocked}
               type="button"
               onClick={() => commands.setStaticBinding(selectedNode.id)}
@@ -461,7 +472,32 @@ export const buildThumbnailInspectorSections = ({
             </button>
           </div>
 
-          {!isBoundBinding ? (
+          {builtinField ? (
+            <>
+              <div className="grid gap-1 rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] px-3 py-2">
+                <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
+                  Built-in Source
+                </span>
+                <span className="truncate text-xs font-semibold text-[var(--fg)]">
+                  {builtinField.label}
+                </span>
+                <span className="truncate text-[10px] font-medium text-[var(--fg3)]">
+                  {getStudioInputScopeLabel(builtinField.scope)} ·{" "}
+                  {builtinField.id}
+                </span>
+              </div>
+              {isWeekDatesBinding &&
+              selectedNode.binding?.kind === "builtinField" ? (
+                <StudioWeekDatesFormatControls
+                  format={selectedNode.binding.dateRangeFormat}
+                  template={selectedNode.binding.dateRangeTemplate}
+                  onChange={(value) =>
+                    commands.setWeekDateFormatting(selectedNode.id, value)
+                  }
+                />
+              ) : null}
+            </>
+          ) : !isBoundBinding ? (
             <>
               {isStudioTextNode(selectedNode) ? (
                 <StudioTextareaField

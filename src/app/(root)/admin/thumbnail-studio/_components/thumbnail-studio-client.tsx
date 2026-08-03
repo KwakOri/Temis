@@ -1515,7 +1515,12 @@ export function ThumbnailStudioClient({
           <StudioLeftSidebar
             activeTabId={panelMode}
             content={leftPanelContent}
-            contextHeader={<ThumbnailAddMenu onAddNode={commands.addNode} />}
+            contextHeader={
+              <ThumbnailAddMenu
+                onAddNode={commands.addNode}
+                onAddWeekDates={commands.addWeekDates}
+              />
+            }
             tabs={THUMBNAIL_PANEL_TABS}
             onTabChange={(tabId) => setPanelMode(tabId as ThumbnailPanelMode)}
           />

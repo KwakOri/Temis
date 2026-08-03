@@ -74,6 +74,31 @@ export const applyThumbnailStudioBindNodeToInput = (
   return true;
 };
 
+/** Week Dates builtin binding에 표시 형식을 저장한다. */
+export const applyThumbnailStudioSetWeekDateFormatting = (
+  document: StudioTemplateDocument,
+  nodeId: string,
+  format: string,
+  template: string,
+): boolean => {
+  const node = getNode(document, nodeId);
+  if (
+    !node ||
+    node.locked ||
+    node.binding?.kind !== "builtinField" ||
+    node.binding.fieldId !== "week.date_range"
+  ) {
+    return false;
+  }
+
+  node.binding = {
+    ...node.binding,
+    dateRangeFormat: format,
+    dateRangeTemplate: template,
+  };
+  return true;
+};
+
 /** 노드의 현재 resolver 결과를 default로 삼아 input을 만들고 즉시 연결한다. */
 export const applyThumbnailStudioCreateInputForNode = (
   document: StudioTemplateDocument,

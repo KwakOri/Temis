@@ -137,7 +137,11 @@ export const resolveStudioTextBinding = (
       values,
       binding.fieldId,
       context,
-      { dayLabelFormat: binding.dayLabelFormat },
+      {
+        dayLabelFormat: binding.dayLabelFormat,
+        dateRangeFormat: binding.dateRangeFormat,
+        dateRangeTemplate: binding.dateRangeTemplate,
+      },
     );
   }
 

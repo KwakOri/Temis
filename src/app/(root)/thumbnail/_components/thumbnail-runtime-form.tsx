@@ -451,6 +451,22 @@ export function ThumbnailRuntimeForm({
     const errorMessage =
       input.required && !value.trim() ? "필수 입력입니다." : undefined;
     if (input.type === "text") {
+      if (input.presentation?.control === "date") {
+        return (
+          <StudioRuntimeField
+            control="input"
+            description={input.presentation.helpText ?? input.description}
+            error={errorMessage}
+            label={input.label}
+            maxLength={input.maxLength}
+            placeholder={input.placeholder}
+            required={input.required}
+            type="date"
+            value={value}
+            onValueChange={(next) => updateValue(input, next)}
+          />
+        );
+      }
       return (
         <StudioRuntimeField
           control={input.multiline ? "textarea" : "input"}
@@ -532,7 +548,13 @@ export function ThumbnailRuntimeForm({
             <h3 className="text-[11px] font-black uppercase tracking-[0.08em] text-[var(--runtime-fg-muted)]">
               {group.groupId ?? "입력"}
             </h3>
-            <div className="grid gap-4">{group.inputs.map(renderInput)}</div>
+            <div className="grid gap-4">
+              {group.inputs.map((input) => (
+                <React.Fragment key={input.id}>
+                  {renderInput(input)}
+                </React.Fragment>
+              ))}
+            </div>
           </StudioRuntimeCard>
         ))}
         {groups.length === 0 ? (

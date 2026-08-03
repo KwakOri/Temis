@@ -76,11 +76,24 @@ export const parseStudioIsoDateParts = (value: string | undefined) => {
   if (!value) return null;
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!match) return null;
-  return {
+  const parts = {
     year: match[1],
     month: match[2],
     day: match[3],
   };
+
+  const date = new Date(
+    Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day)),
+  );
+  if (
+    date.getUTCFullYear() !== Number(parts.year) ||
+    date.getUTCMonth() !== Number(parts.month) - 1 ||
+    date.getUTCDate() !== Number(parts.day)
+  ) {
+    return null;
+  }
+
+  return parts;
 };
 
 export const getStudioDatePartsWithDayOffset = (
@@ -145,6 +158,44 @@ export const getStudioWeekEndParts = (
   );
 };
 
+export interface StudioDateRangeResolverOptions {
+  startDate?: string;
+  endDate?: string;
+  dayCount?: number;
+  format?: string;
+  template?: string;
+  locale?: string;
+}
+
+/**
+ * 날짜 공급원과 기간만 받아 날짜 범위를 계산한다.
+ *
+ * timetable 문서를 직접 읽지 않으므로 Thumbnail과 Timetable이 같은 계산기를
+ * 사용하면서도 각자 자신의 입력 어댑터를 둘 수 있다.
+ */
+export const getStudioDateRangeParts = ({
+  startDate,
+  endDate,
+  dayCount = 7,
+}: Pick<
+  StudioDateRangeResolverOptions,
+  "startDate" | "endDate" | "dayCount"
+>) => {
+  const start = parseStudioIsoDateParts(startDate);
+  if (!start) return { start: null, end: parseStudioIsoDateParts(endDate) };
+
+  const explicitEnd = parseStudioIsoDateParts(endDate);
+  if (explicitEnd) return { start, end: explicitEnd };
+
+  const normalizedDayCount = Number.isFinite(dayCount)
+    ? Math.max(1, Math.floor(dayCount))
+    : 7;
+  return {
+    start,
+    end: getStudioDatePartsWithDayOffset(startDate, normalizedDayCount - 1),
+  };
+};
+
 const getUtcDate = (parts: StudioDateParts | null): Date | null => {
   if (!parts) return null;
   return new Date(
@@ -154,12 +205,12 @@ const getUtcDate = (parts: StudioDateParts | null): Date | null => {
 
 const getLocalizedDate = (
   parts: StudioDateParts | null,
-  options: { includeYear: boolean },
+  options: { includeYear: boolean; locale?: string },
 ) => {
   const date = getUtcDate(parts);
   if (!date) return "";
 
-  const formatter = new Intl.DateTimeFormat(undefined, {
+  const formatter = new Intl.DateTimeFormat(options.locale, {
     month: "short",
     day: "2-digit",
     year: options.includeYear ? "numeric" : undefined,
@@ -172,6 +223,7 @@ const getLocalizedDate = (
 const formatStudioDateToken = (
   parts: StudioDateParts | null,
   token: string,
+  locale?: string,
 ) => {
   if (!parts) return "";
 
@@ -187,10 +239,10 @@ const formatStudioDateToken = (
   if (token === "weekday") return WEEKDAY_LABELS[weekdayIndex];
   if (token === "weekdayShort") return WEEKDAY_SHORT_LABELS[weekdayIndex];
   if (token === "localized") {
-    return getLocalizedDate(parts, { includeYear: false });
+    return getLocalizedDate(parts, { includeYear: false, locale });
   }
   if (token === "localizedWithYear") {
-    return getLocalizedDate(parts, { includeYear: true });
+    return getLocalizedDate(parts, { includeYear: true, locale });
   }
 
   return null;
@@ -201,11 +253,13 @@ export const resolveStudioDateTemplate = ({
   start,
   end,
   primary = start ?? end,
+  locale,
 }: {
   template: string;
   start?: StudioDateParts | null;
   end?: StudioDateParts | null;
   primary?: StudioDateParts | null;
+  locale?: string;
 }) =>
   template.replace(/\$\{\s*([A-Za-z.]+)\s*\}/g, (match, rawToken) => {
     const token = String(rawToken);
@@ -215,11 +269,12 @@ export const resolveStudioDateTemplate = ({
       const value = formatStudioDateToken(
         namespace === "start" ? (start ?? null) : (end ?? null),
         tokenParts.join("."),
+        locale,
       );
       return value ?? match;
     }
 
-    const value = formatStudioDateToken(primary ?? null, token);
+    const value = formatStudioDateToken(primary ?? null, token, locale);
     return value ?? match;
   });
 
@@ -232,28 +287,74 @@ const getWeekDatePresetTemplate = (
   return preset?.template ?? null;
 };
 
+export const getStudioWeekDatePreset = (format: string) =>
+  STUDIO_WEEK_DATE_FORMAT_PRESETS.find((preset) => preset.id === format) ??
+  null;
+
+export const getStudioWeekDateTemplateValue = (
+  format?: string,
+  template?: string,
+): string =>
+  template?.trimEnd() ||
+  getWeekDatePresetTemplate(format) ||
+  STUDIO_WEEK_DATE_LONG_TEMPLATE;
+
+export const getStudioWeekDatePresetValue = (
+  format?: string,
+  template?: string,
+): string => {
+  if (!template && getWeekDatePresetTemplate(format)) return format ?? "long";
+  return (
+    STUDIO_WEEK_DATE_FORMAT_PRESETS.find(
+      (preset) => preset.template === template,
+    )?.id ?? "custom"
+  );
+};
+
+/** timetable과 Thumbnail이 공유하는 순수 날짜 범위 resolver. */
+export const resolveStudioDateRangeText = ({
+  startDate,
+  endDate,
+  dayCount = 7,
+  format,
+  template,
+  locale,
+}: StudioDateRangeResolverOptions = {}) => {
+  const { start, end } = getStudioDateRangeParts({
+    startDate,
+    endDate,
+    dayCount,
+  });
+  if (!start && !end) return "";
+
+  return resolveStudioDateTemplate({
+    template: getStudioWeekDateTemplateValue(format, template),
+    start,
+    end,
+    primary: start ?? end,
+    locale,
+  });
+};
+
 export const resolveStudioWeekDateText = (
   document: StudioTemplateDocument,
   options: {
     format?: string;
     template?: string;
     startDate?: string;
+    locale?: string;
   } = {},
 ) => {
   const start = getStudioWeekStartParts(document, options.startDate);
   const end = getStudioWeekEndParts(document, options.startDate);
   if (!start && !end) return "";
 
-  const template =
-    options.template?.trimEnd() ||
-    getWeekDatePresetTemplate(options.format) ||
-    STUDIO_WEEK_DATE_LONG_TEMPLATE;
-
   return resolveStudioDateTemplate({
-    template,
+    template: getStudioWeekDateTemplateValue(options.format, options.template),
     start,
     end,
     primary: start ?? end,
+    locale: options.locale,
   });
 };
 

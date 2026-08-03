@@ -15,6 +15,9 @@ import type {
   StudioTimetableCompositionObject,
 } from "@/types/template-studio";
 import {
+  getStudioWeekDatePreset as getDateRangePreset,
+  getStudioWeekDatePresetValue as getDateRangePresetValue,
+  getStudioWeekDateTemplateValue as getDateRangeTemplateValue,
   STUDIO_WEEK_DATE_FORMAT_PRESETS,
   STUDIO_WEEK_DATE_TEMPLATE_TOKENS,
 } from "@/utils/template-studio/date-template";
@@ -36,7 +39,6 @@ import {
   getStudioMaskShapeFromRadius,
   getStudioStyleString,
   getStudioTimetableObjectMaskShape,
-  getStudioWeekDatePreset,
   getStudioWeekDatePresetValue,
   getStudioWeekDateTemplateValue,
 } from "@/utils/template-studio/timetable-object-style";
@@ -60,28 +62,20 @@ export interface StudioTimetableObjectControlProps {
   onUpdateObject: StudioTimetableObjectUpdater;
 }
 
-/**
- * 주간 날짜 표기 편집.
- *
- * 프리셋을 고르면 그 프리셋의 틀을 함께 적어 둔다. 틀을 직접 고치면 형식이
- * `custom`으로 바뀐다. 틀만 남기고 형식을 그대로 두면 화면과 결과가 어긋난다.
- */
-export function StudioTimetableWeekDatesFormatControls({
-  object,
-  onUpdateObject,
-}: StudioTimetableObjectControlProps) {
-  const templateValue = getStudioWeekDateTemplateValue(object);
-  const presetValue = getStudioWeekDatePresetValue(object);
+export interface StudioWeekDatesFormatControlsProps {
+  format?: string;
+  template?: string;
+  onChange: (value: { format: string; template: string }) => void;
+}
 
-  const updateTemplate = (dateRangeTemplate: string) => {
-    onUpdateObject((currentObject) => {
-      currentObject.style = {
-        ...currentObject.style,
-        dateRangeFormat: "custom",
-        dateRangeTemplate,
-      };
-    });
-  };
+/** Timetable과 Thumbnail이 공유하는 주간 날짜 형식 편집 컨트롤. */
+export function StudioWeekDatesFormatControls({
+  format,
+  template,
+  onChange,
+}: StudioWeekDatesFormatControlsProps) {
+  const templateValue = getDateRangeTemplateValue(format, template);
+  const presetValue = getDateRangePresetValue(format, template);
 
   return (
     <div className="grid gap-2">
@@ -91,16 +85,11 @@ export function StudioTimetableWeekDatesFormatControls({
           className={SELECT_CLASS}
           value={presetValue}
           onChange={(event) => {
-            const dateRangeFormat = event.currentTarget.value;
-            const preset = getStudioWeekDatePreset(dateRangeFormat);
-            onUpdateObject((currentObject) => {
-              currentObject.style = {
-                ...currentObject.style,
-                dateRangeFormat,
-                dateRangeTemplate:
-                  preset?.template ??
-                  getStudioWeekDateTemplateValue(currentObject),
-              };
+            const nextFormat = event.currentTarget.value;
+            const preset = getDateRangePreset(nextFormat);
+            onChange({
+              format: nextFormat,
+              template: preset?.template ?? templateValue,
             });
           }}
         >
@@ -119,7 +108,12 @@ export function StudioTimetableWeekDatesFormatControls({
           className="min-h-20 resize-y rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2.5 py-2 font-mono text-[11px] font-semibold leading-relaxed text-[var(--fg)] outline-none focus:border-[var(--accent)]"
           spellCheck={false}
           value={templateValue}
-          onChange={(event) => updateTemplate(event.currentTarget.value)}
+          onChange={(event) =>
+            onChange({
+              format: "custom",
+              template: event.currentTarget.value,
+            })
+          }
         />
       </label>
 
@@ -131,9 +125,11 @@ export function StudioTimetableWeekDatesFormatControls({
             title={token}
             type="button"
             onClick={() => {
-              // 이미 적은 틀 뒤에 띄어쓰기를 하나 두고 붙인다.
               const separator = templateValue.trim().length > 0 ? " " : "";
-              updateTemplate(`${templateValue}${separator}${token}`);
+              onChange({
+                format: "custom",
+                template: `${templateValue}${separator}${token}`,
+              });
             }}
           >
             {token}
@@ -142,6 +138,30 @@ export function StudioTimetableWeekDatesFormatControls({
       </div>
     </div>
   );
+}
+
+/**
+ * 주간 날짜 표기 편집.
+ *
+ * 프리셋을 고르면 그 프리셋의 틀을 함께 적어 둔다. 틀을 직접 고치면 형식이
+ * `custom`으로 바뀐다. 틀만 남기고 형식을 그대로 두면 화면과 결과가 어긋난다.
+ */
+export function StudioTimetableWeekDatesFormatControls({
+  object,
+  onUpdateObject,
+}: StudioTimetableObjectControlProps) {
+  return StudioWeekDatesFormatControls({
+    format: getStudioWeekDatePresetValue(object),
+    template: getStudioWeekDateTemplateValue(object),
+    onChange: ({ format, template }) =>
+      onUpdateObject((currentObject) => {
+        currentObject.style = {
+          ...currentObject.style,
+          dateRangeFormat: format,
+          dateRangeTemplate: template,
+        };
+      }),
+  });
 }
 
 /** 이미지를 감출 때 위치 선택도 함께 잠근다. */

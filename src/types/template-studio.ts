@@ -42,6 +42,7 @@ export type StudioTemplateKind = "timetable" | "thumbnail";
 
 export type StudioInputScope = "global" | "day" | "entry";
 export type StudioInputType = "text" | "image" | "select";
+export type StudioInputPresentationControl = "date";
 export type StudioBuiltinFieldType = "text" | "boolean" | "status";
 /**
  * 그래프 노드의 종류.
@@ -221,6 +222,8 @@ export type StudioBinding =
       kind: "builtinField";
       fieldId: StudioBuiltinFieldId;
       dayLabelFormat?: StudioDayLabelFormat;
+      dateRangeFormat?: string;
+      dateRangeTemplate?: string;
     }
   | { kind: "staticAsset"; assetId: StudioAssetId }
   | { kind: "inputImage"; inputId: StudioInputId }
@@ -269,6 +272,7 @@ export interface StudioInputPresentation {
   order?: number;
   groupId?: string;
   helpText?: string;
+  control?: StudioInputPresentationControl;
 }
 
 /**
@@ -545,6 +549,13 @@ export interface StudioThumbnailDomain {
     transparentBackground: boolean;
   };
   guide?: StudioTimetableGuideResource;
+  weekDates?: StudioThumbnailWeekDates;
+}
+
+export interface StudioThumbnailWeekDates {
+  startDateInputId: StudioInputId;
+  dayCount: number;
+  locale?: string;
 }
 
 export interface StudioTemplateDomains {

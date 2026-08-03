@@ -8,7 +8,11 @@ import {
   StudioTimetableRuntimeEntry,
   StudioTimetableStatusId,
 } from "@/types/template-studio";
-import { createStudioRuntimeDefaultsForScope } from "@/utils/template-studio/input-values";
+import {
+  createStudioRuntimeDefaultsForScope,
+  getStudioInputDefaultValue,
+} from "@/utils/template-studio/input-values";
+import { parseStudioIsoDateParts } from "@/utils/template-studio/date-template";
 import {
   isStudioTimetableCapabilityEnabled,
   isStudioTimetableStatusAvailable,
@@ -402,9 +406,26 @@ export const validateStudioRuntimeValuesForDocument = (
   document: StudioTemplateDocument,
   values: StudioRuntimeValues,
 ): StudioDiagnostic[] => {
-  const timetable = document.domains?.timetable;
-  if (!timetable) return [];
   const diagnostics: StudioDiagnostic[] = [];
+  const thumbnailWeekDates = document.domains?.thumbnail?.weekDates;
+  if (thumbnailWeekDates) {
+    const input = document.inputs[thumbnailWeekDates.startDateInputId];
+    const startDate = input
+      ? (values.global?.[input.id] ?? getStudioInputDefaultValue(input))
+      : values.global?.[thumbnailWeekDates.startDateInputId];
+    if (!parseStudioIsoDateParts(startDate)) {
+      diagnostics.push({
+        id: "runtime-thumbnail-week-dates-start-date-invalid",
+        severity: "error",
+        title: "Invalid Thumbnail start date",
+        detail:
+          "Thumbnail Week Dates requires an ISO date in YYYY-MM-DD format.",
+      });
+    }
+  }
+
+  const timetable = document.domains?.timetable;
+  if (!timetable) return diagnostics;
   const multiEnabled = isStudioTimetableCapabilityEnabled(timetable, "multi");
 
   timetable.dayIds.forEach((dayId) => {

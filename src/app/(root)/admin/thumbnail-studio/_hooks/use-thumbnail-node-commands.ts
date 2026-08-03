@@ -88,6 +88,7 @@ import {
   applyThumbnailStudioRestoreNodeBindingFallback,
   applyThumbnailStudioSetSelectAssetMapping,
   applyThumbnailStudioSetSelectTextOutput,
+  applyThumbnailStudioSetWeekDateFormatting,
 } from "@/utils/thumbnail-studio/binding-commands";
 import {
   cloneStudioTextEffectPreset,
@@ -105,6 +106,7 @@ import {
   formatStudioImageObjectPosition,
   parseStudioImageObjectPosition,
 } from "@/utils/thumbnail-studio/image-object-position";
+import { ensureThumbnailWeekDatesContract } from "@/utils/thumbnail-studio/week-dates";
 
 /** 되돌리기 한 단위를 이 변경이 시작하는지. 끌고 있는 중이면 시작하지 않는다. */
 export interface ThumbnailUpdateOptions {
@@ -178,6 +180,11 @@ export interface ThumbnailNodeCommands {
     nodeId: string,
     strategy?: "materialize" | "restore",
   ) => void;
+  setWeekDateFormatting: (
+    nodeId: string,
+    value: { format: string; template: string },
+  ) => void;
+  addWeekDates: () => void;
   createInputFromNode: (nodeId: string) => string | null;
   bindNodeToInput: (nodeId: string, inputId: string) => void;
   setSelectTextOutput: (nodeId: string, output: "label" | "value") => void;
@@ -865,6 +872,60 @@ export function useThumbnailNodeCommands({
     ],
   );
 
+  const addWeekDates = useCallback(() => {
+    const document = getDocument();
+    const selectedNodeId = getSelectedNodeId();
+    const selectedNode = selectedNodeId
+      ? document.graph.nodes[selectedNodeId]
+      : null;
+    const plan = planStudioNodeInsertion({
+      document,
+      type: "text",
+      selectedNode,
+      viewportCenter: getViewportCenter(),
+    });
+    const nodeId = createStudioId("node");
+    const styleId = createStudioId("style");
+    const { node, style } = createStudioThumbnailNode({
+      nodeId,
+      styleId,
+      type: "text",
+      label: "Week Dates",
+      plan,
+    });
+
+    node.binding = {
+      kind: "builtinField",
+      fieldId: "week.date_range",
+      dateRangeFormat: "long",
+      dateRangeTemplate:
+        "${start.YYYY}.${start.MM}.${start.DD} - ${end.MM}.${end.DD}",
+    };
+    node.meta = { semantic: { type: "weekDates" } };
+    style.width = plan.width;
+    style.height = plan.height;
+
+    updateDocument((draft) => {
+      ensureThumbnailWeekDatesContract(draft);
+      draft.styles[styleId] = style;
+      draft.graph.nodes[nodeId] = node;
+
+      const siblings = plan.parentId
+        ? draft.graph.nodes[plan.parentId]?.childIds
+        : draft.graph.rootNodeIds;
+      siblings?.push(nodeId);
+    });
+    selectSingleNode(nodeId);
+    onStatusMessage("Added Week Dates");
+  }, [
+    getDocument,
+    getSelectedNodeId,
+    getViewportCenter,
+    onStatusMessage,
+    selectSingleNode,
+    updateDocument,
+  ]);
+
   const deleteNodes = useCallback(() => {
     const plan = planStudioDeleteNodes(getDocument(), getSelectedNodeIds());
     if (!plan.ok) {
@@ -1218,6 +1279,22 @@ export function useThumbnailNodeCommands({
     [getDocument, getPreviewValues, updateDocument],
   );
 
+  const setWeekDateFormatting = useCallback(
+    (nodeId: string, value: { format: string; template: string }) => {
+      const currentNode = getDocument().graph.nodes[nodeId];
+      if (!currentNode || currentNode.locked) return;
+      updateDocument((draft) => {
+        applyThumbnailStudioSetWeekDateFormatting(
+          draft,
+          nodeId,
+          value.format,
+          value.template,
+        );
+      });
+    },
+    [getDocument, updateDocument],
+  );
+
   const createInputFromNode = useCallback(
     (nodeId: string): string | null => {
       const currentNode = getDocument().graph.nodes[nodeId];
@@ -1393,6 +1470,8 @@ export function useThumbnailNodeCommands({
       setStaticText,
       setImageAsset,
       setStaticBinding,
+      setWeekDateFormatting,
+      addWeekDates,
       createInputFromNode,
       bindNodeToInput,
       setSelectTextOutput,
@@ -1441,6 +1520,8 @@ export function useThumbnailNodeCommands({
       setRotation,
       setStaticText,
       setStaticBinding,
+      setWeekDateFormatting,
+      addWeekDates,
       createInputFromNode,
       bindNodeToInput,
       setSelectTextOutput,

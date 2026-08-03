@@ -72,15 +72,19 @@ const findButtons = (node: React.ReactNode): FoundButton[] => {
 // --- 추가 메뉴 ---
 
 const addedTypes: StudioGraphNodeType[] = [];
+let weekDatesAdded = false;
 const addMenuTree = ThumbnailAddMenu({
   onAddNode: (type) => addedTypes.push(type),
+  onAddWeekDates: () => {
+    weekDatesAdded = true;
+  },
 });
 const addMenuButtons = findButtons(addMenuTree);
 
 assert.equal(
   addMenuButtons.length,
-  STUDIO_NODE_TYPE_ORDER.length,
-  "추가 메뉴는 노드 정의표의 종류를 모두 보여줘야 한다.",
+  STUDIO_NODE_TYPE_ORDER.length + 1,
+  "추가 메뉴는 노드 정의표의 종류와 Week Dates 프리셋을 모두 보여줘야 한다.",
 );
 addMenuButtons.forEach((button) => button.onClick?.());
 assert.deepEqual(
@@ -88,6 +92,7 @@ assert.deepEqual(
   [...STUDIO_NODE_TYPE_ORDER],
   "추가 메뉴 단추는 자기 종류를 넣어야 한다. 순서도 정의표를 따른다.",
 );
+assert.equal(weekDatesAdded, true, "Week Dates 프리셋을 넣을 수 있어야 한다.");
 
 const addMenuMarkup = renderToStaticMarkup(addMenuTree);
 for (const expectedTitle of [

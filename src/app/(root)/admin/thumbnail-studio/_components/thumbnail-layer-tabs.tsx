@@ -5,6 +5,7 @@ import {
   ArrowDownToLine,
   ArrowUp,
   ArrowUpToLine,
+  CalendarDays,
   Eye,
   EyeOff,
   Group,
@@ -58,6 +59,7 @@ import type { StudioTextEffectPreset } from "@/utils/thumbnail-studio/text-effec
 
 export interface ThumbnailAddMenuProps {
   onAddNode: (type: StudioGraphNodeType) => void;
+  onAddWeekDates?: () => void;
 }
 
 /**
@@ -68,7 +70,10 @@ export interface ThumbnailAddMenuProps {
  *
  * 탭 위에 둔다. 어느 탭을 보고 있어도 객체를 넣을 수 있어야 한다.
  */
-export function ThumbnailAddMenu({ onAddNode }: ThumbnailAddMenuProps) {
+export function ThumbnailAddMenu({
+  onAddNode,
+  onAddWeekDates,
+}: ThumbnailAddMenuProps) {
   return (
     <div className="border-b border-[var(--border)] px-3 py-3">
       <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--fg2)]">
@@ -88,6 +93,16 @@ export function ThumbnailAddMenu({ onAddNode }: ThumbnailAddMenuProps) {
           </button>
         ))}
       </div>
+      <button
+        className="mt-1.5 flex h-9 w-full items-center justify-center gap-1.5 rounded-[9px] border border-[var(--accent)] bg-[var(--sel)] text-[11px] font-bold text-[var(--fg)] transition hover:bg-[var(--hover)]"
+        data-thumbnail-add-preset="weekDates"
+        title="Add Week Dates"
+        type="button"
+        onClick={() => onAddWeekDates?.()}
+      >
+        <CalendarDays className="h-3.5 w-3.5" />
+        Week Dates
+      </button>
     </div>
   );
 }

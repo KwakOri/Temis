@@ -15,6 +15,10 @@ import {
   isStudioBuiltinFieldId,
 } from "@/utils/template-studio/builtin-fields";
 import {
+  isStudioWeekDateFormatPresetId,
+  parseStudioIsoDateParts,
+} from "@/utils/template-studio/date-template";
+import {
   isStudioImageBinding,
   isStudioImageNode,
   isStudioTextBinding,
@@ -31,6 +35,7 @@ import { parseStudioWebFontCss } from "@/utils/template-studio/web-fonts";
 import { getStudioVariantEntryGroups } from "@/utils/template-studio/entry-groups";
 import { getStudioOfflineMemoTextNode } from "@/utils/template-studio/status-variants";
 import { validateStudioTextAppearance } from "@/utils/template-studio/text-appearance-commands";
+import { getThumbnailWeekDates } from "@/utils/thumbnail-studio/week-dates";
 
 const createDiagnostic = (
   severity: StudioDiagnostic["severity"],
@@ -58,7 +63,7 @@ const getBindingInputId = (binding?: StudioBinding): string | null => {
   return binding.inputId;
 };
 
-type StudioInputConsumerWorkspace = "cards" | "timetable";
+type StudioInputConsumerWorkspace = "cards" | "timetable" | "thumbnail";
 
 interface StudioInputConsumerDiagnosticReference {
   id: string;
@@ -151,6 +156,17 @@ const collectStudioInputConsumers = (
       });
     });
   });
+
+  addInputConsumer(
+    consumers,
+    getThumbnailWeekDates(document)?.startDateInputId,
+    {
+      id: "thumbnail:week-dates:start-date",
+      workspace: "thumbnail",
+      label: "Week Dates",
+      detail: "Thumbnail date range source",
+    },
+  );
 
   return consumers;
 };
@@ -687,6 +703,85 @@ const validateBinding = (
         node.binding.fieldId,
       ),
     );
+
+    if (node.binding.fieldId === "week.date_range") {
+      if (
+        node.binding.dateRangeFormat !== undefined &&
+        node.binding.dateRangeFormat !== "custom" &&
+        !isStudioWeekDateFormatPresetId(node.binding.dateRangeFormat)
+      ) {
+        diagnostics.push(
+          createDiagnostic(
+            "error",
+            `binding-date-range-format-invalid:${node.id}`,
+            "Invalid date range format",
+            `${node.label} uses an unknown date range format ${node.binding.dateRangeFormat}.`,
+          ),
+        );
+      }
+      if (
+        node.binding.dateRangeTemplate !== undefined &&
+        typeof node.binding.dateRangeTemplate !== "string"
+      ) {
+        diagnostics.push(
+          createDiagnostic(
+            "error",
+            `binding-date-range-template-invalid:${node.id}`,
+            "Invalid date range template",
+            `${node.label} date range template must be a string when present.`,
+          ),
+        );
+      }
+      if (
+        document.metadata.kind === "thumbnail" &&
+        !document.domains?.thumbnail?.weekDates
+      ) {
+        diagnostics.push(
+          createDiagnostic(
+            "error",
+            `binding-thumbnail-week-dates-domain-missing:${node.id}`,
+            "Missing Thumbnail date range contract",
+            `${node.label} uses Week Date Range, but the Thumbnail document has no weekDates domain contract.`,
+          ),
+        );
+      }
+    }
+  }
+
+  if (node.meta?.semantic?.type === "weekDates") {
+    if (document.metadata.kind !== "thumbnail") {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `semantic-week-dates-kind-invalid:${node.id}`,
+          "Week Dates semantic type is Thumbnail-only",
+          `${node.label} uses the Week Dates semantic type outside a Thumbnail document.`,
+        ),
+      );
+    }
+    if (!isStudioTextNode(node)) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `semantic-week-dates-node-invalid:${node.id}`,
+          "Week Dates must be a text node",
+          `${node.label} uses the Week Dates semantic type but is not a text node.`,
+        ),
+      );
+    }
+    if (
+      node.binding?.kind !== "builtinField" ||
+      node.binding.fieldId !== "week.date_range"
+    ) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `semantic-week-dates-binding-invalid:${node.id}`,
+          "Week Dates binding is invalid",
+          `${node.label} must use the week.date_range built-in field.`,
+        ),
+      );
+    }
   }
 
   if (node.binding.kind === "inputText" && input && input.type !== "text") {
@@ -1853,6 +1948,109 @@ const validateTimetableDomain = (
   return diagnostics;
 };
 
+const validateThumbnailDomain = (
+  document: StudioTemplateDocument,
+): StudioDiagnostic[] => {
+  const thumbnail = document.domains?.thumbnail;
+  if (!thumbnail) return [];
+
+  const diagnostics: StudioDiagnostic[] = [];
+  if (thumbnail.version !== 1) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `thumbnail-version-invalid:${String(thumbnail.version)}`,
+        "Unsupported thumbnail domain version",
+        `The thumbnail domain uses version ${String(thumbnail.version)}, but version 1 is required.`,
+      ),
+    );
+  }
+
+  const weekDates = thumbnail.weekDates;
+  if (!weekDates) return diagnostics;
+
+  if (
+    typeof weekDates.startDateInputId !== "string" ||
+    weekDates.startDateInputId.trim().length === 0
+  ) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        "thumbnail-week-dates-input-id-invalid",
+        "Invalid Thumbnail date input reference",
+        "Thumbnail Week Dates needs a non-empty global start date input id.",
+      ),
+    );
+  } else {
+    const input = document.inputs[weekDates.startDateInputId];
+    if (!input) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `thumbnail-week-dates-input-missing:${weekDates.startDateInputId}`,
+          "Missing Thumbnail date input",
+          `Thumbnail Week Dates references ${weekDates.startDateInputId}, but that input does not exist.`,
+        ),
+      );
+    } else {
+      if (input.scope !== "global" || input.type !== "text") {
+        diagnostics.push(
+          createDiagnostic(
+            "error",
+            `thumbnail-week-dates-input-invalid:${weekDates.startDateInputId}`,
+            "Invalid Thumbnail date input",
+            `Thumbnail Week Dates requires ${weekDates.startDateInputId} to be a global text input.`,
+          ),
+        );
+      }
+      if (input.type === "text" && input.defaultValue) {
+        if (!parseStudioIsoDateParts(input.defaultValue)) {
+          diagnostics.push(
+            createDiagnostic(
+              "error",
+              `thumbnail-week-dates-default-invalid:${weekDates.startDateInputId}`,
+              "Invalid Thumbnail date default",
+              `${input.label} must use an ISO date default in YYYY-MM-DD format.`,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  if (
+    !Number.isInteger(weekDates.dayCount) ||
+    weekDates.dayCount < 1 ||
+    weekDates.dayCount > 366
+  ) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        "thumbnail-week-dates-day-count-invalid",
+        "Invalid Thumbnail date range length",
+        "Thumbnail Week Dates dayCount must be an integer from 1 to 366.",
+      ),
+    );
+  }
+
+  if (
+    weekDates.locale !== undefined &&
+    (typeof weekDates.locale !== "string" ||
+      weekDates.locale.trim().length === 0)
+  ) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        "thumbnail-week-dates-locale-invalid",
+        "Invalid Thumbnail date locale",
+        "Thumbnail Week Dates locale must be a non-empty locale string when present.",
+      ),
+    );
+  }
+
+  return diagnostics;
+};
+
 /**
  * 템플릿 종류와 도메인의 일치를 검사한다.
  *
@@ -2001,6 +2199,42 @@ const validateStudioInputPresentation = (
         `${input.label} has helpText that must be a string when present.`,
       ),
     );
+  }
+
+  if (presentation?.control !== undefined && presentation.control !== "date") {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `input-presentation-control-invalid:${input.id}`,
+        "Invalid input control",
+        `${input.label} uses unsupported presentation control ${String(presentation.control)}.`,
+      ),
+    );
+  }
+
+  if (presentation?.control === "date") {
+    if (input.type !== "text") {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `input-presentation-date-type-invalid:${input.id}`,
+          "Date control requires a text input",
+          `${input.label} uses the date control, but its input type is ${input.type}.`,
+        ),
+      );
+    } else if (
+      input.defaultValue &&
+      !parseStudioIsoDateParts(input.defaultValue)
+    ) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `input-presentation-date-default-invalid:${input.id}`,
+          "Invalid date input default",
+          `${input.label} must use an ISO date default in YYYY-MM-DD format.`,
+        ),
+      );
+    }
   }
 
   if (document.metadata.kind === "thumbnail" && input.scope !== "global") {
@@ -2415,7 +2649,10 @@ export const validateStudioDocument = (
     }
   });
 
-  diagnostics.push(...validateTimetableDomain(document));
+  diagnostics.push(
+    ...validateTimetableDomain(document),
+    ...validateThumbnailDomain(document),
+  );
 
   return diagnostics.sort((a, b) => {
     if (a.severity === b.severity) return a.id.localeCompare(b.id);

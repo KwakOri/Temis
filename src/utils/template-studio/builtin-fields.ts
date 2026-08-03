@@ -8,13 +8,19 @@ import {
 } from "@/types/template-studio";
 import {
   formatStudioDateParts,
+  getStudioDateRangeParts,
   getStudioDatePartsWithDayOffset,
   getStudioWeekEndParts,
   getStudioWeekStartParts,
   parseStudioIsoDateParts,
+  resolveStudioDateRangeText,
   resolveStudioWeekDateText,
 } from "@/utils/template-studio/date-template";
-import { type StudioRuntimeContext } from "@/utils/template-studio/input-values";
+import {
+  getStudioRuntimeInputValue,
+  type StudioRuntimeContext,
+} from "@/utils/template-studio/input-values";
+import { getThumbnailWeekDates } from "@/utils/thumbnail-studio/week-dates";
 import { isStudioTimetableCapabilityEnabled } from "@/utils/template-studio/timetable-capabilities";
 
 export const STUDIO_BUILTIN_FIELDS: StudioBuiltinFieldDefinition[] = [
@@ -276,9 +282,28 @@ export const formatStudioDayLabel = (
   return defaultValue ?? "";
 };
 
-interface StudioBuiltinFieldResolveOptions {
+export interface StudioBuiltinFieldResolveOptions {
   dayLabelFormat?: StudioDayLabelFormat;
+  dateRangeFormat?: string;
+  dateRangeTemplate?: string;
 }
+
+const getThumbnailWeekDateSource = (
+  document: StudioTemplateDocument,
+  values: StudioRuntimeValues,
+) => {
+  const weekDates = getThumbnailWeekDates(document);
+  if (!weekDates) return null;
+
+  const input = document.inputs[weekDates.startDateInputId];
+  return {
+    startDate: input
+      ? getStudioRuntimeInputValue(input, values)
+      : values.global[weekDates.startDateInputId],
+    dayCount: weekDates.dayCount,
+    locale: weekDates.locale,
+  };
+};
 
 const getContextEntry = (
   values: StudioRuntimeValues,
@@ -364,6 +389,13 @@ export const resolveStudioBuiltinFieldValue = (
   }
 
   if (fieldId === "week.start_date") {
+    const thumbnailSource = getThumbnailWeekDateSource(document, values);
+    if (thumbnailSource) {
+      return formatStudioDateParts(
+        getStudioDateRangeParts(thumbnailSource).start,
+        { includeYear: true },
+      );
+    }
     return formatStudioDateParts(
       getStudioWeekStartParts(document, values.timetable.weekStartDate),
       {
@@ -373,6 +405,13 @@ export const resolveStudioBuiltinFieldValue = (
   }
 
   if (fieldId === "week.end_date") {
+    const thumbnailSource = getThumbnailWeekDateSource(document, values);
+    if (thumbnailSource) {
+      return formatStudioDateParts(
+        getStudioDateRangeParts(thumbnailSource).end,
+        { includeYear: true },
+      );
+    }
     return formatStudioDateParts(
       getStudioWeekEndParts(document, values.timetable.weekStartDate),
       {
@@ -382,8 +421,18 @@ export const resolveStudioBuiltinFieldValue = (
   }
 
   if (fieldId === "week.date_range") {
+    const thumbnailSource = getThumbnailWeekDateSource(document, values);
+    if (thumbnailSource) {
+      return resolveStudioDateRangeText({
+        ...thumbnailSource,
+        format: options.dateRangeFormat,
+        template: options.dateRangeTemplate,
+      });
+    }
     return resolveStudioWeekDateText(document, {
       startDate: values.timetable.weekStartDate,
+      format: options.dateRangeFormat,
+      template: options.dateRangeTemplate,
     });
   }
 
