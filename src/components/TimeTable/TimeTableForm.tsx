@@ -242,7 +242,7 @@ const TimeTableForm = ({
   const handleImageSave = async (width: number, height: number) => {
     try {
       // 이미지 다운로드
-      downloadImage(width, height);
+      await downloadImage(width, height);
 
       // 활성화된 팀이 있고 팀 캘린더가 아닐 때만 자동으로 팀 시간표에도 저장
       if (isTeam && !isTeamCalendar && saveable && teamData) {
@@ -259,7 +259,7 @@ const TimeTableForm = ({
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
     } catch (error) {
-      console.error('팀 시간표 자동 저장 실패:', error);
+      console.error('이미지 또는 팀 시간표 저장 실패:', error);
       // 에러를 다시 던져서 ImageSaveModal에서 처리할 수 있도록 함
       throw error;
     }
