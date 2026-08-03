@@ -1,8 +1,6 @@
 "use client";
 
-import { ChevronLeft } from "lucide-react";
 import { domToPng } from "modern-screenshot";
-import Link from "next/link";
 import React, {
   useCallback,
   useEffect,
@@ -25,7 +23,8 @@ import {
   type StudioRuntimeLocale,
 } from "@/utils/template-studio/runtime-i18n";
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
-import { clampStudioPreviewScale } from "../../../../../components/studio/canvas/studio-canvas-viewport";
+import { StudioRuntimePreviewWorkspace } from "@/components/studio/runtime/studio-runtime-preview-workspace";
+import { useStudioRuntimeViewport } from "@/components/studio/runtime/use-studio-runtime-viewport";
 import {
   getStudioTimetablePreviewSize,
   StudioTimetablePreview,
@@ -51,8 +50,6 @@ const cloneRuntimeValues = (
 ): StudioRuntimeValues =>
   JSON.parse(JSON.stringify(runtimeValues)) as StudioRuntimeValues;
 
-const zoomStep = 0.1;
-
 export function TemplateStudioRuntimeShell({
   document,
   initialRuntimeValues,
@@ -62,31 +59,13 @@ export function TemplateStudioRuntimeShell({
   onSaveValues,
   storageOwnerId,
 }: TemplateStudioRuntimeShellProps) {
-  const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const previewContentRef = useRef<HTMLDivElement | null>(null);
   const [runtimeValues, setRuntimeValues] = useState<StudioRuntimeValues>(() =>
     cloneRuntimeValues(initialRuntimeValues),
   );
   const [locale, setLocale] = useState<StudioRuntimeLocale>("en");
-  const [containerSize, setContainerSize] = useState({
-    width: 0,
-    height: 0,
-  });
-  const [viewportTransform, setViewportTransform] = useState({
-    scale: 1,
-    x: 0,
-    y: 0,
-  });
-  const [isPanning, setIsPanning] = useState(false);
   const [isSavingImage, setIsSavingImage] = useState(false);
   const [isSavingValues, setIsSavingValues] = useState(false);
-  const panStateRef = useRef<{
-    pointerId: number;
-    startX: number;
-    startY: number;
-    originX: number;
-    originY: number;
-  } | null>(null);
   const timetable = document.domains?.timetable;
   const copy = getStudioRuntimeCopy(locale);
   const previewSize = useMemo(
@@ -99,74 +78,7 @@ export function TemplateStudioRuntimeShell({
           },
     [document.canvas.height, document.canvas.width, timetable],
   );
-  const fitToViewport = useCallback(() => {
-    const element = previewContainerRef.current;
-    if (!element) return;
-
-    const availableWidth = Math.max(1, element.clientWidth - 64);
-    const availableHeight = Math.max(1, element.clientHeight - 64);
-    const fitScale = clampStudioPreviewScale(
-      Math.min(
-        1,
-        availableWidth / Math.max(1, previewSize.width),
-        availableHeight / Math.max(1, previewSize.height),
-      ),
-    );
-
-    setViewportTransform({
-      scale: Number(fitScale.toFixed(3)),
-      x: 0,
-      y: 0,
-    });
-  }, [previewSize.height, previewSize.width]);
-
-  const updateScale = useCallback(
-    (
-      nextScale: number,
-      anchor?: {
-        clientX: number;
-        clientY: number;
-      },
-    ) => {
-      const element = previewContainerRef.current;
-      const clampedScale = Number(
-        clampStudioPreviewScale(nextScale).toFixed(2),
-      );
-
-      setViewportTransform((currentTransform) => {
-        if (!element || !anchor || currentTransform.scale === clampedScale) {
-          return {
-            ...currentTransform,
-            scale: clampedScale,
-          };
-        }
-
-        const rect = element.getBoundingClientRect();
-        const pointerX = anchor.clientX - rect.left;
-        const pointerY = anchor.clientY - rect.top;
-        const currentWidth = previewSize.width * currentTransform.scale;
-        const currentHeight = previewSize.height * currentTransform.scale;
-        const currentLeft =
-          rect.width / 2 + currentTransform.x - currentWidth / 2;
-        const currentTop =
-          rect.height / 2 + currentTransform.y - currentHeight / 2;
-        const localX =
-          (pointerX - currentLeft) / Math.max(0.001, currentTransform.scale);
-        const localY =
-          (pointerY - currentTop) / Math.max(0.001, currentTransform.scale);
-        const nextWidth = previewSize.width * clampedScale;
-        const nextHeight = previewSize.height * clampedScale;
-
-        return {
-          scale: clampedScale,
-          x: pointerX - rect.width / 2 + nextWidth / 2 - localX * clampedScale,
-          y:
-            pointerY - rect.height / 2 + nextHeight / 2 - localY * clampedScale,
-        };
-      });
-    },
-    [previewSize.height, previewSize.width],
-  );
+  const viewport = useStudioRuntimeViewport(previewSize);
 
   const displayName =
     templateName?.trim() || document.metadata.name || "Template Studio Preview";
@@ -223,29 +135,6 @@ export function TemplateStudioRuntimeShell({
     setRuntimeValues(cloneRuntimeValues(initialRuntimeValues));
   }, [initialRuntimeValues]);
 
-  useEffect(() => {
-    const element = previewContainerRef.current;
-    if (!element || typeof ResizeObserver === "undefined") return;
-
-    const observer = new ResizeObserver(([entry]) => {
-      const rect = entry.contentRect;
-      setContainerSize({
-        width: rect.width,
-        height: rect.height,
-      });
-    });
-
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (containerSize.width <= 0 || containerSize.height <= 0) return;
-
-    const animationFrame = window.requestAnimationFrame(fitToViewport);
-    return () => window.cancelAnimationFrame(animationFrame);
-  }, [containerSize.height, containerSize.width, fitToViewport]);
-
   const resetRuntimeValues = () => {
     setRuntimeValues(cloneRuntimeValues(initialRuntimeValues));
   };
@@ -269,65 +158,6 @@ export function TemplateStudioRuntimeShell({
       // URL state remains available when cookies are blocked.
     }
   };
-
-  const handleViewportWheel = useCallback(
-    (event: React.WheelEvent<HTMLDivElement>) => {
-      event.preventDefault();
-
-      const direction = event.deltaY > 0 ? -1 : 1;
-      const multiplier = event.shiftKey ? 2 : 1;
-      updateScale(viewportTransform.scale + direction * zoomStep * multiplier, {
-        clientX: event.clientX,
-        clientY: event.clientY,
-      });
-    },
-    [updateScale, viewportTransform.scale],
-  );
-
-  const handlePointerDown = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (event.button !== 0) return;
-
-      panStateRef.current = {
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
-        originX: viewportTransform.x,
-        originY: viewportTransform.y,
-      };
-      event.currentTarget.setPointerCapture(event.pointerId);
-      setIsPanning(true);
-    },
-    [viewportTransform.x, viewportTransform.y],
-  );
-
-  const handlePointerMove = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const panState = panStateRef.current;
-      if (!panState || panState.pointerId !== event.pointerId) return;
-
-      setViewportTransform((currentTransform) => ({
-        ...currentTransform,
-        x: panState.originX + event.clientX - panState.startX,
-        y: panState.originY + event.clientY - panState.startY,
-      }));
-    },
-    [],
-  );
-
-  const stopPanning = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (panStateRef.current?.pointerId === event.pointerId) {
-        panStateRef.current = null;
-        setIsPanning(false);
-      }
-
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }
-    },
-    [],
-  );
 
   const savePreviewImage = useCallback(async () => {
     const element = previewContentRef.current;
@@ -399,49 +229,15 @@ export function TemplateStudioRuntimeShell({
 
   return (
     <main
-      className="template-studio-runtime-theme flex h-screen w-full flex-col overflow-hidden bg-[var(--runtime-form-bg)] text-[var(--runtime-fg)]"
+      className="studio-runtime-theme template-studio-runtime-theme flex h-screen w-full flex-col overflow-hidden bg-[var(--runtime-form-bg)] text-[var(--runtime-fg)]"
       lang={locale}
     >
       <div className="flex min-h-0 flex-1 flex-col md:flex-row md:items-center">
-        <section
-          className="relative h-full min-h-0 flex-1 overflow-hidden bg-[var(--runtime-form-bg)]"
-          data-testid="template-studio-preview-area"
-          ref={previewContainerRef}
-        >
-          <div
-            className="absolute left-4 top-4 z-50 flex select-none items-center gap-4 rounded bg-white/80 px-4 py-2 shadow-sm backdrop-blur-sm"
-            data-testid="template-studio-preview-controls"
-          >
-            <Link
-              className="flex items-center text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
-              href={backHref}
-            >
-              <ChevronLeft className="mr-1 size-4" />
-              {copy.back}
-            </Link>
-            <div className="h-6 w-px bg-gray-300" />
-            <div className="flex items-center">
-              <label
-                className="text-sm font-medium text-gray-600"
-                htmlFor="template-studio-preview-scale"
-              >
-                {copy.previewScale}: {viewportTransform.scale.toFixed(1)}x
-              </label>
-              <input
-                aria-label={copy.previewScale}
-                className="ml-2 h-2 w-32 appearance-none rounded-lg bg-gray-300 accent-[var(--runtime-primary)] sm:w-60 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[var(--runtime-primary)] [&::-moz-range-thumb]:shadow-md [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[var(--runtime-primary)] [&::-webkit-slider-thumb]:shadow-md"
-                id="template-studio-preview-scale"
-                max={2}
-                min={0.1}
-                step={0.1}
-                type="range"
-                value={viewportTransform.scale}
-                onChange={(event) =>
-                  updateScale(Number.parseFloat(event.currentTarget.value))
-                }
-              />
-            </div>
-            <div className="hidden h-6 w-px bg-gray-300 sm:block" />
+        <StudioRuntimePreviewWorkspace
+          backHref={backHref}
+          backLabel={copy.back}
+          contentRef={previewContentRef}
+          languageControl={
             <select
               aria-label={copy.language}
               className="hidden h-8 shrink-0 rounded-lg border border-[var(--runtime-border)] bg-[var(--runtime-input-bg)] px-2 text-xs font-bold text-[var(--runtime-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--runtime-focus)] sm:block"
@@ -456,61 +252,22 @@ export function TemplateStudioRuntimeShell({
                 </option>
               ))}
             </select>
-          </div>
-
-          <div
-            className="absolute inset-0 flex items-center justify-center overflow-hidden"
-            style={{
-              touchAction: "none",
-            }}
-            onDoubleClick={fitToViewport}
-            onPointerCancel={stopPanning}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={stopPanning}
-            onWheel={handleViewportWheel}
-          >
-            <div
-              className="relative shrink-0 rounded-sm shadow-lg"
-              style={{
-                width: previewSize.width * viewportTransform.scale,
-                height: previewSize.height * viewportTransform.scale,
-                cursor: isPanning ? "grabbing" : "grab",
-                transform: `translate(${viewportTransform.x}px, ${viewportTransform.y}px)`,
-              }}
-            >
-              <div
-                className="origin-top-left"
-                style={{
-                  width: previewSize.width,
-                  height: previewSize.height,
-                  transform: `scale(${viewportTransform.scale})`,
-                }}
-              >
-                <div
-                  data-testid="template-studio-preview-content"
-                  ref={previewContentRef}
-                  style={{
-                    height: previewSize.height,
-                    width: previewSize.width,
-                  }}
-                >
-                  {timetable ? (
-                    <StudioTimetablePreview
-                      document={document}
-                      runtimeValues={runtimeValues}
-                    />
-                  ) : (
-                    <StudioRenderer
-                      document={document}
-                      runtimeValues={runtimeValues}
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+          }
+          previewAreaTestId="template-studio-preview-area"
+          previewSize={previewSize}
+          scaleLabel={copy.previewScale}
+          scaleInputId="template-studio-preview-scale"
+          viewport={viewport}
+        >
+          {timetable ? (
+            <StudioTimetablePreview
+              document={document}
+              runtimeValues={runtimeValues}
+            />
+          ) : (
+            <StudioRenderer document={document} runtimeValues={runtimeValues} />
+          )}
+        </StudioRuntimePreviewWorkspace>
 
         <TemplateStudioRuntimeForm
           document={document}

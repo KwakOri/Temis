@@ -396,6 +396,7 @@ const buildSections = ({
 
   return buildThumbnailInspectorSections({
     document,
+    fontFamilies: ["Inter", "Pretendard", "Brand Sans"],
     selectedNodes,
     selectedNode: selectedNodes.at(-1) ?? null,
     openSections: {},
@@ -418,6 +419,7 @@ const buildSections = ({
 };
 
 const inspectorDocument = createInspectorDocument();
+inspectorDocument.styles.text_style.fontFamily = "Brand Sans";
 const sectionIdsFor = (selectedNodeIds: string[]): string[] =>
   buildSections({ document: inspectorDocument, selectedNodeIds }).map(
     (item) => item.id,
@@ -427,6 +429,20 @@ assert.deepEqual(
   sectionIdsFor(["text"]),
   ["transform", "layout", "binding", "text"],
   "글자 노드에 binding inspector가 한 번만 있어야 한다.",
+);
+const textSection = buildSections({
+  document: inspectorDocument,
+  selectedNodeIds: ["text"],
+}).find((item) => item.id === "text");
+assert.ok(textSection && textSection.kind !== "block");
+const textMarkup = renderToStaticMarkup(<>{textSection.content}</>);
+assert.ok(
+  textMarkup.includes(">Font</span>"),
+  "텍스트 Inspector에 Font 선택이 있어야 한다.",
+);
+assert.ok(
+  textMarkup.includes('value="Brand Sans"'),
+  "문서에 등록된 웹 폰트가 Font 후보로 보여야 한다.",
 );
 assert.deepEqual(
   sectionIdsFor(["shape"]),

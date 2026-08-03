@@ -55,7 +55,7 @@ import type { StudioGroupOverflowDiagnostic } from "@/utils/template-studio/grap
 import { resolveStudioGraphNodeGeometry } from "@/utils/template-studio/object-layout";
 import { isStudioFillParentLayout } from "@/utils/template-studio/object-layout";
 import {
-  getStudioTextStrokeBands,
+  getStudioTextStrokeStack,
   parseLegacyStudioTextShadow,
   resolveStudioTextAppearance,
 } from "@/utils/template-studio/text-appearance";
@@ -79,6 +79,8 @@ import type { ThumbnailNodeCommands } from "../_hooks/use-thumbnail-node-command
 
 export interface ThumbnailInspectorParams {
   document: StudioTemplateDocument;
+  /** 기본 폰트와 문서에 등록된 웹 폰트를 합친 후보 목록. */
+  fontFamilies: string[];
   /** 조상이 함께 선택된 노드를 걷어낸 목록 */
   selectedNodes: StudioGraphNode[];
   /** 속성 패널이 기준으로 삼는 노드 */
@@ -168,6 +170,8 @@ const OVERFLOW_OPTIONS = [
   { value: "clip", label: "Clip" },
 ];
 
+const MIXED_FONT_FAMILY_VALUE = "__studio_mixed_font_family__";
+
 /**
  * 썸네일 편집기의 우측 속성 섹션.
  *
@@ -179,6 +183,7 @@ const OVERFLOW_OPTIONS = [
  */
 export const buildThumbnailInspectorSections = ({
   document,
+  fontFamilies,
   selectedNodes,
   selectedNode,
   openSections,
@@ -660,6 +665,23 @@ export const buildThumbnailInspectorSections = ({
     const fontFamily = getStudioSharedStringValue(
       styles.map((style) => style.fontFamily),
     );
+    const fontFamilyOptions = [
+      ...(fontFamily.mixed
+        ? [{ value: MIXED_FONT_FAMILY_VALUE, label: "Mixed" }]
+        : []),
+      { value: "", label: "Default (Pretendard)" },
+      ...Array.from(
+        new Set([
+          ...fontFamilies,
+          ...styles
+            .map((style) => style.fontFamily)
+            .filter(
+              (value): value is string =>
+                typeof value === "string" && Boolean(value.trim()),
+            ),
+        ]),
+      ).map((value) => ({ value, label: value })),
+    ];
     const color = getStudioSharedStringValue(
       styles.map((style) => style.color),
       "#111827",
@@ -688,6 +710,11 @@ export const buildThumbnailInspectorSections = ({
         })
       : null;
     const inspectorStrokes = inspectorAppearance?.strokes ?? [];
+    const inspectorStrokeStack = getStudioTextStrokeStack(inspectorStrokes);
+    const inspectorOutermostOutset = inspectorStrokeStack.reduce(
+      (maximum, entry) => Math.max(maximum, entry.effectiveOutset),
+      0,
+    );
     const inspectorShadow =
       inspectorAppearance?.shadow ?? legacyTextShadow ?? undefined;
     const textValue =
@@ -708,10 +735,27 @@ export const buildThumbnailInspectorSections = ({
             value={textValue}
             onChange={(value) => commands.setStaticText(selectedNode.id, value)}
           />
+          <StudioSelectField
+            disabled={isLocked}
+            label="Font"
+            options={fontFamilyOptions}
+            value={
+              fontFamily.mixed ? MIXED_FONT_FAMILY_VALUE : fontFamily.value
+            }
+            onChange={(value) => {
+              if (value !== MIXED_FONT_FAMILY_VALUE) {
+                applyStyleValue("fontFamily", value || undefined);
+              }
+            }}
+          />
           <div className="grid grid-cols-2 gap-2">
             <StudioNumberField
               disabled={isLocked}
-              label="Size"
+              label={
+                isSingleTextNode && selectedNode.type === "flexibleText"
+                  ? "Max size"
+                  : "Size"
+              }
               mixed={fontSize.mixed}
               value={fontSize.value}
               onChange={(value) => applyStyleValue("fontSize", value)}
@@ -798,7 +842,8 @@ export const buildThumbnailInspectorSections = ({
                   className="rounded-md border border-[var(--field-border)] px-2 py-1 text-[10px] font-semibold text-[var(--fg2)] hover:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-40"
                   disabled={
                     isLocked ||
-                    inspectorStrokes.length >= STUDIO_TEXT_MAX_STROKES
+                    inspectorStrokes.length >= STUDIO_TEXT_MAX_STROKES ||
+                    inspectorOutermostOutset >= STUDIO_TEXT_MAX_OUTSET
                   }
                   type="button"
                   onClick={() => commands.addTextStroke(selectedNode.id)}
@@ -809,8 +854,11 @@ export const buildThumbnailInspectorSections = ({
               {inspectorStrokes.length === 0 ? (
                 <p className="text-[10px] text-[var(--fg3)]">No strokes</p>
               ) : (
-                getStudioTextStrokeBands(inspectorStrokes).map(
-                  ({ stroke, band, hidden }, index) => (
+                inspectorStrokeStack.map(
+                  (
+                    { stroke, thickness, effectiveOutset, visibleBand, hidden },
+                    index,
+                  ) => (
                     <div
                       className="grid gap-2 rounded-lg bg-[var(--field)] p-2"
                       data-thumbnail-text-stroke-id={stroke.id}
@@ -919,15 +967,23 @@ export const buildThumbnailInspectorSections = ({
                       <div className="grid grid-cols-2 gap-2">
                         <StudioNumberField
                           disabled={isLocked}
-                          label={`Outset (0–${STUDIO_TEXT_MAX_OUTSET})`}
-                          value={stroke.outset}
+                          label={`Thickness (0–${Math.max(
+                            0,
+                            STUDIO_TEXT_MAX_OUTSET -
+                              inspectorStrokeStack.reduce(
+                                (total, entry, entryIndex) =>
+                                  entryIndex === index
+                                    ? total
+                                    : total + entry.thickness,
+                                0,
+                              ),
+                          )})`}
+                          value={thickness}
                           onChange={(value) =>
-                            commands.updateTextStroke(
+                            commands.setTextStrokeThickness(
                               selectedNode.id,
                               stroke.id,
-                              {
-                                outset: value,
-                              },
+                              value,
                             )
                           }
                         />
@@ -947,10 +1003,16 @@ export const buildThumbnailInspectorSections = ({
                         />
                       </div>
                       <div className="flex items-center justify-between text-[10px] text-[var(--fg3)]">
-                        <span>
-                          {hidden
-                            ? "Covered by another stroke"
-                            : `Visible band ${Math.max(0, band).toFixed(1)}`}
+                        <span className="grid gap-0.5">
+                          <span>Effective outset {effectiveOutset}px</span>
+                          <span>
+                            {hidden
+                              ? "Covered by another stroke"
+                              : `Visible band ${Math.max(
+                                  0,
+                                  visibleBand,
+                                ).toFixed(1)}px`}
+                          </span>
                         </span>
                         <span className="flex gap-1">
                           <button
@@ -1016,6 +1078,9 @@ export const buildThumbnailInspectorSections = ({
                   </button>
                 )}
               </div>
+              <p className="text-[10px] leading-snug text-[var(--fg3)]">
+                Shadow follows the outermost visible stroke.
+              </p>
               {inspectorShadow ? (
                 <>
                   <label className="flex items-center gap-2 text-[10px] font-semibold text-[var(--fg2)]">

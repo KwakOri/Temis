@@ -825,7 +825,7 @@ export function TemplateStudioRuntimeForm({
   return (
     <>
       <aside
-        className="flex h-[44vh] min-h-[320px] w-full shrink-0 flex-col border-t-2 border-[var(--runtime-border)] bg-[var(--runtime-form-bg)] text-[var(--runtime-fg)] md:h-full md:max-w-[400px] md:min-w-[300px] md:w-1/4 md:border-l-2 md:border-t-0"
+        className="flex h-[44vh] min-h-[320px] w-full shrink-0 flex-col border-t border-[var(--runtime-border)] bg-[var(--runtime-form-bg)] text-[var(--runtime-fg)] md:h-full md:w-[380px] md:border-l md:border-t-0"
         data-testid="template-studio-runtime-form"
       >
         <div className="flex min-h-0 flex-1 flex-col">

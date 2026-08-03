@@ -26,7 +26,9 @@ import type {
 import {
   getStudioDrawableTextStrokes,
   getStudioOrderedTextStrokes,
+  getStudioTextStrokeStack,
   getStudioTextStrokeBands,
+  rebuildStudioTextStrokeOutsetsFromPanelOrder,
   hasStudioTextAppearance,
   resolveStudioTextAppearance,
   shouldRenderStudioTextEffectLayers,
@@ -401,6 +403,84 @@ assert.deepEqual(
     { id: "front", band: 8, hidden: false },
   ],
   "a later thicker stroke hides earlier layers even when it is not adjacent",
+);
+
+const stack = getStudioTextStrokeStack([
+  stroke("outer", 32),
+  stroke("middle", 8),
+  stroke("inner", 4),
+]);
+assert.deepEqual(
+  stack.map(({ stroke: item, thickness, effectiveOutset, visibleBand }) => ({
+    id: item.id,
+    thickness,
+    effectiveOutset,
+    visibleBand,
+  })),
+  [
+    { id: "inner", thickness: 4, effectiveOutset: 4, visibleBand: 4 },
+    { id: "middle", thickness: 4, effectiveOutset: 8, visibleBand: 4 },
+    { id: "outer", thickness: 24, effectiveOutset: 32, visibleBand: 24 },
+  ],
+  "the inspector stack reverses stored order and separates configured thickness from visible band",
+);
+assert.deepEqual(
+  getStudioTextStrokeStack([stroke("outer", 12), stroke("inner", 4)]).map(
+    ({ stroke: item, thickness, effectiveOutset }) => ({
+      id: item.id,
+      thickness,
+      effectiveOutset,
+    }),
+  ),
+  [
+    { id: "inner", thickness: 4, effectiveOutset: 4 },
+    { id: "outer", thickness: 8, effectiveOutset: 12 },
+  ],
+  "existing absolute outsets are displayed as thickness differences without changing their stored values",
+);
+assert.deepEqual(
+  getStudioTextStrokeStack([stroke("outer", 4), stroke("inner", 4)]).map(
+    ({ stroke: item, thickness, hidden }) => ({
+      id: item.id,
+      thickness,
+      hidden,
+    }),
+  ),
+  [
+    { id: "inner", thickness: 4, hidden: false },
+    { id: "outer", thickness: 0, hidden: true },
+  ],
+  "equal legacy outsets show a zero-thickness covered outer band",
+);
+assert.deepEqual(
+  getStudioTextStrokeStack([
+    stroke("outer", 32),
+    stroke("middle", 8, { enabled: false }),
+    stroke("inner", 4),
+  ]).map(({ stroke: item, thickness, visibleBand, hidden }) => ({
+    id: item.id,
+    thickness,
+    visibleBand,
+    hidden,
+  })),
+  [
+    { id: "inner", thickness: 4, visibleBand: 4, hidden: false },
+    { id: "middle", thickness: 4, visibleBand: 0, hidden: true },
+    { id: "outer", thickness: 24, visibleBand: 28, hidden: false },
+  ],
+  "disabled strokes keep configured thickness while visible bands respond to coverage",
+);
+assert.deepEqual(
+  rebuildStudioTextStrokeOutsetsFromPanelOrder(
+    [stroke("inner", 0), stroke("middle", 0), stroke("outer", 0)],
+    [4, 4, 24],
+  ).map(({ id, outset }) => ({ id, outset })),
+  [
+    { id: "outer", outset: 32 },
+    { id: "middle", outset: 8 },
+    { id: "inner", outset: 4 },
+  ],
+  "panel thicknesses are saved back-to-front as cumulative outsets",
 );
 
 console.log("Studio text appearance baseline checks passed.");

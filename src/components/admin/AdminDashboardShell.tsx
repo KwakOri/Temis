@@ -1,7 +1,11 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { AdminTabId, getAdminPathByTabId, getAdminTabIdBySegment } from "@/lib/adminTabs";
+import {
+  AdminTabId,
+  getAdminPathByTabId,
+  getAdminTabIdBySegment,
+} from "@/lib/adminTabs";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -35,8 +39,21 @@ const defaultTabs = [
   { id: "salesStats" as AdminTabId, name: "매출 통계", icon: BarChart3 },
   { id: "settlements" as AdminTabId, name: "정산", icon: HandCoins },
   { id: "templates" as AdminTabId, name: "템플릿 관리", icon: FileText },
-  { id: "templateStudio" as AdminTabId, name: "Template Studio", icon: LayoutTemplate },
-  { id: "templateHub" as AdminTabId, name: "템플릿 통합 관리 (Beta)", icon: LayoutList },
+  {
+    id: "templateStudio" as AdminTabId,
+    name: "Template Studio",
+    icon: LayoutTemplate,
+  },
+  {
+    id: "thumbnailStudio" as AdminTabId,
+    name: "Thumbnail Studio",
+    icon: Image,
+  },
+  {
+    id: "templateHub" as AdminTabId,
+    name: "템플릿 통합 관리 (Beta)",
+    icon: LayoutList,
+  },
   { id: "artists" as AdminTabId, name: "작가 관리", icon: UserRound },
   { id: "thumbnails" as AdminTabId, name: "썸네일 관리", icon: Image },
   { id: "portfolios" as AdminTabId, name: "포트폴리오 관리", icon: Briefcase },

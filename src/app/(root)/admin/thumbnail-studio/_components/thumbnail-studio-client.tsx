@@ -6,7 +6,6 @@ import {
   ListChecks,
   Monitor,
   Type,
-  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useStore } from "zustand";
@@ -86,7 +85,10 @@ import {
   getStudioNodeIdsOutsideCanvas,
   type StudioResizeGeometry,
 } from "@/utils/template-studio/transform-commands";
-import { getStudioWebFontSources } from "@/utils/template-studio/web-fonts";
+import {
+  getStudioCustomFontFamilies,
+  getStudioWebFontSources,
+} from "@/utils/template-studio/web-fonts";
 import {
   StudioImageCropModal,
   type StudioImageCropOutputSize,
@@ -291,7 +293,6 @@ export function ThumbnailStudioClient({
     (state) => state.selectedInputId,
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
   const [fitRequestKey, setFitRequestKey] = useState(0);
   const [statusMessage, setStatusMessage] = useState("Local draft");
   const [pendingImageCrop, setPendingImageCrop] =
@@ -542,6 +543,19 @@ export function ThumbnailStudioClient({
         fontConsumers,
       ),
     [document, fontConsumers],
+  );
+  const fontFamilies = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          "Inter",
+          "Pretendard",
+          "SF Pro",
+          "Roboto",
+          ...getStudioCustomFontFamilies(document),
+        ]),
+      ),
+    [document],
   );
 
   const addInput = useCallback(
@@ -1261,6 +1275,7 @@ export function ThumbnailStudioClient({
 
   const propertySections = buildThumbnailInspectorSections({
     document,
+    fontFamilies,
     selectedNodes: selectedTopLevelNodes,
     selectedNode,
     openSections,
@@ -1598,49 +1613,6 @@ export function ThumbnailStudioClient({
               title="Settings"
               onClose={() => setSettingsOpen(false)}
             />
-            {previewOpen ? (
-              <div
-                className="fixed inset-0 z-[120] flex flex-col items-center justify-center gap-3 bg-black/80 p-6"
-                data-thumbnail-draft-preview="true"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="rounded-md bg-amber-400/20 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.06em] text-amber-200">
-                    Draft preview
-                  </span>
-                  <span className="text-[11px] font-semibold text-white/70">
-                    {document.canvas.width} × {document.canvas.height}
-                  </span>
-                  {remoteTemplateId ? (
-                    <button
-                      className="h-7 rounded-md bg-white/10 px-2 text-[10px] font-bold text-white transition hover:bg-white/20"
-                      type="button"
-                      onClick={() =>
-                        router.push(
-                          `/admin/thumbnail-studio/${remoteTemplateId}/preview`,
-                        )
-                      }
-                    >
-                      Runtime preview
-                    </button>
-                  ) : null}
-                  <button
-                    aria-label="Close draft preview"
-                    className="flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-white transition hover:bg-white/20"
-                    type="button"
-                    onClick={() => setPreviewOpen(false)}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-                <div className="max-h-full max-w-full overflow-auto">
-                  {/* 선택선과 조작 손잡이 없이 지금 메모리에 있는 문서를 그린다. */}
-                  <StudioRenderer
-                    document={document}
-                    runtimeValues={previewValues}
-                  />
-                </div>
-              </div>
-            ) : null}
             {pendingImageCrop ? (
               <StudioImageCropModal
                 imageSrc={pendingImageCrop.imageSrc}
@@ -1718,8 +1690,8 @@ export function ThumbnailStudioClient({
             }
             previewAction={{
               label: "Preview",
-              title: "Open draft preview",
-              onClick: () => setPreviewOpen(true),
+              title: "Open runtime preview",
+              onClick: () => void thumbnailPersistence.openDraftPreview(),
             }}
             publishAction={{
               disabled: isRemoteSyncing,

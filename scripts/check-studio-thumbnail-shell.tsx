@@ -147,8 +147,15 @@ assert.equal(
   "이름 변경 입력과 고른 것이 없을 때의 레이어 명령 9개가 비활성이어야 한다.",
 );
 assert.ok(
-  markup.includes('title="Open draft preview"'),
-  "미리보기는 저장 없이도 열려야 한다. 저장이 없다고 미리보기까지 막으면 만든 결과를 확인할 방법이 없다.",
+  markup.includes('title="Open runtime preview"'),
+  "미리보기는 입력 폼이 있는 Runtime Preview를 열어야 한다.",
+);
+assert.ok(
+  readFileSync(
+    "src/app/(root)/admin/thumbnail-studio/_components/thumbnail-studio-client.tsx",
+    "utf8",
+  ).includes("thumbnailPersistence.openDraftPreview()"),
+  "미리보기는 현재 Thumbnail Studio 문서를 저장한 뒤 Runtime Preview를 열어야 한다.",
 );
 
 // --- 시간표 전용 요소가 없다 ---

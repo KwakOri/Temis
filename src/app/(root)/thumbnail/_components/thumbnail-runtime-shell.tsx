@@ -1,7 +1,5 @@
 "use client";
 
-import { ChevronLeft, Download, RefreshCw } from "lucide-react";
-import Link from "next/link";
 import React, {
   useCallback,
   useEffect,
@@ -15,6 +13,8 @@ import type {
   StudioTemplateDocument,
 } from "@/types/template-studio";
 import { StudioExportRoot } from "@/components/studio/runtime/studio-export-root";
+import { StudioRuntimePreviewWorkspace } from "@/components/studio/runtime/studio-runtime-preview-workspace";
+import { useStudioRuntimeViewport } from "@/components/studio/runtime/use-studio-runtime-viewport";
 import type { StudioWebFontLoadState } from "@/components/studio/canvas/studio-web-font-loader";
 import {
   exportStudioPng,
@@ -51,7 +51,6 @@ export function ThumbnailRuntimeShell({
   revisionNo,
   backHref = "/my-page",
 }: ThumbnailRuntimeShellProps) {
-  const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const exportRootRef = useRef<HTMLDivElement | null>(null);
   const [runtimeValues, setRuntimeValues] = useState(() =>
     cloneRuntimeValues(initialRuntimeValues),
@@ -62,7 +61,6 @@ export function ThumbnailRuntimeShell({
       { fit?: "cover" | "contain" | "fill"; objectPosition?: string }
     >
   >({});
-  const [scale, setScale] = useState(1);
   const [isExporting, setIsExporting] = useState(false);
   const [readiness, setReadiness] = useState<RenderReadiness>({
     fontsReady: false,
@@ -81,30 +79,7 @@ export function ThumbnailRuntimeShell({
     [document.canvas.height, document.canvas.width],
   );
 
-  const fitToViewport = useCallback(() => {
-    const container = previewContainerRef.current;
-    if (!container) return;
-    const availableWidth = Math.max(1, container.clientWidth - 48);
-    const availableHeight = Math.max(1, container.clientHeight - 48);
-    setScale(
-      Number(
-        Math.min(
-          1,
-          availableWidth / Math.max(1, previewSize.width),
-          availableHeight / Math.max(1, previewSize.height),
-        ).toFixed(3),
-      ),
-    );
-  }, [previewSize.height, previewSize.width]);
-
-  useEffect(() => {
-    const element = previewContainerRef.current;
-    if (!element || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(fitToViewport);
-    observer.observe(element);
-    fitToViewport();
-    return () => observer.disconnect();
-  }, [fitToViewport]);
+  const viewport = useStudioRuntimeViewport(previewSize);
 
   useEffect(() => {
     const root = exportRootRef.current;
@@ -185,6 +160,11 @@ export function ThumbnailRuntimeShell({
     readiness.imagesReady &&
     readiness.layoutReady &&
     readiness.blockingErrors.length === 0;
+  const readinessMessage = readiness.blockingErrors[0]
+    ? readiness.blockingErrors[0]
+    : isReady
+      ? undefined
+      : "리소스 준비 중…";
 
   const exportPng = async () => {
     const root = exportRootRef.current;
@@ -218,106 +198,25 @@ export function ThumbnailRuntimeShell({
   };
 
   return (
-    <main className="flex min-h-screen w-full flex-col overflow-hidden bg-[var(--runtime-form-bg)] text-[var(--runtime-fg)]">
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--runtime-border)] bg-[var(--runtime-card-bg)] px-4 py-3 md:px-6">
-        <div className="flex min-w-0 items-center gap-3">
-          <Link
-            className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-[var(--runtime-fg-muted)] hover:text-[var(--runtime-fg)]"
-            href={backHref}
-          >
-            <ChevronLeft size={15} /> 돌아가기
-          </Link>
-          <div className="h-5 w-px bg-[var(--runtime-border)]" />
-          <div className="min-w-0">
-            <h1 className="truncate text-sm font-black">{templateName}</h1>
-            <p className="text-[10px] font-semibold text-[var(--runtime-fg-muted)]">
-              Thumbnail · revision {revisionNo}
-            </p>
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            className="hidden h-8 items-center gap-1 rounded-lg border border-[var(--runtime-border)] px-2 text-[11px] font-bold text-[var(--runtime-fg-muted)] hover:text-[var(--runtime-fg)] sm:inline-flex"
-            type="button"
-            onClick={resetRuntime}
-          >
-            <RefreshCw size={13} /> 초기화
-          </button>
-          <button
-            className="inline-flex h-9 items-center gap-2 rounded-lg bg-[var(--runtime-primary)] px-3 text-xs font-black text-white transition hover:bg-[var(--runtime-primary-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={!isReady || isExporting}
-            type="button"
-            onClick={() => void exportPng()}
-          >
-            <Download size={14} /> {isExporting ? "생성 중..." : "PNG 다운로드"}
-          </button>
-        </div>
-      </header>
-
-      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        <section
-          ref={previewContainerRef}
-          className="relative min-h-[48vh] min-w-0 flex-1 overflow-hidden bg-[#242424]"
+    <main className="studio-runtime-theme flex h-screen w-full flex-col overflow-hidden bg-[var(--runtime-form-bg)] text-[var(--runtime-fg)]">
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row md:items-center">
+        <StudioRuntimePreviewWorkspace
+          backHref={backHref}
+          backLabel="돌아가기"
+          controlsTestId="thumbnail-runtime-preview-controls"
+          previewAreaTestId="thumbnail-runtime-preview-area"
+          previewSize={previewSize}
+          scaleInputId="thumbnail-runtime-preview-scale"
+          viewport={viewport}
         >
-          <div className="absolute left-4 top-4 z-10 rounded-lg bg-black/50 px-3 py-2 text-[10px] font-bold text-white/80">
-            {Math.round(scale * 100)}% · {previewSize.width} ×{" "}
-            {previewSize.height}
-          </div>
-          <div
-            className="absolute inset-0 flex items-center justify-center overflow-hidden p-6"
-            onDoubleClick={fitToViewport}
-          >
-            <div
-              style={{
-                height: previewSize.height * scale,
-                width: previewSize.width * scale,
-              }}
-            >
-              <div
-                style={{
-                  transform: `scale(${scale})`,
-                  transformOrigin: "top left",
-                }}
-              >
-                <StudioExportRoot
-                  ref={exportRootRef}
-                  document={document}
-                  onFontLoadStateChange={handleFontLoadStateChange}
-                  runtimeImageOverrides={runtimeImageOverrides}
-                  runtimeValues={runtimeValues}
-                />
-              </div>
-            </div>
-          </div>
-          <div className="absolute bottom-4 left-4 right-4 z-10 flex flex-wrap gap-2 text-[10px] font-semibold">
-            <span
-              className={
-                readiness.fontsReady
-                  ? "rounded bg-emerald-500/80 px-2 py-1 text-white"
-                  : "rounded bg-black/60 px-2 py-1 text-white/80"
-              }
-            >
-              폰트 {readiness.fontsReady ? "준비됨" : "대기"}
-            </span>
-            <span
-              className={
-                readiness.imagesReady
-                  ? "rounded bg-emerald-500/80 px-2 py-1 text-white"
-                  : "rounded bg-black/60 px-2 py-1 text-white/80"
-              }
-            >
-              이미지 {readiness.imagesReady ? "준비됨" : "대기"}
-            </span>
-            {readiness.blockingErrors.map((message) => (
-              <span
-                className="rounded bg-rose-500/90 px-2 py-1 text-white"
-                key={message}
-              >
-                {message}
-              </span>
-            ))}
-          </div>
-        </section>
+          <StudioExportRoot
+            ref={exportRootRef}
+            document={document}
+            onFontLoadStateChange={handleFontLoadStateChange}
+            runtimeImageOverrides={runtimeImageOverrides}
+            runtimeValues={runtimeValues}
+          />
+        </StudioRuntimePreviewWorkspace>
         <ThumbnailRuntimeForm
           document={document}
           initialRuntimeValues={initialRuntimeValues}
@@ -327,6 +226,12 @@ export function ThumbnailRuntimeShell({
           setRuntimeValues={setRuntimeValues}
           storageOwnerId={storageOwnerId}
           templateId={templateId}
+          templateName={templateName}
+          revisionNo={revisionNo}
+          exportDisabled={!isReady || isExporting}
+          isExporting={isExporting}
+          readinessMessage={readinessMessage}
+          onExport={() => void exportPng()}
           onReset={resetRuntime}
         />
       </div>

@@ -60,6 +60,8 @@ export const getStudioTextEffectOutset = (
     (maximum, stroke) => Math.max(maximum, finiteNonNegative(stroke.outset)),
     0,
   );
+  // Shadow is applied to the root's composite silhouette, so its outset starts at the
+  // outermost visible stroke (or the fill glyph when no stroke is drawable).
   const shadow = getDrawableShadow(appearance?.shadow);
   const shadowBlurOutset = finiteNonNegative(shadow?.blur);
   const shadowOffsetX = finiteNumber(shadow?.offsetX);

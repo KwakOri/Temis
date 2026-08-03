@@ -56,6 +56,11 @@ import {
 } from "@/utils/template-studio/node-style-commands";
 import { resolveStudioGraphNodeGeometry } from "@/utils/template-studio/object-layout";
 import {
+  getStudioTextOutermostConfiguredOutset,
+  getStudioTextStrokeStack,
+  rebuildStudioTextStrokeOutsetsFromPanelOrder,
+} from "@/utils/template-studio/text-appearance";
+import {
   normalizeStudioCanvasSize,
   normalizeStudioRotationDeg,
   type StudioResizeGeometry,
@@ -71,6 +76,7 @@ import {
   isStudioTextOutset,
   materializeStudioTextAppearance,
   removeLegacyStudioTextAppearanceScalars,
+  STUDIO_TEXT_DEFAULT_STROKE_THICKNESS,
   STUDIO_TEXT_MAX_OUTSET,
   STUDIO_TEXT_MAX_STROKES,
   validateStudioTextAppearance,
@@ -187,6 +193,12 @@ export interface ThumbnailNodeCommands {
     options?: ThumbnailUpdateOptions,
   ) => void;
   addTextStroke: (nodeId: string) => void;
+  setTextStrokeThickness: (
+    nodeId: string,
+    strokeId: string,
+    thickness: number,
+    options?: ThumbnailUpdateOptions,
+  ) => void;
   updateTextStroke: (
     nodeId: string,
     strokeId: string,
@@ -351,11 +363,95 @@ export function useThumbnailNodeCommands({
         return;
       }
 
+      const outermostOutset = getStudioTextOutermostConfiguredOutset(
+        current.appearance.strokes,
+      );
+      const availableOutset = STUDIO_TEXT_MAX_OUTSET - outermostOutset;
+      if (availableOutset <= 0) {
+        onStatusMessage("Total stroke outset cannot exceed 64px.");
+        return;
+      }
+      const nextThickness = Math.min(
+        STUDIO_TEXT_DEFAULT_STROKE_THICKNESS,
+        availableOutset,
+      );
+
       applyTextAppearanceMutation(nodeId, (appearance) => {
-        appearance.strokes.push(
-          createDefaultStudioTextStroke(createStudioId("stroke")),
+        // Storage remains back→front. The new default band is the outermost layer,
+        // so it is rendered first and shown last in the panel.
+        appearance.strokes.unshift(
+          createDefaultStudioTextStroke(
+            createStudioId("stroke"),
+            outermostOutset + nextThickness,
+          ),
         );
       });
+    },
+    [applyTextAppearanceMutation, getDocument, onStatusMessage],
+  );
+
+  const setTextStrokeThickness = useCallback(
+    (
+      nodeId: string,
+      strokeId: string,
+      thickness: number,
+      options?: ThumbnailUpdateOptions,
+    ) => {
+      const document = getDocument();
+      const node = document.graph.nodes[nodeId];
+      const style = node?.styleId ? document.styles[node.styleId] : undefined;
+      const current = node
+        ? materializeStudioTextAppearance(node, style)
+        : { ok: false as const, diagnostics: [] };
+      if (!current.ok) {
+        onStatusMessage(
+          current.diagnostics[0]?.message ?? "Text appearance is invalid",
+        );
+        return;
+      }
+
+      const stack = getStudioTextStrokeStack(current.appearance.strokes);
+      const targetIndex = stack.findIndex(
+        ({ stroke }) => stroke.id === strokeId,
+      );
+      if (targetIndex < 0) return;
+
+      const otherThickness = stack.reduce(
+        (total, entry, index) =>
+          index === targetIndex ? total : total + entry.thickness,
+        0,
+      );
+      const availableThickness = Math.max(
+        0,
+        STUDIO_TEXT_MAX_OUTSET - otherThickness,
+      );
+      if (
+        !Number.isFinite(thickness) ||
+        thickness < 0 ||
+        thickness > availableThickness
+      ) {
+        onStatusMessage(
+          thickness > availableThickness
+            ? "Total stroke outset cannot exceed 64px."
+            : `Stroke thickness must be between 0 and ${availableThickness}px.`,
+        );
+        return;
+      }
+
+      applyTextAppearanceMutation(
+        nodeId,
+        (appearance) => {
+          const nextStack = getStudioTextStrokeStack(appearance.strokes);
+          const panelStrokes = nextStack.map(({ stroke }) => stroke);
+          const thicknesses = nextStack.map(({ thickness: value }) => value);
+          thicknesses[targetIndex] = thickness;
+          appearance.strokes = rebuildStudioTextStrokeOutsetsFromPanelOrder(
+            panelStrokes,
+            thicknesses,
+          );
+        },
+        options,
+      );
     },
     [applyTextAppearanceMutation, getDocument, onStatusMessage],
   );
@@ -420,14 +516,35 @@ export function useThumbnailNodeCommands({
         return;
       }
 
+      const stack = getStudioTextStrokeStack(current.appearance.strokes);
+      const targetIndex = stack.findIndex(
+        ({ stroke }) => stroke.id === strokeId,
+      );
+      if (targetIndex < 0) return;
+      const targetThickness = stack[targetIndex]?.thickness ?? 0;
+      const totalThickness = stack.reduce(
+        (total, entry) => total + entry.thickness,
+        0,
+      );
+      if (totalThickness + targetThickness > STUDIO_TEXT_MAX_OUTSET) {
+        onStatusMessage("Total stroke outset cannot exceed 64px.");
+        return;
+      }
+
       applyTextAppearanceMutation(nodeId, (appearance) => {
-        const index = appearance.strokes.findIndex(({ id }) => id === strokeId);
-        if (index < 0) return;
+        const nextStack = getStudioTextStrokeStack(appearance.strokes);
+        const panelStrokes = nextStack.map(({ stroke }) => stroke);
+        const thicknesses = nextStack.map(({ thickness }) => thickness);
         const copy = {
-          ...appearance.strokes[index],
+          ...panelStrokes[targetIndex],
           id: createStudioId("stroke"),
         };
-        appearance.strokes.splice(index + 1, 0, copy);
+        panelStrokes.splice(targetIndex + 1, 0, copy);
+        thicknesses.splice(targetIndex + 1, 0, targetThickness);
+        appearance.strokes = rebuildStudioTextStrokeOutsetsFromPanelOrder(
+          panelStrokes,
+          thicknesses,
+        );
       });
     },
     [applyTextAppearanceMutation, getDocument, onStatusMessage],
@@ -436,8 +553,20 @@ export function useThumbnailNodeCommands({
   const deleteTextStroke = useCallback(
     (nodeId: string, strokeId: string) => {
       applyTextAppearanceMutation(nodeId, (appearance) => {
-        appearance.strokes = appearance.strokes.filter(
-          ({ id }) => id !== strokeId,
+        const stack = getStudioTextStrokeStack(appearance.strokes);
+        const targetIndex = stack.findIndex(
+          ({ stroke }) => stroke.id === strokeId,
+        );
+        if (targetIndex < 0) return;
+        const panelStrokes = stack
+          .filter((_, index) => index !== targetIndex)
+          .map(({ stroke }) => stroke);
+        const thicknesses = stack
+          .filter((_, index) => index !== targetIndex)
+          .map(({ thickness }) => thickness);
+        appearance.strokes = rebuildStudioTextStrokeOutsetsFromPanelOrder(
+          panelStrokes,
+          thicknesses,
         );
       });
     },
@@ -447,16 +576,25 @@ export function useThumbnailNodeCommands({
   const moveTextStroke = useCallback(
     (nodeId: string, strokeId: string, toIndex: number) => {
       applyTextAppearanceMutation(nodeId, (appearance) => {
-        const fromIndex = appearance.strokes.findIndex(
-          ({ id }) => id === strokeId,
+        const stack = getStudioTextStrokeStack(appearance.strokes);
+        const fromIndex = stack.findIndex(
+          ({ stroke }) => stroke.id === strokeId,
         );
         if (fromIndex < 0) return;
-        const [stroke] = appearance.strokes.splice(fromIndex, 1);
+        const panelStrokes = stack.map(({ stroke }) => stroke);
+        const thicknesses = stack.map(({ thickness }) => thickness);
+        const [stroke] = panelStrokes.splice(fromIndex, 1);
+        const [thickness] = thicknesses.splice(fromIndex, 1);
         const nextIndex = Math.max(
           0,
-          Math.min(appearance.strokes.length, Math.trunc(toIndex)),
+          Math.min(panelStrokes.length, Math.trunc(toIndex)),
         );
-        appearance.strokes.splice(nextIndex, 0, stroke);
+        panelStrokes.splice(nextIndex, 0, stroke);
+        thicknesses.splice(nextIndex, 0, thickness);
+        appearance.strokes = rebuildStudioTextStrokeOutsetsFromPanelOrder(
+          panelStrokes,
+          thicknesses,
+        );
       });
     },
     [applyTextAppearanceMutation],
@@ -1262,6 +1400,7 @@ export function useThumbnailNodeCommands({
       materializeTextAppearance,
       setTextFill,
       addTextStroke,
+      setTextStrokeThickness,
       updateTextStroke,
       duplicateTextStroke,
       deleteTextStroke,
@@ -1310,6 +1449,7 @@ export function useThumbnailNodeCommands({
       setTextAlignment,
       setTextFill,
       addTextStroke,
+      setTextStrokeThickness,
       updateTextStroke,
       duplicateTextStroke,
       deleteTextStroke,

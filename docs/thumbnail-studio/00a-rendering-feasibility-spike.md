@@ -233,11 +233,11 @@ Phase 5의 export controller 통합을 기다리지 않고 먼저 고칠 후보�
 처음에는 "이번에 확인한 조건과 같다"고 적었는데, 코드를 확인해 보니 두 경로가
 크기를 정하는 방법과 줄이 나뉘는 조건이 서로 다르다.
 
-| | 프로토타입(`SpikeText`) | 제품(`StudioText` → `AutoResizeText`) |
-| --- | --- | --- |
-| 크기 탐색 | 0.5px 단위 이분 탐색 | 최대값에서 0.5px씩 줄이는 선형 탐색 |
-| 줄바꿈 | `white-space: pre-wrap` (자동 줄바꿈) | `white-space: pre` (개행에서만) |
-| 렌더 크기 | 탐색 결과 그대로 | `Math.floor()` 적용 |
+|           | 프로토타입(`SpikeText`)               | 제품(`StudioText` → `AutoResizeText`) |
+| --------- | ------------------------------------- | ------------------------------------- |
+| 크기 탐색 | 0.5px 단위 이분 탐색                  | 최대값에서 0.5px씩 줄이는 선형 탐색   |
+| 줄바꿈    | `white-space: pre-wrap` (자동 줄바꿈) | `white-space: pre` (개행에서만)       |
+| 렌더 크기 | 탐색 결과 그대로                      | `Math.floor()` 적용                   |
 
 현재 `StudioText`의 autoFit 경로는 `maxLines`를 넘기지 않는다. `AutoResizeText`의
 이분 탐색은 `maxLines`가 있을 때만 동작하므로 제품 경로는 선형 탐색을 탄다.
@@ -292,12 +292,12 @@ Phase 3의 공용 텍스트 렌더러를 만든 뒤 같은 표본으로 재검�
 장면 12~15를 두 라스터라이저로 만들고 차이 겹침으로 판정했다. 기능은 두 라이브러리 모두
 정상이었다. 웹 폰트 fallback이나 캡처 실패는 없었다.
 
-| 장면 | 조건 | 결과 |
-| --- | --- | --- |
-| 12. 긴 제목(개행 없음) | 한 줄. 폭에 맞추려고 크게 축소 | 두 라이브러리 같음 |
-| 13. 개행이 있는 제목 | 두 줄. 상자 높이를 거의 채움 | `modern-screenshot`이 화면과 더 잘 맞음 |
-| 14. 부제목(작은 상자) | 한 줄. 상자 높이가 줄 높이에 가까움 | `modern-screenshot`이 화면과 더 잘 맞음 |
-| 15. 짧은 제목 | 축소 없음 | 두 라이브러리 같음 |
+| 장면                   | 조건                                | 결과                                    |
+| ---------------------- | ----------------------------------- | --------------------------------------- |
+| 12. 긴 제목(개행 없음) | 한 줄. 폭에 맞추려고 크게 축소      | 두 라이브러리 같음                      |
+| 13. 개행이 있는 제목   | 두 줄. 상자 높이를 거의 채움        | `modern-screenshot`이 화면과 더 잘 맞음 |
+| 14. 부제목(작은 상자)  | 한 줄. 상자 높이가 줄 높이에 가까움 | `modern-screenshot`이 화면과 더 잘 맞음 |
+| 15. 짧은 제목          | 축소 없음                           | 두 라이브러리 같음                      |
 
 **폭 맞춤 경계로는 설명되지 않는다.** 가장 많이 축소하는 장면(12)이 오히려 같았고, 어긋난
 두 장면은 세로가 빡빡한 쪽이다. 13은 두 줄이 상자 높이를 거의 채우고, 14는 상자 높이가 줄
@@ -345,12 +345,12 @@ alpha bounding box와 줄 경계를 근거로 판정한다. 원시 픽셀 diff�
 기준선과 최종 결과는 이 문서의 아래 표에 실제 숫자로 남긴다. 두 행 모두 DOM font size와
 줄 수, live/PNG glyph bbox, fallback 판정을 기록한 뒤에만 스파이크를 제거한다.
 
-| 시점 | 장면 | DOM font size / line height | 줄 수 | 콘텐츠 크기 | live / PNG glyph bbox | fallback | 판정 |
-| --- | --- | ---: | ---: | ---: | --- | --- | --- |
-| §15 9~13 구현 전 | 13 | 10px / 10.8px | 2 | 380 × 22 | `x=40..131,y=165..185` / `x=40..131,y=165..185` (Δ0px) | 없음 | 통과 |
-| §15 9~13 구현 전 | 14 | 10px / 10.8px | 1 | 360 × 11 | `x=41..185,y=175..185` / `x=41..185,y=175..184` (Δ1px) | 없음 | 통과 |
-| §15 13 완료 후 | 13 | 10px / 10.8px | 2 | 380 × 22 | `x=40..131,y=165..185` / `x=40..131,y=165..185` (Δ0px) | 없음 | 통과 |
-| §15 13 완료 후 | 14 | 10px / 10.8px | 1 | 360 × 11 | `x=41..185,y=175..185` / `x=41..185,y=175..184` (Δ1px) | 없음 | 통과 |
+| 시점             | 장면 | DOM font size / line height | 줄 수 | 콘텐츠 크기 | live / PNG glyph bbox                                  | fallback | 판정 |
+| ---------------- | ---- | --------------------------: | ----: | ----------: | ------------------------------------------------------ | -------- | ---- |
+| §15 9~13 구현 전 | 13   |               10px / 10.8px |     2 |    380 × 22 | `x=40..131,y=165..185` / `x=40..131,y=165..185` (Δ0px) | 없음     | 통과 |
+| §15 9~13 구현 전 | 14   |               10px / 10.8px |     1 |    360 × 11 | `x=41..185,y=175..185` / `x=41..185,y=175..184` (Δ1px) | 없음     | 통과 |
+| §15 13 완료 후   | 13   |               10px / 10.8px |     2 |    380 × 22 | `x=40..131,y=165..185` / `x=40..131,y=165..185` (Δ0px) | 없음     | 통과 |
+| §15 13 완료 후   | 14   |               10px / 10.8px |     1 |    360 × 11 | `x=41..185,y=175..185` / `x=41..185,y=175..184` (Δ1px) | 없음     | 통과 |
 
 실측은 2026-08-01, macOS 15.6.1, Codex in-app Chrome에서 수행했다. `StudioText` →
 `AutoResizeText` 표본의 `data-load-state="loaded"`, `document.fonts.status="loaded"`와
@@ -364,6 +364,39 @@ alpha bounding box와 줄 경계를 근거로 판정한다. 원시 픽셀 diff�
 확인한 뒤 같은 표본을 실측한 값이다. 네 행 모두 실측값과 판정을 갖췄으므로
 `spike-rendering` 임시 폴더를 제거했다.
 
+### Studio Auto Text 측정 오염 회귀 수정 (2026-08-03)
+
+앞의 장면 13·14 표에 있는 `10px`은 당시 실제로 관찰한 값이지만, 정상적인 Studio Auto
+Text 결과로 해석하면 안 된다. 그 시점의 `StudioText` auto-fit은 범용 `AutoResizeText`의
+`<p>` 안에서 논리 텍스트와 absolute stroke/fill/shadow 레이어를 함께 렌더링했다.
+`scrollWidth`와 `scrollHeight`가 효과 레이어의 overflow까지 측정했고, 텍스트가 박스를
+초과한다고 잘못 판단해 최소값까지 줄어든 측정 오염이었다.
+
+수정 후에는 `StudioAutoFitText`가 효과가 있을 때만 `<p>` 안의 논리 텍스트 `<span>`을
+측정하고, 효과 레이어는 그 span의 형제로 렌더링한다. 최종 `font-size`는 root `<p>`가
+소유하며 stroke/fill/shadow는 그 값을 상속한다. 효과가 없는 문서는 root `<p>` 자체를
+측정하는 기존 경로를 유지한다. 범용 `AutoResizeText`의 레거시 호출부는 변경하지 않았다.
+
+실측 결과:
+
+| 조건                                  | computed font-size | 결과                            |
+| ------------------------------------- | -----------------: | ------------------------------- |
+| 짧은 텍스트, stroke 있음, max size 42 |               42px | 박스 안에 들어가며 최대값 유지  |
+| 같은 텍스트·박스, 효과 없음           |               42px | 효과 있음과 일치                |
+| 같은 짧은 텍스트, max size 42 → 64    |        42px → 64px | Size 변경이 최대값에 반영       |
+| 박스보다 긴 텍스트, 효과 있음/없음    |        14px / 14px | 두 경로가 같은 크기로 정상 축소 |
+| preserve / single                     |   `pre` / `nowrap` | 기존 줄바꿈 계약 유지           |
+
+관리자 캔버스의 Draft preview는 수정된 `StudioRenderer` 경로에서 효과 있는 Auto Text를
+그대로 렌더링했고, root/measurement/stroke/fill 레이어의 computed font-size가 모두
+일치했다. PNG export는 `ThumbnailRuntimeShell`의 `StudioExportRoot`가 같은
+`StudioRenderer`를 사용하고 `modern-screenshot`으로 캡처하는 기존 경로를 유지하며,
+`check-thumbnail-studio-runtime` 계약 검사로 이를 확인했다. 실측 중 만든 효과 표본은
+저장하지 않은 draft라 원격 runtime preview/PNG에는 전송하지 않았다.
+
+확인 환경: 2026-08-03, macOS 15.6.1, Codex 연결 Chrome. `document.fonts.status`는
+`loaded`였다.
+
 ### 통일 결과
 
 `template-studio-runtime-shell.tsx`를 `modern-screenshot`으로 바꿨다. 이 셸은
@@ -372,11 +405,11 @@ alpha bounding box와 줄 경계를 근거로 판정한다. 원시 픽셀 diff�
 
 옵션 대응:
 
-| html-to-image | modern-screenshot |
-| --- | --- |
-| `pixelRatio: 1` | `scale: 1` |
-| `cacheBust: true` | `fetch: { bypassingCache: true }` |
-| `style`, `width`, `height` | 같음 |
+| html-to-image              | modern-screenshot                 |
+| -------------------------- | --------------------------------- |
+| `pixelRatio: 1`            | `scale: 1`                        |
+| `cacheBust: true`          | `fetch: { bypassingCache: true }` |
+| `style`, `width`, `height` | 같음                              |
 
 캡처 전에 `document.fonts.ready`를 기다리는 단계를 함께 넣었다. 런타임 셸에는 이 단계가
 없었다. 준비 전에 캡처하면 fallback 폰트가 결과 이미지에 굳는데, 화면에는 제대로 보이므로

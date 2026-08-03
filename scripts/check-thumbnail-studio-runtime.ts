@@ -12,6 +12,13 @@ const files = {
   adminClient:
     "src/app/(root)/admin/thumbnail-studio/_components/thumbnail-studio-preview-client.tsx",
   exportRoot: "src/components/studio/runtime/studio-export-root.tsx",
+  previewWorkspace:
+    "src/components/studio/runtime/studio-runtime-preview-workspace.tsx",
+  viewport: "src/components/studio/runtime/use-studio-runtime-viewport.ts",
+  formShell: "src/components/studio/runtime/studio-runtime-form-shell.tsx",
+  stateScreen: "src/components/studio/runtime/studio-runtime-state-screen.tsx",
+  templateShell:
+    "src/app/(root)/template-studio/_components/runtime/template-studio-runtime-shell.tsx",
   exporter: "src/utils/template-studio/png-export.ts",
 };
 
@@ -22,15 +29,40 @@ for (const [name, path] of Object.entries(files)) {
 const source = (path: string) => readFileSync(path, "utf8");
 const shell = source(files.shell);
 const form = source(files.form);
+const userClient = source(files.userClient);
+const adminClient = source(files.adminClient);
 const exporter = source(files.exporter);
 const exportRoot = source(files.exportRoot);
+const previewWorkspace = source(files.previewWorkspace);
+const viewport = source(files.viewport);
+const formShell = source(files.formShell);
+const stateScreen = source(files.stateScreen);
+const templateShell = source(files.templateShell);
 const route = source("src/app/api/user/templates/[id]/runtime/route.ts");
 
 assert.match(shell, /StudioExportRoot/);
+assert.match(shell, /studio-runtime-theme/);
+assert.match(shell, /StudioRuntimePreviewWorkspace/);
+assert.doesNotMatch(shell, /bg-\[#242424\]/);
 assert.match(shell, /fontsReady/);
 assert.match(shell, /imagesReady/);
 assert.match(shell, /layoutReady/);
-assert.match(shell, /disabled={!isReady/);
+assert.match(shell, /exportDisabled={!isReady/);
+assert.match(shell, /thumbnail-runtime-preview-scale/);
+assert.match(form, /StudioRuntimeFormShell/);
+assert.match(form, /readinessMessage/);
+assert.match(form, /PNG 저장/);
+assert.match(form, /onExport/);
+assert.match(formShell, /h-\[44vh\]/);
+assert.match(previewWorkspace, /STUDIO_RUNTIME_MAX_SCALE/);
+assert.match(previewWorkspace, /onDoubleClick={viewport.fitToViewport}/);
+assert.match(viewport, /ResizeObserver/);
+assert.match(viewport, /handlePointerMove/);
+assert.match(templateShell, /StudioRuntimePreviewWorkspace/);
+assert.match(templateShell, /studio-runtime-theme/);
+assert.doesNotMatch(userClient, /bg-slate-950/);
+assert.doesNotMatch(adminClient, /bg-slate-950/);
+assert.match(stateScreen, /studio-runtime-theme/);
 assert.match(form, /getThumbnailStudioInputGroups/);
 assert.match(form, /setStudioRuntimeInputValue/);
 assert.match(form, /putStudioRuntimeImage/);

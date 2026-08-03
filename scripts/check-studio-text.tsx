@@ -28,6 +28,7 @@ import type {
   StudioRuntimeValues,
   StudioStyleRecord,
   StudioTextAppearance,
+  StudioTextShadow,
   StudioTextStroke,
 } from "../src/types/template-studio";
 import { resolveStudioTextAppearance } from "../src/utils/template-studio/text-appearance";
@@ -49,6 +50,18 @@ const stroke = (
   color: "#111827",
   outset,
   opacity: 1,
+  ...overrides,
+});
+
+const shadow = (
+  overrides: Partial<StudioTextShadow> = {},
+): StudioTextShadow => ({
+  enabled: true,
+  color: "#000000",
+  offsetX: 2,
+  offsetY: 3,
+  blur: 4,
+  opacity: 0.8,
   ...overrides,
 });
 
@@ -99,6 +112,14 @@ assert.equal(
   render(createNode(), { color: "#111827", WebkitTextStroke: "12px #000000" }),
   TEXT,
   "예전 scalar 외곽선에 레이어를 더하면 외곽선이 두 번 그려진다.",
+);
+assert.equal(
+  render(createNode(), {
+    color: "#111827",
+    textShadow: "2px 3px 4px #000000",
+  }),
+  TEXT,
+  "예전 scalar textShadow는 구조화 filter로 materialize하지 않고 기존 style 결과를 유지한다.",
 );
 
 // --- 구조화된 효과 ---
@@ -241,7 +262,7 @@ assert.deepEqual(
   "꺼 둔 외곽선이 레이어로 남으면 껐는데도 화면이 그대로다.",
 );
 
-// --- 그림자는 가장 뒤에서 한 번만 ---
+// --- 그림자는 합성된 실루엣에 한 번만 ---
 
 const shadowMarkup = render(
   createNode({
@@ -260,21 +281,57 @@ const shadowMarkup = render(
   {},
 );
 assert.equal(
-  (shadowMarkup.match(/text-shadow:/g) ?? []).length,
+  (shadowMarkup.match(/filter:drop-shadow\(/g) ?? []).length,
   1,
-  "그림자를 레이어마다 그리면 겹쳐서 짙어진다.",
+  "구조화 그림자는 root의 합성 실루엣에 정확히 한 번 적용한다.",
 );
 assert.ok(
-  shadowMarkup.indexOf("text-shadow:") <
-    shadowMarkup.indexOf('data-effect-layer="stroke:inner"'),
-  "그림자는 가장 뒤 레이어에서 그려야 글자와 외곽선 아래에 깔린다.",
+  shadowMarkup.includes(
+    "filter:drop-shadow(10px 14px 18px rgba(15, 23, 42, 0.65))",
+  ),
+  "shadow offset, blur와 alpha 색상은 drop-shadow 함수에 보존해야 한다.",
 );
 assert.ok(
-  shadowMarkup.includes("rgba(15, 23, 42, 0.65)"),
-  "그림자 투명도는 색의 alpha로 들어간다. 레이어 투명도로 다루면 같은 레이어의 글자와 외곽선까지 흐려진다.",
+  shadowMarkup.includes('data-studio-text-shadow-source="composite"'),
+  "구조화 그림자는 최종 합성 실루엣을 기준으로 한다는 식별자가 있어야 한다.",
+);
+assert.equal(
+  (shadowMarkup.match(/text-shadow:/g) ?? []).length,
+  0,
+  "stroke/fill 레이어에 text-shadow를 남기면 외곽 stroke가 그림자 원본이 되지 않는다.",
+);
+assert.equal(
+  (shadowMarkup.match(/filter:drop-shadow\(/g) ?? []).length,
+  1,
+  "stroke가 여러 개여도 shadow filter는 하나여야 한다.",
+);
+assert.equal(
+  (singleStrokeMarkup.match(/filter:drop-shadow\(/g) ?? []).length,
+  0,
+  "shadow가 없으면 불필요한 filter를 만들지 않는다.",
 );
 
-// 외곽선이 없으면 foreground가 가장 뒤이므로 거기서 그린다.
+const edgeShadowMarkup = render(
+  createNode({
+    textAppearance: appearance({
+      strokes: [stroke("translucent", 20, { opacity: 0.4 })],
+      shadow: shadow({ offsetX: -6, offsetY: -7, blur: 0 }),
+    }),
+  }),
+  {},
+);
+assert.ok(
+  edgeShadowMarkup.includes(
+    "filter:drop-shadow(-6px -7px 0px rgba(0, 0, 0, 0.8))",
+  ),
+  "blur 0과 음수 X/Y offset도 합성 shadow filter에 그대로 전달해야 한다.",
+);
+assert.ok(
+  edgeShadowMarkup.includes("opacity:0.4"),
+  "반투명 stroke는 자체 alpha만 적용하고 shadow root filter는 한 번만 만들어야 한다.",
+);
+
+// 외곽선이 없으면 fill 실루엣을 root filter의 원본으로 삼는다.
 const shadowOnlyMarkup = render(
   createNode({
     textAppearance: appearance({
@@ -291,11 +348,16 @@ const shadowOnlyMarkup = render(
   {},
 );
 assert.equal(
-  (shadowOnlyMarkup.match(/text-shadow:/g) ?? []).length,
+  (shadowOnlyMarkup.match(/filter:drop-shadow\(/g) ?? []).length,
   1,
-  "외곽선이 없어도 그림자는 한 번 그려야 한다.",
+  "외곽선이 없어도 fill 실루엣에 그림자를 한 번 만들어야 한다.",
 );
 assert.ok(shadowOnlyMarkup.includes('data-effect-layer="foreground"'));
+assert.equal(
+  (shadowOnlyMarkup.match(/text-shadow:/g) ?? []).length,
+  0,
+  "fill/foreground에도 text-shadow를 만들지 않는다.",
+);
 
 // 꺼 둔 그림자는 그리지 않는다.
 assert.ok(
@@ -314,7 +376,7 @@ assert.ok(
       }),
     }),
     {},
-  ).includes("text-shadow:"),
+  ).includes("filter:drop-shadow("),
   "꺼 둔 그림자가 그려지면 껐는데도 화면이 그대로다.",
 );
 
@@ -456,6 +518,10 @@ assert.ok(
   autoFitPlainMarkup.includes("color:#111827"),
   "효과가 없으면 style의 색을 글자 요소에 그대로 준다.",
 );
+assert.ok(
+  !autoFitPlainMarkup.includes("data-studio-text-measurement"),
+  "효과가 없는 자동 크기는 기존처럼 root p 자체를 측정해야 한다.",
+);
 
 const autoFitEffectMarkup = renderAutoFit(
   {
@@ -476,6 +542,31 @@ assert.equal(
   (autoFitEffectMarkup.match(/<p[\s>]/g) ?? []).length,
   1,
   "자동 크기 경로에서 크기를 재는 요소는 하나여야 한다.",
+);
+assert.ok(
+  autoFitEffectMarkup.includes('data-studio-text-measurement="true"'),
+  "효과가 있는 자동 크기는 논리 텍스트 전용 측정 요소를 가져야 한다.",
+);
+const measurementStart = autoFitEffectMarkup.indexOf(
+  'data-studio-text-measurement="true"',
+);
+const measurementEnd = autoFitEffectMarkup.indexOf("</span>", measurementStart);
+const firstEffectLayer = autoFitEffectMarkup.indexOf("data-effect-layer=");
+assert.ok(measurementEnd > measurementStart, "측정 span은 닫혀야 한다.");
+assert.ok(
+  !autoFitEffectMarkup
+    .slice(measurementStart, measurementEnd)
+    .includes("data-effect-layer="),
+  "효과 레이어는 논리 측정 요소 내부에 들어가면 안 된다.",
+);
+assert.ok(
+  firstEffectLayer > measurementEnd,
+  "효과 레이어는 논리 측정 요소와 형제여야 한다.",
+);
+assert.equal(
+  (autoFitEffectMarkup.match(/font-size:/g) ?? []).length,
+  1,
+  "자동 크기 효과 조합은 root 하나의 font-size만 소유해야 한다.",
 );
 
 // 레이어가 그 요소 안에 있어야 크기를 물려받는다.
@@ -508,6 +599,67 @@ assert.equal(
 assert.ok(
   autoFitEffectMarkup.includes("-webkit-text-stroke:12px"),
   "자동 크기 경로도 같은 두께 변환을 거쳐야 한다.",
+);
+
+const shadowOnlyAutoMarkup = renderAutoFit(
+  { textAppearance: appearance({ shadow: shadow() }) },
+  {},
+);
+const fixedSharedShadowMarkup = render(
+  createNode({ textAppearance: appearance({ shadow: shadow() }) }),
+  {},
+);
+assert.deepEqual(
+  [...shadowOnlyAutoMarkup.matchAll(/data-effect-layer="([^"]+)"/g)].map(
+    (match) => match[1],
+  ),
+  ["fill"],
+  "shadow-only 자동 크기는 fill 레이어 하나를 root 합성에 포함해야 한다.",
+);
+assert.ok(
+  shadowOnlyAutoMarkup.includes("filter:drop-shadow(2px 3px 4px"),
+  "shadow-only 자동 크기는 root에 drop-shadow를 적용해야 한다.",
+);
+assert.equal(
+  (shadowOnlyAutoMarkup.match(/filter:drop-shadow\(/g) ?? []).length,
+  1,
+  "shadow-only 자동 크기도 shadow filter는 하나여야 한다.",
+);
+
+const strokeShadowAutoMarkup = renderAutoFit(
+  {
+    textAppearance: appearance({
+      shadow: shadow(),
+      strokes: [stroke("outer", 6)],
+    }),
+  },
+  {},
+);
+assert.deepEqual(
+  [...strokeShadowAutoMarkup.matchAll(/data-effect-layer="([^"]+)"/g)].map(
+    (match) => match[1],
+  ),
+  ["stroke:outer", "fill"],
+  "stroke + shadow 자동 크기는 stroke와 fill 레이어를 한 root 아래에 둬야 한다.",
+);
+assert.ok(
+  strokeShadowAutoMarkup.includes("filter:drop-shadow(2px 3px 4px"),
+  "stroke + shadow 자동 크기는 root 합성 실루엣에 drop-shadow를 적용해야 한다.",
+);
+assert.equal(
+  (strokeShadowAutoMarkup.match(/filter:drop-shadow\(/g) ?? []).length,
+  1,
+  "stroke가 여러 개여도 자동 크기 shadow filter는 하나여야 한다.",
+);
+assert.equal(
+  (strokeShadowAutoMarkup.match(/text-shadow:/g) ?? []).length,
+  0,
+  "자동 크기의 stroke/fill 레이어에도 text-shadow가 없어야 한다.",
+);
+assert.equal(
+  fixedSharedShadowMarkup.match(/filter:drop-shadow\([^;]+\)/)?.[0],
+  strokeShadowAutoMarkup.match(/filter:drop-shadow\([^;]+\)/)?.[0],
+  "고정 텍스트와 Auto Text가 같은 shadow 표현을 사용해야 한다.",
 );
 
 // --- 맞춤 여유 ---
@@ -563,6 +715,46 @@ assert.ok(
     "fitMargin={STUDIO_TEXT_FIT_MARGIN_PX}",
   ),
   "Studio 경로는 여유를 넘겨야 한다. 넘기지 않으면 탐색 결과가 맞춤 경계에 붙는다.",
+);
+const studioTextSource = readFileSync(
+  "src/components/studio/text/studio-text.tsx",
+  "utf8",
+);
+const studioAutoFitSource = readFileSync(
+  "src/components/studio/text/studio-auto-fit-text.tsx",
+  "utf8",
+);
+assert.ok(
+  studioTextSource.includes("StudioAutoFitText"),
+  "Studio auto-fit은 전용 컴포넌트를 사용해야 한다.",
+);
+assert.ok(
+  !studioTextSource.includes("AutoResizeText"),
+  "Studio 경로가 범용 AutoResizeText에 의존하면 효과 overflow가 다시 측정된다.",
+);
+assert.ok(
+  !studioTextSource.includes("textShadow"),
+  "Studio structured effect layers는 legacy textShadow를 직접 그리지 않아야 한다.",
+);
+assert.ok(
+  studioAutoFitSource.includes("measurement.scrollWidth") &&
+    studioAutoFitSource.includes("measurement.scrollHeight") &&
+    !studioAutoFitSource.includes("root.scrollWidth") &&
+    !studioAutoFitSource.includes("root.scrollHeight"),
+  "Studio 자동 맞춤은 logical measurement 요소의 overflow만 읽어야 한다.",
+);
+assert.ok(
+  studioTextSource.includes("function StudioTextEffectLayers"),
+  "고정/자동 텍스트는 하나의 효과 레이어 생성기를 공유해야 한다.",
+);
+const inspectorSource = readFileSync(
+  "src/app/(root)/admin/thumbnail-studio/_components/thumbnail-inspector.tsx",
+  "utf8",
+);
+assert.ok(
+  inspectorSource.includes('selectedNode.type === "flexibleText"') &&
+    inspectorSource.includes('"Max size"'),
+  "단일 flexibleText의 font size 필드는 Max size로 표시해야 한다.",
 );
 
 console.log("Studio text baseline checks passed.");

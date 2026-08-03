@@ -28,7 +28,7 @@ export function TemplateHubClient() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setFilters((prev) =>
-        prev.search === searchInput ? prev : { ...prev, search: searchInput }
+        prev.search === searchInput ? prev : { ...prev, search: searchInput },
       );
     }, SEARCH_DEBOUNCE_MS);
 
@@ -58,7 +58,7 @@ export function TemplateHubClient() {
       saleStatus: filters.saleStatus,
       hasProduct: filters.hasProduct,
     }),
-    [filters, offset]
+    [filters, offset],
   );
 
   const templatesQuery = useTemplateHubTemplates(params);
@@ -96,19 +96,28 @@ export function TemplateHubClient() {
           onClick={() => void templatesQuery.refetch()}
         >
           <RefreshCw
-            className={cn("h-4 w-4", templatesQuery.isFetching && "animate-spin")}
+            className={cn(
+              "h-4 w-4",
+              templatesQuery.isFetching && "animate-spin",
+            )}
           />
           새로고침
         </button>
-        {/* 신규 제작을 Studio로 단일화한다는 제품 결정이 확정되기 전까지
-            기존 TemplateManagement.tsx의 Legacy 생성 기능은 그대로 둔다. */}
-        <Link
-          className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-primary px-3 py-2 text-sm font-medium text-[#F4FDFF] transition-colors hover:bg-secondary sm:px-4"
-          href="/admin/template-studio/create"
-        >
-          <Plus className="h-4 w-4" />
-          새 템플릿
-        </Link>
+        {/* 신규 제작은 Studio로 단일화하되, 템플릿 종류별 생성 흐름은 분리한다. */}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Link
+            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-primary px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-blue-50 sm:px-4"
+            href="/admin/template-studio/create"
+          >
+            <Plus className="h-4 w-4" />새 시간표 템플릿
+          </Link>
+          <Link
+            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-primary px-3 py-2 text-sm font-medium text-[#F4FDFF] transition-colors hover:bg-secondary sm:px-4"
+            href="/admin/thumbnail-studio/create"
+          >
+            <Plus className="h-4 w-4" />새 썸네일 템플릿
+          </Link>
+        </div>
       </AdminTabHeader>
 
       <TemplateHubFilters

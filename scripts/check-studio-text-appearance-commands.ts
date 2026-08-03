@@ -25,6 +25,7 @@ import {
 import {
   getStudioDrawableTextStrokes,
   getStudioOrderedTextStrokes,
+  getStudioTextStrokeStack,
   parseLegacyStudioTextShadow,
   resolveStudioTextAppearance,
 } from "../src/utils/template-studio/text-appearance";
@@ -323,6 +324,7 @@ commandDocument.styles["image-style"] = {
 };
 let currentDocument = commandDocument;
 let historyCaptures = 0;
+const statusMessages: string[] = [];
 let customPresets: StudioTextEffectPreset[] = [];
 let commands!: ThumbnailNodeCommands;
 const setCustomPresets = (
@@ -351,7 +353,7 @@ const Harness = () => {
     },
     applySelection: () => undefined,
     selectSingleNode: () => undefined,
-    onStatusMessage: () => undefined,
+    onStatusMessage: (message) => statusMessages.push(message),
     getCustomTextPresets: () => customPresets,
     setCustomTextPresets: setCustomPresets,
   });
@@ -416,9 +418,9 @@ assert.equal(
 );
 commands.updateTextStroke("text", "disabled", { enabled: false });
 currentDocument.graph.nodes.text.textAppearance!.strokes = [
-  { id: "back", enabled: true, color: "#000", outset: 2, opacity: 1 },
+  { id: "back", enabled: true, color: "#000", outset: 6, opacity: 1 },
   { id: "disabled", enabled: false, color: "#111", outset: 4, opacity: 1 },
-  { id: "front", enabled: true, color: "#222", outset: 6, opacity: 1 },
+  { id: "front", enabled: true, color: "#222", outset: 2, opacity: 1 },
 ];
 const historyBeforeStrokeDrag = historyCaptures;
 commands.moveTextStroke("text", "disabled", 0);
@@ -427,16 +429,159 @@ assert.deepEqual(
   currentDocument.graph.nodes.text.textAppearance?.strokes.map(
     (stroke) => stroke.id,
   ),
-  ["disabled", "back", "front"],
-  "drag reorder persists the saved array order, including disabled strokes",
+  ["back", "front", "disabled"],
+  "panel reorder persists the reversed saved array order, including disabled strokes",
 );
 commands.updateTextStroke("text", "disabled", { enabled: true });
 assert.deepEqual(
   getStudioDrawableTextStrokes(
     currentDocument.graph.nodes.text.textAppearance?.strokes ?? [],
   ).map((stroke) => stroke.id),
-  ["disabled", "back", "front"],
-  "renderer drawable order follows the saved stroke order after drag",
+  ["back", "front", "disabled"],
+  "renderer drawable order follows the saved stroke order after panel drag",
+);
+
+// --- 누적 thickness command mutations ---
+
+currentDocument.graph.nodes.text.textAppearance!.strokes = [];
+commands.addTextStroke("text");
+commands.addTextStroke("text");
+commands.addTextStroke("text");
+const addedStack = getStudioTextStrokeStack(
+  currentDocument.graph.nodes.text.textAppearance!.strokes,
+);
+assert.deepEqual(
+  addedStack.map(({ thickness, effectiveOutset }) => ({
+    thickness,
+    effectiveOutset,
+  })),
+  [
+    { thickness: 4, effectiveOutset: 4 },
+    { thickness: 4, effectiveOutset: 8 },
+    { thickness: 4, effectiveOutset: 12 },
+  ],
+  "each Add creates a visible default 4px band and stores cumulative outsets",
+);
+assert.deepEqual(
+  currentDocument.graph.nodes.text.textAppearance!.strokes.map(
+    ({ outset }) => outset,
+  ),
+  [12, 8, 4],
+);
+
+const [innerStroke, middleStroke, outerStroke] = addedStack.map(
+  ({ stroke }) => stroke.id,
+);
+commands.setTextStrokeThickness("text", outerStroke, 24);
+assert.deepEqual(
+  getStudioTextStrokeStack(
+    currentDocument.graph.nodes.text.textAppearance!.strokes,
+  ).map(({ thickness, effectiveOutset }) => ({
+    thickness,
+    effectiveOutset,
+  })),
+  [
+    { thickness: 4, effectiveOutset: 4 },
+    { thickness: 4, effectiveOutset: 8 },
+    { thickness: 24, effectiveOutset: 32 },
+  ],
+  "changing an outer thickness updates only its cumulative outset",
+);
+commands.setTextStrokeThickness("text", innerStroke, 6);
+assert.deepEqual(
+  getStudioTextStrokeStack(
+    currentDocument.graph.nodes.text.textAppearance!.strokes,
+  ).map(({ thickness, effectiveOutset }) => ({
+    thickness,
+    effectiveOutset,
+  })),
+  [
+    { thickness: 6, effectiveOutset: 6 },
+    { thickness: 4, effectiveOutset: 10 },
+    { thickness: 24, effectiveOutset: 34 },
+  ],
+  "changing an inner thickness propagates through outer effective outsets",
+);
+commands.deleteTextStroke("text", middleStroke);
+assert.deepEqual(
+  getStudioTextStrokeStack(
+    currentDocument.graph.nodes.text.textAppearance!.strokes,
+  ).map(({ stroke, thickness, effectiveOutset }) => ({
+    id: stroke.id,
+    thickness,
+    effectiveOutset,
+  })),
+  [
+    { id: innerStroke, thickness: 6, effectiveOutset: 6 },
+    { id: outerStroke, thickness: 24, effectiveOutset: 30 },
+  ],
+  "deleting a middle stroke preserves the remaining individual thicknesses",
+);
+
+currentDocument.graph.nodes.text.textAppearance!.strokes = [
+  { id: "black", enabled: true, color: "#000", outset: 32, opacity: 1 },
+  { id: "orange", enabled: true, color: "#f80", outset: 8, opacity: 1 },
+  { id: "blue", enabled: true, color: "#00f", outset: 4, opacity: 1 },
+];
+commands.moveTextStroke("text", "black", 0);
+assert.deepEqual(
+  getStudioTextStrokeStack(
+    currentDocument.graph.nodes.text.textAppearance!.strokes,
+  ).map(({ stroke, thickness, effectiveOutset }) => ({
+    id: stroke.id,
+    thickness,
+    effectiveOutset,
+  })),
+  [
+    { id: "black", thickness: 24, effectiveOutset: 24 },
+    { id: "blue", thickness: 4, effectiveOutset: 28 },
+    { id: "orange", thickness: 4, effectiveOutset: 32 },
+  ],
+  "reorder moves color and thickness together, then recalculates effective outsets",
+);
+
+currentDocument.graph.nodes.text.textAppearance!.strokes = [
+  { id: "outer", enabled: true, color: "#000", outset: 28, opacity: 1 },
+  { id: "inner", enabled: true, color: "#fff", outset: 4, opacity: 1 },
+];
+commands.duplicateTextStroke("text", "outer");
+const duplicatedStack = getStudioTextStrokeStack(
+  currentDocument.graph.nodes.text.textAppearance!.strokes,
+);
+assert.deepEqual(
+  duplicatedStack.map(({ thickness, effectiveOutset }) => ({
+    thickness,
+    effectiveOutset,
+  })),
+  [
+    { thickness: 4, effectiveOutset: 4 },
+    { thickness: 24, effectiveOutset: 28 },
+    { thickness: 24, effectiveOutset: 52 },
+  ],
+  "duplicate copies the individual thickness and places the copy adjacent in the panel",
+);
+const duplicateOverflowSnapshot = JSON.stringify(currentDocument);
+commands.duplicateTextStroke("text", duplicatedStack[2].stroke.id);
+assert.equal(
+  JSON.stringify(currentDocument),
+  duplicateOverflowSnapshot,
+  "duplicate is rejected when cumulative outset would exceed 64px",
+);
+assert.equal(statusMessages.at(-1), "Total stroke outset cannot exceed 64px.");
+
+currentDocument.graph.nodes.text.textAppearance!.strokes = [
+  { id: "nearly-full", enabled: true, color: "#000", outset: 62, opacity: 1 },
+];
+commands.addTextStroke("text");
+assert.deepEqual(
+  getStudioTextStrokeStack(
+    currentDocument.graph.nodes.text.textAppearance!.strokes,
+  ).map(({ thickness, effectiveOutset }) => ({ thickness, effectiveOutset })),
+  [
+    { thickness: 62, effectiveOutset: 62 },
+    { thickness: 2, effectiveOutset: 64 },
+  ],
+  "Add uses the remaining 1–3px instead of exceeding the 64px limit",
 );
 
 const lockedHistory = historyCaptures;

@@ -19,6 +19,7 @@
   --color-timetable-form-bg: #f5f0ed;
 }
 
+.studio-runtime-theme,
 .template-studio-runtime-theme {
   --runtime-primary: #fd9319;
   --runtime-primary-hover: #e58615;

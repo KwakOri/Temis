@@ -1,6 +1,6 @@
 "use client";
 
-import { RotateCcw, Upload } from "lucide-react";
+import { Download, RotateCcw, Upload } from "lucide-react";
 import React, {
   useCallback,
   useEffect,
@@ -42,10 +42,11 @@ import {
   getThumbnailStudioInputDefinitions,
 } from "@/utils/thumbnail-studio/input-order";
 import { getStudioImageInputPolicy } from "@/utils/thumbnail-studio/image-input-policy";
-import { StudioRuntimeActionButton } from "@/app/(root)/template-studio/_components/runtime/ui/studio-runtime-action-button";
-import { StudioRuntimeCard } from "@/app/(root)/template-studio/_components/runtime/ui/studio-runtime-card";
-import { StudioRuntimeField } from "@/app/(root)/template-studio/_components/runtime/ui/studio-runtime-field";
-import { StudioRuntimeSegmentedControl } from "@/app/(root)/template-studio/_components/runtime/ui/studio-runtime-segmented-control";
+import { StudioRuntimeFormShell } from "@/components/studio/runtime/studio-runtime-form-shell";
+import { StudioRuntimeActionButton } from "@/components/studio/runtime/ui/studio-runtime-action-button";
+import { StudioRuntimeCard } from "@/components/studio/runtime/ui/studio-runtime-card";
+import { StudioRuntimeField } from "@/components/studio/runtime/ui/studio-runtime-field";
+import { StudioRuntimeSegmentedControl } from "@/components/studio/runtime/ui/studio-runtime-segmented-control";
 import { StudioRuntimeImageCropModal } from "@/app/(root)/template-studio/_components/runtime/ui/studio-runtime-image-crop-modal";
 
 interface ThumbnailRuntimeImageOverride {
@@ -71,6 +72,12 @@ interface ThumbnailRuntimeFormProps {
   >;
   templateId: string;
   storageOwnerId: string;
+  templateName: string;
+  revisionNo: number;
+  exportDisabled: boolean;
+  isExporting: boolean;
+  readinessMessage?: string;
+  onExport: () => void;
   onReset: () => void;
 }
 
@@ -130,6 +137,12 @@ export function ThumbnailRuntimeForm({
   setRuntimeImageOverrides,
   templateId,
   storageOwnerId,
+  templateName,
+  revisionNo,
+  exportDisabled,
+  isExporting,
+  readinessMessage,
+  onExport,
   onReset,
 }: ThumbnailRuntimeFormProps) {
   const imageInputs = useMemo(
@@ -469,46 +482,69 @@ export function ThumbnailRuntimeForm({
   };
 
   return (
-    <aside className="flex min-h-0 w-full shrink-0 flex-col border-t border-[var(--runtime-border)] bg-[var(--runtime-form-bg)] md:w-[380px] md:border-l md:border-t-0">
-      <header className="flex items-center justify-between gap-3 border-b border-[var(--runtime-border)] px-4 py-3">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--runtime-fg-muted)]">
-            Thumbnail Editor
-          </p>
-          <h2 className="text-sm font-black">내용 입력</h2>
-        </div>
-        <StudioRuntimeActionButton
-          size="compact"
-          variant="secondary"
-          onClick={resetAll}
-        >
-          <RotateCcw size={13} /> 초기화
-        </StudioRuntimeActionButton>
-      </header>
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        <div className="grid gap-4">
-          {groups.map((group) => (
-            <StudioRuntimeCard
-              className="grid gap-4"
-              key={group.groupId ?? "ungrouped"}
+    <StudioRuntimeFormShell
+      eyebrow="Thumbnail Editor"
+      meta={`${templateName} · revision ${revisionNo}`}
+      testId="thumbnail-runtime-form"
+      title="내용 입력"
+      footer={
+        <div className="grid gap-2">
+          {readinessMessage ? (
+            <p
+              className={
+                readinessMessage === "리소스 준비 중…"
+                  ? "text-[11px] font-semibold text-[var(--runtime-fg-muted)]"
+                  : "rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-700"
+              }
             >
-              <h3 className="text-[11px] font-black uppercase tracking-[0.08em] text-[var(--runtime-fg-muted)]">
-                {group.groupId ?? "입력"}
-              </h3>
-              <div className="grid gap-4">{group.inputs.map(renderInput)}</div>
-            </StudioRuntimeCard>
-          ))}
-          {groups.length === 0 ? (
-            <StudioRuntimeCard className="text-sm font-semibold text-[var(--runtime-fg-muted)]">
-              공개된 입력 필드가 없습니다.
-            </StudioRuntimeCard>
-          ) : null}
-          {error ? (
-            <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
-              {error}
+              {readinessMessage}
             </p>
           ) : null}
+          <div className="flex gap-2">
+            <StudioRuntimeActionButton
+              className="shrink-0 px-3"
+              size="default"
+              variant="secondary"
+              onClick={resetAll}
+            >
+              <RotateCcw size={15} />
+              <span className="hidden sm:inline">초기화</span>
+            </StudioRuntimeActionButton>
+            <StudioRuntimeActionButton
+              fullWidth
+              disabled={exportDisabled}
+              size="default"
+              onClick={onExport}
+            >
+              <Download size={15} />
+              {isExporting ? "생성 중…" : "PNG 저장"}
+            </StudioRuntimeActionButton>
+          </div>
         </div>
+      }
+    >
+      <div className="grid gap-4">
+        {groups.map((group) => (
+          <StudioRuntimeCard
+            className="grid gap-4"
+            key={group.groupId ?? "ungrouped"}
+          >
+            <h3 className="text-[11px] font-black uppercase tracking-[0.08em] text-[var(--runtime-fg-muted)]">
+              {group.groupId ?? "입력"}
+            </h3>
+            <div className="grid gap-4">{group.inputs.map(renderInput)}</div>
+          </StudioRuntimeCard>
+        ))}
+        {groups.length === 0 ? (
+          <StudioRuntimeCard className="text-sm font-semibold text-[var(--runtime-fg-muted)]">
+            공개된 입력 필드가 없습니다.
+          </StudioRuntimeCard>
+        ) : null}
+        {error ? (
+          <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+            {error}
+          </p>
+        ) : null}
       </div>
       {pendingCrop ? (
         <StudioRuntimeImageCropModal
@@ -538,6 +574,6 @@ export function ThumbnailRuntimeForm({
           onCancel={() => setPendingCrop(null)}
         />
       ) : null}
-    </aside>
+    </StudioRuntimeFormShell>
   );
 }

@@ -243,7 +243,12 @@ DOM effect layer가 선택된 경우 기본 표현:
 - `-webkit-text-stroke`
 - `paint-order`
 - 동일 텍스트 중첩
-- `text-shadow`
+- root `filter: drop-shadow(...)`
+
+구조화 shadow는 특정 stroke ID나 배열 index에 붙이지 않는다. 모든 visible stroke와 fill을
+root에서 합성한 최종 alpha 실루엣 뒤에 한 번 생성한다. 따라서 가장 바깥쪽 visible stroke가
+자동으로 shadow 기준이 되고, stroke가 없으면 fill glyph가 기준이 된다. disabled 또는
+투명 stroke는 합성 실루엣에 기여하지 않는다.
 
 저장된 `outset`은 glyph 바깥으로 보이는 실효 두께다. 중앙 정렬 CSS stroke를
 사용하면 다음 변환을 한 곳에서 수행한다.
@@ -301,10 +306,17 @@ type StudioTextLayout = {
 
 ### 8.1 현재 제품 경로
 
-현재 `StudioText`의 autoFit 경로는 `AutoResizeText`에 위임하고 `maxLines`를 넘기지
-않는다. 그래서 지금 제품은 이분 탐색이 아니라 최대값에서 0.5px씩 줄이는 선형 탐색을
-타고, `white-space: pre`로 렌더한다. 즉 자동 줄바꿈을 하지 않고 명시적 개행에서만
-줄이 나뉜다. 렌더 시점에 `Math.floor()`가 한 번 더 걸린다.
+현재 `StudioText`의 autoFit 경로는 Studio 전용 `StudioAutoFitText`가 소유하고
+`maxLines`를 넘기지 않는다. 그래서 지금 제품은 이분 탐색이 아니라 최대값에서 0.5px씩
+줄이는 선형 탐색을 타고, `white-space: pre`로 렌더한다. 즉 자동 줄바꿈을 하지 않고
+명시적 개행에서만 줄이 나뉜다. 렌더 시점에 `Math.floor()`가 한 번 더 걸린다.
+
+효과가 있는 경우에는 root `<p>` 안에서 논리 텍스트만 가진 measurement `<span>`의
+`scrollWidth`/`scrollHeight`를 읽는다. stroke/fill/shadow 레이어는 measurement span의
+형제로 두고 root의 최종 `font-size`를 상속한다. 따라서 효과 overflow가 논리적인 맞춤
+경계에 포함되지 않는다. 효과가 없는 문서는 `<p>` 자체를 측정해 기존 DOM과 줄바꿈 경로를
+보존한다. 이 Studio 전용 경로는 범용 `AutoResizeText`와 분리되어 레거시 시간표 화면의
+계약을 바꾸지 않는다.
 
 공용 측정으로 옮길 때 이 동작을 바꾸면 기존 시간표 문서의 줄바꿈과 크기가 함께
 바뀐다. 줄바꿈 정책을 바꿀 것인지, 기존 문서에는 유지할 것인지를 먼저 정한다.
@@ -624,12 +636,13 @@ Phase 1·2의 실제 경로로 맞춰 둔 것이다. 렌더러와 Auto Text는 r
 9. `StudioText`/`StudioRenderer` 경계를 문서와 호출부에 확정하고 회귀 검증한다.
 10. 장면 13·14를 최종 재검증한 뒤에만 스파이크 임시 코드를 제거한다.
 
-### 현재 구현 상태 (2026-08-01)
+### 현재 구현 상태 (2026-08-03)
 
 §15 1~13번은 코드에 반영됐다. 고정 크기와 `flexibleText`는 `StudioText` 하나를
-공유하고, 자동 크기 경로는 `AutoResizeText`가 한 번만 측정한 `<p>` 안에 효과
-레이어를 겹쳐 그린다. 따라서 레이어마다 별도 측정을 하지 않아 모든 레이어가 같은
-font size와 줄바꿈을 사용한다.
+공유하고, 효과 레이어 생성은 내부 `StudioTextEffectLayers`가 공유한다. 자동 크기 경로는
+`StudioAutoFitText`가 효과가 있을 때 논리 텍스트 measurement `<span>`만 한 번 측정하고,
+그 형제인 효과 레이어가 root `<p>`의 최종 font size와 줄바꿈을 상속한다. 따라서 레이어마다
+별도 측정을 하지 않아 모든 레이어가 같은 크기와 줄바꿈을 사용한다.
 
 저장 stroke 목록과 renderer drawable stroke 목록은 분리되어 disabled stroke도 Inspector에서
 복구·수정·복제·삭제·drag할 수 있다. canvas clipping과 group overflow는 logical bounds를
@@ -637,8 +650,9 @@ font size와 줄바꿈을 사용한다.
 회전 visual bounds는 canvas sibling diagnostic box와 부모 회전 누적 geometry를 사용한다.
 
 §7의 공용 측정은 기존 시간표 화면의 동작을 보존하기 위해 `AutoResizeText`를
-호환 측정 어댑터로 유지하는 방식으로 구현했다. `fitMargin`의 기본값은 0이라
-기존 호출부는 그대로이고, Studio 경로만 `STUDIO_TEXT_FIT_MARGIN_PX`를 넘긴다.
+호환 측정 어댑터로 유지한다. `fitMargin`의 기본값은 0이라 기존 호출부는 그대로이고,
+Studio 경로만 `STUDIO_TEXT_FIT_MARGIN_PX`를 넘긴다. Studio 효과가 있는 Auto Text의
+논리 측정은 `StudioAutoFitText`가 별도로 소유한다.
 별도의 직렬화된 `StudioTextLayout` 객체는 현재 렌더러 계약에 필요하지 않아 만들지
 않았다. 효과 레이어가 측정 결과를 직접 상속하는 현재 구조가 같은 목적을 달성한다.
 
@@ -652,6 +666,13 @@ font size와 줄바꿈을 사용한다.
 - stroke별 색상, 바깥쪽 실효 두께, 투명도와 순서를 바꿀 수 있다.
 - renderer CSS 값과 effect outset이 같은 실효 두께 계약을 사용한다.
 - 그림자를 설정할 수 있다.
+- 그림자는 가장 바깥쪽 visible stroke 실루엣을 기준으로 생성되고 모든 stroke/fill 뒤에
+  렌더링된다.
+- stroke 추가·삭제·순서 변경 시 shadow 기준이 별도 ID 없이 최종 합성 실루엣에 따라
+  자동 갱신된다.
+- stroke가 없으면 fill 텍스트 실루엣을 기준으로 shadow가 생성된다.
+- fixed text와 Auto Text의 shadow 표현이 동일하고, Preview와 PNG export에서 같은 실루엣을
+  유지한다.
 - 레이어 패널에는 텍스트가 하나만 표시된다.
 - 효과 레이어가 선택과 pointer event를 방해하지 않는다.
 - flexibleText의 모든 효과 레이어가 같은 font size와 줄바꿈을 사용한다.

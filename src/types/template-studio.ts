@@ -144,10 +144,11 @@ export interface StudioTextStroke {
   enabled: boolean;
   color: string;
   /**
-   * glyph 바깥으로 보이는 실효 두께.
+   * glyph 기준 누적된 실효 outset.
    *
    * 중앙 정렬 CSS stroke는 절반이 glyph 안쪽으로 들어가므로 렌더러가 2배로
-   * 변환한다. 인스펙터 표시와 effect outset 계산은 이 값을 그대로 쓴다.
+   * 변환한다. 인스펙터는 인접한 값의 차이를 개별 Thickness로 표시하고, effect
+   * outset 계산은 이 누적값을 그대로 쓴다.
    */
   outset: number;
   opacity: number;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useTemplateStudioTemplate } from "@/hooks/query/useTemplateStudio";
+import { StudioRuntimeStateScreen } from "@/components/studio/runtime/studio-runtime-state-screen";
 import { getStudioTemplateKind } from "@/utils/template-studio/template-kind";
 
 import { ThumbnailRuntimeShell } from "@/app/(root)/thumbnail/_components/thumbnail-runtime-shell";
@@ -16,43 +17,31 @@ export function ThumbnailStudioPreviewClient({
     useTemplateStudioTemplate(templateId);
 
   if (isLoading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 text-sm font-semibold text-slate-300">
-        초안 미리보기를 불러오는 중...
-      </main>
-    );
+    return <StudioRuntimeStateScreen title="초안 미리보기를 불러오는 중…" />;
   }
 
   if (isError || !data) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-slate-100">
-        <div className="grid max-w-sm gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-6 text-center">
-          <h1 className="text-base font-black">미리보기를 열 수 없습니다</h1>
-          <p className="text-sm font-semibold text-rose-300">
-            {error instanceof Error
-              ? error.message
-              : "Template Studio 문서를 불러오지 못했습니다."}
-          </p>
-          <button
-            className="mx-auto h-9 rounded-lg border border-slate-700 px-4 text-xs font-bold text-slate-200 transition hover:border-blue-400"
-            type="button"
-            onClick={() => void refetch()}
-          >
-            다시 시도
-          </button>
-        </div>
-      </main>
+      <StudioRuntimeStateScreen
+        actionLabel="다시 시도"
+        message={
+          error instanceof Error
+            ? error.message
+            : "Template Studio 문서를 불러오지 못했습니다."
+        }
+        title="미리보기를 열 수 없습니다"
+        onAction={() => void refetch()}
+      />
     );
   }
 
   const source = data.draft ?? data.document;
   if (!source || getStudioTemplateKind(source.document) !== "thumbnail") {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-slate-100">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 text-center text-sm font-semibold text-slate-300">
-          썸네일 문서가 없거나 문서 종류가 올바르지 않습니다.
-        </div>
-      </main>
+      <StudioRuntimeStateScreen
+        message="썸네일 문서가 없거나 문서 종류가 올바르지 않습니다."
+        title="미리보기를 열 수 없습니다"
+      />
     );
   }
 

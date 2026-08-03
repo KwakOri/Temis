@@ -128,6 +128,78 @@ export const getStudioTextStrokeBands = (
   return bands;
 };
 
+export interface StudioTextStrokeStackEntry {
+  stroke: StudioTextStroke;
+  /** 패널에서 입력하는 개별 띠 두께 */
+  thickness: number;
+  /** glyph 기준 저장된 누적 outset */
+  effectiveOutset: number;
+  /** 현재 enabled, opacity, 순서에서 실제로 보이는 띠 두께 */
+  visibleBand: number;
+  /** 다른 활성 stroke에 완전히 가려지는지 */
+  hidden: boolean;
+}
+
+/** 저장된 뒤→앞 순서를 패널의 안쪽→바깥쪽 stack으로 해석한다. */
+export const getStudioTextStrokeStack = (
+  strokes: readonly StudioTextStroke[],
+): StudioTextStrokeStackEntry[] => {
+  const ordered = getStudioOrderedTextStrokes(strokes);
+  const bands = getStudioTextStrokeBands(ordered);
+  const stack: StudioTextStrokeStackEntry[] = [];
+  let innerEffectiveOutset = 0;
+
+  for (let index = ordered.length - 1; index >= 0; index -= 1) {
+    const stroke = ordered[index];
+    const effectiveOutset =
+      Number.isFinite(stroke.outset) && stroke.outset > 0 ? stroke.outset : 0;
+    const thickness = Math.max(0, effectiveOutset - innerEffectiveOutset);
+    const band = bands[index];
+
+    stack.push({
+      stroke,
+      thickness,
+      effectiveOutset,
+      visibleBand: band?.band ?? 0,
+      hidden: band?.hidden ?? true,
+    });
+    innerEffectiveOutset = Math.max(innerEffectiveOutset, effectiveOutset);
+  }
+
+  return stack;
+};
+
+/** 저장된 effective outset 중 가장 바깥쪽 값을 반환한다. */
+export const getStudioTextOutermostConfiguredOutset = (
+  strokes: readonly StudioTextStroke[],
+): number =>
+  getStudioOrderedTextStrokes(strokes).reduce(
+    (maximum, stroke) =>
+      Number.isFinite(stroke.outset)
+        ? Math.max(maximum, Math.max(0, stroke.outset))
+        : maximum,
+    0,
+  );
+
+/** 패널 순서의 stroke/thickness를 저장 순서 뒤→앞의 누적 outset으로 변환한다. */
+export const rebuildStudioTextStrokeOutsetsFromPanelOrder = (
+  panelStrokes: readonly StudioTextStroke[],
+  thicknesses: readonly number[],
+): StudioTextStroke[] => {
+  let effectiveOutset = 0;
+  const rebuilt = panelStrokes.map((stroke, index) => {
+    const thickness =
+      typeof thicknesses[index] === "number" &&
+      Number.isFinite(thicknesses[index])
+        ? Math.max(0, thicknesses[index])
+        : 0;
+    effectiveOutset += thickness;
+    return { ...stroke, outset: effectiveOutset };
+  });
+
+  return rebuilt.reverse();
+};
+
 export interface ResolvedStudioTextFill {
   /**
    * 글자색. 지정된 색이 없으면 `null`이다.

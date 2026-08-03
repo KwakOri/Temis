@@ -21,6 +21,7 @@ export {
 };
 export const STUDIO_TEXT_MIN_OUTSET = 0;
 export const STUDIO_TEXT_MIN_OPACITY = 0;
+export const STUDIO_TEXT_DEFAULT_STROKE_THICKNESS = 4;
 
 export const isStudioTextOutset = (value: unknown): value is number =>
   typeof value === "number" &&
@@ -303,10 +304,11 @@ export const createDefaultStudioTextShadow = (): StudioTextShadow => ({
 
 export const createDefaultStudioTextStroke = (
   id: string,
+  outset = STUDIO_TEXT_DEFAULT_STROKE_THICKNESS,
 ): StudioTextStroke => ({
   id,
   enabled: true,
   color: "#111827",
-  outset: 4,
+  outset,
   opacity: 1,
 });

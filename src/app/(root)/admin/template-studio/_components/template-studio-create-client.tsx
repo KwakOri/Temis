@@ -18,8 +18,9 @@ export function TemplateStudioCreateClient({
   const basePath = isThumbnail
     ? "/admin/thumbnail-studio"
     : "/admin/template-studio";
+  const defaultName = isThumbnail ? "Untitled Thumbnail" : "Untitled Template";
   const createTemplateMutation = useCreateTemplateStudioTemplate();
-  const [name, setName] = useState("Untitled Template");
+  const [name, setName] = useState(defaultName);
   const [description, setDescription] = useState("");
   const [canvasPresetId, setCanvasPresetId] = useState("youtube");
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +31,7 @@ export function TemplateStudioCreateClient({
 
     try {
       const created = await createTemplateMutation.mutateAsync({
-        name: name.trim() || "Untitled Template",
+        name: name.trim() || defaultName,
         description: description.trim(),
         templateKind,
         ...(isThumbnail ? { canvasPresetId } : {}),
@@ -66,7 +67,9 @@ export function TemplateStudioCreateClient({
               : "새 Template Studio 템플릿"}
           </h1>
           <p className="mt-2 text-sm text-slate-400">
-            기본 정보를 만든 뒤 editor에서 캔버스와 입력값을 구성합니다.
+            {isThumbnail
+              ? "썸네일 이름과 캔버스 형식을 정한 뒤 editor에서 디자인과 입력값을 구성합니다."
+              : "기본 정보를 만든 뒤 editor에서 캔버스와 입력값을 구성합니다."}
           </p>
         </header>
 
@@ -75,11 +78,15 @@ export function TemplateStudioCreateClient({
           onSubmit={handleSubmit}
         >
           <label className="grid gap-2">
-            <span className="text-sm font-bold text-slate-300">이름</span>
+            <span className="text-sm font-bold text-slate-300">
+              {isThumbnail ? "썸네일 이름" : "이름"}
+            </span>
             <input
               className="h-11 rounded-md border border-slate-700 bg-slate-950 px-3 text-sm font-semibold text-white outline-none transition placeholder:text-slate-600 focus:border-blue-400"
               value={name}
-              placeholder="예: Weekly Timetable"
+              placeholder={
+                isThumbnail ? "예: 여름 YouTube 썸네일" : "예: Weekly Timetable"
+              }
               onChange={(event) => setName(event.currentTarget.value)}
             />
           </label>
@@ -87,7 +94,7 @@ export function TemplateStudioCreateClient({
           {isThumbnail ? (
             <label className="grid gap-2">
               <span className="text-sm font-bold text-slate-300">
-                캔버스 프리셋
+                썸네일 캔버스 프리셋
               </span>
               <select
                 className="h-11 rounded-md border border-slate-700 bg-slate-950 px-3 text-sm font-semibold text-white outline-none focus:border-blue-400"
@@ -138,7 +145,7 @@ export function TemplateStudioCreateClient({
               ) : (
                 <Plus className="h-4 w-4" />
               )}
-              생성 후 편집
+              {isThumbnail ? "썸네일 생성 후 편집" : "생성 후 편집"}
             </button>
           </div>
         </form>
