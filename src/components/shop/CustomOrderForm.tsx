@@ -1,11 +1,14 @@
 "use client";
 
 import FilePreview, { FilePreviewItem } from "@/components/FilePreview";
+import CustomOrderOptionConflictModal from "@/components/shop/CustomOrderOptionConflictModal";
 import OptionCard from "@/components/shop/OptionCard";
 import {
   FAST_DELIVERY_OPTION,
+  OTHER_OPTION_CONFLICTS,
   OTHER_OPTIONS,
   REQUIRED_AREA_OPTIONS,
+  normalizeOtherOptionValue,
 } from "@/constants/constants";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdminOptions } from "@/hooks/query/useAdminOptions";
@@ -89,6 +92,11 @@ interface Step3Data {
   externalContract: boolean;
   priceQuoted: number;
   depositorName: string;
+}
+
+interface PendingOptionChange {
+  requestedValue: string;
+  conflictingValue: string;
 }
 
 interface CustomOrderFormProps {
@@ -187,20 +195,14 @@ export default function CustomOrderForm({
       "외부 계약",
     ]);
 
-    // OTHER_OPTIONS 값들
-    const otherOptionValues = new Set(OTHER_OPTIONS.map((opt) => opt.value));
+    existingOrder.selected_options.forEach((storedOptionKey: string) => {
+      const optionKey = normalizeOtherOptionValue(storedOptionKey);
 
-    existingOrder.selected_options.forEach((optionKey: string) => {
       // 제외할 옵션들은 건너뛰기
       if (excludedValues.has(optionKey)) return;
 
-      // OTHER_OPTIONS 값이거나 DB 옵션이면 추가
-      if (otherOptionValues.has(optionKey)) {
-        selectedOptions[optionKey] = true;
-      } else {
-        // DB 옵션일 가능성이 있으므로 추가 (priceOptions에서 검증됨)
-        selectedOptions[optionKey] = true;
-      }
+      // OTHER_OPTIONS 또는 DB 옵션을 현재 value 기준으로 복원
+      selectedOptions[optionKey] = true;
     });
 
     return selectedOptions;
@@ -214,6 +216,14 @@ export default function CustomOrderForm({
     priceQuoted: existingOrder?.price_quoted || 80000,
     depositorName: existingOrder?.depositor_name || "",
   });
+
+  const [pendingOptionChange, setPendingOptionChange] =
+    useState<PendingOptionChange | null>(null);
+
+  // "후기 이벤트 참여"와 "포트폴리오 비공개"가 함께 선택된 상태인지 여부 (과거 주문 복원 시에만 발생 가능)
+  const hasOtherOptionConflict =
+    !!step3Data.selectedOptions.portfolio_private &&
+    !!step3Data.selectedOptions.review_event;
 
   // 수정 모드일 때 기존 파일들 로드
   useEffect(() => {
@@ -375,7 +385,66 @@ export default function CustomOrderForm({
 
   const handleStep3Submit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (hasOtherOptionConflict) return;
     setCurrentStep(4);
+  };
+
+  // 기타 옵션(포트폴리오 비공개 / 후기 이벤트 참여) 공통 클릭 핸들러
+  const handleOtherOptionClick = (optionValue: string) => {
+    if (step3Data.externalContract) return;
+
+    const isSelected = !!step3Data.selectedOptions[optionValue];
+
+    if (isSelected) {
+      // 이미 선택된 옵션을 다시 누르면 모달 없이 즉시 선택 해제
+      setStep3Data((prev) => ({
+        ...prev,
+        selectedOptions: {
+          ...prev.selectedOptions,
+          [optionValue]: false,
+        },
+      }));
+      return;
+    }
+
+    const conflictingValue = OTHER_OPTION_CONFLICTS[optionValue];
+    const hasSelectedConflict =
+      conflictingValue && step3Data.selectedOptions[conflictingValue];
+
+    if (hasSelectedConflict) {
+      // 실제 옵션 상태는 변경하지 않고 확인 모달을 위해 보류
+      setPendingOptionChange({ requestedValue: optionValue, conflictingValue });
+      return;
+    }
+
+    setStep3Data((prev) => ({
+      ...prev,
+      selectedOptions: {
+        ...prev.selectedOptions,
+        [optionValue]: true,
+      },
+    }));
+  };
+
+  const handleConfirmOptionChange = () => {
+    if (!pendingOptionChange) return;
+
+    const { requestedValue, conflictingValue } = pendingOptionChange;
+
+    setStep3Data((prev) => ({
+      ...prev,
+      selectedOptions: {
+        ...prev.selectedOptions,
+        [conflictingValue]: false,
+        [requestedValue]: true,
+      },
+    }));
+
+    setPendingOptionChange(null);
+  };
+
+  const handleCancelOptionChange = () => {
+    setPendingOptionChange(null);
   };
 
   const handleStep4Submit = async (e: React.FormEvent) => {
@@ -1096,6 +1165,13 @@ export default function CustomOrderForm({
                     <h4 className="font-medium text-dark-gray mb-3 text-lg">
                       기타 옵션
                     </h4>
+                    {hasOtherOptionConflict && (
+                      <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                        상충하는 옵션이 함께 선택되어 있습니다. &quot;후기
+                        이벤트 참여&quot;와 &quot;포트폴리오 비공개&quot; 중
+                        하나를 선택 해제해주세요.
+                      </div>
+                    )}
                     <div className="space-y-3">
                       {OTHER_OPTIONS.map((option) => {
                         const isSelected =
@@ -1106,20 +1182,9 @@ export default function CustomOrderForm({
                             key={option.value}
                             isSelected={isSelected}
                             isDisabled={step3Data.externalContract}
-                            onClick={() => {
-                              if (!step3Data.externalContract) {
-                                setStep3Data((prev) => ({
-                                  ...prev,
-                                  selectedOptions: {
-                                    ...prev.selectedOptions,
-                                    [option.value]: !(
-                                      prev.selectedOptions[option.value] ||
-                                      false
-                                    ),
-                                  },
-                                }));
-                              }
-                            }}
+                            onClick={() =>
+                              handleOtherOptionClick(option.value)
+                            }
                           >
                             <input
                               type="checkbox"
@@ -1241,7 +1306,7 @@ export default function CustomOrderForm({
                 </button>
                 <button
                   type="submit"
-                  disabled={loadingPricing}
+                  disabled={loadingPricing || hasOtherOptionConflict}
                   className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 font-medium"
                 >
                   다음
@@ -1356,6 +1421,27 @@ export default function CustomOrderForm({
           ) : null}
         </div>
       </div>
+
+      {pendingOptionChange &&
+        (() => {
+          const requestedOptionLabel = OTHER_OPTIONS.find(
+            (opt) => opt.value === pendingOptionChange.requestedValue
+          )?.label;
+          const conflictingOptionLabel = OTHER_OPTIONS.find(
+            (opt) => opt.value === pendingOptionChange.conflictingValue
+          )?.label;
+
+          if (!requestedOptionLabel || !conflictingOptionLabel) return null;
+
+          return (
+            <CustomOrderOptionConflictModal
+              requestedOptionLabel={requestedOptionLabel}
+              conflictingOptionLabel={conflictingOptionLabel}
+              onCancel={handleCancelOptionChange}
+              onConfirm={handleConfirmOptionChange}
+            />
+          );
+        })()}
     </div>
   );
 }
