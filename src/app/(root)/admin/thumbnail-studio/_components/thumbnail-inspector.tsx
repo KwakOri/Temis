@@ -83,6 +83,7 @@ import {
   getStudioImageObjectPosition,
 } from "@/utils/thumbnail-studio/image-object-position";
 import type { ThumbnailCanvasPreset } from "@/utils/thumbnail-studio/document-factory";
+import { StudioWeekDatesFormatControls } from "@/app/(root)/template-studio/_components/studio-timetable-object-inspector-controls";
 import {
   createStudioShapeFillGradient,
   createStudioShapeFillSolid,
@@ -91,7 +92,6 @@ import {
 } from "@/utils/thumbnail-studio/shape-fill";
 
 import type { ThumbnailNodeCommands } from "../_hooks/use-thumbnail-node-commands";
-import { StudioWeekDatesFormatControls } from "../../../template-studio/_components/studio-timetable-object-inspector-controls";
 
 export interface ThumbnailInspectorParams {
   document: StudioTemplateDocument;
@@ -446,7 +446,8 @@ export const buildThumbnailInspectorSections = ({
     const isWeekDatesBinding =
       selectedNode.meta?.semantic?.type === "weekDates" &&
       selectedNode.binding?.kind === "builtinField" &&
-      selectedNode.binding.fieldId === "week.date_range";
+      (selectedNode.binding.fieldId === "week.start_date" ||
+        selectedNode.binding.fieldId === "week.date_range");
     const bindingSourceValue = bindingInputId ? `input:${bindingInputId}` : "";
     const assets = Object.values(document.assets);
     const selectedAssetBinding =
@@ -502,6 +503,7 @@ export const buildThumbnailInspectorSections = ({
               {isWeekDatesBinding &&
               selectedNode.binding?.kind === "builtinField" ? (
                 <StudioWeekDatesFormatControls
+                  mode="single"
                   format={selectedNode.binding.dateRangeFormat}
                   template={selectedNode.binding.dateRangeTemplate}
                   onChange={(value) =>

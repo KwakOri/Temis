@@ -111,6 +111,23 @@
   scrollbar-width: none;
 }
 
+/* Space-dragging must win over node-specific editing cursors. */
+[data-studio-preview-canvas-root="true"][data-studio-pan-state="ready"] *,
+[data-studio-preview-canvas-root="true"][data-studio-pan-state="ready"]
+  *::before,
+[data-studio-preview-canvas-root="true"][data-studio-pan-state="ready"]
+  *::after {
+  cursor: grab !important;
+}
+
+[data-studio-preview-canvas-root="true"][data-studio-pan-state="dragging"] *,
+[data-studio-preview-canvas-root="true"][data-studio-pan-state="dragging"]
+  *::before,
+[data-studio-preview-canvas-root="true"][data-studio-pan-state="dragging"]
+  *::after {
+  cursor: grabbing !important;
+}
+
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }

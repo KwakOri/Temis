@@ -4,6 +4,8 @@
 import React from "react";
 
 import { StudioAutoFitText } from "@/components/studio/text/studio-auto-fit-text";
+import { StudioSvgText } from "@/components/studio/text/studio-svg-text";
+import type { StudioTextLayoutResult } from "@/components/studio/text/use-studio-text-layout";
 import type { StudioStyleRecord } from "@/types/template-studio";
 import {
   shouldRenderStudioTextEffectLayers,
@@ -87,6 +89,14 @@ const getShadowFilter = (
     shadow.color,
     shadow.opacity,
   )})`;
+};
+
+const getStudioTextAlign = (
+  textAlign: React.CSSProperties["textAlign"],
+): "left" | "center" | "right" => {
+  if (textAlign === "center") return "center";
+  if (textAlign === "right" || textAlign === "end") return "right";
+  return "left";
 };
 
 interface StudioTextEffectLayersProps {
@@ -199,6 +209,21 @@ export function StudioText({
 
   if (autoFit) {
     const wrapMode = getStudioTextWrapMode(autoFit.styleRecord);
+    const useSvgRenderer = hasEffectLayers && wrapMode === "single";
+    const htmlShadowFilter = useSvgRenderer ? undefined : shadowFilter;
+    const textAlign = getStudioTextAlign(typography?.textAlign);
+    const renderVisual = hasEffectLayers
+      ? useSvgRenderer
+        ? (layout: StudioTextLayoutResult) => (
+            <StudioSvgText
+              appearance={appearance}
+              layout={layout}
+              textAlign={textAlign}
+              typography={typography ?? {}}
+            />
+          )
+        : () => effectLayers("fill")
+      : undefined;
 
     return (
       <StudioAutoFitText
@@ -208,19 +233,20 @@ export function StudioText({
         maxFontSize={autoFit.maxFontSize}
         minFontSize={autoFit.minFontSize}
         multiline={isStudioTextWrapModeMultiline(wrapMode)}
-        effectLayers={hasEffectLayers ? effectLayers("fill") : undefined}
+        renderVisual={renderVisual}
         style={{
           ...typography,
           ...(hasEffectLayers
             ? {
                 position: "relative",
-                ...(shadowFilter ? { filter: shadowFilter } : {}),
+                ...(htmlShadowFilter ? { filter: htmlShadowFilter } : {}),
                 // 실제 텍스트는 측정 span으로 남겨 접근성 트리에서 한 번만 읽힌다.
                 color: "transparent",
               }
             : fillStyle),
         }}
-        {...(shadowFilter
+        typography={typography}
+        {...(htmlShadowFilter
           ? { "data-studio-text-shadow-source": "composite" }
           : {})}
       >

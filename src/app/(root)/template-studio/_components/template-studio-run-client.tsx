@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { TemplateStudioRuntimeShell } from "@/app/(root)/template-studio/_components/runtime/template-studio-runtime-shell";
 import {
   useSaveTemplateStudioRuntime,
@@ -43,6 +45,12 @@ export function TemplateStudioRunClient({
           >
             다시 시도
           </button>
+          <Link
+            href="/my-page"
+            className="mx-auto text-xs font-semibold text-slate-400 underline-offset-4 hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+          >
+            마이페이지로 돌아가기
+          </Link>
         </div>
       </main>
     );

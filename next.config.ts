@@ -18,10 +18,16 @@ const withPWAConfig = withPWA({
     skipWaiting: true,
     runtimeCaching: [
       {
+        // R2 assets must be fetched directly so the export path observes the
+        // response's CORS headers instead of a stale runtime-cache response.
+        urlPattern: /^https:\/\/cloudflare\.temis\.kr(?:\/|$)/i,
+        handler: "NetworkOnly",
+      },
+      {
         urlPattern: /^https?.*/,
         handler: "NetworkFirst",
         options: {
-          cacheName: "offlineCache",
+          cacheName: "offlineCache-v2",
           expiration: {
             maxEntries: 200,
           },

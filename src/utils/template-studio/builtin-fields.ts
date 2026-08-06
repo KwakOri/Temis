@@ -8,19 +8,18 @@ import {
 } from "@/types/template-studio";
 import {
   formatStudioDateParts,
-  getStudioDateRangeParts,
   getStudioDatePartsWithDayOffset,
   getStudioWeekEndParts,
   getStudioWeekStartParts,
   parseStudioIsoDateParts,
-  resolveStudioDateRangeText,
+  resolveStudioSingleDateText,
   resolveStudioWeekDateText,
 } from "@/utils/template-studio/date-template";
 import {
   getStudioRuntimeInputValue,
   type StudioRuntimeContext,
 } from "@/utils/template-studio/input-values";
-import { getThumbnailWeekDates } from "@/utils/thumbnail-studio/week-dates";
+import { getThumbnailWeekDatesInputId } from "@/utils/thumbnail-studio/week-dates";
 import { isStudioTimetableCapabilityEnabled } from "@/utils/template-studio/timetable-capabilities";
 
 export const STUDIO_BUILTIN_FIELDS: StudioBuiltinFieldDefinition[] = [
@@ -292,16 +291,17 @@ const getThumbnailWeekDateSource = (
   document: StudioTemplateDocument,
   values: StudioRuntimeValues,
 ) => {
-  const weekDates = getThumbnailWeekDates(document);
-  if (!weekDates) return null;
+  const inputId = getThumbnailWeekDatesInputId(document);
+  if (!inputId) return null;
 
-  const input = document.inputs[weekDates.startDateInputId];
+  const input = document.inputs[inputId];
   return {
-    startDate: input
+    date: input
       ? getStudioRuntimeInputValue(input, values)
-      : values.global[weekDates.startDateInputId],
-    dayCount: weekDates.dayCount,
-    locale: weekDates.locale,
+      : values.global[inputId],
+    locale: (
+      document.domains?.thumbnail?.weekDates as { locale?: string } | undefined
+    )?.locale,
   };
 };
 
@@ -391,10 +391,12 @@ export const resolveStudioBuiltinFieldValue = (
   if (fieldId === "week.start_date") {
     const thumbnailSource = getThumbnailWeekDateSource(document, values);
     if (thumbnailSource) {
-      return formatStudioDateParts(
-        getStudioDateRangeParts(thumbnailSource).start,
-        { includeYear: true },
-      );
+      return resolveStudioSingleDateText({
+        date: thumbnailSource.date,
+        format: options.dateRangeFormat,
+        template: options.dateRangeTemplate,
+        locale: thumbnailSource.locale,
+      });
     }
     return formatStudioDateParts(
       getStudioWeekStartParts(document, values.timetable.weekStartDate),
@@ -407,10 +409,12 @@ export const resolveStudioBuiltinFieldValue = (
   if (fieldId === "week.end_date") {
     const thumbnailSource = getThumbnailWeekDateSource(document, values);
     if (thumbnailSource) {
-      return formatStudioDateParts(
-        getStudioDateRangeParts(thumbnailSource).end,
-        { includeYear: true },
-      );
+      return resolveStudioSingleDateText({
+        date: thumbnailSource.date,
+        format: options.dateRangeFormat,
+        template: options.dateRangeTemplate,
+        locale: thumbnailSource.locale,
+      });
     }
     return formatStudioDateParts(
       getStudioWeekEndParts(document, values.timetable.weekStartDate),
@@ -423,10 +427,13 @@ export const resolveStudioBuiltinFieldValue = (
   if (fieldId === "week.date_range") {
     const thumbnailSource = getThumbnailWeekDateSource(document, values);
     if (thumbnailSource) {
-      return resolveStudioDateRangeText({
-        ...thumbnailSource,
+      // Thumbnail의 레거시 Week Dates 바인딩도 기간이 아니라 선택한 하루만
+      // 렌더링한다. 새 프리셋은 week.start_date를 사용한다.
+      return resolveStudioSingleDateText({
+        date: thumbnailSource.date,
         format: options.dateRangeFormat,
         template: options.dateRangeTemplate,
+        locale: thumbnailSource.locale,
       });
     }
     return resolveStudioWeekDateText(document, {

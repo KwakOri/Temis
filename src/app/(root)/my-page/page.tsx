@@ -1,9 +1,11 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import BackButton from "@/components/BackButton";
-import Loading from "@/components/Loading";
 import ArtistProfileManagement from "@/components/my-page/ArtistProfileManagement";
+import { UserTemplateSection } from "@/components/my-page/user-template-section";
 import CustomOrderForm from "@/components/shop/CustomOrderForm";
 import CustomOrderHistory from "@/components/shop/CustomOrderHistory";
 import OrderDetailsModal from "@/components/shop/OrderDetailsModal";
@@ -24,10 +26,7 @@ import {
   CustomOrderFormData,
   CustomOrderWithStatus,
 } from "@/types/customOrder";
-import { Tables } from "@/types/supabase";
 import { Suspense, useEffect, useState } from "react";
-
-type Template = Tables<"templates">;
 type TabType =
   | "templates"
   | "artist-works"
@@ -39,7 +38,13 @@ const MyPageContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { logout: authLogout } = useAuth();
-  const { data, isLoading, error: queryError } = useUserTemplates();
+  const {
+    data,
+    isLoading,
+    isFetching,
+    error: queryError,
+    refetch: refetchUserTemplates,
+  } = useUserTemplates();
   const { data: artistProfileData, isLoading: artistProfileLoading } =
     useArtistProfile();
   const { data: teams, isLoading: teamsLoading } = useUserTeams();
@@ -62,14 +67,6 @@ const MyPageContent = () => {
   const artistProfile = artistProfileData?.artist || null;
   const isArtistUser = Boolean(artistProfile);
   const loading = isLoading;
-  const currentTemplateList =
-    activeTab === "artist-works" ? artistWorkTemplates : purchaseTemplates;
-  const personalTemplateSectionLabel =
-    activeTab === "artist-works" ? "작업한 템플릿" : "구매한 템플릿";
-  const emptyTemplateMessage =
-    activeTab === "artist-works"
-      ? "아직 작업한 템플릿이 없습니다."
-      : "아직 구매한 템플릿이 없습니다.";
 
   // URL 파라미터 및 계정 타입에 맞춰 기본 탭 동기화
   useEffect(() => {
@@ -91,7 +88,10 @@ const MyPageContent = () => {
       return;
     }
 
-    if (!isArtistUser && (tabParam === "artist-works" || tabParam === "artist-profile")) {
+    if (
+      !isArtistUser &&
+      (tabParam === "artist-works" || tabParam === "artist-profile")
+    ) {
       setActiveTab("templates");
       return;
     }
@@ -138,34 +138,13 @@ const MyPageContent = () => {
     }
   };
 
-  const getPlanText = (plan: string | undefined | null) => {
-    if (!plan) return "일반";
-    return plan.toUpperCase();
-  };
-
-  const getPlanColor = (plan: string | undefined | null) => {
-    switch (plan) {
-      case "pro":
-        return "bg-secondary/20 text-secondary border-secondary/30";
-      case "lite":
-        return "bg-tertiary text-dark-gray border-tertiary";
-      default:
-        return "bg-tertiary text-dark-gray border-tertiary";
-    }
-  };
-
-  const handleTemplateClick = (template: Template & { use_href?: string }) => {
-    router.push(template.use_href ?? `/time-table/${template.id}`);
-  };
-
   const handleTeamTemplateClick = (templateId: string) => {
     router.push(`/team-time-table/${templateId}`);
   };
 
   // 활성화된 팀 중 템플릿이 연결된 팀 필터링
-  const activeTeamsWithTemplate = teams?.filter(
-    (team) => team.is_active && team.team_template
-  ) || [];
+  const activeTeamsWithTemplate =
+    teams?.filter((team) => team.is_active && team.team_template) || [];
 
   // 수정 핸들러
   const handleEditOrder = (order: CustomOrderWithStatus) => {
@@ -186,14 +165,14 @@ const MyPageContent = () => {
     } catch (error) {
       console.error("Order submission error:", error);
       alert(
-        error instanceof Error ? error.message : "수정 중 오류가 발생했습니다."
+        error instanceof Error ? error.message : "수정 중 오류가 발생했습니다.",
       );
     }
   };
 
   // CustomOrderWithStatus를 CustomOrderData로 변환
   const convertToOrderData = (
-    order: CustomOrderWithStatus
+    order: CustomOrderWithStatus,
   ): CustomOrderData => ({
     id: order.id,
     youtube_sns_address: order.youtube_sns_address,
@@ -221,7 +200,7 @@ const MyPageContent = () => {
     } catch (error) {
       console.error("Cancel order error:", error);
       alert(
-        error instanceof Error ? error.message : "취소 중 오류가 발생했습니다."
+        error instanceof Error ? error.message : "취소 중 오류가 발생했습니다.",
       );
     }
   };
@@ -298,14 +277,9 @@ const MyPageContent = () => {
           )}
 
           {/* Error Message */}
-          {(error || queryError) && (
+          {error && (
             <div className="mb-4 md:mb-6 bg-red-50 border border-red-200 rounded-md p-3 md:p-4">
-              <div className="text-sm md:text-base text-red-800">
-                {error ||
-                  (queryError instanceof Error
-                    ? queryError.message
-                    : "오류가 발생했습니다.")}
-              </div>
+              <div className="text-sm md:text-base text-red-800">{error}</div>
               <button
                 onClick={() => setError("")}
                 className="mt-2 text-xs md:text-sm text-red-600 hover:text-red-800"
@@ -464,126 +438,38 @@ const MyPageContent = () => {
 
             {/* Tab Content */}
             <div className="p-6">
-              {(loading &&
-                (activeTab === "templates" || activeTab === "artist-works")) ||
-              (artistProfileLoading && activeTab === "artist-profile") ? (
-                <Loading />
-              ) : (
-                <>
-                  {(activeTab === "templates" || activeTab === "artist-works") && (
-                    <>
-                      {/* Personal Templates Section */}
-                      <div className="mb-8">
-                        <h2 className="text-lg md:text-xl font-semibold text-dark-gray mb-4">
-                          {personalTemplateSectionLabel}
-                        </h2>
-                        {currentTemplateList.length === 0 ? (
-                          <div className="text-center py-12 md:py-20">
-                            <svg
-                              className="mx-auto h-10 w-10 md:h-12 md:w-12 text-dark-gray/40"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                              />
-                            </svg>
-                            <h3 className="mt-3 md:mt-4 text-base md:text-lg font-medium text-dark-gray">
-                              템플릿이 없습니다
-                            </h3>
-                            <p className="mt-1 md:mt-2 text-sm md:text-base text-dark-gray/60 px-4">
-                              {emptyTemplateMessage}
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-                            {currentTemplateList.map((template) => (
-                              <div
-                                key={`${template.templates.id}-${template.id}`}
-                                onClick={() =>
-                                  handleTemplateClick(template.templates)
-                                }
-                                className="bg-timetable-card-bg rounded-lg shadow-sm border border-tertiary hover:shadow-md transition-shadow duration-200 cursor-pointer brightness-100 hover:brightness-75"
-                              >
-                                {/* Template Thumbnail */}
-                                <div className="aspect-video bg-timetable-input-bg rounded-t-lg overflow-hidden">
-                                  {template.templates.id ? (
-                                    <img
-                                      src={`/thumbnail/${template.templates.id}.png`}
-                                      alt={template.templates.name}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center">
-                                      <svg
-                                        className="h-8 w-8 md:h-12 md:w-12 text-gray-400"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                                        />
-                                      </svg>
-                                    </div>
-                                  )}
-                                </div>
+              <>
+                {(activeTab === "templates" ||
+                  activeTab === "artist-works") && (
+                  <>
+                    <UserTemplateSection
+                      key={activeTab}
+                      title={
+                        activeTab === "artist-works"
+                          ? "작업한 템플릿"
+                          : "구매한 템플릿"
+                      }
+                      source={
+                        activeTab === "artist-works" ? "artist" : "purchase"
+                      }
+                      templates={
+                        activeTab === "artist-works"
+                          ? artistWorkTemplates
+                          : purchaseTemplates
+                      }
+                      isLoading={isLoading}
+                      isFetching={isFetching}
+                      error={queryError instanceof Error ? queryError : null}
+                      onRetry={() => {
+                        void refetchUserTemplates();
+                      }}
+                    />
 
-                                {/* Template Info */}
-                                <div className="p-3 md:p-4">
-                                  <div className="flex items-start justify-between mb-1 md:mb-2">
-                                    <h3 className="text-sm md:text-lg font-semibold text-dark-gray truncate">
-                                      {template.templates.name}
-                                    </h3>
-                                    <span
-                                      className={`ml-1 md:ml-2 px-1.5 md:px-2 py-0.5 md:py-1 text-xs font-medium rounded-full border ${getPlanColor(
-                                        template.template_plan?.plan
-                                      )}`}
-                                    >
-                                      {getPlanText(template.template_plan?.plan)}
-                                    </span>
-                                  </div>
-
-                                  {template.templates.description && (
-                                    <p className="text-xs md:text-sm text-dark-gray/70 mb-2 md:mb-3 line-clamp-2">
-                                      {template.templates.description}
-                                    </p>
-                                  )}
-
-                                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-0 text-xs text-dark-gray/60">
-                                    <div className="flex items-center space-x-1">
-                                      <span
-                                        className={`inline-flex px-1.5 md:px-2 py-0.5 md:py-1 rounded-full text-xs font-medium ${
-                                          template.templates.is_public
-                                            ? "bg-secondary/20 text-secondary"
-                                            : "bg-primary/20 text-primary"
-                                        }`}
-                                      >
-                                        {template.templates.is_public
-                                          ? "일반"
-                                          : "개인"}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Team Templates Section */}
-                      {activeTab === "templates" &&
-                        !isArtistUser &&
-                        !teamsLoading &&
-                        activeTeamsWithTemplate.length > 0 && (
+                    {/* Team Templates Section */}
+                    {activeTab === "templates" &&
+                      !isArtistUser &&
+                      !teamsLoading &&
+                      activeTeamsWithTemplate.length > 0 && (
                         <div className="border-t border-tertiary pt-8">
                           <h2 className="text-lg md:text-xl font-semibold text-dark-gray mb-4">
                             팀 템플릿
@@ -593,7 +479,9 @@ const MyPageContent = () => {
                               <div
                                 key={team.id}
                                 onClick={() =>
-                                  handleTeamTemplateClick(team.team_template!.id)
+                                  handleTeamTemplateClick(
+                                    team.team_template!.id,
+                                  )
                                 }
                                 className="bg-timetable-card-bg rounded-lg shadow-sm border border-tertiary hover:shadow-md transition-shadow duration-200 cursor-pointer brightness-100 hover:brightness-75"
                               >
@@ -656,24 +544,23 @@ const MyPageContent = () => {
                           </div>
                         </div>
                       )}
-                    </>
-                  )}
+                  </>
+                )}
 
-                  {activeTab === "purchases" && <PurchaseHistory />}
+                {activeTab === "purchases" && <PurchaseHistory />}
 
-                  {activeTab === "custom-orders" && (
-                    <CustomOrderHistory
-                      onEditOrder={handleEditOrder}
-                      onCancelOrder={handleCancelOrder}
-                      onViewDetails={handleViewDetails}
-                    />
-                  )}
+                {activeTab === "custom-orders" && (
+                  <CustomOrderHistory
+                    onEditOrder={handleEditOrder}
+                    onCancelOrder={handleCancelOrder}
+                    onViewDetails={handleViewDetails}
+                  />
+                )}
 
-                  {activeTab === "artist-profile" && artistProfile && (
-                    <ArtistProfileManagement artist={artistProfile} />
-                  )}
-                </>
-              )}
+                {activeTab === "artist-profile" && artistProfile && (
+                  <ArtistProfileManagement artist={artistProfile} />
+                )}
+              </>
             </div>
           </div>
 

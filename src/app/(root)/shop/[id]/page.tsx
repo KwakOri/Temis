@@ -6,10 +6,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePurchaseHistory } from "@/hooks/query/usePurchaseHistory";
 import { useUserTemplateAccess } from "@/hooks/query/useShop";
 import {
+  useSubmitPurchaseRequest,
   useTemplateDetail,
 } from "@/hooks/query/useTemplateDetail";
 import { ShopTemplateWithPlans } from "@/types/templateDetail";
-import { useQueryClient } from "@tanstack/react-query";
+import { resolveConsumerTemplateKind } from "@/utils/templates/consumer-template";
 import { AlertTriangle, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -19,7 +20,7 @@ export default function TemplateDetailPage() {
   const { user } = useAuth();
   const params = useParams();
   const router = useRouter();
-  const queryClient = useQueryClient();
+  const submitPurchaseRequestMutation = useSubmitPurchaseRequest();
   const [showPurchaseForm, setShowPurchaseForm] = useState(false);
 
   const templateId = params?.id as string;
@@ -31,7 +32,7 @@ export default function TemplateDetailPage() {
   const { data: accessibleTemplateIds = [], isLoading: accessLoading } =
     useUserTemplateAccess(user?.id);
   const { data: purchaseHistoryData, isLoading: purchaseHistoryLoading } =
-    usePurchaseHistory();
+    usePurchaseHistory(Boolean(user));
 
   // 현재 템플릿을 이미 구매했는지 확인
   const isPurchased = user && accessibleTemplateIds.includes(templateId);
@@ -41,7 +42,7 @@ export default function TemplateDetailPage() {
     user &&
     purchaseHistoryData?.purchaseRequests.find(
       (request) =>
-        request.template_id === templateId && request.status === "pending"
+        request.template_id === templateId && request.status === "pending",
     );
 
   const handlePurchaseRequest = async (formData: {
@@ -53,7 +54,7 @@ export default function TemplateDetailPage() {
 
     // 선택된 플랜의 ID 찾기
     const selectedPlan = template.template_plans?.find(
-      (p) => p.plan === formData.plan
+      (p) => p.plan === formData.plan,
     );
 
     if (!selectedPlan) {
@@ -62,26 +63,11 @@ export default function TemplateDetailPage() {
     }
 
     try {
-      const response = await fetch("/api/template-purchase-requests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          template_id: template.template_id,
-          plan_id: selectedPlan.id,
-          depositor_name: formData.depositorName,
-          customer_phone: formData.depositorName,
-          message: formData.message,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "구매 요청 실패");
-      }
-
-      // 구매 내역 쿼리 무효화
-      await queryClient.invalidateQueries({
-        queryKey: ["purchaseHistory"],
+      await submitPurchaseRequestMutation.mutateAsync({
+        template_id: template.templates.id,
+        plan_id: selectedPlan.id,
+        depositor_name: formData.depositorName,
+        message: formData.message.trim(),
       });
 
       alert("구매 신청이 접수되었습니다. 곧 연락드리겠습니다.");
@@ -91,7 +77,7 @@ export default function TemplateDetailPage() {
       alert(
         error instanceof Error
           ? error.message
-          : "구매 신청 중 오류가 발생했습니다."
+          : "구매 신청 중 오류가 발생했습니다.",
       );
     }
   };
@@ -208,7 +194,7 @@ export default function TemplateDetailPage() {
                     <p className="text-dark-gray/60 text-xs">
                       신청일:{" "}
                       {new Date(
-                        pendingPurchaseRequest.created_at!
+                        pendingPurchaseRequest.created_at!,
                       ).toLocaleDateString("ko-KR")}
                     </p>
                   </div>
@@ -268,6 +254,11 @@ interface PurchaseModalProps {
 
 function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
   const { user } = useAuth();
+  const templateKind =
+    resolveConsumerTemplateKind(
+      template.templates.template_engine,
+      template.templates.template_kind,
+    ) ?? "timetable";
   const [formData, setFormData] = useState({
     plan: "pro" as "lite" | "pro",
     depositorName: "",
@@ -285,9 +276,9 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
 
   // 선택된 플랜의 가격 계산
   const selectedPlan = template.template_plans?.find(
-    (p) => p.plan === formData.plan
+    (p) => p.plan === formData.plan,
   );
-  const selectedPrice = selectedPlan?.price || 0;
+  const selectedPrice = selectedPlan?.price ?? 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -378,7 +369,7 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
               </div>
 
               {/* 선택된 플랜의 기능 표시 */}
-              {selectedPlan && (
+              {selectedPlan && templateKind === "timetable" && (
                 <div className="mt-3 p-3 rounded-lg border border-tertiary">
                   <h4 className="text-sm font-semibold text-dark-gray mb-2">
                     {formData.plan.toUpperCase()} 플랜 기능
@@ -484,17 +475,22 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
                 />
               </div>
 
-              {/* <div>
-            <label className="block text-sm font-medium mb-1 text-dark-gray">요청사항</label>
-            <textarea
-              value={formData.message}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, message: e.target.value }))
-              }
-              className="w-full border border-tertiary bg-timetable-input-bg rounded px-3 py-2 h-20 resize-none text-dark-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-              placeholder="추가 요청사항이 있으시면 적어주세요"
-            />
-          </div> */}
+              <div>
+                <label className="block text-sm font-medium mb-1 text-dark-gray">
+                  요청사항
+                </label>
+                <textarea
+                  value={formData.message}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      message: e.target.value,
+                    }))
+                  }
+                  className="w-full border border-tertiary bg-timetable-input-bg rounded px-3 py-2 h-20 resize-none text-dark-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  placeholder="추가 요청사항이 있으시면 적어주세요"
+                />
+              </div>
 
               <div className="flex gap-3 pt-4">
                 <button

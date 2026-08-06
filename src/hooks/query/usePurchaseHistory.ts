@@ -3,10 +3,11 @@ import { PurchaseHistoryService } from "@/services/purchaseHistoryService";
 import { UpdatePurchaseRequestData } from "@/types/purchaseHistory";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-export const usePurchaseHistory = () => {
+export const usePurchaseHistory = (enabled = true) => {
   return useQuery({
     queryKey: queryKeys.purchaseHistory.list(),
     queryFn: () => PurchaseHistoryService.getPurchaseHistory(),
+    enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });

@@ -1,6 +1,13 @@
 import type { ReactNode } from "react";
 
+import { TemplateCover } from "@/components/templates/template-cover";
+import { TemplateKindBadge } from "@/components/templates/template-kind-badge";
 import type { ShopTemplateWithPlans } from "@/types/templateDetail";
+import { getTemplateUseHref } from "@/utils/template-links";
+import {
+  resolveConsumerTemplateCover,
+  resolveConsumerTemplateKind,
+} from "@/utils/templates/consumer-template";
 
 interface TemplateDetailContentProps {
   template: ShopTemplateWithPlans;
@@ -8,9 +15,17 @@ interface TemplateDetailContentProps {
   purchaseSection?: ReactNode;
 }
 
-const formatPrice = (price: number | null) => `₩${(price ?? 0).toLocaleString()}`;
+const formatPrice = (price: number | null) =>
+  `₩${(price ?? 0).toLocaleString()}`;
 
-const getPlanFeatures = (plan: ShopTemplateWithPlans["template_plans"][number]) => {
+const getPlanFeatures = (
+  plan: ShopTemplateWithPlans["template_plans"][number],
+  templateKind: "timetable" | "thumbnail",
+) => {
+  if (templateKind === "thumbnail") {
+    return [];
+  }
+
   const features: string[] = [];
 
   if (plan.is_artist) features.push("팬아트 아티스트명 작성 기능");
@@ -33,36 +48,48 @@ export default function TemplateDetailContent({
 
   const primaryArtistName =
     template.template_artists?.find((relation) => relation.is_primary)?.artist
-      ?.name || linkedArtists[0] || null;
+      ?.name ||
+    linkedArtists[0] ||
+    null;
 
   const litePlan = template.template_plans?.find((p) => p.plan === "lite");
   const proPlan = template.template_plans?.find((p) => p.plan === "pro");
   const sortedPlans = [...(template.template_plans || [])].sort((a, b) =>
-    a.plan === "lite" ? -1 : b.plan === "lite" ? 1 : 0
+    a.plan === "lite" ? -1 : b.plan === "lite" ? 1 : 0,
   );
+  const templateEngine =
+    template.templates.template_engine === "legacy" ? "legacy" : "studio";
+  const templateKind =
+    resolveConsumerTemplateKind(
+      template.templates.template_engine,
+      template.templates.template_kind,
+    ) ?? "timetable";
+  const coverUrl = resolveConsumerTemplateCover({
+    id: template.templates.id,
+    engine: templateEngine,
+    kind: templateKind,
+    thumbnailUrl: template.templates.thumbnail_url,
+  });
+  const executionHref = getTemplateUseHref(
+    template.templates.id,
+    template.templates.template_engine,
+    template.templates.template_kind,
+  );
+  const kindDescription =
+    templateKind === "thumbnail"
+      ? "방송·SNS용 이미지를 직접 구성하고 저장하는 썸네일 템플릿입니다."
+      : "방송 일정과 메모를 정리하고 주간 시간표를 만드는 템플릿입니다.";
 
   return (
     <div className="bg-timetable-form-bg rounded-2xl shadow-xl p-6 md:p-8 backdrop-blur-sm border border-tertiary">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="space-y-4">
-          <div className="aspect-video bg-timetable-input-bg rounded-lg overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={
-                template.templates.thumbnail_url ||
-                `/thumbnail/${template.template_id}.png`
-              }
+          <div className="aspect-video overflow-hidden rounded-lg bg-timetable-input-bg">
+            <TemplateCover
               alt={template.templates.name || "템플릿"}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = "none";
-                const parent = target.parentElement;
-                if (parent) {
-                  parent.innerHTML =
-                    '<div class="w-full h-full flex items-center justify-center text-dark-gray/40">썸네일 이미지 없음</div>';
-                }
-              }}
+              className="h-full w-full"
+              kind={templateKind}
+              src={coverUrl}
             />
           </div>
         </div>
@@ -72,7 +99,15 @@ export default function TemplateDetailContent({
             <h1 className="text-3xl font-bold mb-2 text-dark-gray">
               {template.templates.name}
             </h1>
-            <p className="text-dark-gray/70">{template.templates.description}</p>
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <TemplateKindBadge kind={templateKind} />
+              <span className="text-sm text-dark-gray/65">
+                {kindDescription}
+              </span>
+            </div>
+            <p className="text-dark-gray/70">
+              {template.templates.description}
+            </p>
             {primaryArtistName && (
               <p className="text-sm text-slate-500 mt-2">
                 대표 작가: {primaryArtistName}
@@ -83,6 +118,18 @@ export default function TemplateDetailContent({
                 참여 작가: {linkedArtists.join(", ")}
               </p>
             )}
+          </div>
+
+          <div className="border-t border-tertiary pt-6">
+            <h3 className="font-semibold mb-3 text-dark-gray">사용 경로</h3>
+            <p className="text-sm text-dark-gray/70 leading-relaxed">
+              구매가 완료되면 마이페이지에서{" "}
+              {templateKind === "thumbnail" ? "썸네일" : "시간표"} 만들기로
+              이동해 사용할 수 있습니다.
+            </p>
+            <code className="mt-3 block rounded-lg bg-dark-gray/5 px-3 py-2 text-xs text-dark-gray/70 break-all">
+              {executionHref}
+            </code>
           </div>
 
           <div className="border-t border-tertiary pt-6">
@@ -114,7 +161,7 @@ export default function TemplateDetailContent({
               </h3>
               <div className="space-y-4">
                 {sortedPlans.map((plan) => {
-                  const features = getPlanFeatures(plan);
+                  const features = getPlanFeatures(plan, templateKind);
 
                   return (
                     <div
@@ -155,7 +202,9 @@ export default function TemplateDetailContent({
 
           {template.detailed_description && (
             <div className="border-t border-tertiary pt-6">
-              <h3 className="font-semibold mb-3 text-dark-gray">상품 상세 설명</h3>
+              <h3 className="font-semibold mb-3 text-dark-gray">
+                상품 상세 설명
+              </h3>
               <div className="prose prose-sm max-w-none">
                 <div className="text-dark-gray/70 whitespace-pre-wrap leading-relaxed">
                   {template.detailed_description}
@@ -188,7 +237,9 @@ export default function TemplateDetailContent({
           </div>
 
           {purchaseSection && (
-            <div className="border-t border-tertiary pt-6">{purchaseSection}</div>
+            <div className="border-t border-tertiary pt-6">
+              {purchaseSection}
+            </div>
           )}
         </div>
       </div>

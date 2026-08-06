@@ -20,6 +20,8 @@ import { join } from "node:path";
 
 const STUDIO_RUNTIME_SHELL =
   "src/app/(root)/template-studio/_components/runtime/template-studio-runtime-shell.tsx";
+const PNG_EXPORT = "src/utils/template-studio/png-export.ts";
+const NEXT_CONFIG = "next.config.ts";
 
 /**
  * `html-to-image`가 아직 남아 있어도 되는 곳.
@@ -51,6 +53,8 @@ const collectImportStatements = (source: string): string =>
 
 const shellSource = readFileSync(STUDIO_RUNTIME_SHELL, "utf8");
 const shellImports = collectImportStatements(shellSource);
+const pngExportSource = readFileSync(PNG_EXPORT, "utf8");
+const nextConfigSource = readFileSync(NEXT_CONFIG, "utf8");
 
 assert.ok(
   shellImports.includes("modern-screenshot"),
@@ -78,6 +82,27 @@ assert.ok(
 assert.ok(
   shellSource.indexOf("fonts.ready") < shellSource.indexOf("domToPng("),
   "폰트 대기가 캡처보다 먼저 와야 한다.",
+);
+
+// --- 원격 이미지는 PNG 캡처 전에 임베드한다 ---
+
+assert.ok(
+  pngExportSource.includes('cache: "no-store"'),
+  "PNG export가 원격 이미지 임베드 시 브라우저/PWA 캐시를 사용하면 안 된다.",
+);
+assert.ok(
+  pngExportSource.includes('placeholderImage: ""'),
+  "이미지 fetch 실패를 modern-screenshot placeholder로 숨기면 안 된다.",
+);
+assert.ok(
+  pngExportSource.includes("onCloneNode") &&
+    pngExportSource.includes("preloadStudioExportImages"),
+  "복제 DOM에도 외부 이미지 URL이 남지 않도록 사전 임베드 경계를 유지해야 한다.",
+);
+assert.ok(
+  /cloudflare\\\.temis\\\.kr/.test(nextConfigSource) &&
+    nextConfigSource.includes('handler: "NetworkOnly"'),
+  "R2 에셋은 PWA runtime cache를 거치지 않아야 한다.",
 );
 
 // --- 두 라스터라이저가 더 갈라지지 않는다 ---

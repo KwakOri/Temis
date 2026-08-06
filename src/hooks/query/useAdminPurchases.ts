@@ -21,6 +21,9 @@ export const useApprovePurchaseRequest = () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.admin.purchaseRequests(),
       });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.user.templates(),
+      });
     },
   });
 };

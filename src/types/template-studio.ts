@@ -581,8 +581,7 @@ export interface StudioThumbnailDomain {
 }
 
 export interface StudioThumbnailWeekDates {
-  startDateInputId: StudioInputId;
-  dayCount: number;
+  dateInputId: StudioInputId;
   locale?: string;
 }
 

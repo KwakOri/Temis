@@ -28,7 +28,15 @@ const assertLocalSupabaseUrl = () => {
 const upsertUser = async (id: number, email: string) => {
   const now = new Date().toISOString();
   const { error } = await supabaseAdminServer.from("users").upsert(
-    { id, created_at: now, updated_at: now, name: `Plan Check ${id}`, email, password: "local-only", role: "user" },
+    {
+      id,
+      created_at: now,
+      updated_at: now,
+      name: `Plan Check ${id}`,
+      email,
+      password: "local-only",
+      role: "user",
+    },
     { onConflict: "id" },
   );
   if (error) throw error;
@@ -41,10 +49,15 @@ const req = (
 ): NextRequest =>
   new NextRequest(url, {
     ...init,
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
   });
 
-const json = async <T>(response: NextResponse): Promise<{ status: number; body: T | null }> => {
+const json = async <T>(
+  response: NextResponse,
+): Promise<{ status: number; body: T | null }> => {
   const body = await response.json().catch(() => null);
   return { status: response.status, body: body as T | null };
 };
@@ -84,38 +97,158 @@ const insertShopProductWithPlan = async (
     })
     .select("id")
     .single();
-  if (shopError || !shopTemplate) throw shopError ?? new Error("shop_templates insert failed");
+  if (shopError || !shopTemplate)
+    throw shopError ?? new Error("shop_templates insert failed");
 
   const { data: plan, error: planError } = await supabaseAdminServer
     .from("template_plans")
     .insert({ shop_template_id: shopTemplate.id, plan: "lite", price: 1000 })
     .select("id")
     .single();
-  if (planError || !plan) throw planError ?? new Error("template_plans insert failed");
+  if (planError || !plan)
+    throw planError ?? new Error("template_plans insert failed");
 
-  return { shopTemplateId: shopTemplate.id as string, planId: plan.id as string };
+  return {
+    shopTemplateId: shopTemplate.id as string,
+    planId: plan.id as string,
+  };
 };
 
 const main = async () => {
   assertLocalSupabaseUrl();
-  await upsertUser(BUYER_ID, BUYER_EMAIL);
-
-  const [purchaseRequestsRoute] = await Promise.all([
-    import("../src/app/api/template-purchase-requests/route"),
-  ]);
-
-  const buyerToken = await signJWT({ userId: BUYER_ID, email: BUYER_EMAIL, role: "user" }, "1h");
 
   const templateIds: string[] = [];
   const requestIds: string[] = [];
+  const fixtureUserName = `Plan Check ${BUYER_ID}`;
 
+  const requireNoCleanupError = (
+    error: { message: string } | null,
+    label: string,
+  ) => {
+    if (error) {
+      throw new Error(`${label}: ${error.message}`);
+    }
+  };
+
+  const cleanupFixture = async () => {
+    for (const id of requestIds) {
+      const { error } = await supabaseAdminServer
+        .from("template_purchase_requests")
+        .delete()
+        .eq("id", id);
+      requireNoCleanupError(error, `cleanup purchase request ${id}`);
+    }
+
+    for (const id of templateIds) {
+      const { error: accessError } = await supabaseAdminServer
+        .from("template_access")
+        .delete()
+        .eq("template_id", id);
+      requireNoCleanupError(accessError, `cleanup template access ${id}`);
+
+      const { error: requestError } = await supabaseAdminServer
+        .from("template_purchase_requests")
+        .delete()
+        .eq("template_id", id);
+      requireNoCleanupError(requestError, `cleanup template requests ${id}`);
+
+      const { error: templateError } = await supabaseAdminServer
+        .from("templates")
+        .delete()
+        .eq("id", id);
+      requireNoCleanupError(templateError, `cleanup template ${id}`);
+    }
+
+    const { error: userError } = await supabaseAdminServer
+      .from("users")
+      .delete()
+      .eq("id", BUYER_ID)
+      .eq("email", BUYER_EMAIL)
+      .eq("name", fixtureUserName);
+    requireNoCleanupError(userError, "cleanup purchase plan fixture user");
+  };
+
+  const verifyFixtureCleanup = async () => {
+    const { count: userCount, error: userError } = await supabaseAdminServer
+      .from("users")
+      .select("id", { count: "exact", head: true })
+      .eq("id", BUYER_ID)
+      .eq("email", BUYER_EMAIL)
+      .eq("name", fixtureUserName);
+    requireNoCleanupError(
+      userError,
+      "verify purchase plan fixture user cleanup",
+    );
+    assert(
+      userCount === 0,
+      `Purchase plan fixture cleanup left ${userCount ?? "unknown"} user row(s)`,
+    );
+
+    if (templateIds.length > 0) {
+      const { count: templateCount, error: templateError } =
+        await supabaseAdminServer
+          .from("templates")
+          .select("id", { count: "exact", head: true })
+          .in("id", templateIds);
+      requireNoCleanupError(
+        templateError,
+        "verify purchase plan fixture template cleanup",
+      );
+      assert(
+        templateCount === 0,
+        `Purchase plan fixture cleanup left ${templateCount ?? "unknown"} template row(s)`,
+      );
+    }
+  };
+
+  let checkError: unknown = null;
   try {
-    const templateA = await insertTemplate({ name: `Plan Check Template A ${Date.now()}` });
-    const templateB = await insertTemplate({ name: `Plan Check Template B ${Date.now()}` });
-    templateIds.push(templateA, templateB);
+    const { data: existingUser, error: existingUserError } =
+      await supabaseAdminServer
+        .from("users")
+        .select("id, email, name")
+        .eq("id", BUYER_ID)
+        .maybeSingle();
+    if (existingUserError) throw existingUserError;
+
+    if (existingUser) {
+      assert(
+        existingUser.email === BUYER_EMAIL &&
+          existingUser.name === fixtureUserName,
+        `Refusing to overwrite non-fixture user ${BUYER_ID}`,
+      );
+      const { error: staleUserError } = await supabaseAdminServer
+        .from("users")
+        .delete()
+        .eq("id", BUYER_ID)
+        .eq("email", BUYER_EMAIL)
+        .eq("name", fixtureUserName);
+      requireNoCleanupError(
+        staleUserError,
+        "cleanup stale purchase plan fixture user",
+      );
+    }
+
+    const [purchaseRequestsRoute] = await Promise.all([
+      import("../src/app/api/template-purchase-requests/route"),
+    ]);
+    const buyerToken = await signJWT(
+      { userId: BUYER_ID, email: BUYER_EMAIL, role: "user" },
+      "1h",
+    );
+    await upsertUser(BUYER_ID, BUYER_EMAIL);
+
+    const templateA = await insertTemplate({
+      name: `Plan Check Template A ${Date.now()}`,
+    });
+    templateIds.push(templateA);
+
+    const templateB = await insertTemplate({
+      name: `Plan Check Template B ${Date.now()}`,
+    });
+    templateIds.push(templateB);
 
     const { planId: planA } = await insertShopProductWithPlan(templateA);
-    await insertShopProductWithPlan(templateB); // planB unused directly; template A/B just need distinct plans
     const { planId: planB } = await insertShopProductWithPlan(templateB);
 
     // 1. Plan from a different template is rejected.
@@ -149,7 +282,10 @@ const main = async () => {
         }),
       ),
     );
-    assert(matched.status === 201, `Expected 201 for matched plan/template, got ${matched.status}`);
+    assert(
+      matched.status === 201,
+      `Expected 201 for matched plan/template, got ${matched.status}`,
+    );
     requestIds.push(matched.body!.purchaseRequest.id);
 
     // 3. Non-published template is rejected even with a valid plan.
@@ -177,7 +313,9 @@ const main = async () => {
     );
 
     // 4. Not-yet-visible shop product is rejected.
-    const templateD = await insertTemplate({ name: `Plan Check Template D ${Date.now()}` });
+    const templateD = await insertTemplate({
+      name: `Plan Check Template D ${Date.now()}`,
+    });
     templateIds.push(templateD);
     const { planId: planD } = await insertShopProductWithPlan(templateD, {
       is_shop_visible: false,
@@ -213,19 +351,32 @@ const main = async () => {
     if (rpcError) {
       rpcRejected = true;
     }
-    assert(rpcRejected, "RPC should reject a plan override that does not match the request's plan");
-
-    console.log("Purchase plan validation check passed.");
-  } finally {
-    for (const id of requestIds) {
-      await supabaseAdminServer.from("template_purchase_requests").delete().eq("id", id);
-    }
-    for (const id of templateIds) {
-      await supabaseAdminServer.from("template_access").delete().eq("template_id", id);
-      await supabaseAdminServer.from("template_purchase_requests").delete().eq("template_id", id);
-      await supabaseAdminServer.from("templates").delete().eq("id", id);
-    }
+    assert(
+      rpcRejected,
+      "RPC should reject a plan override that does not match the request's plan",
+    );
+  } catch (error) {
+    checkError = error;
   }
+
+  let cleanupError: unknown = null;
+  try {
+    await cleanupFixture();
+    await verifyFixtureCleanup();
+  } catch (error) {
+    cleanupError = error;
+  }
+
+  if (checkError && cleanupError) {
+    throw new AggregateError(
+      [checkError, cleanupError],
+      "Purchase plan validation and fixture cleanup both failed",
+    );
+  }
+  if (checkError) throw checkError;
+  if (cleanupError) throw cleanupError;
+
+  console.log("Purchase plan validation check passed.");
 };
 
 main().catch((error) => {

@@ -15,11 +15,12 @@ import type {
   StudioTimetableCompositionObject,
 } from "@/types/template-studio";
 import {
-  getStudioWeekDatePreset as getDateRangePreset,
-  getStudioWeekDatePresetValue as getDateRangePresetValue,
-  getStudioWeekDateTemplateValue as getDateRangeTemplateValue,
-  STUDIO_WEEK_DATE_FORMAT_PRESETS,
-  STUDIO_WEEK_DATE_TEMPLATE_TOKENS,
+  getStudioDateFormatPreset,
+  getStudioDateFormatPresetValue,
+  getStudioDateFormatPresets,
+  getStudioDateTemplateTokens,
+  getStudioDateTemplateValue,
+  type StudioDateFormatMode,
 } from "@/utils/template-studio/date-template";
 import {
   getStudioTextAlignment,
@@ -65,17 +66,21 @@ export interface StudioTimetableObjectControlProps {
 export interface StudioWeekDatesFormatControlsProps {
   format?: string;
   template?: string;
+  mode?: StudioDateFormatMode;
   onChange: (value: { format: string; template: string }) => void;
 }
 
-/** Timetable과 Thumbnail이 공유하는 주간 날짜 형식 편집 컨트롤. */
+/** Timetable 기간과 Thumbnail 단일 날짜가 공유하는 형식 편집 컨트롤. */
 export function StudioWeekDatesFormatControls({
   format,
   template,
+  mode = "range",
   onChange,
 }: StudioWeekDatesFormatControlsProps) {
-  const templateValue = getDateRangeTemplateValue(format, template);
-  const presetValue = getDateRangePresetValue(format, template);
+  const templateValue = getStudioDateTemplateValue(format, template, mode);
+  const presetValue = getStudioDateFormatPresetValue(format, template, mode);
+  const presets = getStudioDateFormatPresets(mode);
+  const tokens = getStudioDateTemplateTokens(mode);
 
   return (
     <div className="grid gap-2">
@@ -86,14 +91,14 @@ export function StudioWeekDatesFormatControls({
           value={presetValue}
           onChange={(event) => {
             const nextFormat = event.currentTarget.value;
-            const preset = getDateRangePreset(nextFormat);
+            const preset = getStudioDateFormatPreset(nextFormat, mode);
             onChange({
               format: nextFormat,
               template: preset?.template ?? templateValue,
             });
           }}
         >
-          {STUDIO_WEEK_DATE_FORMAT_PRESETS.map((preset) => (
+          {presets.map((preset) => (
             <option key={preset.id} value={preset.id}>
               {preset.label}
             </option>
@@ -118,7 +123,7 @@ export function StudioWeekDatesFormatControls({
       </label>
 
       <div className="grid grid-cols-2 gap-1.5">
-        {STUDIO_WEEK_DATE_TEMPLATE_TOKENS.map((token) => (
+        {tokens.map((token) => (
           <button
             className="h-7 rounded-md border border-[var(--field-border)] bg-[var(--field)] px-1.5 font-mono text-[10px] font-semibold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
             key={token}

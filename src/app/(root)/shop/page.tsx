@@ -1,6 +1,8 @@
 "use client";
 
 import BackButton from "@/components/BackButton";
+import { TemplateCover } from "@/components/templates/template-cover";
+import { TemplateKindBadge } from "@/components/templates/template-kind-badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdminOptions } from "@/hooks/query/useAdminOptions";
 import {
@@ -8,13 +10,19 @@ import {
   useUserTemplateAccess,
 } from "@/hooks/query/useShop";
 import { SortOrder } from "@/types/shop";
-import Image from "next/image";
 import Link from "next/link";
 import { MouseEvent, useMemo, useState } from "react";
+import {
+  resolveConsumerTemplateCover,
+  resolveConsumerTemplateKind,
+} from "@/utils/templates/consumer-template";
 
 export default function ShopPage() {
   const { user } = useAuth();
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
+  const [kindFilter, setKindFilter] = useState<
+    "all" | "timetable" | "thumbnail"
+  >("all");
   const [showOnlyUnpurchased, setShowOnlyUnpurchased] = useState(false);
   const { data: generalOptions, isLoading: isLoadingGeneralOptions } =
     useAdminOptions("general");
@@ -28,7 +36,7 @@ export default function ShopPage() {
   const { data: accessibleTemplateIds = [], isLoading: accessLoading } =
     useUserTemplateAccess(user?.id);
   const isCustomOrderEnabled = generalOptions?.some(
-    (opt) => opt.value === "custom_timetable_orders" && opt.is_enabled
+    (opt) => opt.value === "custom_timetable_orders" && opt.is_enabled,
   );
   const isCustomOrderUnavailable =
     isLoadingGeneralOptions || !isCustomOrderEnabled;
@@ -37,13 +45,23 @@ export default function ShopPage() {
     templatesLoading || (showOnlyUnpurchased && user && accessLoading);
 
   const filteredTemplates = useMemo(() => {
-    if (showOnlyUnpurchased && user) {
-      return templates.filter(
-        (template) => !accessibleTemplateIds.includes(template.template_id!)
+    return templates.filter((template) => {
+      const kind = resolveConsumerTemplateKind(
+        template.templates.template_engine,
+        template.templates.template_kind,
       );
-    }
-    return templates;
-  }, [templates, showOnlyUnpurchased, user, accessibleTemplateIds]);
+
+      if (!kind || (kindFilter !== "all" && kind !== kindFilter)) {
+        return false;
+      }
+
+      if (showOnlyUnpurchased && user) {
+        return !accessibleTemplateIds.includes(template.template_id!);
+      }
+
+      return true;
+    });
+  }, [templates, kindFilter, showOnlyUnpurchased, user, accessibleTemplateIds]);
 
   const handleCustomOrderBannerClick = (e: MouseEvent<HTMLAnchorElement>) => {
     if (isLoadingGeneralOptions) {
@@ -171,7 +189,7 @@ export default function ShopPage() {
               템플릿 상점
             </h1>
             <p className="text-dark-gray/70">
-              다양한 시간표 템플릿을 둘러보고 구매하세요
+              시간표와 썸네일 템플릿을 종류별로 둘러보고 구매하세요
             </p>
           </div>
 
@@ -190,6 +208,25 @@ export default function ShopPage() {
                 >
                   <option value="newest">최신 순</option>
                   <option value="oldest">오래된 순</option>
+                </select>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-dark-gray">
+                  종류:
+                </span>
+                <select
+                  value={kindFilter}
+                  onChange={(e) =>
+                    setKindFilter(
+                      e.target.value as "all" | "timetable" | "thumbnail",
+                    )
+                  }
+                  className="px-3 py-2 border border-tertiary rounded-lg text-sm bg-timetable-input-bg text-dark-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                >
+                  <option value="all">전체</option>
+                  <option value="timetable">시간표</option>
+                  <option value="thumbnail">썸네일</option>
                 </select>
               </div>
 
@@ -215,107 +252,120 @@ export default function ShopPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredTemplates.map((template) => (
-                <Link
-                  key={template.id}
-                  href={`/shop/${template.template_id}`}
-                  className="group block bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-tertiary hover:border-primary/50"
-                >
-                  <div className="aspect-video bg-timetable-input-bg rounded-t-2xl overflow-hidden">
-                    <Image
-                      src={
-                        template.templates.thumbnail_url ||
-                        `/thumbnail/${template.template_id}.png`
-                      }
+              {filteredTemplates.map((template) => {
+                const templateKind = resolveConsumerTemplateKind(
+                  template.templates.template_engine,
+                  template.templates.template_kind,
+                );
+
+                if (!templateKind) {
+                  return null;
+                }
+
+                const templateEngine =
+                  template.templates.template_engine === "legacy"
+                    ? "legacy"
+                    : "studio";
+                const coverUrl = resolveConsumerTemplateCover({
+                  id: template.templates.id,
+                  engine: templateEngine,
+                  kind: templateKind,
+                  thumbnailUrl: template.templates.thumbnail_url,
+                });
+                const kindLabel =
+                  templateKind === "thumbnail" ? "썸네일" : "시간표";
+                const kindDescription =
+                  templateKind === "thumbnail"
+                    ? "방송·SNS용 이미지를 만드는 템플릿"
+                    : "방송 일정과 메모를 정리하는 시간표 템플릿";
+                const primaryArtist =
+                  template.template_artists?.find((item) => item.is_primary)
+                    ?.artist || template.template_artists?.[0]?.artist;
+
+                return (
+                  <Link
+                    key={template.id}
+                    href={`/shop/${template.template_id}`}
+                    className="group block bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-tertiary hover:border-primary/50"
+                  >
+                    <TemplateCover
+                      src={coverUrl}
                       alt={template.templates.name || "템플릿"}
-                      width={400}
-                      height={225}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = "none";
-                        const parent = target.parentElement;
-                        if (parent) {
-                          parent.innerHTML =
-                            '<div class="w-full h-full flex items-center justify-center text-dark-gray/40">썸네일 이미지 없음</div>';
-                        }
-                      }}
+                      kind={templateKind}
+                      className="aspect-video rounded-t-2xl group-hover:scale-[1.02] transition-transform duration-300"
                     />
-                  </div>
 
-                  <div className="p-6">
-                    {(() => {
-                      const primaryArtist =
-                        template.template_artists?.find((item) => item.is_primary)
-                          ?.artist ||
-                        template.template_artists?.[0]?.artist;
-
-                      return (
-                        <div className="text-xs text-slate-500 mb-1">
+                    <div className="p-6">
+                      <div className="flex flex-wrap items-center gap-2 mb-3">
+                        <TemplateKindBadge kind={templateKind} />
+                        <span className="text-xs text-slate-500">
                           작가: {primaryArtist?.name || "테미스"}
-                        </div>
-                      );
-                    })()}
-                    <h3 className="font-semibold text-lg text-dark-gray group-hover:text-primary transition-colors mb-2">
-                      {template.templates.name}
-                    </h3>
-                    <p className="text-dark-gray/70 text-sm line-clamp-2 mb-4">
-                      {template.templates.description}
-                    </p>
-                    {template.template_plans &&
-                      template.template_plans.length > 0 && (
-                        <div className="flex items-center gap-3 mb-4">
-                          {template.template_plans.find(
-                            (p) => p.plan === "lite"
-                          ) && (
-                            <div className="flex-1 bg-tertiary rounded-lg px-3 py-2">
-                              <div className="text-xs text-dark-gray/70 mb-1">
-                                LITE
+                        </span>
+                      </div>
+                      <h3 className="font-semibold text-lg text-dark-gray group-hover:text-primary transition-colors mb-2">
+                        {template.templates.name}
+                      </h3>
+                      <p className="text-dark-gray/70 text-sm line-clamp-2 mb-2">
+                        {template.templates.description || kindDescription}
+                      </p>
+                      <p className="text-xs text-dark-gray/55 mb-4">
+                        {kindDescription}
+                      </p>
+                      {template.template_plans &&
+                        template.template_plans.length > 0 && (
+                          <div className="flex items-center gap-3 mb-4">
+                            {template.template_plans.find(
+                              (p) => p.plan === "lite",
+                            ) && (
+                              <div className="flex-1 bg-tertiary rounded-lg px-3 py-2">
+                                <div className="text-xs text-dark-gray/70 mb-1">
+                                  LITE
+                                </div>
+                                <div className="text-sm font-bold text-dark-gray">
+                                  ₩
+                                  {template.template_plans
+                                    .find((p) => p.plan === "lite")
+                                    ?.price?.toLocaleString()}
+                                </div>
                               </div>
-                              <div className="text-sm font-bold text-dark-gray">
-                                ₩
-                                {template.template_plans
-                                  .find((p) => p.plan === "lite")!
-                                  .price!.toLocaleString()}
+                            )}
+                            {template.template_plans.find(
+                              (p) => p.plan === "pro",
+                            ) && (
+                              <div className="flex-1 bg-secondary/20 rounded-lg px-3 py-2">
+                                <div className="text-xs text-dark-gray mb-1">
+                                  PRO
+                                </div>
+                                <div className="text-sm font-bold text-dark-gray">
+                                  ₩
+                                  {template.template_plans
+                                    .find((p) => p.plan === "pro")
+                                    ?.price?.toLocaleString()}
+                                </div>
                               </div>
-                            </div>
-                          )}
-                          {template.template_plans.find(
-                            (p) => p.plan === "pro"
-                          ) && (
-                            <div className="flex-1 bg-secondary/20 rounded-lg px-3 py-2">
-                              <div className="text-xs text-dark-gray mb-1">
-                                PRO
-                              </div>
-                              <div className="text-sm font-bold text-dark-gray">
-                                ₩
-                                {template.template_plans
-                                  .find((p) => p.plan === "pro")!
-                                  .price!.toLocaleString()}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    <div className="flex items-center text-primary text-sm font-medium">
-                      <span>자세히 보기</span>
-                      <svg
-                        className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 5l7 7-7 7"
-                        />
-                      </svg>
+                            )}
+                          </div>
+                        )}
+                      <div className="flex items-center text-primary text-sm font-medium">
+                        <span>{kindLabel} 자세히 보기</span>
+                        <svg
+                          className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                      </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
 
             {filteredTemplates.length === 0 && (

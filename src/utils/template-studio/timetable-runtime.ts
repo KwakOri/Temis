@@ -18,6 +18,7 @@ import {
   isStudioTimetableStatusAvailable,
 } from "@/utils/template-studio/timetable-capabilities";
 import { STUDIO_MULTI_ENTRY_SLOT_COUNT } from "@/utils/template-studio/entry-groups";
+import { getThumbnailWeekDatesInputId } from "@/utils/thumbnail-studio/week-dates";
 
 export interface StudioTimetableVariantResolution {
   requestedStatusId: StudioTimetableStatusId;
@@ -409,17 +410,19 @@ export const validateStudioRuntimeValuesForDocument = (
   const diagnostics: StudioDiagnostic[] = [];
   const thumbnailWeekDates = document.domains?.thumbnail?.weekDates;
   if (thumbnailWeekDates) {
-    const input = document.inputs[thumbnailWeekDates.startDateInputId];
-    const startDate = input
+    const inputId = getThumbnailWeekDatesInputId(document);
+    const input = inputId ? document.inputs[inputId] : undefined;
+    const dateValue = input
       ? (values.global?.[input.id] ?? getStudioInputDefaultValue(input))
-      : values.global?.[thumbnailWeekDates.startDateInputId];
-    if (!parseStudioIsoDateParts(startDate)) {
+      : inputId
+        ? values.global?.[inputId]
+        : undefined;
+    if (!parseStudioIsoDateParts(dateValue)) {
       diagnostics.push({
-        id: "runtime-thumbnail-week-dates-start-date-invalid",
+        id: "runtime-thumbnail-week-dates-date-invalid",
         severity: "error",
-        title: "Invalid Thumbnail start date",
-        detail:
-          "Thumbnail Week Dates requires an ISO date in YYYY-MM-DD format.",
+        title: "Invalid Thumbnail date",
+        detail: "Thumbnail Week Dates requires a date in YYYY-MM-DD format.",
       });
     }
   }

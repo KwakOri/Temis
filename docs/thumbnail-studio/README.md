@@ -218,4 +218,5 @@ Phase 5에서 발행 문서 사용 흐름을 만들고, Phase 6에서 기존 Stu
 - [전체 Thumbnail Studio 기능 계획](./overview.md)
 - [Template Studio 개발 계획](../template-studio-development-plan.md)
 - [Template System 통합 계획](../template-system-integration/README.md)
+- [사용자 템플릿 UI 통합 개발 계획](../user-template-ui-integration/README.md)
 - [Template Hub 개발 계획](../template-hub-development/README.md)

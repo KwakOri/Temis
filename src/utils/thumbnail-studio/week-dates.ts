@@ -7,7 +7,6 @@ import { normalizeThumbnailStudioInputPresentation } from "@/utils/thumbnail-stu
 import { parseStudioIsoDateParts } from "@/utils/template-studio/date-template";
 
 export const THUMBNAIL_WEEK_DATES_START_INPUT_ID = "week-start-date";
-export const THUMBNAIL_WEEK_DATES_DEFAULT_DAY_COUNT = 7;
 export const THUMBNAIL_WEEK_DATES_DEFAULT_LOCALE = "ko-KR";
 
 const getLocalIsoDate = (): string => {
@@ -35,16 +34,23 @@ const createThumbnailWeekStartDateInput = (inputId: string) => ({
   id: inputId,
   type: "text" as const,
   scope: "global" as const,
-  label: "Week Start Date",
-  description: "The first date used to calculate the 7-day range.",
+  label: "Date",
+  description: "The date displayed on the thumbnail.",
   defaultValue: getLocalIsoDate(),
   required: true,
   presentation: {
     control: "date" as const,
     groupId: "Week Dates",
-    helpText: "Choose the first day of the 7-day range.",
+    helpText: "Choose the date to display.",
   },
 });
+
+type LegacyThumbnailWeekDates = {
+  dateInputId?: string;
+  startDateInputId?: string;
+  dayCount?: number;
+  locale?: string;
+};
 
 const isTextInput = (
   input: StudioInputDefinition | undefined,
@@ -56,21 +62,31 @@ export const getThumbnailWeekDates = (
 ): StudioThumbnailWeekDates | null =>
   document.domains?.thumbnail?.weekDates ?? null;
 
+/** 새 계약과 마이그레이션 전 레거시 계약에서 썸네일 날짜 input id를 읽는다. */
+export const getThumbnailWeekDatesInputId = (
+  document: StudioTemplateDocument,
+): string | null => {
+  const weekDates = document.domains?.thumbnail?.weekDates as
+    LegacyThumbnailWeekDates | undefined;
+  return weekDates?.dateInputId ?? weekDates?.startDateInputId ?? null;
+};
+
 /**
  * Thumbnail Week Dates가 사용할 global date input과 도메인 계약을 준비한다.
  * 이미 계약이 있으면 같은 input을 재사용하므로 Week Dates 객체가 여러 개여도
- * 시작일은 하나만 노출된다.
+ * 날짜 input은 하나만 노출된다.
  */
 export const ensureThumbnailWeekDatesContract = (
   document: StudioTemplateDocument,
 ): string => {
-  const current = document.domains?.thumbnail?.weekDates;
-  let inputId = current?.startDateInputId;
+  const current = document.domains?.thumbnail?.weekDates as
+    LegacyThumbnailWeekDates | undefined;
+  let inputId = current?.dateInputId ?? current?.startDateInputId;
 
   if (!inputId || !isTextInput(document.inputs[inputId])) {
     inputId = getNextInputId(
       document,
-      current?.startDateInputId ?? THUMBNAIL_WEEK_DATES_START_INPUT_ID,
+      inputId ?? THUMBNAIL_WEEK_DATES_START_INPUT_ID,
     );
   }
 
@@ -94,8 +110,7 @@ export const ensureThumbnailWeekDatesContract = (
         export: { defaultFormat: "png", transparentBackground: false },
       }),
       weekDates: {
-        startDateInputId: inputId,
-        dayCount: current?.dayCount ?? THUMBNAIL_WEEK_DATES_DEFAULT_DAY_COUNT,
+        dateInputId: inputId,
         locale: current?.locale ?? THUMBNAIL_WEEK_DATES_DEFAULT_LOCALE,
       },
     },

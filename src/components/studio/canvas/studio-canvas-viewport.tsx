@@ -476,6 +476,9 @@ export function StudioCanvasViewport({
       <div
         className="relative"
         data-studio-preview-canvas-root="true"
+        data-studio-pan-state={
+          isSpacePressed ? (isDragging ? "dragging" : "ready") : undefined
+        }
         ref={canvasRootRef}
         style={draggableStyle}
         onContextMenu={(event) => {

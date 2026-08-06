@@ -93,6 +93,13 @@ runtime 이미지의 crop 처리 결과를 서버에 보내지 않고 브라우�
   - 과도기 `/v2-template` 시스템은 운영 대상에서 제외하고 별도 폐기 대상으로
     분류한다.
 
+## 후속 사용자 UI 통합
+
+- [사용자 템플릿 UI 통합 개발 계획](../user-template-ui-integration/README.md)
+  - 로컬 Supabase를 기준으로 Legacy 시간표, Studio 시간표, Studio 썸네일을
+    마이페이지·상점·권한·구매 UI에 연결한다.
+  - 원격 DB 반영은 로컬 브라우저 E2E 완료 후 최종 단계로 분리한다.
+
 ## 진행 상태
 
 | 단계 | 상태 | 완료일 |

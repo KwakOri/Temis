@@ -6,6 +6,7 @@ import {
   STUDIO_WEEK_DATE_LONG_TEMPLATE,
 } from "../src/utils/template-studio/date-template";
 import { createStudioInitialRuntimeValues } from "../src/utils/template-studio/input-values";
+import { migrateStudioTemplateDocument } from "../src/utils/template-studio/migrations";
 import { validateStudioRuntimeValuesForDocument } from "../src/utils/template-studio/timetable-runtime";
 import { validateStudioDocument } from "../src/utils/template-studio/validator";
 import { createThumbnailStudioDocument } from "../src/utils/thumbnail-studio/document-factory";
@@ -62,7 +63,11 @@ const document = createThumbnailStudioDocument();
 const inputId = ensureThumbnailWeekDatesContract(document);
 const reusedInputId = ensureThumbnailWeekDatesContract(document);
 assert.equal(reusedInputId, inputId);
-assert.equal(document.domains?.thumbnail?.weekDates?.dayCount, 7);
+assert.equal(document.domains?.thumbnail?.weekDates?.dateInputId, inputId);
+assert.equal(
+  "dayCount" in (document.domains?.thumbnail?.weekDates ?? {}),
+  false,
+);
 assert.equal(document.inputs[inputId]?.presentation?.control, "date");
 
 const makeWeekDatesNode = (id: string) => ({
@@ -73,7 +78,7 @@ const makeWeekDatesNode = (id: string) => ({
   childIds: [],
   binding: {
     kind: "builtinField" as const,
-    fieldId: "week.date_range" as const,
+    fieldId: "week.start_date" as const,
   },
   meta: { semantic: { type: "weekDates" } },
 });
@@ -97,7 +102,7 @@ assert.equal(
     runtimeValues,
     document.graph.nodes.first.binding,
   ),
-  "2024.02.28 - 03.05",
+  "2024.02.28",
 );
 assert.equal(
   resolveStudioTextBinding(
@@ -105,7 +110,23 @@ assert.equal(
     runtimeValues,
     document.graph.nodes.second.binding,
   ),
-  "2024.02.28 - 03.05",
+  "2024.02.28",
+);
+assert.equal(
+  resolveStudioTextBinding(document, runtimeValues, {
+    kind: "builtinField",
+    fieldId: "week.date_range",
+  }),
+  "2024.02.28",
+);
+assert.equal(
+  resolveStudioTextBinding(document, runtimeValues, {
+    kind: "builtinField",
+    fieldId: "week.start_date",
+    dateRangeFormat: "custom",
+    dateRangeTemplate: "${YYYY}년 ${M}월 ${D}일 ${weekdayShort}",
+  }),
+  "2024년 2월 28일 Wed",
 );
 assert.equal(
   validateStudioDocument(document).some(
@@ -118,19 +139,53 @@ assert.equal(
   0,
 );
 
+const legacyDocument = createThumbnailStudioDocument();
+const legacyInputId = ensureThumbnailWeekDatesContract(legacyDocument);
+const legacyWeekDates = legacyDocument.domains!.thumbnail!
+  .weekDates as unknown as Record<string, unknown>;
+legacyWeekDates.startDateInputId = legacyWeekDates.dateInputId;
+legacyWeekDates.dayCount = 7;
+delete legacyWeekDates.dateInputId;
+legacyDocument.graph.nodes.legacy = makeWeekDatesNode("legacy");
+legacyDocument.graph.nodes.legacy.binding = {
+  kind: "builtinField",
+  fieldId: "week.date_range",
+  dateRangeFormat: "long",
+  dateRangeTemplate: STUDIO_WEEK_DATE_LONG_TEMPLATE,
+};
+legacyDocument.graph.nodes.legacyCustom = makeWeekDatesNode("legacyCustom");
+legacyDocument.graph.nodes.legacyCustom.binding = {
+  kind: "builtinField",
+  fieldId: "week.date_range",
+  dateRangeFormat: "custom",
+  dateRangeTemplate: "${YYYY}년 ${M}월 ${D}일 ${weekdayShort}",
+};
+
+const migrated = migrateStudioTemplateDocument(legacyDocument);
+assert.equal(migrated.ok, true);
+if (!migrated.ok) throw new Error("Legacy Week Dates migration failed.");
+assert.equal(
+  migrated.document.domains?.thumbnail?.weekDates?.dateInputId,
+  legacyInputId,
+);
+assert.deepEqual(migrated.document.graph.nodes.legacy.binding, {
+  kind: "builtinField",
+  fieldId: "week.start_date",
+  dateRangeFormat: "long",
+  dateRangeTemplate: "${YYYY}.${MM}.${DD}",
+});
+assert.deepEqual(migrated.document.graph.nodes.legacyCustom.binding, {
+  kind: "builtinField",
+  fieldId: "week.start_date",
+  dateRangeFormat: "custom",
+  dateRangeTemplate: "${YYYY}년 ${M}월 ${D}일 ${weekdayShort}",
+});
+
 runtimeValues.global[inputId] = "2024-02-30";
 assert.equal(
   validateStudioRuntimeValuesForDocument(document, runtimeValues).some(
     (diagnostic) =>
-      diagnostic.id === "runtime-thumbnail-week-dates-start-date-invalid",
-  ),
-  true,
-);
-
-document.domains!.thumbnail!.weekDates!.dayCount = 0;
-assert.equal(
-  validateStudioDocument(document).some(
-    (diagnostic) => diagnostic.id === "thumbnail-week-dates-day-count-invalid",
+      diagnostic.id === "runtime-thumbnail-week-dates-date-invalid",
   ),
   true,
 );

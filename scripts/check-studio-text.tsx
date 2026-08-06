@@ -508,6 +508,69 @@ assert.ok(
   "자동 크기 갈래도 같은 두께 변환을 거쳐야 한다.",
 );
 
+const autoFitSingleLineDocumentMarkup = renderDocument(
+  createNode({
+    type: "flexibleText",
+    textAppearance: appearance({
+      strokes: [stroke("outer", 6)],
+    }),
+  }),
+  { color: "#111827", fontSize: 42, textWrapMode: "single" },
+);
+assert.ok(
+  autoFitSingleLineDocumentMarkup.includes('data-studio-text-renderer="svg"'),
+  "single-line Auto Text의 구조화 효과는 SVG 시각 레이어를 사용해야 한다.",
+);
+assert.ok(
+  autoFitSingleLineDocumentMarkup.includes('stroke-width="12"') &&
+    autoFitSingleLineDocumentMarkup.includes('stroke-linejoin="round"') &&
+    autoFitSingleLineDocumentMarkup.includes('stroke-miterlimit="1"') &&
+    autoFitSingleLineDocumentMarkup.includes('paint-order="stroke fill"'),
+  "SVG stroke는 저장된 실효 두께와 round join/miter 제한을 보존해야 한다.",
+);
+assert.ok(
+  !autoFitSingleLineDocumentMarkup.includes("vector-effect") &&
+    autoFitSingleLineDocumentMarkup.includes('pointer-events="none"') &&
+    autoFitSingleLineDocumentMarkup.includes('aria-hidden="true"'),
+  "SVG 효과 레이어는 확대 시 stroke를 함께 키우고 클릭·낭독을 받지 않아야 한다.",
+);
+assert.deepEqual(
+  [
+    ...autoFitSingleLineDocumentMarkup.matchAll(/data-effect-layer="([^"]+)"/g),
+  ].map((match) => match[1]),
+  ["stroke:outer", "foreground"],
+  "SVG도 저장된 뒤→앞 순서와 foreground를 유지해야 한다.",
+);
+
+const autoFitSingleLineEffectsMarkup = renderDocument(
+  createNode({
+    type: "flexibleText",
+    textAppearance: appearance({
+      fill: {
+        type: "linearGradient",
+        startColor: "#ef4444",
+        endColor: "#3b82f6",
+        angleDeg: 90,
+        opacity: 0.75,
+      },
+      strokes: [stroke("outer", 6)],
+      shadow: shadow({ blur: 8 }),
+    }),
+  }),
+  { color: "#111827", fontSize: 42, textWrapMode: "single" },
+);
+assert.ok(
+  autoFitSingleLineEffectsMarkup.includes("linearGradient") &&
+    autoFitSingleLineEffectsMarkup.includes("feDropShadow") &&
+    autoFitSingleLineEffectsMarkup.includes('filter="url(#'),
+  "SVG single-line 효과는 gradient와 composite shadow를 defs/group에 보존해야 한다.",
+);
+assert.equal(
+  (autoFitSingleLineEffectsMarkup.match(/filter:drop-shadow\(/g) ?? []).length,
+  0,
+  "SVG shadow는 root CSS와 SVG group에 이중 적용하면 안 된다.",
+);
+
 const autoFitPlainDocumentMarkup = renderDocument(
   createNode({ type: "flexibleText" }),
   { color: "#111827", fontSize: 42 },
@@ -773,8 +836,8 @@ const studioTextSource = readFileSync(
   "src/components/studio/text/studio-text.tsx",
   "utf8",
 );
-const studioAutoFitSource = readFileSync(
-  "src/components/studio/text/studio-auto-fit-text.tsx",
+const studioTextLayoutSource = readFileSync(
+  "src/components/studio/text/use-studio-text-layout.ts",
   "utf8",
 );
 assert.ok(
@@ -790,10 +853,10 @@ assert.ok(
   "Studio structured effect layers는 legacy textShadow를 직접 그리지 않아야 한다.",
 );
 assert.ok(
-  studioAutoFitSource.includes("measurement.scrollWidth") &&
-    studioAutoFitSource.includes("measurement.scrollHeight") &&
-    !studioAutoFitSource.includes("root.scrollWidth") &&
-    !studioAutoFitSource.includes("root.scrollHeight"),
+  studioTextLayoutSource.includes("measurement.scrollWidth") &&
+    studioTextLayoutSource.includes("measurement.scrollHeight") &&
+    !studioTextLayoutSource.includes("root.scrollWidth") &&
+    !studioTextLayoutSource.includes("root.scrollHeight"),
   "Studio 자동 맞춤은 logical measurement 요소의 overflow만 읽어야 한다.",
 );
 assert.ok(

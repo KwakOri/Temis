@@ -1,4 +1,7 @@
-import { StudioTemplateDocument } from "@/types/template-studio";
+import type {
+  StudioBinding,
+  StudioTemplateDocument,
+} from "@/types/template-studio";
 import { ensureStudioTimetableEntryGroupContract } from "@/utils/template-studio/entry-groups";
 import {
   ensureStudioTimetableVariantInput,
@@ -19,6 +22,11 @@ import {
   getStudioTimetableComposition,
 } from "@/utils/template-studio/timetable-composition";
 import { normalizeThumbnailStudioInputPresentation } from "@/utils/thumbnail-studio/input-order";
+import {
+  getStudioSingleDatePreset,
+  getStudioWeekDatePreset,
+  STUDIO_WEEK_DATE_FORMAT_PRESETS,
+} from "@/utils/template-studio/date-template";
 
 export const STUDIO_TEMPLATE_DOCUMENT_SCHEMA = "studio_template_document";
 export const STUDIO_TEMPLATE_DOCUMENT_VERSION = 7;
@@ -40,6 +48,44 @@ const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
+
+const migrateThumbnailWeekDateBinding = (
+  binding: Extract<StudioBinding, { kind: "builtinField" }>,
+) => {
+  const rangePreset =
+    (binding.dateRangeFormat
+      ? getStudioWeekDatePreset(binding.dateRangeFormat)
+      : null) ??
+    STUDIO_WEEK_DATE_FORMAT_PRESETS.find(
+      (preset) => preset.template === binding.dateRangeTemplate,
+    ) ??
+    null;
+  if (
+    rangePreset &&
+    (!binding.dateRangeTemplate ||
+      binding.dateRangeTemplate === rangePreset.template)
+  ) {
+    const singlePreset = getStudioSingleDatePreset(rangePreset.id);
+    return {
+      ...binding,
+      fieldId: "week.start_date" as const,
+      ...(singlePreset
+        ? {
+            dateRangeFormat: singlePreset.id,
+            dateRangeTemplate: singlePreset.template,
+          }
+        : {}),
+    };
+  }
+
+  // 커스텀 template은 현재 단일 날짜 엔진이 이해하지 못하는 토큰을 포함할
+  // 수 있어도 원문을 그대로 보존한다. 사용자가 직접 다시 편집할 수 있어야
+  // 하므로 fieldId만 새 계약으로 바꾼다.
+  return {
+    ...binding,
+    fieldId: "week.start_date" as const,
+  };
+};
 
 export const isStudioTemplateDocumentLike = (
   value: unknown,
@@ -114,6 +160,39 @@ export const migrateStudioTemplateDocument = (
   }
 
   if (document.metadata.kind === "thumbnail") {
+    const weekDates = document.domains?.thumbnail?.weekDates as
+      (Record<string, unknown> & { locale?: string }) | undefined;
+    const legacyDateInputId =
+      typeof weekDates?.dateInputId === "string"
+        ? weekDates.dateInputId
+        : typeof weekDates?.startDateInputId === "string"
+          ? weekDates.startDateInputId
+          : null;
+
+    if (weekDates && legacyDateInputId) {
+      document.domains!.thumbnail!.weekDates = {
+        dateInputId: legacyDateInputId,
+        ...(typeof weekDates.locale === "string"
+          ? { locale: weekDates.locale }
+          : {}),
+      };
+      if (weekDates.startDateInputId || weekDates.dayCount !== undefined) {
+        warnings.push("Migrated Thumbnail Week Dates to a single date input.");
+      }
+    }
+
+    Object.values(document.graph.nodes).forEach((node) => {
+      if (
+        node.binding?.kind !== "builtinField" ||
+        node.binding.fieldId !== "week.date_range"
+      ) {
+        return;
+      }
+
+      node.binding = migrateThumbnailWeekDateBinding(node.binding);
+      warnings.push("Migrated Thumbnail Week Dates to a single date field.");
+    });
+
     if (normalizeThumbnailStudioInputPresentation(document)) {
       warnings.push("Normalized thumbnail input presentation order.");
     }

@@ -86,7 +86,8 @@ export const applyThumbnailStudioSetWeekDateFormatting = (
     !node ||
     node.locked ||
     node.binding?.kind !== "builtinField" ||
-    node.binding.fieldId !== "week.date_range"
+    (node.binding.fieldId !== "week.start_date" &&
+      node.binding.fieldId !== "week.date_range")
   ) {
     return false;
   }

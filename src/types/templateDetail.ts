@@ -19,10 +19,12 @@ export interface PurchaseRequestData {
   plan_id: string;
   depositor_name: string;
   customer_phone?: string;
-  message: string;
+  message?: string;
 }
 
 export interface PurchaseRequestResponse {
   success: boolean;
   error?: string;
+  code?: string;
+  purchaseRequest?: Tables<"template_purchase_requests">;
 }

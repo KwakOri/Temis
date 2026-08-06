@@ -20,29 +20,90 @@ export async function PATCH(
     // 플랜이 존재하는지 확인
     const { data: existingPlan, error: checkError } = await supabase
       .from("template_plans")
-      .select("id, shop_template_id")
+      .select("id, shop_template_id, plan")
       .eq("id", planId)
       .single();
 
     if (checkError || !existingPlan) {
       return NextResponse.json(
         { error: "템플릿 플랜을 찾을 수 없습니다." },
-        { status: 404 }
+        { status: 404 },
+      );
+    }
+
+    const { data: shopTemplate, error: shopTemplateError } = await supabase
+      .from("shop_templates")
+      .select("template_id")
+      .eq("id", existingPlan.shop_template_id)
+      .single();
+
+    if (shopTemplateError || !shopTemplate?.template_id) {
+      return NextResponse.json(
+        { error: "플랜에 연결된 상점 상품을 찾을 수 없습니다." },
+        { status: 404 },
+      );
+    }
+
+    const { data: template, error: templateError } = await supabase
+      .from("templates")
+      .select("template_engine, template_kind")
+      .eq("id", shopTemplate.template_id)
+      .single();
+
+    if (templateError || !template) {
+      return NextResponse.json(
+        { error: "플랜에 연결된 템플릿을 찾을 수 없습니다." },
+        { status: 404 },
+      );
+    }
+
+    const isThumbnailTemplate =
+      template.template_engine === "studio" &&
+      template.template_kind === "thumbnail";
+
+    if (isThumbnailTemplate && existingPlan.plan !== "pro") {
+      return NextResponse.json(
+        { error: "썸네일 상품은 PRO 플랜만 사용할 수 있습니다." },
+        { status: 400 },
       );
     }
 
     // 업데이트할 필드들 준비
     const updateData: Partial<Tables<"template_plans">> = {};
 
-    if (body.price !== undefined) updateData.price = body.price;
-    if (body.is_artist !== undefined) updateData.is_artist = body.is_artist;
-    if (body.is_memo !== undefined) updateData.is_memo = body.is_memo;
-    if (body.is_multi_schedule !== undefined)
-      updateData.is_multi_schedule = body.is_multi_schedule;
-    if (body.is_guerrilla !== undefined)
-      updateData.is_guerrilla = body.is_guerrilla;
-    if (body.is_offline_memo !== undefined)
-      updateData.is_offline_memo = body.is_offline_memo;
+    if (body.price !== undefined) {
+      if (
+        body.price !== null &&
+        (typeof body.price !== "number" ||
+          !Number.isFinite(body.price) ||
+          body.price < 0)
+      ) {
+        return NextResponse.json(
+          { error: "가격은 0 이상의 숫자여야 합니다." },
+          { status: 400 },
+        );
+      }
+      updateData.price = body.price;
+    }
+
+    if (isThumbnailTemplate) {
+      updateData.is_artist = false;
+      updateData.is_memo = false;
+      updateData.is_multi_schedule = false;
+      updateData.is_guerrilla = false;
+      updateData.is_offline_memo = false;
+    } else {
+      if (body.is_artist !== undefined)
+        updateData.is_artist = Boolean(body.is_artist);
+      if (body.is_memo !== undefined)
+        updateData.is_memo = Boolean(body.is_memo);
+      if (body.is_multi_schedule !== undefined)
+        updateData.is_multi_schedule = Boolean(body.is_multi_schedule);
+      if (body.is_guerrilla !== undefined)
+        updateData.is_guerrilla = Boolean(body.is_guerrilla);
+      if (body.is_offline_memo !== undefined)
+        updateData.is_offline_memo = Boolean(body.is_offline_memo);
+    }
 
     // 플랜 정보 업데이트
     const { data: updatedPlan, error: updateError } = await supabase

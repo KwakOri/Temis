@@ -185,7 +185,11 @@ export function ThumbnailRuntimeShell({
       console.error("Thumbnail runtime PNG export failed", error);
       setReadiness((current) => ({
         ...current,
-        blockingErrors: ["PNG를 생성하지 못했습니다. 다시 시도해 주세요."],
+        blockingErrors: [
+          error instanceof Error
+            ? error.message
+            : "PNG를 생성하지 못했습니다. 다시 시도해 주세요.",
+        ],
       }));
     } finally {
       setIsExporting(false);

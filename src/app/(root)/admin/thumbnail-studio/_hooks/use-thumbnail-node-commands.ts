@@ -906,10 +906,7 @@ export function useThumbnailNodeCommands({
 
     node.binding = {
       kind: "builtinField",
-      fieldId: "week.date_range",
-      dateRangeFormat: "long",
-      dateRangeTemplate:
-        "${start.YYYY}.${start.MM}.${start.DD} - ${end.MM}.${end.DD}",
+      fieldId: "week.start_date",
     };
     node.meta = { semantic: { type: "weekDates" } };
     style.width = plan.width;

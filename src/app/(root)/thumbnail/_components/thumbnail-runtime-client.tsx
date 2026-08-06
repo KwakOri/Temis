@@ -23,6 +23,7 @@ export function ThumbnailRuntimeClient({
     return (
       <StudioRuntimeStateScreen
         actionLabel="다시 시도"
+        backHref="/my-page"
         message={
           error instanceof Error
             ? error.message

@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 
 import { StudioRuntimeActionButton } from "./ui/studio-runtime-action-button";
 
@@ -7,6 +8,7 @@ interface StudioRuntimeStateScreenProps {
   message?: string;
   actionLabel?: string;
   onAction?: () => void;
+  backHref?: string;
 }
 
 export function StudioRuntimeStateScreen({
@@ -14,6 +16,7 @@ export function StudioRuntimeStateScreen({
   message,
   actionLabel,
   onAction,
+  backHref,
 }: StudioRuntimeStateScreenProps) {
   return (
     <main className="studio-runtime-theme flex min-h-screen items-center justify-center bg-[var(--runtime-form-bg)] px-4 text-[var(--runtime-fg)]">
@@ -33,6 +36,14 @@ export function StudioRuntimeStateScreen({
           >
             {actionLabel}
           </StudioRuntimeActionButton>
+        ) : null}
+        {backHref ? (
+          <Link
+            href={backHref}
+            className="mx-auto text-xs font-bold text-[var(--runtime-fg-muted)] underline-offset-4 hover:text-[var(--runtime-fg)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
+          >
+            마이페이지로 돌아가기
+          </Link>
         ) : null}
       </div>
     </main>

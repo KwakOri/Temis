@@ -32,6 +32,33 @@ export const STUDIO_WEEK_DATE_FORMAT_PRESETS = [
   },
 ] as const;
 
+/** 단일 날짜를 표시할 때 사용하는 프리셋. 시간표 기간 프리셋과 분리하되
+ * binding 필드명(dateRangeFormat/dateRangeTemplate)은 호환성을 위해 유지한다. */
+export const STUDIO_SINGLE_DATE_FORMAT_PRESETS = [
+  {
+    id: "long",
+    label: "2026.07.01",
+    template: "${YYYY}.${MM}.${DD}",
+  },
+  {
+    id: "short",
+    label: "07.01",
+    template: "${MM}.${DD}",
+  },
+  {
+    id: "localized",
+    label: "Jul 01, 2026",
+    template: "${localizedWithYear}",
+  },
+  {
+    id: "weekday",
+    label: "2026.07.01 (Wed)",
+    template: "${YYYY}.${MM}.${DD} (${weekdayShort})",
+  },
+] as const;
+
+export type StudioDateFormatMode = "range" | "single";
+
 export const STUDIO_WEEK_DATE_TEMPLATE_TOKENS = [
   "${start.YYYY}",
   "${start.YY}",
@@ -49,8 +76,23 @@ export const STUDIO_WEEK_DATE_TEMPLATE_TOKENS = [
   "${end.weekdayShort}",
 ] as const;
 
+export const STUDIO_SINGLE_DATE_TEMPLATE_TOKENS = [
+  "${YYYY}",
+  "${YY}",
+  "${MM}",
+  "${M}",
+  "${DD}",
+  "${D}",
+  "${weekday}",
+  "${weekdayShort}",
+  "${localized}",
+  "${localizedWithYear}",
+] as const;
+
 type StudioWeekDateFormatPresetId =
   (typeof STUDIO_WEEK_DATE_FORMAT_PRESETS)[number]["id"];
+type StudioSingleDateFormatPresetId =
+  (typeof STUDIO_SINGLE_DATE_FORMAT_PRESETS)[number]["id"];
 
 const WEEKDAY_LABELS = [
   "Sunday",
@@ -278,13 +320,58 @@ export const resolveStudioDateTemplate = ({
     return value ?? match;
   });
 
-const getWeekDatePresetTemplate = (
+export const getStudioDateFormatPresets = (
+  mode: StudioDateFormatMode = "range",
+) =>
+  mode === "single"
+    ? STUDIO_SINGLE_DATE_FORMAT_PRESETS
+    : STUDIO_WEEK_DATE_FORMAT_PRESETS;
+
+export const getStudioDateFormatPreset = (
   format: string | undefined,
-): string | null => {
-  const preset = STUDIO_WEEK_DATE_FORMAT_PRESETS.find(
+  mode: StudioDateFormatMode = "range",
+) =>
+  getStudioDateFormatPresets(mode).find(
     (candidate) => candidate.id === format,
+  ) ?? null;
+
+export const getStudioDateTemplateTokens = (
+  mode: StudioDateFormatMode = "range",
+) =>
+  mode === "single"
+    ? STUDIO_SINGLE_DATE_TEMPLATE_TOKENS
+    : STUDIO_WEEK_DATE_TEMPLATE_TOKENS;
+
+export const getStudioDateTemplateValue = (
+  format?: string,
+  template?: string,
+  mode: StudioDateFormatMode = "range",
+): string => {
+  const presets = getStudioDateFormatPresets(mode);
+  const selectedTemplate = template?.trimEnd();
+  if (selectedTemplate) return selectedTemplate;
+
+  return (
+    getStudioDateFormatPreset(format, mode)?.template ??
+    presets[0]?.template ??
+    ""
   );
-  return preset?.template ?? null;
+};
+
+export const getStudioDateFormatPresetValue = (
+  format?: string,
+  template?: string,
+  mode: StudioDateFormatMode = "range",
+): string => {
+  const presets = getStudioDateFormatPresets(mode);
+  if (!template) {
+    const selectedFormat = format ?? presets[0]?.id;
+    if (getStudioDateFormatPreset(selectedFormat, mode)) {
+      return selectedFormat ?? "custom";
+    }
+  }
+
+  return presets.find((preset) => preset.template === template)?.id ?? "custom";
 };
 
 export const getStudioWeekDatePreset = (format: string) =>
@@ -294,22 +381,25 @@ export const getStudioWeekDatePreset = (format: string) =>
 export const getStudioWeekDateTemplateValue = (
   format?: string,
   template?: string,
-): string =>
-  template?.trimEnd() ||
-  getWeekDatePresetTemplate(format) ||
-  STUDIO_WEEK_DATE_LONG_TEMPLATE;
+): string => getStudioDateTemplateValue(format, template, "range");
 
 export const getStudioWeekDatePresetValue = (
   format?: string,
   template?: string,
-): string => {
-  if (!template && getWeekDatePresetTemplate(format)) return format ?? "long";
-  return (
-    STUDIO_WEEK_DATE_FORMAT_PRESETS.find(
-      (preset) => preset.template === template,
-    )?.id ?? "custom"
-  );
-};
+): string => getStudioDateFormatPresetValue(format, template, "range");
+
+export const getStudioSingleDatePreset = (format: string) =>
+  getStudioDateFormatPreset(format, "single");
+
+export const getStudioSingleDateTemplateValue = (
+  format?: string,
+  template?: string,
+): string => getStudioDateTemplateValue(format, template, "single");
+
+export const getStudioSingleDatePresetValue = (
+  format?: string,
+  template?: string,
+): string => getStudioDateFormatPresetValue(format, template, "single");
 
 /** timetable과 Thumbnail이 공유하는 순수 날짜 범위 resolver. */
 export const resolveStudioDateRangeText = ({
@@ -332,6 +422,28 @@ export const resolveStudioDateRangeText = ({
     start,
     end,
     primary: start ?? end,
+    locale,
+  });
+};
+
+export const resolveStudioSingleDateText = ({
+  date,
+  format,
+  template,
+  locale,
+}: {
+  date?: string;
+  format?: string;
+  template?: string;
+  locale?: string;
+} = {}) => {
+  const primary = parseStudioIsoDateParts(date);
+  if (!primary) return "";
+
+  return resolveStudioDateTemplate({
+    template: getStudioSingleDateTemplateValue(format, template),
+    start: primary,
+    primary,
     locale,
   });
 };
@@ -362,3 +474,8 @@ export const isStudioWeekDateFormatPresetId = (
   value: string,
 ): value is StudioWeekDateFormatPresetId =>
   STUDIO_WEEK_DATE_FORMAT_PRESETS.some((preset) => preset.id === value);
+
+export const isStudioSingleDateFormatPresetId = (
+  value: string,
+): value is StudioSingleDateFormatPresetId =>
+  STUDIO_SINGLE_DATE_FORMAT_PRESETS.some((preset) => preset.id === value);

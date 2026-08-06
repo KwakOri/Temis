@@ -40,6 +40,24 @@ export async function PATCH(
       );
     }
 
+    const { data: templateDefinition, error: templateDefinitionError } =
+      await supabase
+        .from("templates")
+        .select("template_engine, template_kind")
+        .eq("id", templateId)
+        .single();
+
+    if (templateDefinitionError || !templateDefinition) {
+      return NextResponse.json(
+        { error: "연결된 템플릿을 찾을 수 없습니다." },
+        { status: 404 },
+      );
+    }
+
+    const isThumbnailTemplate =
+      templateDefinition.template_engine === "studio" &&
+      templateDefinition.template_kind === "thumbnail";
+
     // 업데이트할 필드들 준비
     const updateData: Partial<Tables<"shop_templates">> = {};
 
@@ -51,15 +69,43 @@ export async function PATCH(
       updateData.purchase_instructions =
         body.purchase_instructions?.trim() || null;
     if (body.detailed_description !== undefined)
-      updateData.detailed_description = body.detailed_description?.trim() || null;
-    if (body.is_artist !== undefined) updateData.is_artist = body.is_artist;
-    if (body.is_memo !== undefined) updateData.is_memo = body.is_memo;
-    if (body.is_multi_schedule !== undefined)
-      updateData.is_multi_schedule = body.is_multi_schedule;
-    if (body.is_guerrilla !== undefined)
-      updateData.is_guerrilla = body.is_guerrilla;
-    if (body.is_offline_memo !== undefined)
-      updateData.is_offline_memo = body.is_offline_memo;
+      updateData.detailed_description =
+        body.detailed_description?.trim() || null;
+
+    if (isThumbnailTemplate) {
+      const timetableOptionKeys = [
+        "is_artist",
+        "is_memo",
+        "is_multi_schedule",
+        "is_guerrilla",
+        "is_offline_memo",
+      ] as const;
+
+      if (timetableOptionKeys.some((key) => body[key] === true)) {
+        return NextResponse.json(
+          { error: "썸네일 상품에는 시간표 전용 옵션을 설정할 수 없습니다." },
+          { status: 400 },
+        );
+      }
+
+      // 기존에 잘못 저장된 옵션도 상품을 수정하는 시점에 정리한다.
+      updateData.is_artist = false;
+      updateData.is_memo = false;
+      updateData.is_multi_schedule = false;
+      updateData.is_guerrilla = false;
+      updateData.is_offline_memo = false;
+    } else {
+      if (body.is_artist !== undefined)
+        updateData.is_artist = Boolean(body.is_artist);
+      if (body.is_memo !== undefined)
+        updateData.is_memo = Boolean(body.is_memo);
+      if (body.is_multi_schedule !== undefined)
+        updateData.is_multi_schedule = Boolean(body.is_multi_schedule);
+      if (body.is_guerrilla !== undefined)
+        updateData.is_guerrilla = Boolean(body.is_guerrilla);
+      if (body.is_offline_memo !== undefined)
+        updateData.is_offline_memo = Boolean(body.is_offline_memo);
+    }
 
     // 판매 시작 시 필수 조건 검증
     if (body.is_shop_visible === true) {

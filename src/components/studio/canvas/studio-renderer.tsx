@@ -299,6 +299,7 @@ export function StudioRenderer({
                 fontWeight: style.fontWeight,
                 letterSpacing: 0,
                 lineHeight: style.lineHeight ?? 1.08,
+                textAlign: style.textAlign as React.CSSProperties["textAlign"],
               }}
             />
             {children}

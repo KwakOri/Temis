@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import type { ShopTemplate, TemplateArtist } from "@/types/shop";
+import { resolveConsumerTemplateKind } from "@/utils/templates/consumer-template";
 import { NextRequest, NextResponse } from "next/server";
 
 type ShopTemplateRow = Omit<ShopTemplate, "template_artists"> & {
@@ -11,16 +12,21 @@ type ShopTemplateRow = Omit<ShopTemplate, "template_artists"> & {
 export async function GET(request: NextRequest) {
   try {
     const sortOrder = request.nextUrl.searchParams.get("sort");
-    if (sortOrder !== null && sortOrder !== "newest" && sortOrder !== "oldest") {
+    if (
+      sortOrder !== null &&
+      sortOrder !== "newest" &&
+      sortOrder !== "oldest"
+    ) {
       return NextResponse.json(
         { error: "지원하지 않는 정렬 방식입니다." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const { data, error } = await supabase
       .from("shop_templates")
-      .select(`
+      .select(
+        `
         *,
         templates!inner (
           *,
@@ -30,8 +36,10 @@ export async function GET(request: NextRequest) {
           )
         ),
         template_plans:template_plans!shop_template_id (*)
-      `)
+      `,
+      )
       .eq("is_shop_visible", true)
+      .eq("templates.is_public", true)
       .eq("templates.status", "published")
       .order("created_at", { ascending: sortOrder === "oldest" });
 
@@ -39,22 +47,35 @@ export async function GET(request: NextRequest) {
       console.error("Public shop template fetch failed:", error);
       return NextResponse.json(
         { error: "템플릿을 가져오는데 실패했습니다." },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     const rows = (data ?? []) as ShopTemplateRow[];
-    const shopTemplates: ShopTemplate[] = rows.map((row) => ({
-      ...row,
-      template_artists: row.templates.template_artists ?? [],
-    }));
+    const shopTemplates: ShopTemplate[] = rows.flatMap((row) => {
+      const kind = resolveConsumerTemplateKind(
+        row.templates.template_engine,
+        row.templates.template_kind,
+      );
+
+      if (!kind) {
+        return [];
+      }
+
+      return [
+        {
+          ...row,
+          template_artists: row.templates.template_artists ?? [],
+        },
+      ];
+    });
 
     return NextResponse.json({ shopTemplates });
   } catch (error) {
     console.error("Public shop template API failed:", error);
     return NextResponse.json(
       { error: "템플릿을 가져오는데 실패했습니다." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

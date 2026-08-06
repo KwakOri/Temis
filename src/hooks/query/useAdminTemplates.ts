@@ -158,3 +158,15 @@ export const useUpdateTemplatePlan = () => {
     },
   });
 };
+
+export const useDeleteTemplatePlan = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (planId: string) =>
+      AdminTemplateService.deleteTemplatePlan(planId),
+    onSuccess: () => {
+      invalidateAdminTemplateRelatedQueries(queryClient);
+    },
+  });
+};
