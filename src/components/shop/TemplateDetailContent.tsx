@@ -77,7 +77,7 @@ export default function TemplateDetailContent({
   );
   const kindDescription =
     templateKind === "thumbnail"
-      ? "방송·SNS용 이미지를 직접 구성하고 저장하는 썸네일 템플릿입니다."
+      ? "공개된 텍스트와 이미지를 입력해 PNG로 다운로드하는 썸네일 템플릿입니다."
       : "방송 일정과 메모를 정리하고 주간 시간표를 만드는 템플릿입니다.";
 
   return (
@@ -154,7 +154,31 @@ export default function TemplateDetailContent({
             </div>
           </div>
 
-          {sortedPlans.length > 0 && (
+          {templateKind === "thumbnail" && (
+            <div className="border-t border-tertiary pt-6">
+              <h3 className="font-semibold mb-3 text-dark-gray">
+                썸네일 사용 범위
+              </h3>
+              <ul className="list-disc list-inside text-dark-gray/70 space-y-1 text-sm">
+                <li>
+                  관리자가 공개한 텍스트와 이미지 입력을 변경할 수 있습니다.
+                </li>
+                <li>
+                  완성된 이미지를 PNG로 미리보기하고 다운로드할 수 있습니다.
+                </li>
+                <li>
+                  레이어 구조를 변경하지 않고 같은 템플릿을 반복 사용할 수
+                  있습니다.
+                </li>
+              </ul>
+              <p className="mt-3 text-sm text-dark-gray/60 leading-relaxed">
+                입력 이미지와 작업 상태는 초기 정책에 따라 동일한 브라우저에
+                보관되며, 템플릿 구조 편집은 제공하지 않습니다.
+              </p>
+            </div>
+          )}
+
+          {templateKind !== "thumbnail" && sortedPlans.length > 0 && (
             <div className="border-t border-tertiary pt-6">
               <h3 className="font-semibold mb-3 text-dark-gray">
                 플랜별 지원 기능

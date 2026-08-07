@@ -1,6 +1,7 @@
 "use client";
 
 import AdminTabHeader from "@/components/admin/AdminTabHeader";
+import AdminThumbnailOrdersPanel from "@/components/admin/AdminThumbnailOrdersPanel";
 import OrderDetailModal from "@/components/admin/OrderDetailModal";
 import {
   useAdminCustomOrders,
@@ -73,13 +74,13 @@ export default function CustomOrderManagement() {
   const { data: calendarOrders = [], isLoading: loadingCustomCalendar } =
     useAdminCustomOrdersCalendar(
       currentCalendarDate.getFullYear(),
-      currentCalendarDate.getMonth()
+      currentCalendarDate.getMonth(),
     );
 
   const { data: legacyOrders = [], isLoading: loadingLegacyCalendar } =
     useAdminLegacyOrdersCalendar(
       currentCalendarDate.getFullYear(),
-      currentCalendarDate.getMonth()
+      currentCalendarDate.getMonth(),
     );
 
   const orders = ordersData?.orders || [];
@@ -115,7 +116,7 @@ export default function CustomOrderManagement() {
     status: string,
     notes?: string | null,
     price?: number | null,
-    deadline?: string
+    deadline?: string,
   ) => {
     try {
       await updateOrderMutation.mutateAsync({
@@ -237,14 +238,14 @@ export default function CustomOrderManagement() {
                       ? status.color === "gray"
                         ? "bg-primary text-[#F4FDFF] border-primary"
                         : status.color === "yellow"
-                        ? "bg-yellow-100 text-yellow-800 border-yellow-200"
-                        : status.color === "blue"
-                        ? "bg-blue-100 text-blue-800 border-blue-200"
-                        : status.color === "indigo"
-                        ? "bg-indigo-100 text-indigo-800 border-indigo-200"
-                        : status.color === "green"
-                        ? "bg-green-100 text-green-800 border-green-200"
-                        : "bg-red-100 text-red-800 border-red-200"
+                          ? "bg-yellow-100 text-yellow-800 border-yellow-200"
+                          : status.color === "blue"
+                            ? "bg-blue-100 text-blue-800 border-blue-200"
+                            : status.color === "indigo"
+                              ? "bg-indigo-100 text-indigo-800 border-indigo-200"
+                              : status.color === "green"
+                                ? "bg-green-100 text-green-800 border-green-200"
+                                : "bg-red-100 text-red-800 border-red-200"
                       : "bg-white text-secondary border-gray-300 hover:bg-gray-50"
                   }`}
                 >
@@ -286,6 +287,8 @@ export default function CustomOrderManagement() {
           </div>
         </div>
       </div>
+
+      <AdminThumbnailOrdersPanel />
 
       {/* 주문 목록 */}
       <div className="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden">
@@ -363,7 +366,9 @@ export default function CustomOrderManagement() {
                           <div className="font-medium text-gray-900">
                             {order.users.name}
                           </div>
-                          <div className="text-gray-500">{order.users.email}</div>
+                          <div className="text-gray-500">
+                            {order.users.email}
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -385,13 +390,15 @@ export default function CustomOrderManagement() {
                                 new Date(order.deadline) < new Date()
                                   ? "bg-red-100 text-red-800"
                                   : new Date(order.deadline) <=
-                                    new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-green-100 text-green-800"
+                                      new Date(
+                                        Date.now() + 3 * 24 * 60 * 60 * 1000,
+                                      )
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : "bg-green-100 text-green-800"
                               }`}
                             >
                               {new Date(order.deadline).toLocaleDateString(
-                                "ko-KR"
+                                "ko-KR",
                               )}
                             </span>
                           </div>
@@ -489,13 +496,15 @@ export default function CustomOrderManagement() {
                                 new Date(order.deadline) < new Date()
                                   ? "bg-red-100 text-red-800"
                                   : new Date(order.deadline) <=
-                                    new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-green-100 text-green-800"
+                                      new Date(
+                                        Date.now() + 3 * 24 * 60 * 60 * 1000,
+                                      )
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : "bg-green-100 text-green-800"
                               }`}
                             >
                               {new Date(order.deadline).toLocaleDateString(
-                                "ko-KR"
+                                "ko-KR",
                               )}
                             </span>
                           ) : (
@@ -507,7 +516,8 @@ export default function CustomOrderManagement() {
 
                     {/* 생성일 */}
                     <div className="text-xs text-gray-500">
-                      생성일: {new Date(order.created_at).toLocaleDateString("ko-KR")}
+                      생성일:{" "}
+                      {new Date(order.created_at).toLocaleDateString("ko-KR")}
                     </div>
 
                     {/* 버튼 */}
@@ -543,7 +553,7 @@ export default function CustomOrderManagement() {
                 <button
                   onClick={() =>
                     setCurrentPage(
-                      Math.min(pagination.totalPages, currentPage + 1)
+                      Math.min(pagination.totalPages, currentPage + 1),
                     )
                   }
                   disabled={currentPage >= pagination.totalPages}
@@ -564,7 +574,7 @@ export default function CustomOrderManagement() {
                     <span className="font-medium">
                       {Math.min(
                         currentPage * pagination.limit,
-                        pagination.total
+                        pagination.total,
                       )}
                     </span>
                     개 표시
@@ -583,7 +593,7 @@ export default function CustomOrderManagement() {
                     </button>
                     {Array.from(
                       { length: pagination.totalPages },
-                      (_, i) => i + 1
+                      (_, i) => i + 1,
                     )
                       .filter((page) => {
                         const diff = Math.abs(page - currentPage);
@@ -619,7 +629,7 @@ export default function CustomOrderManagement() {
                     <button
                       onClick={() =>
                         setCurrentPage(
-                          Math.min(pagination.totalPages, currentPage + 1)
+                          Math.min(pagination.totalPages, currentPage + 1),
                         )
                       }
                       disabled={currentPage >= pagination.totalPages}
@@ -663,7 +673,6 @@ export default function CustomOrderManagement() {
           updating={updating}
         />
       )}
-
     </div>
   );
 }

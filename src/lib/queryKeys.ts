@@ -34,10 +34,12 @@ export const queryKeys = {
   },
   customOrder: {
     all: ["customOrder"] as const,
-    history: () => [...queryKeys.customOrder.all, "history"] as const,
-    orders: () => [...queryKeys.customOrder.all, "orders"] as const,
-    estimatedDeadline: () =>
-      [...queryKeys.customOrder.all, "estimatedDeadline"] as const,
+    history: (kind: "timetable" | "thumbnail" = "timetable") =>
+      [...queryKeys.customOrder.all, "history", kind] as const,
+    orders: (kind: "timetable" | "thumbnail" = "timetable") =>
+      [...queryKeys.customOrder.all, "orders", kind] as const,
+    estimatedDeadline: (kind: "timetable" | "thumbnail" = "timetable") =>
+      [...queryKeys.customOrder.all, "estimatedDeadline", kind] as const,
   },
   file: {
     all: ["file"] as const,
@@ -123,6 +125,12 @@ export const queryKeys = {
       params
         ? ([...queryKeys.admin.customOrdersRoot(), params] as const)
         : queryKeys.admin.customOrdersRoot(),
+    thumbnailOrdersRoot: () =>
+      [...queryKeys.admin.all, "thumbnailOrders"] as const,
+    thumbnailOrders: (params?: GetCustomOrdersParams) =>
+      params
+        ? ([...queryKeys.admin.thumbnailOrdersRoot(), params] as const)
+        : queryKeys.admin.thumbnailOrdersRoot(),
     calendarRoot: (type: "custom" | "legacy") =>
       [...queryKeys.admin.all, "calendar", type] as const,
     calendar: (type: "custom" | "legacy", startDate: string, endDate: string) =>
