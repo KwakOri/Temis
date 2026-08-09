@@ -54,10 +54,18 @@ export default function CustomOrderSelectionPage() {
   const isTimetableOrderEnabled = generalOptions?.some(
     (option) => option.value === "custom_timetable_orders" && option.is_enabled,
   );
+  const isThumbnailOrderEnabled = generalOptions?.some(
+    (option) => option.value === "custom_thumbnail_orders" && option.is_enabled,
+  );
 
   const timetableStatus = isLoading
     ? "확인 중"
     : isTimetableOrderEnabled
+      ? "신청 가능"
+      : "접수 마감";
+  const thumbnailStatus = isLoading
+    ? "확인 중"
+    : isThumbnailOrderEnabled
       ? "신청 가능"
       : "접수 마감";
 
@@ -98,8 +106,14 @@ export default function CustomOrderSelectionPage() {
               href="/custom-order/thumbnail"
               title="맞춤형 썸네일"
               description="4K UHD 규격의 고객 전용 v2 썸네일 템플릿 제작 안내를 확인합니다."
-              status="준비 중"
-              statusClassName="bg-secondary/10 text-secondary"
+              status={thumbnailStatus}
+              statusClassName={
+                isLoading
+                  ? "bg-slate-100 text-slate-600"
+                  : isThumbnailOrderEnabled
+                    ? "bg-secondary/10 text-secondary"
+                    : "bg-slate-100 text-slate-600"
+              }
               icon={<ImageIcon className="h-7 w-7" />}
             />
           </div>

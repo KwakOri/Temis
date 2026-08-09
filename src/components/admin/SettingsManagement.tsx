@@ -11,6 +11,7 @@ import {
   useTogglePriceOption,
   useUpdatePriceOption,
 } from "@/hooks/query/usePriceOptions";
+import ThumbnailPriceOptionManagement from "@/components/admin/ThumbnailPriceOptionManagement";
 import { CreatePriceOptionInput, PriceOption } from "@/types/priceOption";
 import {
   AlertTriangle,
@@ -63,6 +64,11 @@ export default function SettingsManagement() {
   // 맞춤 시간표 접수 옵션 찾기
   const customTimetableOrdersOption = generalOptions?.find(
     (opt) => opt.value === "custom_timetable_orders"
+  );
+
+  // 맞춤 썸네일 접수 옵션 찾기
+  const customThumbnailOrdersOption = generalOptions?.find(
+    (opt) => opt.value === "custom_thumbnail_orders"
   );
 
   // 빠른 마감 옵션 찾기
@@ -182,7 +188,10 @@ export default function SettingsManagement() {
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
-        ) : customTimetableOrdersOption || workFastOption ? (
+        ) :
+          customTimetableOrdersOption ||
+          customThumbnailOrdersOption ||
+          workFastOption ? (
           <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-200">
             {/* 맞춤 시간표 접수 옵션 */}
             {customTimetableOrdersOption && (
@@ -218,6 +227,46 @@ export default function SettingsManagement() {
                   {customTimetableOrdersOption.description && (
                     <div className="text-xs sm:text-sm text-gray-500 mt-0.5">
                       {customTimetableOrdersOption.description}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 맞춤 썸네일 접수 옵션 */}
+            {customThumbnailOrdersOption && (
+              <div className="flex items-center gap-3 p-4">
+                <button
+                  onClick={() =>
+                    toggleAdminOptionMutation.mutate({
+                      id: customThumbnailOrdersOption.id,
+                      isEnabled: !customThumbnailOrdersOption.is_enabled,
+                    })
+                  }
+                  disabled={toggleAdminOptionMutation.isPending}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                    customThumbnailOrdersOption.is_enabled
+                      ? "bg-secondary"
+                      : "bg-gray-200"
+                  }`}
+                  role="switch"
+                  aria-checked={customThumbnailOrdersOption.is_enabled}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      customThumbnailOrdersOption.is_enabled
+                        ? "translate-x-5"
+                        : "translate-x-0"
+                    }`}
+                  />
+                </button>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-gray-900 sm:text-base">
+                    {customThumbnailOrdersOption.label}
+                  </div>
+                  {customThumbnailOrdersOption.description && (
+                    <div className="mt-0.5 text-xs text-gray-500 sm:text-sm">
+                      {customThumbnailOrdersOption.description}
                     </div>
                   )}
                 </div>
@@ -781,6 +830,8 @@ export default function SettingsManagement() {
           </div>
         )}
       </section>
+
+      <ThumbnailPriceOptionManagement />
     </div>
   );
 }

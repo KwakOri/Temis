@@ -1,7 +1,14 @@
 "use client";
 
 import BackButton from "@/components/BackButton";
+import ThumbnailCustomOrderForm from "@/components/shop/ThumbnailCustomOrderForm";
+import { useAuth } from "@/contexts/AuthContext";
 import { useAdminOptions } from "@/hooks/query/useAdminOptions";
+import {
+  useEstimatedThumbnailCustomOrderDeadline,
+  useSubmitThumbnailCustomOrder,
+} from "@/hooks/query/useCustomThumbnailOrder";
+import type { ThumbnailCustomOrderFormData } from "@/types/customThumbnailOrder";
 import {
   CalendarDays,
   Download,
@@ -10,6 +17,7 @@ import {
   Pencil,
 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
 const thumbnailOrderFeatures = [
   {
@@ -38,31 +46,41 @@ const thumbnailOrderFeatures = [
   },
 ];
 
-const thumbnailOrderFields = [
-  { label: "사용 목적", placeholder: "방송·콘텐츠에서 사용할 목적" },
-  { label: "외부 연락처", placeholder: "이메일 또는 Discord 등" },
-  {
-    label: "기본 문구와 전체 요청",
-    placeholder: "고정 문구, 교체 문구, 추가 요청사항",
-  },
-  {
-    label: "이미지 입력 요구사항",
-    placeholder: "교체 가능한 이미지와 원본 에셋 설명",
-  },
-  { label: "분위기·색상·구성", placeholder: "원하는 디자인 키워드" },
-];
-
 export default function ThumbnailCustomOrderPage() {
+  const { user } = useAuth();
   const { data: generalOptions, isLoading: isLoadingOptions } =
     useAdminOptions("general");
+  const { data: intakeData, isLoading: isLoadingIntake } =
+    useEstimatedThumbnailCustomOrderDeadline(Boolean(user));
+  const submitMutation = useSubmitThumbnailCustomOrder();
+  const [showOrderForm, setShowOrderForm] = useState(false);
   const isThumbnailOrderEnabled = generalOptions?.some(
     (option) => option.value === "custom_thumbnail_orders" && option.is_enabled,
   );
-  const intakeStatus = isLoadingOptions
+  const isIntakeReady = user
+    ? Boolean(isThumbnailOrderEnabled && intakeData?.accepting)
+    : Boolean(isThumbnailOrderEnabled);
+  const isCheckingIntake = isLoadingOptions || (Boolean(user) && isLoadingIntake);
+  const intakeStatus = isCheckingIntake
     ? "접수 상태 확인 중"
-    : isThumbnailOrderEnabled
-      ? "가격·수정 정책 확정 대기"
+    : isIntakeReady
+      ? "신청 가능"
       : "신청 준비 중";
+
+  const handleOrderSubmit = async (formData: ThumbnailCustomOrderFormData) => {
+    await submitMutation.mutateAsync(formData);
+    window.alert("맞춤형 썸네일 제작 신청이 완료되었습니다!");
+    setShowOrderForm(false);
+  };
+
+  if (showOrderForm) {
+    return (
+      <ThumbnailCustomOrderForm
+        onClose={() => setShowOrderForm(false)}
+        onSubmit={handleOrderSubmit}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-light via-timetable-card-bg to-tertiary px-4 py-6 sm:px-6 md:py-12 lg:px-8">
@@ -127,86 +145,44 @@ export default function ThumbnailCustomOrderPage() {
               공개된 입력값만 변경할 수 있습니다.
             </p>
             <p className="mt-2">
-              기본 가격과 추가 옵션, 수정 횟수는 주문제작 페이지를 구체화한 뒤
-              안내합니다.
+              신청은 제작 요청 입력과 가격 선택의 2단계로 진행되며, 추가 옵션
+              없이 필요한 자료만 간단히 제출할 수 있습니다.
             </p>
           </div>
 
-          <section className="mt-8 rounded-xl border border-gray-200 bg-white/60 p-5">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h2 className="font-semibold text-dark-gray">
-                  신청 항목 미리보기
-                </h2>
-                <p className="mt-1 text-sm text-dark-gray/70">
-                  가격·추가 옵션·수정 정책이 확정되면 아래 항목을 실제 신청
-                  폼으로 전환합니다.
-                </p>
-              </div>
-              <span className="text-xs font-semibold text-slate-500">
-                현재 제출 비활성
-              </span>
-            </div>
-            <fieldset
-              disabled
-              className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2"
-            >
-              {thumbnailOrderFields.map((field, index) => (
-                <label
-                  key={field.label}
-                  className={`text-sm font-medium text-dark-gray ${index === 2 ? "md:col-span-2" : ""}`}
-                >
-                  {field.label}
-                  {index === 2 || index === 3 ? (
-                    <textarea
-                      rows={3}
-                      placeholder={field.placeholder}
-                      className="mt-1 w-full resize-none rounded-md border border-gray-300 bg-slate-100 px-3 py-2 font-normal"
-                    />
-                  ) : (
-                    <input
-                      type="text"
-                      placeholder={field.placeholder}
-                      className="mt-1 w-full rounded-md border border-gray-300 bg-slate-100 px-3 py-2 font-normal"
-                    />
-                  )}
-                </label>
-              ))}
-              <label className="text-sm font-medium text-dark-gray">
-                희망 마감일
-                <input
-                  type="date"
-                  className="mt-1 w-full rounded-md border border-gray-300 bg-slate-100 px-3 py-2 font-normal"
-                />
-              </label>
-              <label className="flex items-center gap-2 self-end pb-2 text-sm font-medium text-dark-gray">
-                <input type="checkbox" />
-                포트폴리오 공개 동의 여부
-              </label>
-              <label className="text-sm font-medium text-dark-gray">
-                입금자명
-                <input
-                  type="text"
-                  placeholder="가격 안내 후 입력"
-                  className="mt-1 w-full rounded-md border border-gray-300 bg-slate-100 px-3 py-2 font-normal"
-                />
-              </label>
-            </fieldset>
-            <p className="mt-4 rounded-lg bg-slate-100 px-3 py-2 text-xs leading-relaxed text-slate-600">
-              실제 제출은 화면뿐 아니라 서버에서도 `custom_thumbnail_orders`
-              접수 옵션과 가격 정책 준비 상태를 확인합니다. 정책 확정 전에는
-              주문 row와 파일 연결을 생성하지 않습니다.
-            </p>
-          </section>
-
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <button
-              type="button"
-              disabled
-              className="w-full cursor-not-allowed rounded-lg bg-slate-300 px-6 py-3 font-semibold text-slate-500 sm:w-auto"
-            >
-              신청 준비 중
-            </button>
+            {isCheckingIntake ? (
+              <button
+                type="button"
+                disabled
+                className="w-full cursor-not-allowed rounded-lg bg-slate-300 px-6 py-3 font-semibold text-slate-500 sm:w-auto"
+              >
+                접수 상태 확인 중
+              </button>
+            ) : !isIntakeReady ? (
+              <button
+                type="button"
+                disabled
+                className="w-full cursor-not-allowed rounded-lg bg-slate-300 px-6 py-3 font-semibold text-slate-500 sm:w-auto"
+              >
+                신청 준비 중
+              </button>
+            ) : user ? (
+              <button
+                type="button"
+                onClick={() => setShowOrderForm(true)}
+                className="w-full rounded-lg bg-secondary px-6 py-3 font-semibold text-white transition-colors hover:bg-secondary/90 sm:w-auto"
+              >
+                제작 신청하기
+              </button>
+            ) : (
+              <Link
+                href="/auth"
+                className="w-full rounded-lg bg-secondary px-6 py-3 text-center font-semibold text-white transition-colors hover:bg-secondary/90 sm:w-auto"
+              >
+                로그인 후 신청하기
+              </Link>
+            )}
             <Link
               href="/custom-order"
               className="w-full rounded-lg border border-tertiary px-6 py-3 text-center font-semibold text-dark-gray transition-colors hover:bg-tertiary sm:w-auto"

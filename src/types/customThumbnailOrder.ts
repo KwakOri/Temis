@@ -20,6 +20,7 @@ export interface ThumbnailCustomOrderFormData {
   requestedDeadline?: string;
   portfolioConsent: boolean;
   depositorName: string;
+  priceOptionId: string;
   sourceFileIds: string[];
   referenceFileIds: string[];
   orderId?: string;
@@ -101,6 +102,7 @@ export interface UpdateThumbnailCustomOrderData {
   requestedDeadline?: string | null;
   portfolioConsent?: boolean;
   depositorName?: string;
+  priceOptionId?: string;
   sourceFileIds?: string[];
   referenceFileIds?: string[];
 }

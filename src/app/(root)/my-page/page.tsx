@@ -10,6 +10,7 @@ import CustomOrderForm from "@/components/shop/CustomOrderForm";
 import CustomOrderHistory from "@/components/shop/CustomOrderHistory";
 import OrderDetailsModal from "@/components/shop/OrderDetailsModal";
 import PurchaseHistory from "@/components/shop/PurchaseHistory";
+import ThumbnailCustomOrderHistory from "@/components/shop/ThumbnailCustomOrderHistory";
 
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -550,11 +551,14 @@ const MyPageContent = () => {
                 {activeTab === "purchases" && <PurchaseHistory />}
 
                 {activeTab === "custom-orders" && (
-                  <CustomOrderHistory
-                    onEditOrder={handleEditOrder}
-                    onCancelOrder={handleCancelOrder}
-                    onViewDetails={handleViewDetails}
-                  />
+                  <>
+                    <CustomOrderHistory
+                      onEditOrder={handleEditOrder}
+                      onCancelOrder={handleCancelOrder}
+                      onViewDetails={handleViewDetails}
+                    />
+                    <ThumbnailCustomOrderHistory />
+                  </>
                 )}
 
                 {activeTab === "artist-profile" && artistProfile && (

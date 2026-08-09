@@ -2,6 +2,7 @@ import { getCurrentUserId } from "@/lib/auth/jwt";
 import {
   assertOwnedThumbnailFiles,
   assertThumbnailOrderSubmissionEnabled,
+  getEnabledThumbnailPriceOption,
   getThumbnailOrderById,
   listThumbnailOrders,
   parseThumbnailOrderPayload,
@@ -36,6 +37,9 @@ export async function POST(request: NextRequest) {
 
     await assertThumbnailOrderSubmissionEnabled();
     const payload = parseThumbnailOrderPayload(await request.json());
+    const priceOption = await getEnabledThumbnailPriceOption(
+      payload.priceOptionId,
+    );
     await assertOwnedThumbnailFiles(
       userId,
       payload.sourceFileIds,
@@ -55,7 +59,7 @@ export async function POST(request: NextRequest) {
       portfolio_consent: payload.portfolioConsent,
       requested_deadline: payload.requestedDeadline,
       depositor_name: payload.depositorName,
-      price_quoted: null,
+      price_quoted: priceOption.price,
       status: "pending",
     };
 
@@ -186,6 +190,12 @@ export async function PUT(request: NextRequest) {
     }
     if (payload.depositorName !== undefined) {
       updateData.depositor_name = payload.depositorName;
+    }
+    if (payload.priceOptionId !== undefined) {
+      const priceOption = await getEnabledThumbnailPriceOption(
+        payload.priceOptionId,
+      );
+      updateData.price_quoted = priceOption.price;
     }
 
     const hasFileUpdate =

@@ -59,6 +59,7 @@ export interface ParsedThumbnailOrderPayload {
   requestedDeadline: string | null;
   portfolioConsent: boolean;
   depositorName: string;
+  priceOptionId: string;
   sourceFileIds: string[];
   referenceFileIds: string[];
 }
@@ -73,6 +74,7 @@ export interface ParsedThumbnailOrderUpdate {
   requestedDeadline?: string | null;
   portfolioConsent?: boolean;
   depositorName?: string;
+  priceOptionId?: string;
   sourceFileIds?: string[];
   referenceFileIds?: string[];
 }
@@ -233,6 +235,13 @@ export const parseThumbnailOrderPayload = (
   }
 
   validateCanvas(body);
+  const priceOptionId = readString(body, "priceOptionId", {
+    required: true,
+    maxLength: 100,
+  });
+  if (!UUID_PATTERN.test(priceOptionId)) {
+    throw new ThumbnailOrderApiError("유효하지 않은 썸네일 가격 옵션입니다.");
+  }
   const portfolioConsent = readBoolean(body, "portfolioConsent", true);
   const sourceFileIds =
     readUuidArray(body, "sourceFileIds", SOURCE_MAX_COUNT, false) ?? [];
@@ -268,6 +277,7 @@ export const parseThumbnailOrderPayload = (
       required: true,
       maxLength: 200,
     }),
+    priceOptionId,
     sourceFileIds,
     referenceFileIds,
   };
@@ -281,6 +291,13 @@ export const parseThumbnailOrderUpdate = (
   }
 
   validateCanvas(body);
+  const priceOptionId =
+    body.priceOptionId === undefined
+      ? undefined
+      : readString(body, "priceOptionId", { required: true, maxLength: 100 });
+  if (priceOptionId && !UUID_PATTERN.test(priceOptionId)) {
+    throw new ThumbnailOrderApiError("유효하지 않은 썸네일 가격 옵션입니다.");
+  }
   const sourceFileIds = readUuidArray(
     body,
     "sourceFileIds",
@@ -342,6 +359,7 @@ export const parseThumbnailOrderUpdate = (
       body.depositorName === undefined
         ? undefined
         : readString(body, "depositorName", { required: true, maxLength: 200 }),
+    priceOptionId,
     sourceFileIds,
     referenceFileIds,
   };
@@ -389,6 +407,26 @@ export const assertThumbnailOrderSubmissionEnabled =
       throw new ThumbnailOrderApiError(status.message, 409);
     }
   };
+
+export const getEnabledThumbnailPriceOption = async (priceOptionId: string) => {
+  const { data, error } = await supabaseAdminServer
+    .from("price_options")
+    .select("id, label, price")
+    .eq("id", priceOptionId)
+    .eq("category", "thumbnail")
+    .eq("is_enabled", true)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) {
+    throw new ThumbnailOrderApiError(
+      "선택한 썸네일 가격 옵션을 사용할 수 없습니다.",
+      409,
+    );
+  }
+
+  return data;
+};
 
 const validateFilesForRole = (
   files: StoredFile[],

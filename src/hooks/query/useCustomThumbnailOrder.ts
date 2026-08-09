@@ -11,10 +11,11 @@ export const useThumbnailCustomOrderHistory = () =>
     gcTime: 10 * 60 * 1000,
   });
 
-export const useEstimatedThumbnailCustomOrderDeadline = () =>
+export const useEstimatedThumbnailCustomOrderDeadline = (enabled = true) =>
   useQuery({
     queryKey: queryKeys.customOrder.estimatedDeadline("thumbnail"),
     queryFn: () => CustomThumbnailOrderService.getEstimatedDeadline(),
+    enabled,
     staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
   });
