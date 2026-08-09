@@ -7,10 +7,9 @@ import BackButton from "@/components/BackButton";
 import ArtistProfileManagement from "@/components/my-page/ArtistProfileManagement";
 import { UserTemplateSection } from "@/components/my-page/user-template-section";
 import CustomOrderForm from "@/components/shop/CustomOrderForm";
-import CustomOrderHistory from "@/components/shop/CustomOrderHistory";
+import CustomOrderFeed from "@/components/shop/CustomOrderFeed";
 import OrderDetailsModal from "@/components/shop/OrderDetailsModal";
 import PurchaseHistory from "@/components/shop/PurchaseHistory";
-import ThumbnailCustomOrderHistory from "@/components/shop/ThumbnailCustomOrderHistory";
 
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -551,14 +550,11 @@ const MyPageContent = () => {
                 {activeTab === "purchases" && <PurchaseHistory />}
 
                 {activeTab === "custom-orders" && (
-                  <>
-                    <CustomOrderHistory
-                      onEditOrder={handleEditOrder}
-                      onCancelOrder={handleCancelOrder}
-                      onViewDetails={handleViewDetails}
-                    />
-                    <ThumbnailCustomOrderHistory />
-                  </>
+                  <CustomOrderFeed
+                    onEditTimetableOrder={handleEditOrder}
+                    onCancelTimetableOrder={handleCancelOrder}
+                    onViewTimetableOrder={handleViewDetails}
+                  />
                 )}
 
                 {activeTab === "artist-profile" && artistProfile && (

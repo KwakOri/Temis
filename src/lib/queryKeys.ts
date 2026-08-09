@@ -38,6 +38,7 @@ export const queryKeys = {
       [...queryKeys.customOrder.all, "history", kind] as const,
     orders: (kind: "timetable" | "thumbnail" = "timetable") =>
       [...queryKeys.customOrder.all, "orders", kind] as const,
+    feed: () => [...queryKeys.customOrder.all, "feed"] as const,
     estimatedDeadline: (kind: "timetable" | "thumbnail" = "timetable") =>
       [...queryKeys.customOrder.all, "estimatedDeadline", kind] as const,
   },

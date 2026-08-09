@@ -34,6 +34,9 @@ export const useSubmitThumbnailCustomOrder = () => {
         queryKey: queryKeys.customOrder.orders("thumbnail"),
       });
       queryClient.invalidateQueries({
+        queryKey: queryKeys.customOrder.feed(),
+      });
+      queryClient.invalidateQueries({
         queryKey: queryKeys.customOrder.estimatedDeadline("thumbnail"),
       });
       queryClient.invalidateQueries({ queryKey: ["orderFiles"] });
@@ -53,6 +56,9 @@ export const useCancelThumbnailCustomOrder = () => {
       });
       queryClient.invalidateQueries({
         queryKey: queryKeys.customOrder.orders("thumbnail"),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.customOrder.feed(),
       });
       queryClient.invalidateQueries({
         queryKey: queryKeys.customOrder.estimatedDeadline("thumbnail"),
