@@ -15,26 +15,14 @@ export const useApprovePurchaseRequest = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      requestId,
-      templateId,
-      userId,
-      planId,
-    }: {
-      requestId: string;
-      templateId: string;
-      userId: number;
-      planId: string;
-    }) =>
-      AdminPurchaseService.approvePurchaseRequest(
-        requestId,
-        templateId,
-        userId,
-        planId
-      ),
+    mutationFn: (requestId: string) =>
+      AdminPurchaseService.approvePurchaseRequest(requestId),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.admin.purchaseRequests(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.user.templates(),
       });
     },
   });

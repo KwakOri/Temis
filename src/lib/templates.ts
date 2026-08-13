@@ -1,5 +1,9 @@
+import { JWTPayload } from "@/lib/auth/jwt";
 import { Tables, TablesInsert, TablesUpdate } from "@/types/supabase";
-import { supabase } from "./supabase";
+// This module is only imported from server API routes (never bundled into the
+// browser). It uses the service-role client so template_access/templates reads
+// don't depend on anon/authenticated table grants, which step 9 revokes.
+import { supabaseAdminServer as supabase } from "@/lib/supabase-admin-server";
 
 type Template = Tables<"templates">;
 type TemplateAccess = Tables<"template_access">;
@@ -118,10 +122,13 @@ export class TemplateService {
         return false;
       }
 
-      // 1. 먼저 템플릿이 공개되어 있는지 확인
+      // 1. 템플릿이 발행 상태인지 확인한다.
+      // is_public은 상품 분류(일반 판매/개인 맞춤)일 뿐 이용 권한이 아니므로
+      // 여기서 즉시 접근을 허용하지 않는다. 이용 권한은 template_access와
+      // template_artists 연결로만 판정한다.
       const { data: templateData, error: templateError } = await supabase
         .from("templates")
-        .select("is_public")
+        .select("status")
         .eq("id", templateId)
         .single();
 
@@ -129,9 +136,8 @@ export class TemplateService {
         return false;
       }
 
-      // 공개 템플릿이면 접근 허용
-      if (templateData?.is_public) {
-        return true;
+      if (templateData?.status !== "published") {
+        return false;
       }
 
       // 2. template_access 테이블에서 권한 확인
@@ -172,6 +178,40 @@ export class TemplateService {
       console.error("Error checking template access:", error);
       return false;
     }
+  }
+
+  /**
+   * 공통 이용 권한 판정 (관리자 우회 포함).
+   * `/api/template-access`와 사용자 실행 API가 동일한 판정 경로를 쓰도록 공유한다.
+   */
+  static async resolveEntitlement(
+    templateId: string,
+    user: Pick<JWTPayload, "userId" | "email" | "role">
+  ): Promise<{
+    hasAccess: boolean;
+    isAdmin: boolean;
+    reason: "admin_access" | "template_access" | "no_access";
+  }> {
+    const adminEmails =
+      process.env.ADMIN_EMAILS?.split(",").map((email) => email.trim()) || [];
+    const isAdmin =
+      user.role === "admin" ||
+      Boolean(user.email && adminEmails.includes(user.email));
+
+    if (isAdmin) {
+      return { hasAccess: true, isAdmin: true, reason: "admin_access" };
+    }
+
+    const hasAccess = await TemplateService.hasAccess(
+      templateId,
+      String(user.userId)
+    );
+
+    return {
+      hasAccess,
+      isAdmin: false,
+      reason: hasAccess ? "template_access" : "no_access",
+    };
   }
 }
 

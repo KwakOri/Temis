@@ -19,12 +19,113 @@
   --color-timetable-form-bg: #f5f0ed;
 }
 
+.studio-runtime-theme,
+.template-studio-runtime-theme {
+  --runtime-primary: #fd9319;
+  --runtime-primary-hover: #e58615;
+  --runtime-primary-soft: rgba(253, 147, 25, 0.14);
+  --runtime-focus: rgba(253, 147, 25, 0.48);
+  --runtime-form-bg: #f5f0ed;
+  --runtime-card-bg: #ece3e1;
+  --runtime-input-bg: #dcd0c6;
+  --runtime-input-hover: #e0d8d0;
+  --runtime-canvas-bg: #0a0f1a;
+  --runtime-border: #e2d4c4;
+  --runtime-border-strong: #cfb9a8;
+  --runtime-fg: #1b1612;
+  --runtime-fg-muted: #6b625d;
+  --runtime-fg-subtle: #8b817b;
+  --runtime-danger: #dc2626;
+  --runtime-danger-hover: #b91c1c;
+  --runtime-disabled-opacity: 0.45;
+  --runtime-shadow-card: 0 2px 3.4px rgba(0, 0, 0, 0.08);
+  --runtime-shadow-overlay: 0 12px 30px rgba(0, 0, 0, 0.24);
+}
+
+.v2-dark-form-theme {
+  --color-timetable-card-bg: #1b212c;
+  --color-timetable-card-border: #303848;
+  --color-timetable-input-bg: #262f3d;
+  --color-timetable-input-hover: #2f3a4b;
+  --color-timetable-form-bg: #121722;
+  --timetable-card-title-color: #e8edf6;
+
+  color: #e8edf6;
+  background-color: var(--color-timetable-form-bg);
+}
+
+.v2-template-theme {
+  --color-timetable-primary: #4f8cff;
+  --color-timetable-primary-hover: #3d79f2;
+}
+
+.v2-dark-form-theme :is(.bg-white, .bg-gray-50, .bg-gray-100) {
+  background-color: #1b212c !important;
+}
+
+.v2-dark-form-theme :is(.border-gray-100, .border-gray-200, .border-gray-300) {
+  border-color: #303848 !important;
+}
+
+.v2-dark-form-theme :is(.text-gray-900, .text-gray-800, .text-gray-700) {
+  color: #e8edf6 !important;
+}
+
+.v2-dark-form-theme :is(.text-gray-600, .text-gray-500) {
+  color: #b8c3d7 !important;
+}
+
+.v2-dark-form-theme :is(.text-gray-400, .text-gray-300) {
+  color: #8a96ac !important;
+}
+
+.v2-dark-form-theme :is(input, textarea, select) {
+  color: inherit;
+}
+
+.v2-dark-form-theme
+  :is(input:not([type="color"]):not([type="checkbox"]):not([type="radio"])) {
+  border-color: #3a4353;
+  background-color: var(--color-timetable-input-bg);
+}
+
+.v2-dark-form-theme textarea,
+.v2-dark-form-theme select {
+  border-color: #3a4353;
+  background-color: var(--color-timetable-input-bg);
+}
+
+.v2-dark-form-theme :is(input, textarea)::placeholder {
+  color: #8a96ac;
+}
+
+.v2-dark-form-theme :is(.shadow-sm, .shadow-md, .shadow-lg) {
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35) !important;
+}
+
 .scrollbar-hidden::-webkit-scrollbar {
   display: none;
 }
 .scrollbar-hidden {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Space-dragging must win over node-specific editing cursors. */
+[data-studio-preview-canvas-root="true"][data-studio-pan-state="ready"] *,
+[data-studio-preview-canvas-root="true"][data-studio-pan-state="ready"]
+  *::before,
+[data-studio-preview-canvas-root="true"][data-studio-pan-state="ready"]
+  *::after {
+  cursor: grab !important;
+}
+
+[data-studio-preview-canvas-root="true"][data-studio-pan-state="dragging"] *,
+[data-studio-preview-canvas-root="true"][data-studio-pan-state="dragging"]
+  *::before,
+[data-studio-preview-canvas-root="true"][data-studio-pan-state="dragging"]
+  *::after {
+  cursor: grabbing !important;
 }
 
 .scrollbar-hide::-webkit-scrollbar {
@@ -58,6 +159,67 @@
 .scrollbar-thin {
   scrollbar-width: thin;
   scrollbar-color: #d1d5db transparent;
+}
+
+/* Template Studio editor panels */
+.template-studio-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--inspector-scrollbar-thumb)
+    var(--inspector-scrollbar-track);
+}
+
+.template-studio-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.template-studio-scrollbar::-webkit-scrollbar-track {
+  background: var(--inspector-scrollbar-track);
+}
+
+.template-studio-scrollbar::-webkit-scrollbar-thumb {
+  min-height: 48px;
+  border: 2px solid var(--inspector-scrollbar-track);
+  border-radius: 999px;
+  background: var(--inspector-scrollbar-thumb);
+}
+
+.template-studio-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--inspector-scrollbar-thumb-hover);
+}
+
+.studio-hex-color-hue {
+  appearance: none;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    #ff0000,
+    #ffff00,
+    #00ff00,
+    #00ffff,
+    #0000ff,
+    #ff00ff,
+    #ff0000
+  );
+  outline: none;
+}
+
+.studio-hex-color-hue::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  appearance: none;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.65);
+}
+
+.studio-hex-color-hue::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.65);
 }
 
 @keyframes slideLoop {
@@ -98,7 +260,8 @@
   /* 단일 transform으로 통합하여 성능 최적화 */
   transform: translateZ(0) scale(1.05);
   /* 그림자 강도만 조절 (새로운 계산 없음) */
-  box-shadow: 0 10px 10px -5px rgba(0, 0, 0, 0.15),
+  box-shadow:
+    0 10px 10px -5px rgba(0, 0, 0, 0.15),
     0 10px 10px -5px rgba(0, 0, 0, 0.04);
   z-index: 50;
 }

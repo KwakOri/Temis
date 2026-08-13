@@ -1,23 +1,43 @@
 "use client";
 
 import BackButton from "@/components/BackButton";
+import { TemplateCover } from "@/components/templates/template-cover";
+import { TemplateKindBadge } from "@/components/templates/template-kind-badge";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAdminOptions } from "@/hooks/query/useAdminOptions";
 import {
   usePublicTemplates,
   useUserTemplateAccess,
 } from "@/hooks/query/useShop";
 import { SortOrder } from "@/types/shop";
-import Image from "next/image";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { MouseEvent, useMemo, useState } from "react";
+import { KeyboardEvent, Suspense, useMemo, useState } from "react";
+import {
+  resolveConsumerTemplateCover,
+  resolveConsumerTemplateKind,
+} from "@/utils/templates/consumer-template";
 
-export default function ShopPage() {
+type ShopSection = "timetable" | "thumbnail";
+
+const SHOP_SECTIONS: readonly {
+  value: ShopSection;
+  label: string;
+}[] = [
+  { value: "timetable", label: "시간표" },
+  { value: "thumbnail", label: "썸네일" },
+];
+
+const resolveShopSection = (value: string | null): ShopSection =>
+  value === "thumbnail" ? "thumbnail" : "timetable";
+
+function ShopPageContent() {
   const { user } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
+  const shopSection = resolveShopSection(searchParams.get("kind"));
   const [showOnlyUnpurchased, setShowOnlyUnpurchased] = useState(false);
-  const { data: generalOptions, isLoading: isLoadingGeneralOptions } =
-    useAdminOptions("general");
 
   // React Query hooks
   const {
@@ -27,35 +47,85 @@ export default function ShopPage() {
   } = usePublicTemplates(sortOrder);
   const { data: accessibleTemplateIds = [], isLoading: accessLoading } =
     useUserTemplateAccess(user?.id);
-  const isCustomOrderEnabled = generalOptions?.some(
-    (opt) => opt.value === "custom_timetable_orders" && opt.is_enabled
-  );
-  const isCustomOrderUnavailable =
-    isLoadingGeneralOptions || !isCustomOrderEnabled;
-
   const loading =
     templatesLoading || (showOnlyUnpurchased && user && accessLoading);
 
   const filteredTemplates = useMemo(() => {
-    if (showOnlyUnpurchased && user) {
-      return templates.filter(
-        (template) => !accessibleTemplateIds.includes(template.template_id!)
+    return templates.filter((template) => {
+      const kind = resolveConsumerTemplateKind(
+        template.templates.template_engine,
+        template.templates.template_kind,
       );
-    }
-    return templates;
-  }, [templates, showOnlyUnpurchased, user, accessibleTemplateIds]);
 
-  const handleCustomOrderBannerClick = (e: MouseEvent<HTMLAnchorElement>) => {
-    if (isLoadingGeneralOptions) {
-      e.preventDefault();
-      return;
+      if (!kind || kind !== shopSection) {
+        return false;
+      }
+
+      if (showOnlyUnpurchased && user) {
+        return !accessibleTemplateIds.includes(template.template_id!);
+      }
+
+      return true;
+    });
+  }, [
+    templates,
+    shopSection,
+    showOnlyUnpurchased,
+    user,
+    accessibleTemplateIds,
+  ]);
+
+  const handleShopSectionChange = (section: ShopSection) => {
+    if (section === shopSection) return;
+
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+    if (section === "timetable") {
+      nextSearchParams.delete("kind");
+    } else {
+      nextSearchParams.set("kind", section);
     }
 
-    if (!isCustomOrderEnabled) {
-      e.preventDefault();
-      alert("현재는 주문이 마감된 상태입니다.");
-    }
+    const queryString = nextSearchParams.toString();
+    router.push(queryString ? `${pathname}?${queryString}` : pathname, {
+      scroll: false,
+    });
   };
+
+  const handleShopSectionKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    section: ShopSection,
+  ) => {
+    const currentIndex = SHOP_SECTIONS.findIndex(
+      (item) => item.value === section,
+    );
+    let nextIndex: number | null = null;
+
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      nextIndex = (currentIndex + 1) % SHOP_SECTIONS.length;
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      nextIndex =
+        (currentIndex - 1 + SHOP_SECTIONS.length) % SHOP_SECTIONS.length;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = SHOP_SECTIONS.length - 1;
+    }
+
+    if (nextIndex === null) return;
+
+    event.preventDefault();
+    const nextSection = SHOP_SECTIONS[nextIndex].value;
+    handleShopSectionChange(nextSection);
+    requestAnimationFrame(() => {
+      document.getElementById(`shop-tab-${nextSection}`)?.focus();
+    });
+  };
+
+  const emptyTemplateMessage = showOnlyUnpurchased
+    ? "구매하지 않은 템플릿이 없습니다."
+    : shopSection === "thumbnail"
+      ? "현재 판매 중인 썸네일 템플릿이 없습니다."
+      : "현재 판매 중인 시간표 템플릿이 없습니다.";
 
   if (loading) {
     return (
@@ -99,12 +169,7 @@ export default function ShopPage() {
         {/* Custom Order 링크 배너 */}
         <Link
           href="/custom-order"
-          onClick={handleCustomOrderBannerClick}
-          className={`block mb-6 bg-gradient-to-r from-primary to-secondary rounded-2xl shadow-lg transition-all duration-300 overflow-hidden group ${
-            isCustomOrderUnavailable
-              ? "opacity-75 cursor-not-allowed"
-              : "hover:shadow-xl"
-          }`}
+          className="group block mb-6 overflow-hidden rounded-2xl bg-gradient-to-r from-primary to-secondary shadow-lg transition-all duration-300 hover:shadow-xl"
         >
           <div className="p-6 md:p-8 flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -125,10 +190,10 @@ export default function ShopPage() {
               </div>
               <div>
                 <h3 className="text-xl md:text-2xl font-bold text-white mb-1">
-                  맞춤형 시간표 제작
+                  맞춤형 디자인 제작
                 </h3>
                 <p className="text-white/90 text-sm md:text-base">
-                  나만의 독특한 디자인으로 시간표를 만들어보세요
+                  시간표와 썸네일을 나만의 디자인으로 제작해보세요
                 </p>
               </div>
             </div>
@@ -171,12 +236,51 @@ export default function ShopPage() {
               템플릿 상점
             </h1>
             <p className="text-dark-gray/70">
-              다양한 시간표 템플릿을 둘러보고 구매하세요
+              시간표와 썸네일 템플릿을 종류별로 둘러보고 구매하세요
             </p>
           </div>
 
           {/* 컨텐츠 영역 */}
-          <>
+          <div
+            role="tablist"
+            aria-label="상점 상품 종류"
+            className="mb-6 flex justify-center gap-2 border-b border-tertiary"
+          >
+            {SHOP_SECTIONS.map((section) => {
+              const isSelected = section.value === shopSection;
+
+              return (
+                <button
+                  key={section.value}
+                  id={`shop-tab-${section.value}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={isSelected}
+                  aria-controls="shop-panel"
+                  tabIndex={isSelected ? 0 : -1}
+                  onClick={() => handleShopSectionChange(section.value)}
+                  onKeyDown={(event) =>
+                    handleShopSectionKeyDown(event, section.value)
+                  }
+                  className={`min-w-24 border-b-2 px-5 py-3 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+                    isSelected
+                      ? "border-primary text-primary"
+                      : "border-transparent text-dark-gray/60 hover:border-primary/40 hover:text-dark-gray"
+                  }`}
+                >
+                  {section.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div
+            role="tabpanel"
+            id="shop-panel"
+            aria-labelledby={`shop-tab-${shopSection}`}
+            tabIndex={0}
+            className="outline-none"
+          >
             {/* 정렬 및 필터 컨트롤 */}
             <div className="mb-6 flex flex-wrap gap-4 items-center justify-center">
               <div className="flex items-center space-x-2">
@@ -215,107 +319,120 @@ export default function ShopPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredTemplates.map((template) => (
-                <Link
-                  key={template.id}
-                  href={`/shop/${template.template_id}`}
-                  className="group block bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-tertiary hover:border-primary/50"
-                >
-                  <div className="aspect-video bg-timetable-input-bg rounded-t-2xl overflow-hidden">
-                    <Image
-                      src={
-                        template.templates.thumbnail_url ||
-                        `/thumbnail/${template.template_id}.png`
-                      }
+              {filteredTemplates.map((template) => {
+                const templateKind = resolveConsumerTemplateKind(
+                  template.templates.template_engine,
+                  template.templates.template_kind,
+                );
+
+                if (!templateKind) {
+                  return null;
+                }
+
+                const templateEngine =
+                  template.templates.template_engine === "legacy"
+                    ? "legacy"
+                    : "studio";
+                const coverUrl = resolveConsumerTemplateCover({
+                  id: template.templates.id,
+                  engine: templateEngine,
+                  kind: templateKind,
+                  thumbnailUrl: template.templates.thumbnail_url,
+                });
+                const kindLabel =
+                  templateKind === "thumbnail" ? "썸네일" : "시간표";
+                const kindDescription =
+                  templateKind === "thumbnail"
+                    ? "방송·SNS용 이미지를 만드는 템플릿"
+                    : "방송 일정과 메모를 정리하는 시간표 템플릿";
+                const primaryArtist =
+                  template.template_artists?.find((item) => item.is_primary)
+                    ?.artist || template.template_artists?.[0]?.artist;
+
+                return (
+                  <Link
+                    key={template.id}
+                    href={`/shop/${template.template_id}`}
+                    className="group block bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-tertiary hover:border-primary/50"
+                  >
+                    <TemplateCover
+                      src={coverUrl}
                       alt={template.templates.name || "템플릿"}
-                      width={400}
-                      height={225}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = "none";
-                        const parent = target.parentElement;
-                        if (parent) {
-                          parent.innerHTML =
-                            '<div class="w-full h-full flex items-center justify-center text-dark-gray/40">썸네일 이미지 없음</div>';
-                        }
-                      }}
+                      kind={templateKind}
+                      className="aspect-video rounded-t-2xl group-hover:scale-[1.02] transition-transform duration-300"
                     />
-                  </div>
 
-                  <div className="p-6">
-                    {(() => {
-                      const primaryArtist =
-                        template.template_artists?.find((item) => item.is_primary)
-                          ?.artist ||
-                        template.template_artists?.[0]?.artist;
-
-                      return (
-                        <div className="text-xs text-slate-500 mb-1">
+                    <div className="p-6">
+                      <div className="flex flex-wrap items-center gap-2 mb-3">
+                        <TemplateKindBadge kind={templateKind} />
+                        <span className="text-xs text-slate-500">
                           작가: {primaryArtist?.name || "테미스"}
-                        </div>
-                      );
-                    })()}
-                    <h3 className="font-semibold text-lg text-dark-gray group-hover:text-primary transition-colors mb-2">
-                      {template.templates.name}
-                    </h3>
-                    <p className="text-dark-gray/70 text-sm line-clamp-2 mb-4">
-                      {template.templates.description}
-                    </p>
-                    {template.template_plans &&
-                      template.template_plans.length > 0 && (
-                        <div className="flex items-center gap-3 mb-4">
-                          {template.template_plans.find(
-                            (p) => p.plan === "lite"
-                          ) && (
-                            <div className="flex-1 bg-tertiary rounded-lg px-3 py-2">
-                              <div className="text-xs text-dark-gray/70 mb-1">
-                                LITE
+                        </span>
+                      </div>
+                      <h3 className="font-semibold text-lg text-dark-gray group-hover:text-primary transition-colors mb-2">
+                        {template.templates.name}
+                      </h3>
+                      <p className="text-dark-gray/70 text-sm line-clamp-2 mb-2">
+                        {template.templates.description || kindDescription}
+                      </p>
+                      <p className="text-xs text-dark-gray/55 mb-4">
+                        {kindDescription}
+                      </p>
+                      {template.template_plans &&
+                        template.template_plans.length > 0 && (
+                          <div className="flex items-center gap-3 mb-4">
+                            {template.template_plans.find(
+                              (p) => p.plan === "lite",
+                            ) && (
+                              <div className="flex-1 bg-tertiary rounded-lg px-3 py-2">
+                                <div className="text-xs text-dark-gray/70 mb-1">
+                                  LITE
+                                </div>
+                                <div className="text-sm font-bold text-dark-gray">
+                                  ₩
+                                  {template.template_plans
+                                    .find((p) => p.plan === "lite")
+                                    ?.price?.toLocaleString()}
+                                </div>
                               </div>
-                              <div className="text-sm font-bold text-dark-gray">
-                                ₩
-                                {template.template_plans
-                                  .find((p) => p.plan === "lite")!
-                                  .price!.toLocaleString()}
+                            )}
+                            {template.template_plans.find(
+                              (p) => p.plan === "pro",
+                            ) && (
+                              <div className="flex-1 bg-secondary/20 rounded-lg px-3 py-2">
+                                <div className="text-xs text-dark-gray mb-1">
+                                  PRO
+                                </div>
+                                <div className="text-sm font-bold text-dark-gray">
+                                  ₩
+                                  {template.template_plans
+                                    .find((p) => p.plan === "pro")
+                                    ?.price?.toLocaleString()}
+                                </div>
                               </div>
-                            </div>
-                          )}
-                          {template.template_plans.find(
-                            (p) => p.plan === "pro"
-                          ) && (
-                            <div className="flex-1 bg-secondary/20 rounded-lg px-3 py-2">
-                              <div className="text-xs text-dark-gray mb-1">
-                                PRO
-                              </div>
-                              <div className="text-sm font-bold text-dark-gray">
-                                ₩
-                                {template.template_plans
-                                  .find((p) => p.plan === "pro")!
-                                  .price!.toLocaleString()}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    <div className="flex items-center text-primary text-sm font-medium">
-                      <span>자세히 보기</span>
-                      <svg
-                        className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 5l7 7-7 7"
-                        />
-                      </svg>
+                            )}
+                          </div>
+                        )}
+                      <div className="flex items-center text-primary text-sm font-medium">
+                        <span>{kindLabel} 자세히 보기</span>
+                        <svg
+                          className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                      </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
 
             {filteredTemplates.length === 0 && (
@@ -336,15 +453,30 @@ export default function ShopPage() {
                   </svg>
                 </div>
                 <p className="text-dark-gray/60 text-lg">
-                  {showOnlyUnpurchased
-                    ? "구매하지 않은 템플릿이 없습니다."
-                    : "현재 판매 중인 템플릿이 없습니다."}
+                  {emptyTemplateMessage}
                 </p>
               </div>
             )}
-          </>
+          </div>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ShopPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-primary" />
+            <p className="text-dark-gray/70">상점을 불러오는 중...</p>
+          </div>
+        </div>
+      }
+    >
+      <ShopPageContent />
+    </Suspense>
   );
 }

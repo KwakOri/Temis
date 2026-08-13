@@ -8,13 +8,19 @@ import {
   MigrationStatus,
   UpdateCustomOrderData,
 } from "@/types/admin";
+import type {
+  AdminUpdateThumbnailCustomOrderData,
+  CompleteThumbnailCustomOrderResponse,
+  ThumbnailCustomOrder,
+  ThumbnailCustomOrdersResponse,
+} from "@/types/customThumbnailOrder";
 
 export class AdminOrderService {
   private static baseUrl = "/api/admin";
 
   // Custom Orders
   static async getCustomOrders(
-    params: GetCustomOrdersParams = {}
+    params: GetCustomOrdersParams = {},
   ): Promise<GetCustomOrdersResponse> {
     const searchParams = new URLSearchParams();
 
@@ -25,7 +31,7 @@ export class AdminOrderService {
     if (params.sortOrder) searchParams.append("sortOrder", params.sortOrder);
 
     const response = await fetch(
-      `${this.baseUrl}/custom-orders?${searchParams.toString()}`
+      `${this.baseUrl}/custom-orders?${searchParams.toString()}`,
     );
 
     if (!response.ok) {
@@ -37,7 +43,7 @@ export class AdminOrderService {
 
   static async updateCustomOrder(
     orderId: string,
-    data: UpdateCustomOrderData
+    data: UpdateCustomOrderData,
   ): Promise<CustomOrder> {
     const response = await fetch(`${this.baseUrl}/custom-orders/${orderId}`, {
       method: "PUT",
@@ -55,13 +61,73 @@ export class AdminOrderService {
     return response.json();
   }
 
+  static async getThumbnailCustomOrders(
+    params: GetCustomOrdersParams = {},
+  ): Promise<ThumbnailCustomOrdersResponse> {
+    const searchParams = new URLSearchParams();
+    if (params.status) searchParams.append("status", params.status);
+    if (params.page) searchParams.append("page", params.page.toString());
+    if (params.limit) searchParams.append("limit", params.limit.toString());
+    if (params.sortBy) searchParams.append("sortBy", params.sortBy);
+    if (params.sortOrder) searchParams.append("sortOrder", params.sortOrder);
+
+    const response = await fetch(
+      `${this.baseUrl}/custom-orders/thumbnail?${searchParams.toString()}`,
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(
+        result.error || "썸네일 주문 목록을 가져오는데 실패했습니다.",
+      );
+    }
+    return result;
+  }
+
+  static async updateThumbnailCustomOrder(
+    orderId: string,
+    data: AdminUpdateThumbnailCustomOrderData,
+  ): Promise<ThumbnailCustomOrder> {
+    const response = await fetch(
+      `${this.baseUrl}/custom-orders/thumbnail/${orderId}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      },
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || "썸네일 주문 업데이트에 실패했습니다.");
+    }
+    return result.order;
+  }
+
+  static async completeThumbnailCustomOrder(
+    orderId: string,
+    resultTemplateId: string,
+  ): Promise<CompleteThumbnailCustomOrderResponse> {
+    const response = await fetch(
+      `${this.baseUrl}/custom-orders/thumbnail/${orderId}/complete`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resultTemplateId }),
+      },
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || "썸네일 주문 완료 처리에 실패했습니다.");
+    }
+    return result;
+  }
+
   // Calendar
   static async getCustomOrdersCalendar(
     startDate: string,
-    endDate: string
+    endDate: string,
   ): Promise<GetCalendarResponse> {
     const response = await fetch(
-      `${this.baseUrl}/custom-orders/calendar?startDate=${startDate}&endDate=${endDate}`
+      `${this.baseUrl}/custom-orders/calendar?startDate=${startDate}&endDate=${endDate}`,
     );
 
     if (!response.ok) {
@@ -75,10 +141,13 @@ export class AdminOrderService {
 
   static async getLegacyOrdersCalendar(
     startDate: string,
-    endDate: string
-  ): Promise<{ orders: LegacyOrder[]; dateRange: { startDate: string; endDate: string; } }> {
+    endDate: string,
+  ): Promise<{
+    orders: LegacyOrder[];
+    dateRange: { startDate: string; endDate: string };
+  }> {
     const response = await fetch(
-      `${this.baseUrl}/legacy-orders/calendar?startDate=${startDate}&endDate=${endDate}`
+      `${this.baseUrl}/legacy-orders/calendar?startDate=${startDate}&endDate=${endDate}`,
     );
 
     if (!response.ok) {
@@ -93,7 +162,7 @@ export class AdminOrderService {
   // Legacy Orders
   static async updateLegacyOrder(
     orderId: string,
-    data: UpdateCustomOrderData
+    data: UpdateCustomOrderData,
   ): Promise<LegacyOrder> {
     const response = await fetch(`${this.baseUrl}/legacy-orders/${orderId}`, {
       method: "PUT",

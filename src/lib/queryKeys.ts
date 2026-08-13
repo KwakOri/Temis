@@ -4,6 +4,7 @@ import type {
   GetRoyaltySalesParams,
   GetUsersParams,
 } from "@/types/admin";
+import type { TemplateHubListParams } from "@/types/template-hub";
 
 export const queryKeys = {
   user: {
@@ -17,13 +18,29 @@ export const queryKeys = {
       [...queryKeys.template.all, "detail", id] as const,
     shopDetail: (id: string | number) =>
       [...queryKeys.template.all, "shopDetail", id] as const,
+    v2Templates: (params?: {
+      limit?: number;
+      offset?: number;
+      search?: string;
+    }) => [...queryKeys.template.all, "v2Templates", params] as const,
+    renderConfig: (id: string | number) =>
+      [...queryKeys.template.all, "renderConfig", id] as const,
+    templateStudioPreview: (id: string | number) =>
+      [...queryKeys.template.all, "templateStudioPreview", id] as const,
+    templateStudioRuntime: (id: string | number) =>
+      [...queryKeys.template.all, "templateStudioRuntime", id] as const,
+    thumbnailStudioRuntime: (id: string | number) =>
+      [...queryKeys.template.all, "thumbnailStudioRuntime", id] as const,
   },
   customOrder: {
     all: ["customOrder"] as const,
-    history: () => [...queryKeys.customOrder.all, "history"] as const,
-    orders: () => [...queryKeys.customOrder.all, "orders"] as const,
-    estimatedDeadline: () =>
-      [...queryKeys.customOrder.all, "estimatedDeadline"] as const,
+    history: (kind: "timetable" | "thumbnail" = "timetable") =>
+      [...queryKeys.customOrder.all, "history", kind] as const,
+    orders: (kind: "timetable" | "thumbnail" = "timetable") =>
+      [...queryKeys.customOrder.all, "orders", kind] as const,
+    feed: () => [...queryKeys.customOrder.all, "feed"] as const,
+    estimatedDeadline: (kind: "timetable" | "thumbnail" = "timetable") =>
+      [...queryKeys.customOrder.all, "estimatedDeadline", kind] as const,
   },
   file: {
     all: ["file"] as const,
@@ -66,7 +83,12 @@ export const queryKeys = {
     userSchedule: (teamId: string, weekStartDate: string) =>
       [...queryKeys.team.all, "userSchedule", teamId, weekStartDate] as const,
     schedulesByWeek: (teamId: string, weekStartDate: string) =>
-      [...queryKeys.team.all, "schedulesByWeek", teamId, weekStartDate] as const,
+      [
+        ...queryKeys.team.all,
+        "schedulesByWeek",
+        teamId,
+        weekStartDate,
+      ] as const,
   },
   admin: {
     all: ["admin"] as const,
@@ -80,11 +102,36 @@ export const queryKeys = {
       [...queryKeys.admin.all, "template", templateId] as const,
     templatePlans: (templateId?: string) =>
       [...queryKeys.admin.all, "templatePlans", templateId] as const,
+    v2TemplateRenderConfig: (templateId: string) =>
+      [...queryKeys.admin.all, "v2TemplateRenderConfig", templateId] as const,
+    templateHub: () => [...queryKeys.admin.all, "templateHub"] as const,
+    templateHubList: (params?: TemplateHubListParams) =>
+      [...queryKeys.admin.templateHub(), "list", params] as const,
+    templateHubItem: (templateId: string) =>
+      [...queryKeys.admin.templateHub(), "item", templateId] as const,
+    templateStudioTemplates: (templateKind?: "timetable" | "thumbnail") =>
+      templateKind
+        ? ([
+            ...queryKeys.admin.all,
+            "templateStudioTemplates",
+            templateKind,
+          ] as const)
+        : ([...queryKeys.admin.all, "templateStudioTemplates"] as const),
+    templateStudioTemplate: (templateId: string) =>
+      [...queryKeys.admin.templateStudioTemplates(), templateId] as const,
+    templateStudioDraft: (templateId: string) =>
+      [...queryKeys.admin.templateStudioTemplate(templateId), "draft"] as const,
     customOrdersRoot: () => [...queryKeys.admin.all, "customOrders"] as const,
     customOrders: (params?: GetCustomOrdersParams) =>
       params
-        ? [...queryKeys.admin.customOrdersRoot(), params] as const
+        ? ([...queryKeys.admin.customOrdersRoot(), params] as const)
         : queryKeys.admin.customOrdersRoot(),
+    thumbnailOrdersRoot: () =>
+      [...queryKeys.admin.all, "thumbnailOrders"] as const,
+    thumbnailOrders: (params?: GetCustomOrdersParams) =>
+      params
+        ? ([...queryKeys.admin.thumbnailOrdersRoot(), params] as const)
+        : queryKeys.admin.thumbnailOrdersRoot(),
     calendarRoot: (type: "custom" | "legacy") =>
       [...queryKeys.admin.all, "calendar", type] as const,
     calendar: (type: "custom" | "legacy", startDate: string, endDate: string) =>
@@ -124,7 +171,11 @@ export const queryKeys = {
     royaltySettingsArtists: () =>
       [...queryKeys.admin.all, "royaltySettingsArtists"] as const,
     royaltySettingsArtistTemplates: (artistId?: string) =>
-      [...queryKeys.admin.all, "royaltySettingsArtistTemplates", artistId] as const,
+      [
+        ...queryKeys.admin.all,
+        "royaltySettingsArtistTemplates",
+        artistId,
+      ] as const,
     royaltySettingsTemplate: (templateId?: string) =>
       [...queryKeys.admin.all, "royaltySettingsTemplate", templateId] as const,
   },

@@ -121,7 +121,7 @@ fields: [
 fields: [
   { key: 'time', type: 'time', placeholder: '00:00', required: true },
   { key: 'task', type: 'text', placeholder: '업무명', required: true },
-  { key: 'priority', type: 'select', placeholder: '우선순위', 
+  { key: 'priority', type: 'select', placeholder: '우선순위',
     options: [
       { value: 'low', label: '낮음' },
       { value: 'high', label: '높음' }
@@ -152,7 +152,7 @@ fields: [
 
 모든 카드 설정을 settings.ts의 `CARD_INPUT_CONFIG` 한 곳에서 관리합니다:
 - 입력 필드 구성
-- 라벨 표시 여부  
+- 라벨 표시 여부
 - 오프라인 토글 설정
 
 이를 통해 일관되고 단순한 설정 관리가 가능합니다.

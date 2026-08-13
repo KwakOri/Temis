@@ -38,36 +38,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 3. 관리자 권한 확인 (이메일 직접 비교 + role 확인)
-    const adminEmails =
-      process.env.ADMIN_EMAILS?.split(",").map((email) => email.trim()) || [];
-
-    // 두 가지 방법으로 관리자 확인: role 필드 또는 이메일 매칭
-    const isUserAdminByRole = user.role === "admin";
-    const isUserAdminByEmail = user.email && adminEmails.includes(user.email);
-    const isUserAdmin = isUserAdminByRole || isUserAdminByEmail;
-
-    if (isUserAdmin) {
-      // 관리자는 모든 템플릿에 접근 가능
-
-      return NextResponse.json({
-        hasAccess: true,
-        isAdmin: true,
-        reason: "admin_access",
-      });
-    }
-
-    // 4. 일반 사용자는 template_access 테이블 확인
-    const hasTemplateAccess = await TemplateService.hasAccess(
+    // 3. 관리자 우회를 포함한 공통 이용 권한 판정
+    const entitlement = await TemplateService.resolveEntitlement(
       templateId,
-      String(user.userId)
+      user
     );
 
-    return NextResponse.json({
-      hasAccess: hasTemplateAccess,
-      isAdmin: false,
-      reason: hasTemplateAccess ? "template_access" : "no_access",
-    });
+    return NextResponse.json(entitlement);
   } catch (error) {
     console.error("Template access check error:", error);
     return NextResponse.json(

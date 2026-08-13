@@ -1,8 +1,11 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { useTabOrders } from "@/hooks/query/useTabOrder";
-import { AdminTabId, getAdminPathByTabId, getAdminTabIdBySegment } from "@/lib/adminTabs";
+import {
+  AdminTabId,
+  getAdminPathByTabId,
+  getAdminTabIdBySegment,
+} from "@/lib/adminTabs";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -13,6 +16,8 @@ import {
   FileText,
   HandCoins,
   Image,
+  LayoutList,
+  LayoutTemplate,
   Loader2,
   MailOpen,
   Menu,
@@ -25,7 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 const defaultTabs = [
   { id: "workCalendar" as AdminTabId, name: "작업 캘린더", icon: Calendar },
@@ -34,6 +39,21 @@ const defaultTabs = [
   { id: "salesStats" as AdminTabId, name: "매출 통계", icon: BarChart3 },
   { id: "settlements" as AdminTabId, name: "정산", icon: HandCoins },
   { id: "templates" as AdminTabId, name: "템플릿 관리", icon: FileText },
+  {
+    id: "templateStudio" as AdminTabId,
+    name: "Template Studio",
+    icon: LayoutTemplate,
+  },
+  {
+    id: "thumbnailStudio" as AdminTabId,
+    name: "Thumbnail Studio",
+    icon: Image,
+  },
+  {
+    id: "templateHub" as AdminTabId,
+    name: "템플릿 통합 관리 (Beta)",
+    icon: LayoutList,
+  },
   { id: "artists" as AdminTabId, name: "작가 관리", icon: UserRound },
   { id: "thumbnails" as AdminTabId, name: "썸네일 관리", icon: Image },
   { id: "portfolios" as AdminTabId, name: "포트폴리오 관리", icon: Briefcase },
@@ -61,21 +81,7 @@ export default function AdminDashboardShell({
   const activeTab = getAdminTabIdBySegment(currentSegment);
 
   const isAdmin = user?.isAdmin || false;
-  const { data: tabOrders } = useTabOrders();
-
-  const tabs = useMemo(() => {
-    if (!tabOrders || tabOrders.length === 0) {
-      return defaultTabs;
-    }
-
-    const tabMap = new Map(defaultTabs.map((tab) => [tab.id, tab]));
-
-    return tabOrders
-      .filter((order) => order.is_visible)
-      .sort((a, b) => a.order_index - b.order_index)
-      .map((order) => tabMap.get(order.tab_id as AdminTabId))
-      .filter((tab) => tab !== undefined) as typeof defaultTabs;
-  }, [tabOrders]);
+  const tabs = defaultTabs;
 
   if (loading) {
     return (

@@ -22,21 +22,11 @@ export default function PurchaseManagement() {
   const approveMutation = useApprovePurchaseRequest();
   const rejectMutation = useRejectPurchaseRequest();
 
-  const handleApprove = async (
-    requestId: string,
-    templateId: string,
-    userId: number,
-    planId: string
-  ) => {
+  const handleApprove = async (requestId: string) => {
     setProcessingId(requestId);
 
     try {
-      await approveMutation.mutateAsync({
-        requestId,
-        templateId,
-        userId,
-        planId,
-      });
+      await approveMutation.mutateAsync(requestId);
       alert("결제가 확인되고 권한이 부여되었습니다.");
     } catch (error) {
       console.error("Approval process error:", error);
@@ -192,12 +182,7 @@ export default function PurchaseManagement() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                         <button
                           onClick={() =>
-                            handleApprove(
-                              request.id,
-                              request.template_id!,
-                              request.user_id!,
-                              request.plan_id!
-                            )
+                            handleApprove(request.id)
                           }
                           disabled={processingId === request.id}
                           className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 disabled:opacity-50"
@@ -281,12 +266,7 @@ export default function PurchaseManagement() {
                     <div className="flex gap-2">
                       <button
                         onClick={() =>
-                          handleApprove(
-                            request.id,
-                            request.template_id!,
-                            request.user_id!,
-                            request.plan_id!
-                          )
+                          handleApprove(request.id)
                         }
                         disabled={processingId === request.id}
                         className="flex-1 bg-green-600 text-white px-3 py-2 rounded text-xs sm:text-sm hover:bg-green-700 disabled:opacity-50"

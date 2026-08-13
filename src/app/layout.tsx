@@ -1,5 +1,6 @@
 import MaintenanceMode from "@/components/MaintenanceMode";
 import QueryProvider from "@/components/providers/QueryProvider";
+import { PwaDevCacheCleanup } from "@/components/pwa/pwa-dev-cache-cleanup";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -76,11 +77,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="kr">
+    <html lang="ko">
       <body
         className={`${geistSans.variable} ${geistMono.variable} $antialiased`}
       >
         <QueryProvider>
+          <PwaDevCacheCleanup />
           <MaintenanceMode>
             {children}
             {/* <PWAInstallPrompt /> */}

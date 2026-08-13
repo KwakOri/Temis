@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/auth/middleware";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdminServer as supabase } from "@/lib/supabase-admin-server";
 import { NextRequest, NextResponse } from "next/server";
 import { parseRoyaltyRuleInput } from "../../../royalties/_lib";
 

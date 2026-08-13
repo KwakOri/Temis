@@ -15,7 +15,7 @@ export const usePublicTemplates = (sortOrder: SortOrder = "newest") => {
 export const useUserTemplateAccess = (userId?: string) => {
   return useQuery({
     queryKey: queryKeys.shop.userAccess(userId),
-    queryFn: () => ShopService.getUserTemplateAccess(userId!),
+    queryFn: () => ShopService.getUserTemplateAccess(),
     enabled: !!userId,
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 5 * 60 * 1000, // 5 minutes

@@ -19,7 +19,10 @@ const CardTitleVariants = cva(" font-semibold  text-[#1B1612]", {
 const CardTitle = ({ size, label }: SampleCardTitleProps) => {
   return (
     <p
-      style={{ letterSpacing: -1 }}
+      style={{
+        letterSpacing: -1,
+        color: "var(--timetable-card-title-color, #1B1612)",
+      }}
       className={cn(CardTitleVariants({ size }))}
     >
       {label}

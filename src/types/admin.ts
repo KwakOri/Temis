@@ -207,13 +207,6 @@ export interface GetCalendarResponse {
 }
 
 // Purchase Management
-export interface GrantTemplateAccessData {
-  template_id: string;
-  user_id: number;
-  access_level: "read" | "write" | "admin";
-  template_plan_id?: string; // Reference to specific plan (lite/pro) user has access to
-}
-
 export interface SendAccessGrantedEmailData {
   email: string;
   userName: string;

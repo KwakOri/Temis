@@ -1,7 +1,11 @@
-import { CardInputConfig, TDefaultCard } from "@/types/time-table/data";
+import {
+  CardInputConfig,
+  TDefaultCard,
+  TGlobalData,
+} from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { useCallback, useEffect, useMemo } from "react";
-import { getDefaultCards } from "./data";
+import { createInitialGlobalDataFromConfig, getDefaultCards } from "./data";
 import {
   clearAllTimeTableStorage,
   createAutoSave,
@@ -22,18 +26,29 @@ export const useFormPersistence = (
    */
   const loadPersistedData = useCallback(() => {
     const defaultCards = getDefaultCards({ cardInputConfig });
+    const defaultGlobalData = createInitialGlobalDataFromConfig({
+      cardInputConfig,
+    });
     const loadedData = timeTableStorage.loadAll({
       data: defaultCards,
+      globalData: defaultGlobalData,
       theme: defaultTheme,
       cardInputConfig: cardInputConfig,
     });
 
     // 데이터 안전 로드 적용
     const validatedData = timeTableStorage.loadDataSafely(loadedData.data);
+    const validatedGlobalData =
+      loadedData.globalData &&
+      typeof loadedData.globalData === "object" &&
+      !Array.isArray(loadedData.globalData)
+        ? loadedData.globalData
+        : defaultGlobalData;
 
     return {
       ...loadedData,
       data: validatedData,
+      globalData: validatedGlobalData,
     };
   }, [cardInputConfig, defaultTheme]);
 
@@ -52,9 +67,16 @@ export const useFormPersistence = (
    * 모든 데이터 한번에 저장 (CardInputConfig 포함)
    */
   const saveAll = useCallback(
-    (payload: { data: TDefaultCard[]; theme: TTheme }) => {
+    (payload: {
+      data: TDefaultCard[];
+      globalData?: TGlobalData;
+      theme: TTheme;
+    }) => {
       return timeTableStorage.saveAll({
         ...payload,
+        globalData:
+          payload.globalData ??
+          createInitialGlobalDataFromConfig({ cardInputConfig }),
         cardInputConfig: cardInputConfig,
       });
     },
@@ -107,6 +129,7 @@ export const useFormPersistence = (
  */
 export const useAutoSavePersistence = (
   data: TDefaultCard[],
+  globalData: TGlobalData,
   theme: TTheme,
   cardInputConfig: CardInputConfig,
   defaultTheme: TTheme,
@@ -120,16 +143,17 @@ export const useAutoSavePersistence = (
       createAutoSave(() => {
         saveAll({
           data,
+          globalData,
           theme,
         });
       }, autoSaveDelay),
-    [saveAll, data, theme, autoSaveDelay]
+    [saveAll, data, globalData, theme, autoSaveDelay]
   );
 
   // 데이터 변경 시 자동 저장 트리거
   useEffect(() => {
     autoSave();
-  }, [data, theme, autoSave]);
+  }, [data, globalData, theme, autoSave]);
 
   return autoSave;
 };
@@ -140,6 +164,7 @@ export const useAutoSavePersistence = (
  */
 export const useBeforeUnloadSave = (
   data: TDefaultCard[],
+  globalData: TGlobalData,
   theme: TTheme,
   cardInputConfig: CardInputConfig,
   defaultTheme: TTheme
@@ -151,6 +176,7 @@ export const useBeforeUnloadSave = (
       // 브라우저 종료/새로고침 전에 데이터 저장
       saveAll({
         data,
+        globalData,
         theme,
       });
 
@@ -164,6 +190,7 @@ export const useBeforeUnloadSave = (
       if (document.visibilityState === "hidden") {
         saveAll({
           data,
+          globalData,
           theme,
         });
       }
@@ -176,7 +203,7 @@ export const useBeforeUnloadSave = (
       window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [data, theme, saveAll]);
+  }, [data, globalData, theme, saveAll]);
 };
 
 /**

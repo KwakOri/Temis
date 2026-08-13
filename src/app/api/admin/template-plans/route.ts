@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/auth/middleware";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdminServer as supabase } from "@/lib/supabase-admin-server";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -40,14 +40,50 @@ export async function POST(request: NextRequest) {
     // shop_template이 존재하는지 확인
     const { data: shopTemplate, error: shopTemplateError } = await supabase
       .from("shop_templates")
-      .select("id")
+      .select("id, template_id")
       .eq("id", shop_template_id)
       .single();
 
-    if (shopTemplateError || !shopTemplate) {
+    if (shopTemplateError || !shopTemplate || !shopTemplate.template_id) {
       return NextResponse.json(
         { error: "상점 템플릿을 찾을 수 없습니다." },
-        { status: 404 }
+        { status: 404 },
+      );
+    }
+
+    const templateId = shopTemplate.template_id;
+    const { data: template, error: templateError } = await supabase
+      .from("templates")
+      .select("template_engine, template_kind")
+      .eq("id", templateId)
+      .single();
+
+    if (templateError || !template) {
+      return NextResponse.json(
+        { error: "상점 템플릿에 연결된 템플릿을 찾을 수 없습니다." },
+        { status: 404 },
+      );
+    }
+
+    const isThumbnailTemplate =
+      template.template_engine === "studio" &&
+      template.template_kind === "thumbnail";
+
+    if (isThumbnailTemplate && plan !== "pro") {
+      return NextResponse.json(
+        { error: "썸네일 상품은 PRO 플랜만 등록할 수 있습니다." },
+        { status: 400 },
+      );
+    }
+
+    if (
+      price !== null &&
+      price !== undefined &&
+      (typeof price !== "number" || !Number.isFinite(price) || price < 0)
+    ) {
+      return NextResponse.json(
+        { error: "가격은 0 이상의 숫자여야 합니다." },
+        { status: 400 },
       );
     }
 
@@ -69,7 +105,7 @@ export async function POST(request: NextRequest) {
         {
           error: `이미 ${plan === "pro" ? "PRO" : "LITE"} 플랜이 등록되어 있습니다.`,
         },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -79,12 +115,14 @@ export async function POST(request: NextRequest) {
       .insert({
         shop_template_id,
         plan,
-        price: price || null,
-        is_artist: is_artist || false,
-        is_memo: is_memo || false,
-        is_multi_schedule: is_multi_schedule || false,
-        is_guerrilla: is_guerrilla || false,
-        is_offline_memo: is_offline_memo || false,
+        price: price ?? null,
+        is_artist: isThumbnailTemplate ? false : Boolean(is_artist),
+        is_memo: isThumbnailTemplate ? false : Boolean(is_memo),
+        is_multi_schedule: isThumbnailTemplate
+          ? false
+          : Boolean(is_multi_schedule),
+        is_guerrilla: isThumbnailTemplate ? false : Boolean(is_guerrilla),
+        is_offline_memo: isThumbnailTemplate ? false : Boolean(is_offline_memo),
       })
       .select()
       .single();
