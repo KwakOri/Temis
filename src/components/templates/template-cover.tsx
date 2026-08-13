@@ -47,6 +47,8 @@ export function TemplateCover({
         <img
           src={src ?? undefined}
           alt={alt}
+          loading="lazy"
+          decoding="async"
           className={cn("h-full w-full object-cover", imageClassName)}
           onError={() => setImageFailed(true)}
         />
