@@ -13,7 +13,6 @@ export const THUMBNAIL_CANVAS_4K = {
 } as const;
 
 const THUMBNAIL_ORDER_OPTION = "custom_thumbnail_orders";
-const PRICING_READY_ENV = "THUMBNAIL_CUSTOM_ORDER_PRICING_READY";
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -376,26 +375,37 @@ export const isThumbnailOrderStatus = (
 
 export const getThumbnailOrderIntakeStatus =
   async (): Promise<ThumbnailOrderIntakeStatus> => {
-    const { data, error } = await supabaseAdminServer
-      .from("admin_options")
-      .select("is_enabled")
-      .eq("category", "general")
-      .eq("value", THUMBNAIL_ORDER_OPTION)
-      .limit(1)
-      .maybeSingle();
+    const [
+      { data: option, error: optionError },
+      { data: priceOptions, error: priceError },
+    ] = await Promise.all([
+      supabaseAdminServer
+        .from("admin_options")
+        .select("is_enabled")
+        .eq("category", "general")
+        .eq("value", THUMBNAIL_ORDER_OPTION)
+        .limit(1)
+        .maybeSingle(),
+      supabaseAdminServer
+        .from("price_options")
+        .select("id")
+        .eq("category", "thumbnail")
+        .eq("is_enabled", true),
+    ]);
 
-    if (error) throw error;
+    if (optionError) throw optionError;
+    if (priceError) throw priceError;
 
-    const pricingReady = process.env[PRICING_READY_ENV] === "true";
-    const accepting = Boolean(data?.is_enabled && pricingReady);
+    const pricingReady = Boolean(priceOptions?.length);
+    const accepting = Boolean(option?.is_enabled && pricingReady);
 
     return {
       accepting,
       pricingReady,
       message: accepting
         ? "썸네일 주문제작 신청이 가능합니다."
-        : data?.is_enabled && !pricingReady
-          ? "가격·추가 옵션·수정 정책 확정 전이라 실제 신청은 준비 중입니다."
+        : option?.is_enabled && !pricingReady
+          ? "공개된 썸네일 가격 옵션이 없어 실제 신청은 준비 중입니다."
           : "현재 썸네일 주문제작 접수가 준비 중입니다.",
     };
   };

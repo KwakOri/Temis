@@ -23,8 +23,8 @@ npm run dev
 npm run dev:local
 npm run dev:local:db
 
-# Clone remote data into Docker local Supabase, then start local dev
-npm run dev:local:db:sync
+# Restore remote data into Docker local Supabase (does not start Next.js)
+npm run db:restore:remote:fresh
 
 # Temis remote Supabase
 npm run dev:remote
@@ -46,7 +46,9 @@ npm run dev:remote
 
 `dev:local:db` is an explicit alias for the same local-DB dev flow.
 
-To refresh local data from the remote project, opt in explicitly:
+To refresh local data from the remote project, run the restore step explicitly.
+The restore command does not start Next.js; start the app separately after it
+finishes:
 
 1. Make sure Docker Desktop and Supabase CLI are installed.
 2. Prepare one of these remote auth options:
@@ -55,18 +57,28 @@ To refresh local data from the remote project, opt in explicitly:
 3. Run:
 
 ```bash
-npm run dev:local -- --dump
-# equivalent explicit alias:
-npm run dev:local:db:sync
+npm run db:restore:remote -- --fresh-local
+npm run dev:local
 ```
 
-Dump mode additionally:
+The restore command:
 
 - links to remote project when using token mode
-- resets local DB to current local migrations
+- reads the remote migration version and creates the dump before replacing local data
+- with `--fresh-local`, replaces only the local Supabase DB container/volume
+- resets the local schema to the remote migration version
 - dumps remote data (`public` by default)
-- imports remote data into local DB
-- applies pending local migrations again after import
+- imports remote data in one transaction
+- applies all pending local migrations and runs integrity checks
+
+`npm run dev:local:db:sync` remains an alias for the restore command. Use
+`--keep-dump` to preserve the temporary dump for inspection. Use
+`--allow-missing-tables` only when a missing table is intentionally excluded
+from the local schema; the default is to stop and require review.
+
+`--fresh-local` is destructive only to the local Supabase DB container/volume.
+It does not write to or alter the remote project, and it does not remove local
+Storage data.
 
 Tip: pass Next.js args through the command, e.g. `npm run dev:local -- -p 3001`.
 Tip: override copied schemas with `SUPABASE_REMOTE_DUMP_SCHEMAS` (comma-separated).
@@ -112,4 +124,5 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
 # temis

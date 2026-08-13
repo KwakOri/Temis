@@ -3,10 +3,12 @@ import { supabase } from "@/lib/supabase";
 import { UpdateAdminOptionInput } from "@/types/adminOption";
 import { NextRequest, NextResponse } from "next/server";
 
+const CUSTOM_THUMBNAIL_ORDER_OPTION = "custom_thumbnail_orders";
+
 // PATCH: 관리자 옵션 수정
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const adminCheck = await requireAdmin(request);
 
@@ -30,7 +32,7 @@ export async function PATCH(
       if (fetchError.code === "PGRST116") {
         return NextResponse.json(
           { error: "옵션을 찾을 수 없습니다." },
-          { status: 404 }
+          { status: 404 },
         );
       }
       throw fetchError;
@@ -53,7 +55,7 @@ export async function PATCH(
       if (duplicateOption) {
         return NextResponse.json(
           { error: "해당 카테고리에 이미 존재하는 옵션 값입니다." },
-          { status: 409 }
+          { status: 409 },
         );
       }
     }
@@ -62,15 +64,41 @@ export async function PATCH(
     const updateData: Record<string, unknown> = {};
     if (label !== undefined) updateData.label = label.trim();
     if (value !== undefined) updateData.value = value.trim();
-    if (description !== undefined) updateData.description = description?.trim() || null;
+    if (description !== undefined)
+      updateData.description = description?.trim() || null;
     if (price !== undefined) updateData.price = price;
-    if (is_discount !== undefined) updateData.is_discount = Boolean(is_discount);
+    if (is_discount !== undefined)
+      updateData.is_discount = Boolean(is_discount);
     if (is_enabled !== undefined) updateData.is_enabled = Boolean(is_enabled);
+
+    if (
+      existingOption.category === "general" &&
+      existingOption.value === CUSTOM_THUMBNAIL_ORDER_OPTION &&
+      is_enabled === true &&
+      !existingOption.is_enabled
+    ) {
+      const { count, error: pricingError } = await supabase
+        .from("price_options")
+        .select("id", { count: "exact", head: true })
+        .eq("category", "thumbnail")
+        .eq("is_enabled", true);
+
+      if (pricingError) throw pricingError;
+      if (!count) {
+        return NextResponse.json(
+          {
+            error:
+              "썸네일 가격 옵션을 하나 이상 공개한 후 접수를 활성화할 수 있습니다.",
+          },
+          { status: 409 },
+        );
+      }
+    }
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
         { error: "수정할 내용이 없습니다." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -95,7 +123,7 @@ export async function PATCH(
     console.error("Admin option update error:", error);
     return NextResponse.json(
       { error: "관리자 옵션 수정 중 오류가 발생했습니다." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -103,7 +131,7 @@ export async function PATCH(
 // DELETE: 관리자 옵션 삭제
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const adminCheck = await requireAdmin(request);
 
@@ -125,7 +153,7 @@ export async function DELETE(
       if (fetchError.code === "PGRST116") {
         return NextResponse.json(
           { error: "옵션을 찾을 수 없습니다." },
-          { status: 404 }
+          { status: 404 },
         );
       }
       throw fetchError;
@@ -149,7 +177,7 @@ export async function DELETE(
     console.error("Admin option delete error:", error);
     return NextResponse.json(
       { error: "관리자 옵션 삭제 중 오류가 발생했습니다." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

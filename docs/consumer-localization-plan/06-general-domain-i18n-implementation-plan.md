@@ -672,8 +672,9 @@ Step 5를 분리하지 않는 이유는 §13.3에 있다.
 6. npm run dev:local -- -p 3001              (포트 충돌 회피)
 ```
 
-`scripts/dev-local.cjs`는 `--dump`를 제외한 인자를 `dev:next`로 그대로 넘기므로
-포트 지정이 동작한다. `rootDir`도 워크트리 기준으로 해석된다.
+`scripts/dev-local.cjs`는 인자를 `dev:next`로 그대로 넘기므로 포트 지정이
+동작한다. 원격 데이터 복원은 별도 `npm run db:restore:remote` 명령으로 수행하며,
+`rootDir`도 워크트리 기준으로 해석된다.
 
 ### 13.3 로컬 Supabase 스택 공유
 
@@ -688,9 +689,10 @@ supabase_kong_temis  56321
 
 주의사항:
 
-- 두 워크트리가 같은 로컬 DB를 공유한다. 한쪽에서 `npm run dev:local -- --dump`를
-  실행하면 `db reset`이 돌아 **다른 쪽 데이터도 초기화된다.** 다국어 worktree에서는
-  `--dump`를 쓰지 않는다.
+- 두 워크트리가 같은 로컬 DB를 공유한다. 한쪽에서
+  `npm run db:restore:remote -- --fresh-local`을 실행하면 DB가 교체되어
+  **다른 쪽 데이터도 초기화된다.** 다국어 worktree에서는 복원 명령을 실행하지
+  않는다.
 - 다국어 작업이 translation table migration을 추가하면 공유 DB에 반영되어 Studio
   쪽에서도 보인다. 이 때문에 Step 5를 메인에서 수행한다.
 - 별도 스택을 띄우려면 `config.toml`의 `project_id`와 포트 6개를 바꿔야 하는데,

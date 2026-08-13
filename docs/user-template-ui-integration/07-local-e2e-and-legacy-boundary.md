@@ -1,6 +1,6 @@
 # 07. 로컬 E2E·회귀 검증과 레거시 경계
 
-상태: 대기  
+상태: 브라우저 자동화 1차 완료 · 수동 시각 검증 대기
 선행 조건: 01~06단계 완료
 
 ## 1. 목표
@@ -112,6 +112,30 @@ viewport별 범위를 다음처럼 제한한다.
 Playwright는 기능 성공과 route 이동을 검증한다. 픽셀 동일성이나 PNG 표현 품질은
 Playwright 성공만으로 완료 처리하지 않고 C 계층 수동 검증을 함께 요구한다.
 
+2026-08-09에 로컬 출시 후보용 브라우저 자동화를 추가했다.
+
+```bash
+npm run check:user-template-ui:browser-e2e
+```
+
+이 명령은 `fixtures-07-browser-e2e-create.sql`로 기존 고정 Legacy row를 보존한
+전용 구매자·관리자와 Studio 상품을 만들고, 실행 후
+`fixtures-07-browser-e2e-cleanup.sql`로 정리한다. 실제 Playwright 브라우저에서
+Shop 필터, Legacy/Studio 시간표/Studio 썸네일 각각의 구매 신청과 관리자 승인,
+마이페이지 반영, Legacy route 실행, 시간표 저장·새로고침 복원, 썸네일 입력과 PNG
+다운로드, 모바일 가로 overflow를 확인한다.
+
+실행 결과:
+
+```text
+07 user-template browser E2E passed
+remaining_07_users 0
+remaining_07_templates 0
+```
+
+자동화에서 제외한 crop/focus 체감, PNG 폰트·stroke·shadow·투명 배경 품질,
+다국어·실제 모바일 터치와 태블릿 시각 검증은 C 계층에서 직접 확인해야 한다.
+
 권한 계정 전환이 필요한 시나리오는 쿠키와 React Query cache가 사용자 간에
 남지 않는지도 확인한다.
 
@@ -167,8 +191,8 @@ Playwright 성공만으로 완료 처리하지 않고 C 계층 수동 검증을 
 
 ## 9. 출시 후보 체크리스트
 
-- [ ] API E2E가 세 템플릿 종류를 모두 포함한다.
-- [ ] Playwright에서 구매→승인→마이페이지→실행 핵심 흐름이 통과한다.
+- [x] API/브라우저 E2E가 세 템플릿 종류를 모두 포함한다.
+- [x] Playwright에서 구매→승인→마이페이지→실행 핵심 흐름이 통과한다.
 - [ ] 수동 시각 검증의 환경과 결과가 기록됐다.
 - [ ] 미권한·draft·archived 거부가 확인된다.
 - [ ] 정의된 viewport별 범위에 따라 UI를 실측했다.

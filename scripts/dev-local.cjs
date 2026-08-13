@@ -6,108 +6,46 @@ const path = require("node:path");
 const { spawn, spawnSync } = require("node:child_process");
 
 const rootDir = path.resolve(__dirname, "..");
-const defaultProjectRef = "ajlgjdwkjyayrnocdfpj";
-const tempDir = path.join(rootDir, "supabase", ".temp");
-const dumpFilePath = path.join(tempDir, "remote-data.sql");
 const rawArgs = process.argv.slice(2);
-const dumpRequestedByArgv = rawArgs.includes("--dump");
-const dumpRequestedByNpmConfig = toBoolean(process.env.npm_config_dump);
-const shouldSyncDump = dumpRequestedByArgv || dumpRequestedByNpmConfig;
-const passthroughArgs = rawArgs.filter((arg) => arg !== "--dump");
+const dumpRequested =
+  rawArgs.includes("--dump") || toBoolean(process.env.npm_config_dump);
+
+if (dumpRequested) {
+  console.error(
+    "[dev:local] Remote dump restore is separate from local dev. Use `npm run db:restore:remote -- --fresh-local`, then run `npm run dev:local`.",
+  );
+  process.exit(1);
+}
 
 const envFromFiles = loadEnvFiles([
   path.join(rootDir, ".env"),
   path.join(rootDir, ".env.local"),
   path.join(rootDir, ".envrc"),
 ]);
-const envForResolution = {
-  ...envFromFiles,
-  ...process.env,
-};
-
-const remoteDbUrl =
-  process.env.SUPABASE_REMOTE_DB_URL ?? envFromFiles.SUPABASE_REMOTE_DB_URL;
-const projectRef =
-  process.env.SUPABASE_PROJECT_REF ??
-  envFromFiles.SUPABASE_PROJECT_REF ??
-  defaultProjectRef;
-const resolvedAccessToken = resolveEnvReference(
-  process.env.SUPABASE_ACCESS_TOKEN ??
-    process.env.SB_TOKEN_TEMIS ??
-    envFromFiles.SUPABASE_ACCESS_TOKEN ??
-    envFromFiles.SB_TOKEN_TEMIS,
-  envForResolution
-);
-const useLinkedRemote = !remoteDbUrl;
-const defaultStartExcludes = [
-  "realtime",
-  "storage-api",
-  "imgproxy",
-  "mailpit",
-  "postgres-meta",
-  "studio",
-  "edge-runtime",
-  "logflare",
-  "vector",
-  "supavisor",
-];
 const startExcludes = (
   process.env.SUPABASE_START_EXCLUDE ??
   envFromFiles.SUPABASE_START_EXCLUDE ??
-  defaultStartExcludes.join(",")
+  [
+    "realtime",
+    "storage-api",
+    "imgproxy",
+    "mailpit",
+    "postgres-meta",
+    "studio",
+    "edge-runtime",
+    "logflare",
+    "vector",
+    "supavisor",
+  ].join(",")
 )
   .split(",")
   .map((service) => service.trim())
   .filter(Boolean);
-const remoteDumpSchemas = (
-  process.env.SUPABASE_REMOTE_DUMP_SCHEMAS ??
-  envFromFiles.SUPABASE_REMOTE_DUMP_SCHEMAS ??
-  "public"
-)
-  .split(",")
-  .map((schema) => schema.trim())
-  .filter(Boolean);
-
-if (shouldSyncDump && useLinkedRemote && !resolvedAccessToken) {
-  console.error(
-    "[dev:local] Missing remote auth. Set SB_TOKEN_TEMIS or SUPABASE_ACCESS_TOKEN (or provide SUPABASE_REMOTE_DB_URL)."
-  );
-  process.exit(1);
-}
-
-if (shouldSyncDump && remoteDumpSchemas.length === 0) {
-  console.error("[dev:local] SUPABASE_REMOTE_DUMP_SCHEMAS must include at least one schema.");
-  process.exit(1);
-}
-
-if (shouldSyncDump && resolvedAccessToken) {
-  process.env.SUPABASE_ACCESS_TOKEN = resolvedAccessToken;
-}
 
 ensureCommandAvailable("supabase");
-if (shouldSyncDump) {
-  ensureCommandAvailable("psql");
-}
 
-if (shouldSyncDump) {
-  fs.mkdirSync(tempDir, { recursive: true });
-}
-
-if (dumpRequestedByNpmConfig && !dumpRequestedByArgv) {
-  console.log(
-    "[dev:local] dump mode requested via npm config flag (--dump). Prefer `npm run dev:local -- --dump` for forward compatibility."
-  );
-}
-
-if (shouldSyncDump) {
-  console.log("[dev:local] mode=dump (reset local DB + import remote dump)");
-} else {
-  console.log("[dev:local] mode=local (reuse current local DB state)");
-}
-
-const totalSteps = shouldSyncDump ? 8 : 4;
-
-console.log(`[dev:local] 1/${totalSteps} Starting local Supabase containers...`);
+console.log("[dev:local] mode=local (reuse current local DB state)");
+console.log("[dev:local] 1/4 Starting local Supabase containers...");
 const startArgs = ["start", "--workdir", rootDir];
 for (const excludedService of startExcludes) {
   startArgs.push("--exclude", excludedService);
@@ -117,116 +55,35 @@ if (startExcludes.length > 0) {
 }
 runCommand("supabase", startArgs, { captureStdout: true });
 
-console.log(`[dev:local] 2/${totalSteps} Loading local Supabase connection info...`);
+console.log("[dev:local] 2/4 Loading local Supabase connection info...");
 const statusEnv = parseStatusOutput(
   runCommand("supabase", ["status", "-o", "env", "--workdir", rootDir], {
     captureStdout: true,
-  })
+  }),
 );
 
-const localDbUrl = statusEnv.DB_URL ?? statusEnv.POSTGRES_URL;
 const localApiUrl = statusEnv.API_URL ?? statusEnv.KONG_URL;
 const localPublishableKey = statusEnv.PUBLISHABLE_KEY;
 const localSecretKey = statusEnv.SECRET_KEY;
 
-if (!localDbUrl || !localApiUrl || !localPublishableKey || !localSecretKey) {
+if (!localApiUrl || !localPublishableKey || !localSecretKey) {
   console.error(
-    "[dev:local] Could not parse local Supabase URL, publishable key, and secret key from `supabase status -o env`."
+    "[dev:local] Could not parse local Supabase URL and keys from `supabase status -o env`.",
   );
   process.exit(1);
 }
 
-if (!shouldSyncDump) {
-  console.log("[dev:local] 3/4 Applying pending local migrations...");
-  runCommand("supabase", [
-    "migration",
-    "up",
-    "--local",
-    "--yes",
-    "--workdir",
-    rootDir,
-  ]);
-}
+console.log("[dev:local] 3/4 Applying pending local migrations...");
+runCommand("supabase", [
+  "migration",
+  "up",
+  "--local",
+  "--yes",
+  "--workdir",
+  rootDir,
+]);
 
-if (shouldSyncDump) {
-  if (useLinkedRemote) {
-    console.log(`[dev:local] 3/8 Linking to remote project (${projectRef})...`);
-    runCommand("supabase", [
-      "link",
-      "--project-ref",
-      projectRef,
-      "--workdir",
-      rootDir,
-    ]);
-  } else {
-    console.log("[dev:local] 3/8 Using SUPABASE_REMOTE_DB_URL as remote source...");
-  }
-
-  console.log("[dev:local] 4/8 Resetting local DB to clean baseline...");
-  runCommand("supabase", [
-    "db",
-    "reset",
-    "--local",
-    "--no-seed",
-    "--yes",
-    "--workdir",
-    rootDir,
-  ]);
-
-  console.log("[dev:local] 5/8 Dumping remote data...");
-  const dataDumpArgs = [
-    "db",
-    "dump",
-    "--data-only",
-    "--use-copy",
-    "--file",
-    dumpFilePath,
-    "--workdir",
-    rootDir,
-  ];
-  if (useLinkedRemote) {
-    dataDumpArgs.push("--linked");
-  } else {
-    dataDumpArgs.push("--db-url", remoteDbUrl);
-  }
-  for (const schema of remoteDumpSchemas) {
-    dataDumpArgs.push("--schema", schema);
-  }
-  runCommand("supabase", dataDumpArgs);
-
-  console.log("[dev:local] 6/8 Importing remote data...");
-  const dumpTables = extractCopyTablesFromDump(dumpFilePath);
-  if (dumpTables.length > 0) {
-    const truncateSql = `TRUNCATE TABLE ${dumpTables.join(
-      ", "
-    )} RESTART IDENTITY CASCADE;`;
-    console.log(
-      `[dev:local]    Truncating ${dumpTables.length} table(s) before import to avoid duplicate key conflicts...`
-    );
-    runCommand("psql", [
-      localDbUrl,
-      "-v",
-      "ON_ERROR_STOP=1",
-      "-q",
-      "-c",
-      truncateSql,
-    ]);
-  }
-  runCommand("psql", [localDbUrl, "-v", "ON_ERROR_STOP=1", "-q", "-f", dumpFilePath]);
-
-  console.log("[dev:local] 7/8 Applying pending local migrations...");
-  runCommand("supabase", [
-    "migration",
-    "up",
-    "--local",
-    "--yes",
-    "--workdir",
-    rootDir,
-  ]);
-  syncLocalDerivedData(localDbUrl);
-}
-
-console.log(`[dev:local] ${totalSteps}/${totalSteps} Starting Next.js with local Supabase keys...`);
+console.log("[dev:local] 4/4 Starting Next.js with local Supabase keys...");
 const devEnv = {
   ...process.env,
   SUPABASE_URL: localApiUrl,
@@ -235,7 +92,7 @@ const devEnv = {
   SUPABASE_SECRET_KEY: localSecretKey,
 };
 
-const devProcess = spawn("npm", ["run", "dev:next", "--", ...passthroughArgs], {
+const devProcess = spawn("npm", ["run", "dev:next", "--", ...rawArgs], {
   cwd: rootDir,
   env: devEnv,
   stdio: "inherit",
@@ -263,7 +120,9 @@ function runCommand(command, args, options = {}) {
   });
 
   if (result.error) {
-    console.error(`[dev:local] Failed to run \`${command}\`: ${result.error.message}`);
+    console.error(
+      `[dev:local] Failed to run \`${command}\`: ${result.error.message}`,
+    );
     process.exit(1);
   }
 
@@ -319,9 +178,7 @@ function loadEnvFiles(filePaths) {
 
 function parseEnvFile(content) {
   const parsed = {};
-  const lines = content.split(/\r?\n/);
-
-  for (const line of lines) {
+  for (const line of content.split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
 
@@ -333,7 +190,6 @@ function parseEnvFile(content) {
 
     const key = normalized.slice(0, separatorIndex).trim();
     let value = normalized.slice(separatorIndex + 1).trim();
-
     if (
       (value.startsWith('"') && value.endsWith('"')) ||
       (value.startsWith("'") && value.endsWith("'"))
@@ -345,95 +201,12 @@ function parseEnvFile(content) {
         value = value.slice(0, inlineCommentIndex).trim();
       }
     }
-
     parsed[key] = value;
   }
-
   return parsed;
-}
-
-function extractCopyTablesFromDump(filePath) {
-  if (!fs.existsSync(filePath)) return [];
-
-  const lines = fs.readFileSync(filePath, "utf8").split(/\r?\n/);
-  const tables = new Set();
-
-  for (const line of lines) {
-    const match = line.match(/^COPY\s+([^\s(]+)\s+\(/);
-    if (!match) continue;
-
-    const tableName = match[1]?.trim();
-    if (tableName) {
-      tables.add(tableName);
-    }
-  }
-
-  return Array.from(tables);
-}
-
-function syncLocalDerivedData(localDbUrl) {
-  console.log("[dev:local]    Syncing local derived data...");
-  runCommand("psql", [
-    localDbUrl,
-    "-v",
-    "ON_ERROR_STOP=1",
-    "-q",
-    "-c",
-    `
-      INSERT INTO public.template_sale_royalties (
-        template_sale_id,
-        artist_id,
-        artist_name_snapshot,
-        royalty_amount,
-        status
-      )
-      SELECT
-        ts.id,
-        a.id,
-        a.name,
-        0,
-        'unpaid'
-      FROM public.template_sales ts
-      JOIN public.template_artists ta
-        ON ta.template_id = ts.template_id
-      JOIN public.artists a
-        ON a.id = ta.artist_id
-      WHERE ts.status = 'completed'
-        AND a.is_active = true
-      ON CONFLICT (template_sale_id, artist_id) DO NOTHING;
-    `,
-  ]);
-}
-
-function resolveEnvReference(rawValue, sourceEnv) {
-  if (!rawValue) return rawValue;
-
-  let resolved = rawValue.trim();
-  const visited = new Set();
-
-  while (true) {
-    const referenceMatch = resolved.match(/^\$(\w+)$/) ?? resolved.match(/^\$\{(\w+)\}$/);
-    if (!referenceMatch) {
-      return resolved;
-    }
-
-    const key = referenceMatch[1];
-    if (visited.has(key)) {
-      return resolved;
-    }
-    visited.add(key);
-
-    const nextValue = sourceEnv[key];
-    if (!nextValue || typeof nextValue !== "string") {
-      return resolved;
-    }
-
-    resolved = nextValue.trim();
-  }
 }
 
 function toBoolean(value) {
   if (typeof value !== "string") return false;
-  const normalized = value.trim().toLowerCase();
-  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+  return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
 }

@@ -3,6 +3,8 @@ import { supabase } from "@/lib/supabase";
 import { CreateAdminOptionInput } from "@/types/adminOption";
 import { NextRequest, NextResponse } from "next/server";
 
+const CUSTOM_THUMBNAIL_ORDER_OPTION = "custom_thumbnail_orders";
+
 // GET: 모든 관리자 옵션 조회 (카테고리별 필터링 가능)
 export async function GET(request: NextRequest) {
   const adminCheck = await requireAdmin(request);
@@ -39,7 +41,7 @@ export async function GET(request: NextRequest) {
     console.error("Admin options fetch error:", error);
     return NextResponse.json(
       { error: "관리자 옵션 목록 조회 중 오류가 발생했습니다." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -54,27 +56,35 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: CreateAdminOptionInput = await request.json();
-    const { category, label, value, description, price, is_discount, is_enabled } = body;
+    const {
+      category,
+      label,
+      value,
+      description,
+      price,
+      is_discount,
+      is_enabled,
+    } = body;
 
     // 입력 검증
     if (!category || category.trim().length === 0) {
       return NextResponse.json(
         { error: "카테고리는 필수입니다." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!label || label.trim().length === 0) {
       return NextResponse.json(
         { error: "옵션 이름은 필수입니다." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!value || value.trim().length === 0) {
       return NextResponse.json(
         { error: "옵션 값은 필수입니다." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -94,7 +104,7 @@ export async function POST(request: NextRequest) {
     if (existingOption) {
       return NextResponse.json(
         { error: "해당 카테고리에 이미 존재하는 옵션 값입니다." },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -108,6 +118,29 @@ export async function POST(request: NextRequest) {
       is_discount: Boolean(is_discount),
       is_enabled: is_enabled !== undefined ? Boolean(is_enabled) : true,
     };
+
+    if (
+      optionData.category === "general" &&
+      optionData.value === CUSTOM_THUMBNAIL_ORDER_OPTION &&
+      optionData.is_enabled
+    ) {
+      const { count, error: pricingError } = await supabase
+        .from("price_options")
+        .select("id", { count: "exact", head: true })
+        .eq("category", "thumbnail")
+        .eq("is_enabled", true);
+
+      if (pricingError) throw pricingError;
+      if (!count) {
+        return NextResponse.json(
+          {
+            error:
+              "썸네일 가격 옵션을 하나 이상 공개한 후 접수를 활성화할 수 있습니다.",
+          },
+          { status: 409 },
+        );
+      }
+    }
 
     const { data: newOption, error: insertError } = await supabase
       .from("admin_options")
@@ -126,13 +159,13 @@ export async function POST(request: NextRequest) {
         message: "관리자 옵션이 성공적으로 생성되었습니다.",
         option: newOption,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("Admin option creation error:", error);
     return NextResponse.json(
       { error: "관리자 옵션 생성 중 오류가 발생했습니다." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

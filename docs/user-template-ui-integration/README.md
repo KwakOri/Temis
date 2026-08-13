@@ -36,7 +36,8 @@
 
 - 원격 Supabase 미반영은 1~7단계의 시작을 막지 않는다.
 - `npm run dev:local`이 제공하는 로컬 DB·API·Auth 환경을 기준으로 작업한다.
-- 원격 데이터 복제가 필요하지 않은 작업에서는 `--dump`를 사용하지 않는다.
+- 원격 데이터 복제가 필요하지 않은 작업에서는 `npm run db:restore:remote`를
+  사용하지 않는다.
 - 원격 `db push --linked`, migration repair, rollback은 8단계 전에는 실행하지
   않는다.
 - 8단계에서도 사용자 명시 승인 없이 원격 DB를 변경하지 않는다.

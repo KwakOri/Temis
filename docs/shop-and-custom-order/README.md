@@ -37,11 +37,11 @@ v1과 v2 시간표는 내부 엔진과 실행 경로가 다르지만 `/shop`에�
 
 내부 데이터 모델은 기존처럼 엔진과 kind를 보존한다.
 
-| 소비자 상품군 | 내부 분류 | 실행 route |
-| --- | --- | --- |
-| 시간표 | `legacy` + `template_kind=null` | `/time-table/{id}` |
-| 시간표 | `studio` + `template_kind=timetable` | `/template-studio/{id}` |
-| 썸네일 | `studio` + `template_kind=thumbnail` | `/thumbnail/{id}` |
+| 소비자 상품군 | 내부 분류                            | 실행 route              |
+| ------------- | ------------------------------------ | ----------------------- |
+| 시간표        | `legacy` + `template_kind=null`      | `/time-table/{id}`      |
+| 시간표        | `studio` + `template_kind=timetable` | `/template-studio/{id}` |
+| 썸네일        | `studio` + `template_kind=thumbnail` | `/thumbnail/{id}`       |
 
 `/shop` 목록과 상품 상세에서는 시간표의 Legacy/Studio 구분을 상품 종류로
 표시하지 않는다.
@@ -511,8 +511,7 @@ type ThumbnailCustomOrderFormData = {
 };
 
 type CustomOrderFormData =
-  | TimetableCustomOrderFormData
-  | ThumbnailCustomOrderFormData;
+  TimetableCustomOrderFormData | ThumbnailCustomOrderFormData;
 ```
 
 기존 시간표 client가 `kind` 없이 보내는 요청은 호환 경로에서 시간표로 처리할 수
@@ -606,6 +605,11 @@ custom_thumbnail_order_files
 
 썸네일 가격 정책이 확정되기 전에는 `custom_thumbnail_orders` 운영 옵션을
 활성화하지 않는다.
+
+관리자는 설정 화면의 `맞춤 썸네일 가격 옵션`에서 가격 패키지를 추가·수정·공개한
+뒤 `썸네일 주문제작 접수` 토글을 켠다. 공개된 썸네일 가격 옵션이 하나도 없으면
+설정 화면과 서버 모두 접수 활성화를 차단한다. 별도 환경변수로 가격 확정 상태를
+관리하지 않는다.
 
 ### 5.8 마감일 계산
 

@@ -12,13 +12,15 @@
 ## 2. 개발 환경 원칙
 
 - 기본 실행은 `npm run dev:local`을 사용한다.
-- 현재 로컬 데이터를 재사용할 때는 `--dump`를 사용하지 않는다.
+- 현재 로컬 데이터를 재사용할 때는 원격 복원 명령을 사용하지 않는다.
 - migration은 `supabase/`의 로컬 이력을 기준으로 적용한다.
 - Realtime, Storage, Studio 등 제외된 서비스가 실제로 필요한 경우에만
   `SUPABASE_START_EXCLUDE`를 조정한다.
 - 검증 fixture는 예약된 테스트 사용자와 임시 템플릿만 사용하고 종료 시
   정리한다.
-- 원격 Supabase는 읽거나 쓰지 않는다.
+- 기본 개발/검증에서는 원격 Supabase를 읽거나 쓰지 않는다. 원격 데이터가
+  필요한 경우 별도 `npm run db:restore:remote` 복원 절차를 사용하며, 이
+  절차도 원격 DB에는 쓰지 않는다.
 
 ## 3. 확인한 schema
 
