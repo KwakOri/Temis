@@ -1,15 +1,25 @@
 import { Tables } from "@/types/supabase";
+import {
+  normalizeConsumerTemplate,
+  type ConsumerTemplateSummary,
+} from "@/utils/templates/consumer-template";
 
 type Template = Tables<"templates">;
 type TemplatePlan = Tables<"template_plans">;
 
-export interface UserTemplate {
+type AccessSource = "purchase" | "artist";
+
+interface RawUserTemplate {
   id: string | number;
   access_level: "read" | "write" | "admin";
   granted_at: string | null;
-  templates: Template;
+  templates: Template & { use_href: string };
   template_plan: TemplatePlan | null;
-  access_source?: "purchase" | "artist";
+}
+
+export interface UserTemplate extends RawUserTemplate {
+  access_source: AccessSource;
+  consumer: ConsumerTemplateSummary;
 }
 
 export interface GetUserTemplatesResponse {
@@ -20,14 +30,6 @@ export interface GetUserTemplatesResponse {
   total?: number;
 }
 
-interface RawUserTemplate {
-  id: string | number;
-  access_level: "read" | "write" | "admin";
-  granted_at: string | null;
-  templates: Template;
-  template_plan: TemplatePlan | null;
-}
-
 interface RawGetUserTemplatesResponse {
   purchase_templates: RawUserTemplate[];
   artist_templates: RawUserTemplate[];
@@ -35,6 +37,16 @@ interface RawGetUserTemplatesResponse {
   total_artist?: number;
   total?: number;
 }
+
+const normalizeRows = (
+  rows: RawUserTemplate[],
+  accessSource: AccessSource,
+): UserTemplate[] =>
+  rows.flatMap((item) => {
+    const row = { ...item, access_source: accessSource };
+    const consumer = normalizeConsumerTemplate(row);
+    return consumer ? [{ ...row, consumer }] : [];
+  });
 
 export class UserService {
   private static baseUrl = "/api/user";
@@ -49,25 +61,18 @@ export class UserService {
     }
 
     const raw = (await response.json()) as RawGetUserTemplatesResponse;
-
-    const purchaseTemplates = (raw.purchase_templates || []).map(
-      (item) => ({
-        ...item,
-        access_source: "purchase" as const,
-      })
+    const purchaseTemplates = normalizeRows(
+      raw.purchase_templates || [],
+      "purchase",
     );
-
-    const artistTemplates = (raw.artist_templates || []).map((item) => ({
-      ...item,
-      access_source: "artist" as const,
-    }));
+    const artistTemplates = normalizeRows(raw.artist_templates || [], "artist");
 
     return {
       purchase_templates: purchaseTemplates,
       artist_templates: artistTemplates,
-      total_purchase: raw.total_purchase ?? purchaseTemplates.length,
-      total_artist: raw.total_artist ?? artistTemplates.length,
-      total: raw.total ?? purchaseTemplates.length + artistTemplates.length,
+      total_purchase: purchaseTemplates.length,
+      total_artist: artistTemplates.length,
+      total: purchaseTemplates.length + artistTemplates.length,
     };
   }
 }

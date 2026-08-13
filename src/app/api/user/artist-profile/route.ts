@@ -1,5 +1,5 @@
 import { requireAuth } from "@/lib/auth/middleware";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdminServer as supabase } from "@/lib/supabase-admin-server";
 import { TablesUpdate } from "@/types/supabase";
 import { NextRequest, NextResponse } from "next/server";
 

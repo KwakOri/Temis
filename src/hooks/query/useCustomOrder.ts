@@ -36,6 +36,9 @@ export const useSubmitCustomOrder = () => {
         queryKey: queryKeys.customOrder.orders(),
       });
       queryClient.invalidateQueries({
+        queryKey: queryKeys.customOrder.feed(),
+      });
+      queryClient.invalidateQueries({
         queryKey: queryKeys.customOrder.estimatedDeadline(),
       });
       // 주문 파일 캐시도 무효화
@@ -59,6 +62,9 @@ export const useCancelCustomOrder = () => {
       });
       queryClient.invalidateQueries({
         queryKey: queryKeys.customOrder.orders(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.customOrder.feed(),
       });
       queryClient.invalidateQueries({
         queryKey: queryKeys.customOrder.estimatedDeadline(),

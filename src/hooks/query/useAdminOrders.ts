@@ -34,6 +34,66 @@ export const useUpdateCustomOrder = () => {
   });
 };
 
+export const useAdminThumbnailOrders = (params: GetCustomOrdersParams = {}) => {
+  return useQuery({
+    queryKey: queryKeys.admin.thumbnailOrders(params),
+    queryFn: () => AdminOrderService.getThumbnailCustomOrders(params),
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
+};
+
+export const useUpdateAdminThumbnailOrder = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      orderId,
+      data,
+    }: {
+      orderId: string;
+      data: import("@/types/customThumbnailOrder").AdminUpdateThumbnailCustomOrderData;
+    }) => AdminOrderService.updateThumbnailCustomOrder(orderId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.thumbnailOrdersRoot(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.customOrdersRoot(),
+      });
+    },
+  });
+};
+
+export const useCompleteThumbnailCustomOrder = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      orderId,
+      resultTemplateId,
+    }: {
+      orderId: string;
+      resultTemplateId: string;
+    }) =>
+      AdminOrderService.completeThumbnailCustomOrder(orderId, resultTemplateId),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.thumbnailOrdersRoot(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.customOrdersRoot(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.user.templates(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.shop.userAccess(String(result.access.user_id)),
+      });
+    },
+  });
+};
+
 // Alias for component compatibility
 export const useUpdateCustomOrderStatus = useUpdateCustomOrder;
 

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCreateAdminOption,
   useAdminOptionsList,
   useToggleAdminOption,
 } from "@/hooks/query/useAdminOptions";
@@ -11,6 +12,7 @@ import {
   useTogglePriceOption,
   useUpdatePriceOption,
 } from "@/hooks/query/usePriceOptions";
+import ThumbnailPriceOptionManagement from "@/components/admin/ThumbnailPriceOptionManagement";
 import { CreatePriceOptionInput, PriceOption } from "@/types/priceOption";
 import {
   AlertTriangle,
@@ -23,7 +25,6 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
-import TabOrderManagement from "./TabOrderManagement";
 
 interface PriceOptionFormData {
   label: string;
@@ -46,11 +47,14 @@ const initialFormData: PriceOptionFormData = {
 export default function SettingsManagement() {
   const [isAddingOption, setIsAddingOption] = useState(false);
   const [editingOptionId, setEditingOptionId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<PriceOptionFormData>(initialFormData);
+  const [formData, setFormData] =
+    useState<PriceOptionFormData>(initialFormData);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // React Query hooks - 가격 옵션
   const { data: timetableOptions, isLoading } = usePriceOptions("timetable");
+  const { data: thumbnailPriceOptions, isLoading: isLoadingThumbnailPrices } =
+    usePriceOptions("thumbnail");
   const createMutation = useCreatePriceOption();
   const updateMutation = useUpdatePriceOption();
   const deleteMutation = useDeletePriceOption();
@@ -59,17 +63,72 @@ export default function SettingsManagement() {
   // React Query hooks - 관리자 옵션 (일반 설정)
   const { data: generalOptions, isLoading: isLoadingGeneral } =
     useAdminOptionsList("general");
+  const createAdminOptionMutation = useCreateAdminOption();
   const toggleAdminOptionMutation = useToggleAdminOption("general");
 
   // 맞춤 시간표 접수 옵션 찾기
   const customTimetableOrdersOption = generalOptions?.find(
-    (opt) => opt.value === "custom_timetable_orders"
+    (opt) => opt.value === "custom_timetable_orders",
+  );
+
+  // 맞춤 썸네일 접수 옵션 찾기
+  const customThumbnailOrdersOption = generalOptions?.find(
+    (opt) => opt.value === "custom_thumbnail_orders",
   );
 
   // 빠른 마감 옵션 찾기
   const workFastOption = generalOptions?.find(
-    (opt) => opt.value === "work_fast"
+    (opt) => opt.value === "work_fast",
   );
+
+  const enabledThumbnailPriceCount =
+    thumbnailPriceOptions?.filter((option) => option.is_enabled).length ?? 0;
+
+  const handleCreateThumbnailOrdersOption = async () => {
+    try {
+      await createAdminOptionMutation.mutateAsync({
+        category: "general",
+        label: "썸네일 주문제작 접수",
+        value: "custom_thumbnail_orders",
+        description:
+          "공개된 썸네일 가격 옵션을 준비한 후 주문제작 접수를 활성화합니다.",
+        price: 0,
+        is_discount: false,
+        is_enabled: false,
+      });
+    } catch (error) {
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "썸네일 주문제작 설정 생성에 실패했습니다.",
+      );
+    }
+  };
+
+  const handleToggleThumbnailOrders = async () => {
+    if (!customThumbnailOrdersOption) return;
+
+    const nextEnabled = !customThumbnailOrdersOption.is_enabled;
+    if (nextEnabled && enabledThumbnailPriceCount === 0) {
+      window.alert(
+        "썸네일 가격 옵션을 하나 이상 추가하고 공개한 후 접수를 열 수 있습니다.",
+      );
+      return;
+    }
+
+    try {
+      await toggleAdminOptionMutation.mutateAsync({
+        id: customThumbnailOrdersOption.id,
+        isEnabled: nextEnabled,
+      });
+    } catch (error) {
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "썸네일 주문제작 접수 상태 변경에 실패했습니다.",
+      );
+    }
+  };
 
   const handleAddOption = () => {
     setIsAddingOption(true);
@@ -125,7 +184,7 @@ export default function SettingsManagement() {
       handleCancelEdit();
     } catch (error) {
       alert(
-        error instanceof Error ? error.message : "작업 중 오류가 발생했습니다."
+        error instanceof Error ? error.message : "작업 중 오류가 발생했습니다.",
       );
     }
   };
@@ -140,7 +199,7 @@ export default function SettingsManagement() {
       alert("옵션이 삭제되었습니다.");
     } catch (error) {
       alert(
-        error instanceof Error ? error.message : "삭제 중 오류가 발생했습니다."
+        error instanceof Error ? error.message : "삭제 중 오류가 발생했습니다.",
       );
     }
   };
@@ -155,7 +214,7 @@ export default function SettingsManagement() {
       alert(
         error instanceof Error
           ? error.message
-          : "상태 변경 중 오류가 발생했습니다."
+          : "상태 변경 중 오류가 발생했습니다.",
       );
     }
   };
@@ -167,9 +226,6 @@ export default function SettingsManagement() {
         <Settings className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
         <h2 className="text-lg sm:text-xl font-bold text-primary">설정 관리</h2>
       </div>
-
-      {/* ===== 탭 순서 관리 섹션 ===== */}
-      <TabOrderManagement />
 
       {/* ===== 일반 설정 섹션 ===== */}
       <section className="space-y-4">
@@ -186,7 +242,7 @@ export default function SettingsManagement() {
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
-        ) : customTimetableOrdersOption || workFastOption ? (
+        ) : (
           <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-200">
             {/* 맞춤 시간표 접수 옵션 */}
             {customTimetableOrdersOption && (
@@ -228,6 +284,87 @@ export default function SettingsManagement() {
               </div>
             )}
 
+            {/* 맞춤 썸네일 접수 옵션 */}
+            {customThumbnailOrdersOption && (
+              <div className="flex items-center gap-3 p-4">
+                <button
+                  type="button"
+                  onClick={handleToggleThumbnailOrders}
+                  disabled={
+                    toggleAdminOptionMutation.isPending ||
+                    isLoadingThumbnailPrices
+                  }
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                    customThumbnailOrdersOption.is_enabled
+                      ? "bg-secondary"
+                      : "bg-gray-200"
+                  }`}
+                  role="switch"
+                  aria-checked={customThumbnailOrdersOption.is_enabled}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      customThumbnailOrdersOption.is_enabled
+                        ? "translate-x-5"
+                        : "translate-x-0"
+                    }`}
+                  />
+                </button>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-gray-900 sm:text-base">
+                    {customThumbnailOrdersOption.label}
+                  </div>
+                  {customThumbnailOrdersOption.description && (
+                    <div className="mt-0.5 text-xs text-gray-500 sm:text-sm">
+                      {customThumbnailOrdersOption.description}
+                    </div>
+                  )}
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                    <span
+                      className={`rounded-full px-2 py-0.5 font-medium ${
+                        enabledThumbnailPriceCount > 0
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      {isLoadingThumbnailPrices
+                        ? "가격 확인 중"
+                        : enabledThumbnailPriceCount > 0
+                          ? "가격 준비 완료"
+                          : "가격 옵션 필요"}
+                    </span>
+                    <span className="text-gray-500">
+                      공개 가격 {enabledThumbnailPriceCount}개
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!customThumbnailOrdersOption && (
+              <div className="flex items-center gap-3 bg-amber-50 p-4">
+                <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-amber-900 sm:text-base">
+                    썸네일 주문제작 설정이 아직 등록되지 않았습니다.
+                  </div>
+                  <p className="mt-1 text-xs text-amber-700 sm:text-sm">
+                    아래 가격 옵션을 준비한 뒤 접수 설정을 만들 수 있습니다.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCreateThumbnailOrdersOption}
+                  disabled={createAdminOptionMutation.isPending}
+                  className="shrink-0 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {createAdminOptionMutation.isPending
+                    ? "생성 중..."
+                    : "설정 등록"}
+                </button>
+              </div>
+            )}
+
             {/* 빠른 마감 옵션 */}
             {workFastOption && (
               <div className="flex items-center gap-3 p-4">
@@ -240,9 +377,7 @@ export default function SettingsManagement() {
                   }
                   disabled={toggleAdminOptionMutation.isPending}
                   className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
-                    workFastOption.is_enabled
-                      ? "bg-primary"
-                      : "bg-gray-200"
+                    workFastOption.is_enabled ? "bg-primary" : "bg-gray-200"
                   }`}
                   role="switch"
                   aria-checked={workFastOption.is_enabled}
@@ -267,14 +402,6 @@ export default function SettingsManagement() {
                 </div>
               </div>
             )}
-          </div>
-        ) : (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-amber-700">
-              일반 설정 옵션이 없습니다. 데이터베이스에 초기 데이터를
-              추가해주세요.
-            </p>
           </div>
         )}
       </section>
@@ -388,7 +515,10 @@ export default function SettingsManagement() {
                     type="text"
                     value={formData.price.toLocaleString()}
                     onChange={(e) => {
-                      const numericValue = e.target.value.replace(/[^0-9]/g, "");
+                      const numericValue = e.target.value.replace(
+                        /[^0-9]/g,
+                        "",
+                      );
                       setFormData((prev) => ({
                         ...prev,
                         price: numericValue ? parseInt(numericValue, 10) : 0,
@@ -779,12 +909,13 @@ export default function SettingsManagement() {
               onClick={handleAddOption}
               className="mt-3 sm:mt-4 inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 bg-primary text-white text-sm rounded-lg hover:bg-secondary transition-colors"
             >
-              <Plus className="h-4 w-4 mr-1.5 sm:mr-2" />
-              첫 옵션 추가하기
+              <Plus className="h-4 w-4 mr-1.5 sm:mr-2" />첫 옵션 추가하기
             </button>
           </div>
         )}
       </section>
+
+      <ThumbnailPriceOptionManagement />
     </div>
   );
 }

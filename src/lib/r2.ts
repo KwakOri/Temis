@@ -1,26 +1,51 @@
 import {
+  DeleteObjectsCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-// Cloudflare R2 클라이언트 설정
-const r2Client = new S3Client({
-  region: "auto",
-  endpoint: process.env.CLOUDFLARE_R2_ENDPOINT!,
-  credentials: {
-    accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY!,
-  },
-});
+let cachedR2Client: S3Client | null = null;
+
+const getRequiredEnv = (key: string): string => {
+  const value = process.env[key];
+  if (!value || value.trim().length === 0) {
+    throw new Error(`${key} env is required.`);
+  }
+  return value.trim();
+};
+
+const getR2Client = (): S3Client => {
+  if (cachedR2Client) return cachedR2Client;
+
+  cachedR2Client = new S3Client({
+    region: "auto",
+    endpoint: getRequiredEnv("CLOUDFLARE_R2_ENDPOINT"),
+    credentials: {
+      accessKeyId: getRequiredEnv("CLOUDFLARE_R2_ACCESS_KEY_ID"),
+      secretAccessKey: getRequiredEnv("CLOUDFLARE_R2_SECRET_ACCESS_KEY"),
+    },
+  });
+
+  return cachedR2Client;
+};
+
+const getR2BucketName = (): string => getRequiredEnv("CLOUDFLARE_R2_BUCKET_NAME");
 
 export interface UploadFileResult {
   fileKey: string;
   url: string;
+}
+
+export interface R2FileObject {
+  key: string;
+  lastModified?: Date;
+  size: number;
 }
 
 function createFileKey(fileName: string, folder: string): string {
@@ -43,9 +68,9 @@ export async function uploadFileToR2(
 
   try {
     const upload = new Upload({
-      client: r2Client,
+      client: getR2Client(),
       params: {
-        Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME!,
+        Bucket: getR2BucketName(),
         Key: fileKey,
         Body: file,
         ContentType: mimeType,
@@ -69,6 +94,35 @@ export async function uploadFileToR2(
 }
 
 /**
+ * 지정한 키로 파일을 Cloudflare R2에 업로드합니다.
+ */
+export async function uploadFileToR2Key(
+  file: Buffer,
+  fileKey: string,
+  mimeType: string,
+): Promise<UploadFileResult> {
+  try {
+    const command = new PutObjectCommand({
+      Bucket: getR2BucketName(),
+      Key: fileKey,
+      Body: file,
+      ContentType: mimeType,
+      ACL: "public-read",
+    });
+
+    await getR2Client().send(command);
+
+    return {
+      fileKey,
+      url: getFileUrl(fileKey),
+    };
+  } catch (error) {
+    console.error("R2 지정 키 업로드 실패:", error);
+    throw new Error("파일 업로드에 실패했습니다.");
+  }
+}
+
+/**
  * 브라우저가 R2로 직접 업로드할 수 있는 presigned PUT URL을 생성합니다.
  */
 export async function createPresignedUploadUrl(
@@ -81,12 +135,12 @@ export async function createPresignedUploadUrl(
 
   try {
     const command = new PutObjectCommand({
-      Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME!,
+      Bucket: getR2BucketName(),
       Key: fileKey,
       ContentType: mimeType,
     });
 
-    const uploadUrl = await getSignedUrl(r2Client, command, { expiresIn });
+    const uploadUrl = await getSignedUrl(getR2Client(), command, { expiresIn });
 
     return {
       fileKey,
@@ -108,11 +162,11 @@ export async function getFileMetadataFromR2(fileKey: string): Promise<{
 }> {
   try {
     const command = new HeadObjectCommand({
-      Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME!,
+      Bucket: getR2BucketName(),
       Key: fileKey,
     });
 
-    const response = await r2Client.send(command);
+    const response = await getR2Client().send(command);
 
     return {
       contentLength: Number(response.ContentLength || 0),
@@ -130,15 +184,102 @@ export async function getFileMetadataFromR2(fileKey: string): Promise<{
 export async function deleteFileFromR2(fileKey: string): Promise<void> {
   try {
     const command = new DeleteObjectCommand({
-      Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME!,
+      Bucket: getR2BucketName(),
       Key: fileKey,
     });
 
-    await r2Client.send(command);
+    await getR2Client().send(command);
   } catch (error) {
     console.error("R2 삭제 실패:", error);
     throw new Error("파일 삭제에 실패했습니다.");
   }
+}
+
+/**
+ * Cloudflare R2에서 prefix로 객체 키를 조회합니다.
+ */
+export async function listFileKeysFromR2Prefix(
+  prefix: string,
+): Promise<string[]> {
+  const objects = await listFileObjectsFromR2Prefix(prefix);
+  return objects.map((object) => object.key);
+}
+
+/**
+ * Cloudflare R2에서 prefix로 객체 키와 메타데이터를 조회합니다.
+ */
+export async function listFileObjectsFromR2Prefix(
+  prefix: string,
+): Promise<R2FileObject[]> {
+  const objects: R2FileObject[] = [];
+  let continuationToken: string | undefined;
+
+  try {
+    do {
+      const command = new ListObjectsV2Command({
+        Bucket: getR2BucketName(),
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      });
+      const response = await getR2Client().send(command);
+
+      response.Contents?.forEach((object) => {
+        if (object.Key) {
+          objects.push({
+            key: object.Key,
+            lastModified: object.LastModified,
+            size: Number(object.Size ?? 0),
+          });
+        }
+      });
+
+      continuationToken = response.NextContinuationToken;
+    } while (continuationToken);
+
+    return objects;
+  } catch (error) {
+    console.error("R2 prefix 조회 실패:", error);
+    throw new Error("파일 목록 조회에 실패했습니다.");
+  }
+}
+
+/**
+ * Cloudflare R2에서 여러 객체를 삭제합니다.
+ */
+export async function deleteFilesFromR2(fileKeys: string[]): Promise<number> {
+  const uniqueKeys = Array.from(new Set(fileKeys.filter(Boolean)));
+  let deletedCount = 0;
+
+  try {
+    for (let index = 0; index < uniqueKeys.length; index += 1000) {
+      const chunk = uniqueKeys.slice(index, index + 1000);
+      if (chunk.length === 0) continue;
+
+      const command = new DeleteObjectsCommand({
+        Bucket: getR2BucketName(),
+        Delete: {
+          Objects: chunk.map((key) => ({ Key: key })),
+          Quiet: true,
+        },
+      });
+
+      await getR2Client().send(command);
+      deletedCount += chunk.length;
+    }
+
+    return deletedCount;
+  } catch (error) {
+    console.error("R2 일괄 삭제 실패:", error);
+    throw new Error("파일 삭제에 실패했습니다.");
+  }
+}
+
+/**
+ * Cloudflare R2에서 prefix 아래의 모든 객체를 삭제합니다.
+ */
+export async function deleteFilesFromR2Prefix(prefix: string): Promise<number> {
+  const fileKeys = await listFileKeysFromR2Prefix(prefix);
+  return deleteFilesFromR2(fileKeys);
 }
 
 /**
@@ -161,11 +302,11 @@ export async function downloadFileFromR2(fileKey: string): Promise<{
 }> {
   try {
     const command = new GetObjectCommand({
-      Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME!,
+      Bucket: getR2BucketName(),
       Key: fileKey,
     });
 
-    const response = await r2Client.send(command);
+    const response = await getR2Client().send(command);
 
     if (!response.Body) {
       throw new Error("파일을 찾을 수 없습니다.");

@@ -7,6 +7,7 @@ import {
   SimpleFieldConfig,
   TDefaultCard,
   TEntry,
+  TGlobalData,
   TLanOpt,
   TPlaceholders,
 } from "@/types/time-table/data";
@@ -52,6 +53,8 @@ export interface CustomFieldRenderer {
 export interface TimeTableInputListProps {
   data: TDefaultCard[];
   onDataChange: (newData: TDefaultCard[]) => void;
+  globalData?: TGlobalData;
+  onGlobalDataChange?: (newGlobalData: TGlobalData) => void;
 
   // UI 커스터마이징
   containerClassName?: string;
@@ -79,9 +82,31 @@ export interface TimeTableInputListProps {
   size?: SizeProps;
 }
 
+const resolveFieldScope = (
+  fieldConfig: SimpleFieldConfig
+): "entry" | "card" | "global" => {
+  if (fieldConfig.scope === "card" || fieldConfig.scope === "global") {
+    return fieldConfig.scope;
+  }
+  return "entry";
+};
+
+const getDefaultFieldValue = (
+  fieldConfig: SimpleFieldConfig
+): string | number => {
+  if (fieldConfig.defaultValue !== undefined) {
+    return fieldConfig.defaultValue;
+  }
+  if (fieldConfig.type === "number") return 0;
+  if (fieldConfig.type === "time") return "09:00";
+  return "";
+};
+
 const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
   data,
   onDataChange,
+  globalData,
+  onGlobalDataChange,
   containerClassName = "flex flex-col gap-4 w-full select-none",
   itemClassName = "bg-white backdrop-blur-md rounded-xl p-4 shadow-[0_4px_5px_rgba(0,0,0,0.15)]",
   headerClassName = "flex justify-between items-center",
@@ -188,14 +213,23 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
     inactiveColor: "bg-gray-300",
   };
   const entryFieldConfigs = cardInputConfig.fields.filter(
-    (fieldConfig) => !fieldConfig.isOffline
+    (fieldConfig) =>
+      !fieldConfig.isOffline && resolveFieldScope(fieldConfig) === "entry"
+  );
+  const cardFieldConfigs = cardInputConfig.fields.filter(
+    (fieldConfig) =>
+      !fieldConfig.isOffline && resolveFieldScope(fieldConfig) === "card"
+  );
+  const globalFieldConfigs = cardInputConfig.fields.filter(
+    (fieldConfig) =>
+      !fieldConfig.isOffline && resolveFieldScope(fieldConfig) === "global"
   );
   const offlineFieldConfigs = cardInputConfig.fields.filter(
     (fieldConfig) => fieldConfig.isOffline
   );
 
   const getInitialCardFieldValue = (fieldConfig: SimpleFieldConfig) =>
-    fieldConfig.defaultValue ?? "";
+    getDefaultFieldValue(fieldConfig);
 
   const renderFieldLabel = (fieldConfig: SimpleFieldConfig) =>
     fieldConfig.label && cardInputConfig.showLabels ? (
@@ -211,9 +245,9 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
     dayIndex: number,
     entryIndex: number
   ) => {
-    const value = String(
-      entry[fieldConfig.key] || fieldConfig.defaultValue || ""
-    );
+    const entryValue =
+      entry[fieldConfig.key] ?? getDefaultFieldValue(fieldConfig);
+    const value = String(entryValue);
 
     const commonClassName =
       "w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none";
@@ -361,15 +395,22 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
     }
   };
 
-  const renderCardField = (
-    fieldConfig: SimpleFieldConfig,
-    card: TDefaultCard,
-    dayIndex: number
-  ) => {
-    const value = String(
-      card[fieldConfig.key] ?? getInitialCardFieldValue(fieldConfig)
+  const renderScopedFieldInput = ({
+    fieldConfig,
+    value,
+    onChange,
+    inputId,
+    disableTimeGuerrillaToggle = false,
+  }: {
+    fieldConfig: SimpleFieldConfig;
+    value: string | number | boolean | undefined;
+    onChange: (nextValue: string | number | boolean) => void;
+    inputId: string;
+    disableTimeGuerrillaToggle?: boolean;
+  }) => {
+    const stringValue = String(
+      value ?? fieldConfig.defaultValue ?? getDefaultFieldValue(fieldConfig)
     );
-
     const commonClassName =
       "w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none";
 
@@ -379,11 +420,9 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
         return (
           <TextRenderer
             height={size}
-            value={value}
+            value={stringValue}
             placeholder={fieldConfig.placeholder || ""}
-            handleTextChange={(newValue) =>
-              handleCardFieldChange(dayIndex, fieldConfig.key, newValue)
-            }
+            handleTextChange={(newValue) => onChange(newValue)}
             maxLength={fieldConfig.maxLength}
             required={fieldConfig.required}
             type={fieldConfig.type === "date" ? "date" : "text"}
@@ -393,11 +432,9 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
       case "textarea":
         return (
           <TextareaRenderer
-            value={value}
+            value={stringValue}
             placeholder={fieldConfig.placeholder || ""}
-            handleTextareaChange={(newValue) =>
-              handleCardFieldChange(dayIndex, fieldConfig.key, newValue)
-            }
+            handleTextareaChange={(newValue) => onChange(newValue)}
             maxLength={fieldConfig.maxLength}
             required={fieldConfig.required}
             rows={3}
@@ -406,25 +443,26 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
 
       case "time":
         return (
-          <AdaptiveTimeRenderer
-            height={size}
-            id={`${fieldConfig.key}-${dayIndex}-offline`}
-            value={value}
-            onChange={(newValue) =>
-              handleCardFieldChange(dayIndex, fieldConfig.key, newValue)
-            }
-          />
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <AdaptiveTimeRenderer
+                height={size}
+                id={inputId}
+                value={stringValue}
+                onChange={(newValue) => onChange(newValue)}
+                disabled={disableTimeGuerrillaToggle}
+              />
+            </div>
+          </div>
         );
 
       case "select":
         return (
           <select
-            value={value}
+            value={stringValue}
             required={fieldConfig.required}
             className={commonClassName}
-            onChange={(e) =>
-              handleCardFieldChange(dayIndex, fieldConfig.key, e.target.value)
-            }
+            onChange={(event) => onChange(event.target.value)}
           >
             <option value="" disabled>
               {fieldConfig.placeholder}
@@ -441,13 +479,13 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
         return (
           <TextRenderer
             height={size}
-            value={value}
+            value={stringValue}
             placeholder={fieldConfig.placeholder || ""}
             handleTextChange={(newValue) =>
-              handleCardFieldChange(
-                dayIndex,
-                fieldConfig.key,
-                isNaN(parseInt(newValue)) ? 0 : parseInt(newValue)
+              onChange(
+                Number.isNaN(parseInt(newValue, 10))
+                  ? 0
+                  : parseInt(newValue, 10)
               )
             }
             type="number"
@@ -456,9 +494,31 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
         );
 
       default:
-        return null;
+        return (
+          <TextRenderer
+            height={size}
+            value={stringValue}
+            placeholder={fieldConfig.placeholder || ""}
+            handleTextChange={(newValue) => onChange(newValue)}
+            required={fieldConfig.required}
+          />
+        );
     }
   };
+
+  const renderCardField = (
+    fieldConfig: SimpleFieldConfig,
+    card: TDefaultCard,
+    dayIndex: number
+  ) =>
+    renderScopedFieldInput({
+      fieldConfig,
+      value: card[fieldConfig.key] as string | number | boolean | undefined,
+      onChange: (nextValue) =>
+        handleCardFieldChange(dayIndex, fieldConfig.key, nextValue),
+      inputId: `${fieldConfig.key}-${dayIndex}-card`,
+      disableTimeGuerrillaToggle: true,
+    });
 
   // 엔트리 필드 변경 핸들러
   const handleEntryFieldChange = (
@@ -476,11 +536,33 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
 
   const handleCardFieldChange = (
     dayIndex: number,
-    field: string,
+    fieldKey: string,
     value: string | number | boolean
   ) => {
     const newData = [...data];
-    newData[dayIndex] = { ...newData[dayIndex], [field]: value };
+    newData[dayIndex] = {
+      ...newData[dayIndex],
+      [fieldKey]: value,
+    };
+    onDataChange(newData);
+  };
+
+  const handleGlobalFieldChange = (
+    fieldKey: string,
+    value: string | number | boolean
+  ) => {
+    if (onGlobalDataChange) {
+      onGlobalDataChange({
+        ...(globalData ?? {}),
+        [fieldKey]: value,
+      });
+      return;
+    }
+
+    const newData = data.map((day) => ({
+      ...day,
+      [fieldKey]: value,
+    }));
     onDataChange(newData);
   };
 
@@ -577,6 +659,40 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
 
   return (
     <div className={containerClassName}>
+      {globalFieldConfigs.length > 0 ? (
+        <div className={itemClassName}>
+          <div className={headerClassName}>
+            <span className="font-semibold text-gray-700">공통 입력</span>
+          </div>
+          <div className={fieldsContainerClassName}>
+            {globalFieldConfigs.map((fieldConfig, fieldIndex) => {
+              const firstDay = data[0];
+              const value =
+                globalData?.[fieldConfig.key] ??
+                firstDay?.[fieldConfig.key] ??
+                getDefaultFieldValue(fieldConfig);
+              return (
+                <div key={`global-${fieldConfig.key}-${fieldIndex}`}>
+                  {fieldConfig.label && cardInputConfig.showLabels && (
+                    <label className={cn(labelVariants({ size: "xs" }), "block mb-1")}>
+                      {fieldConfig.label}
+                    </label>
+                  )}
+                  {renderScopedFieldInput({
+                    fieldConfig,
+                    value: value as string | number | boolean,
+                    onChange: (nextValue) =>
+                      handleGlobalFieldChange(fieldConfig.key, nextValue),
+                    inputId: `global-${fieldConfig.key}`,
+                    disableTimeGuerrillaToggle: true,
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
       {data.map((day, dayIndex) => (
         <DayCard
           size={size}
@@ -609,6 +725,37 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
           }
         >
           <div className="flex flex-col gap-6">
+            {cardFieldConfigs.length > 0 ? (
+              <div className="flex flex-col gap-4">
+                {cardFieldConfigs.map((fieldConfig, fieldIndex) => {
+                  const value =
+                    day[fieldConfig.key] ?? getDefaultFieldValue(fieldConfig);
+                  return (
+                    <div key={`card-${day.day}-${fieldConfig.key}-${fieldIndex}`}>
+                      {fieldConfig.label && cardInputConfig.showLabels && (
+                        <label
+                          className={cn(
+                            labelVariants({ size: "xs" }),
+                            "block mb-1"
+                          )}
+                        >
+                          {fieldConfig.label}
+                        </label>
+                      )}
+                      {renderScopedFieldInput({
+                        fieldConfig,
+                        value: value as string | number | boolean,
+                        onChange: (nextValue) =>
+                          handleCardFieldChange(dayIndex, fieldConfig.key, nextValue),
+                        inputId: `card-${dayIndex}-${fieldConfig.key}`,
+                        disableTimeGuerrillaToggle: true,
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+
             {day.entries.map((entry, entryIndex) => (
               <EntryCard
                 key={`${day.day}-${entryIndex}`}

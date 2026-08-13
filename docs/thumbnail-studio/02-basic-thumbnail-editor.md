@@ -1,0 +1,659 @@
+# Phase 2. 썸네일 기본 편집기
+
+상태: 구현 완료 (§20 구현 현황)  
+선행 단계: [Phase 1 — Studio Core와 Adapter 분리](./01-studio-core-extraction.md)  
+후속 단계: [Phase 3 — 고급 텍스트 표현](./03-text-effects.md)
+
+## 1. 목표
+
+공통 Studio 셸 위에서 썸네일 문서를 처음부터 구성할 수 있는 관리자 편집기를
+만든다.
+
+이 단계의 결과만으로 텍스트, 이미지와 배경 블록을 이용한 기본 썸네일 레이아웃을
+제작할 수 있어야 한다. 다중 아웃스트로크와 사용자 런타임은 다음 단계에서
+추가한다.
+
+## 2. 관리자 화면
+
+라우트:
+
+```text
+/admin/thumbnail-studio/[templateId]/edit
+```
+
+Phase 6 이전에는 임시 또는 로컬 문서로 화면을 실행할 수 있다. 원격 저장 API가
+준비되지 않아도 기본 편집 기능 개발이 막히지 않게 한다.
+
+### 공통 셸 구성
+
+상단:
+
+- 목록
+- 임시 저장 상태
+- 실행 취소와 다시 실행
+- 캔버스 크기
+- 줌과 Fit
+- 설정
+- 미리보기
+
+좌측:
+
+- Layers
+- Assets 자리 표시 탭
+- Text Presets 자리 표시 탭
+- Inputs 자리 표시 탭
+
+중앙:
+
+- `StudioCanvasViewport`
+- `StudioRenderer`
+- 선택선과 조작 핸들
+
+우측:
+
+- Canvas
+- Transform
+- Layout
+- Appearance
+- Binding 자리 표시 섹션
+
+시간표 전용 상단 전환, `Component Set`, 상태와 `Table` 탭은 렌더링하지 않는다.
+
+## 3. 노드 타입 dispatch 강화
+
+`shape`를 union에 추가하기 전에 현재 노드 타입 처리의 fallback을 제거한다.
+
+현재 renderer와 기본값 함수는 알려지지 않은 새 타입을 텍스트로 처리할 수 있다.
+이 상태에서 `shape`를 추가하면 컴파일 오류 없이 빈 텍스트 노드처럼 렌더링될 수
+있다.
+
+노드 정의를 exhaustive registry로 구성한다.
+
+```ts
+const STUDIO_NODE_DEFINITIONS = {
+  group: { ... },
+  text: { ... },
+  flexibleText: { ... },
+  image: { ... },
+  shape: { ... },
+} satisfies Record<StudioGraphNodeType, StudioNodeDefinition>;
+```
+
+registry 책임:
+
+- 표시 label
+- 아이콘 또는 icon key
+- 기본 style factory
+- 기본 binding factory
+- 허용 inspector section
+- 자식 허용 여부
+
+renderer는 모든 타입을 명시적으로 처리하고 마지막 fallback으로 텍스트를
+렌더링하지 않는다. switch를 사용한다면 `assertNever`로 누락을 컴파일 단계에서
+잡는다.
+
+노드 추가 메뉴와 picker의 타입 목록도 별도 문자열 배열을 하드코딩하지 않고
+registry에서 만든다.
+
+## 4. 빈 문서 팩토리
+
+신규 함수:
+
+```ts
+createThumbnailStudioDocument(options?: {
+  name?: string;
+  width?: number;
+  height?: number;
+  background?: string;
+}): StudioTemplateDocument
+```
+
+기본 결과:
+
+- `metadata.kind="thumbnail"`
+- `canvas=1280×720`
+- 빈 root graph
+- 빈 inputs
+- 빈 assets
+- 기본 style map
+- `domains.thumbnail.version=1`
+- PNG export
+- 시간표 도메인 없음
+
+초기 문서는 캔버스 자체를 표현하기 위한 불필요한 root node를 만들지 않는다.
+사용자가 추가한 노드만 graph에 들어간다.
+
+## 5. 노드 추가
+
+### 추가 메뉴
+
+초기 메뉴:
+
+- Text
+- Auto-fit Text
+- Image
+- Rectangle
+- Group
+
+추가 위치:
+
+- 현재 뷰포트 중앙
+- 부모 그룹을 선택했다면 해당 그룹의 자식
+- 캔버스 경계를 벗어나지 않는 기본 좌표
+
+기본 크기:
+
+| 노드 | 기본 크기 |
+| --- | --- |
+| Text | 480 × 100 |
+| Auto-fit Text | 480 × 140 |
+| Image | 400 × 300 |
+| Rectangle | 400 × 200 |
+| Group | 600 × 400 |
+
+값은 상수로 관리하고 템플릿 데이터에 별도 기능 의미를 부여하지 않는다.
+
+### 기본 스타일
+
+Text:
+
+- 흰색 또는 현재 테마와 무관한 명시적 글자색
+- 기본 프로젝트 폰트
+- 64px
+- 700 weight
+- 왼쪽 정렬
+- 기본 binding: `{ kind: "staticText", value: "New text" }`
+
+기본 binding은 현재 Template Studio의 노드 추가 동작과 동일하게 제공한다.
+binding이 없다고 현재 validator가 바로 발행을 차단하는 것은 아니지만, 새 텍스트가
+빈 상태로 생성되거나 기존 편집 동작과 달라지는 것을 방지한다.
+
+Image:
+
+- `cover`
+- 투명 배경
+
+Rectangle:
+
+- 단색
+- border radius 0
+
+Group:
+
+- 투명 배경
+- overflow visible
+
+## 6. 선택과 조작
+
+### 선택
+
+- 클릭 단일 선택
+- `Shift` 또는 플랫폼 보조키로 선택 토글
+- 빈 캔버스 클릭으로 선택 해제
+- 겹친 노드 선택 메뉴
+- 레이어 패널과 캔버스 선택 동기화
+
+### 이동
+
+- 드래그 이동
+- 방향키 1px 이동
+- `Shift + 방향키` 10px 이동
+- 잠긴 노드 이동 금지
+- `fillParent` 노드 직접 이동 금지
+- 다중 선택은 top-level 선택 노드만 이동
+
+### 크기와 회전
+
+- 모서리 및 변 핸들
+- 숫자 입력
+- 가로세로 비율 잠금
+- 이미지의 기본 비율 유지 선택
+- 회전 핸들
+- 회전 숫자 입력
+
+현재 뷰포트가 제공하지 않는 resize/rotate overlay는 공통 Studio 선택 overlay로
+추출하거나 추가한다. Thumbnail Studio 전용 overlay를 별도로 만들지 않는다.
+
+## 7. 레이어 기능
+
+### 트리
+
+- 그래프의 `rootNodeIds`와 `childIds` 순서 표시
+- group 열기와 닫기
+- 노드 종류별 아이콘
+- 선택 표시
+- 잠금과 숨김 상태 표시
+
+### 명령
+
+- 위로
+- 아래로
+- 맨 앞으로
+- 맨 뒤로
+- 부모 group으로 이동
+- root로 이동
+- 잠금
+- 숨김
+- 이름 변경
+- 삭제
+
+### 그룹
+
+그룹화:
+
+1. 선택된 top-level 노드의 공통 부모 확인
+2. 선택 영역을 감싸는 group frame 생성
+3. 자식 좌표를 새 group 기준 좌표로 변환
+4. 기존 레이어 순서를 유지
+5. 새 group 하나를 선택
+
+그룹 해제:
+
+1. 자식의 절대 위치 계산
+2. 부모의 부모로 이동
+3. 기존 group 위치에 자식 순서 삽입
+4. group 삭제
+5. 해제된 자식 선택
+
+관련 기존 유틸리티:
+
+- `src/utils/template-studio/graph-editor.ts`
+- `src/utils/template-studio/layer-order.ts`
+- `src/utils/template-studio/object-layout.ts`
+
+## 8. 공통 문서 명령
+
+모든 변경은 명령 단위로 실행한다.
+
+```ts
+type StudioGraphCommand =
+  | { type: "node.add"; payload: ... }
+  | { type: "node.update"; payload: ... }
+  | { type: "node.remove"; payload: ... }
+  | { type: "node.move"; payload: ... }
+  | { type: "node.reorder"; payload: ... }
+  | { type: "node.group"; payload: ... }
+  | { type: "node.ungroup"; payload: ... }
+  | { type: "node.duplicate"; payload: ... };
+```
+
+실제 union을 한 번에 만들 필요는 없지만 UI가 문서 내부 구조를 직접 임의
+변경하지 않는 경계를 유지한다.
+
+명령 결과:
+
+- 새 문서
+- 다음 선택 상태
+- 이력 표시용 설명
+- 변경된 노드 ID
+
+시간표 정규화는 공통 명령 내부에서 실행하지 않는다.
+
+## 9. 편집 이력
+
+이력에 포함:
+
+- 노드 추가와 삭제
+- 이동, 크기와 회전
+- 스타일
+- 레이어 순서
+- 그룹화
+- 잠금과 숨김
+- 캔버스 설정
+
+하나의 이력으로 묶는 동작:
+
+- 한 번의 drag
+- 한 번의 resize
+- 한 번의 rotate
+- 숫자 입력의 focus 시작부터 blur까지
+- 연속 색상 picker 조작
+
+복사 자체는 이력을 만들지 않고, 붙여넣기와 잘라내기 완료가 이력을 만든다.
+
+## 10. Canvas 인스펙터
+
+선택 노드가 없을 때 표시한다.
+
+- 캔버스 이름
+- 너비와 높이
+- 크기 프리셋
+- 배경색
+- 투명 배경
+- 캔버스에 맞추기
+
+크기 변경 정책:
+
+- 노드 좌표 유지
+- 캔버스 밖 노드 자동 삭제 금지
+- 캔버스 밖 노드 경고 표시 가능
+- 전체 비율 조정은 후속 기능
+
+## 11. 공통 Transform 인스펙터
+
+필드:
+
+- X
+- Y
+- Width
+- Height
+- Rotation
+- Opacity
+- Aspect ratio lock
+- Layout mode
+
+다중 선택:
+
+- 공통 값이 같으면 값 표시
+- 값이 다르면 mixed 상태
+- 입력한 필드만 모든 선택 노드에 적용
+
+잠긴 노드는 편집 필드를 비활성화한다.
+
+## 12. 노드별 기본 인스펙터
+
+### Text
+
+- 내용
+- font family
+- font size
+- font weight
+- line height
+- letter spacing
+- horizontal align
+- vertical align
+- color
+- auto-fit 최소와 최대 크기
+
+다중 아웃스트로크와 그림자는 Phase 3에서 추가한다.
+
+### Image
+
+- 정적 에셋 선택
+- fit: cover/contain/fill
+- object position
+- opacity
+- border radius
+
+업로드와 crop은 Phase 4에서 완성한다. Phase 2에서는 문서에 포함된 표본 에셋으로
+이미지 노드 동작을 구현할 수 있다.
+
+### Shape
+
+- fill
+- border color
+- border width
+- border radius
+- opacity
+
+### Group
+
+- background
+- overflow
+- layout mode
+
+## 13. 정렬과 분배
+
+단일 선택:
+
+- 캔버스 왼쪽/가운데/오른쪽
+- 캔버스 위/가운데/아래
+
+다중 선택:
+
+- 선택 영역 기준 좌/가운데/우 정렬
+- 선택 영역 기준 상/가운데/하 정렬
+- 가로 간격 분배
+- 세로 간격 분배
+
+그룹 안의 노드는 부모의 좌표계를 기준으로 계산한다.
+
+## 14. 복사와 붙여넣기
+
+복사 snapshot:
+
+- 선택된 top-level 노드
+- 모든 자손
+- 참조 style
+- 참조 asset ID
+- binding
+- 노드별 구조화 속성
+
+붙여넣기:
+
+- 모든 node/style ID 재생성
+- 내부 parent/child 참조 재매핑
+- 같은 문서 안에서는 asset 재사용
+- 기본 offset 적용
+- 새 노드 선택
+
+다른 문서 간 붙여넣기는 초기 범위에서 보장하지 않는다.
+
+## 15. 미리보기
+
+관리자 편집 화면의 preview는 현재 메모리 문서를 사용한다.
+
+- 선택선 제거
+- guide는 선택적으로 표시하지 않음
+- 원본 canvas 크기
+- 같은 `StudioRenderer`
+- 사용자 입력은 기본값
+
+Phase 6의 저장 기반 preview와 구분하기 위해 개발 중에는 draft preview임을
+표시한다.
+
+## 16. 파일 변경 계획
+
+신규:
+
+- `src/utils/thumbnail-studio/document-factory.ts`
+- `src/utils/template-studio/node-definitions.ts`
+- `src/utils/thumbnail-studio/node-defaults.ts`
+- `src/app/(root)/admin/thumbnail-studio/_components/thumbnail-studio-client.tsx`
+- `src/app/(root)/admin/thumbnail-studio/_components/thumbnail-layer-tabs.tsx`
+- `src/app/(root)/admin/thumbnail-studio/_components/thumbnail-inspector.tsx`
+
+공통 수정:
+
+- `src/types/template-studio.ts`
+- `src/utils/template-studio/graph-editor.ts`
+- `src/utils/template-studio/layer-order.ts`
+- `src/utils/template-studio/object-layout.ts`
+- `src/utils/template-studio/validator.ts`
+- `src/app/(root)/template-studio/_components/studio-renderer.tsx`
+
+Phase 1에서 만든 공통 경로와 이름이 다르면 해당 구조를 따른다.
+
+## 17. 구현 순서
+
+1. exhaustive 노드 정의 registry와 renderer dispatch
+2. 빈 썸네일 문서 팩토리
+3. 관리자 편집 route와 Adapter 연결
+4. Layers 탭과 빈 캔버스
+5. 기본 binding을 포함한 노드 추가
+6. 선택과 이동
+7. Transform 인스펙터
+8. 레이어 순서와 잠금·숨김
+9. resize와 rotate
+10. 그룹화와 그룹 해제
+11. 복사·붙여넣기와 복제
+12. Canvas 인스펙터
+13. 정렬과 분배
+14. 기본 preview
+
+## 18. 완료 조건
+
+- 시간표 도메인 없이 빈 썸네일 문서가 열린다.
+- 모든 `StudioGraphNodeType`이 registry와 renderer에서 exhaustive하게 처리된다.
+- Text, Auto-fit Text, Image, Rectangle와 Group을 추가할 수 있다.
+- 새 Text와 Auto-fit Text가 기본 `staticText` binding을 가진다.
+- 좌측 레이어와 캔버스 선택이 동기화된다.
+- 노드를 이동, resize, rotate, 복제와 삭제할 수 있다.
+- 레이어 순서, 잠금, 숨김과 그룹 구조를 편집할 수 있다.
+- 우측 공통 속성에서 위치와 기본 스타일을 변경할 수 있다.
+- undo와 redo가 사용자 동작 단위로 동작한다.
+- 캔버스 크기와 배경을 설정할 수 있다.
+- 시간표 전용 UI와 상태가 썸네일 문서 변경에 개입하지 않는다.
+
+## 19. 이 단계에서 하지 않는 일
+
+- 다중 외곽선
+- 텍스트 효과 프리셋
+- 실제 이미지 업로드
+- 사용자 입력 UI
+- PNG 다운로드
+- 원격 저장과 발행
+- 상세 테스트 계획
+
+## 20. 구현 현황
+
+기준 시점: 2026-08-01.
+
+### 20.1 §17 구현 순서
+
+| 단계 | 상태 | 결과 |
+| --- | --- | --- |
+| 1. 노드 정의 registry와 renderer dispatch | 완료 | `utils/template-studio/node-definitions.ts`, `assert-never.ts`, `components/studio/node-type-icon.tsx` |
+| 2. 빈 썸네일 문서 팩토리 | 완료(가드 추가) | `utils/thumbnail-studio/document-factory.ts` |
+| 3. 관리자 편집 route와 Adapter 연결 | 완료 | `admin/thumbnail-studio/[templateId]/edit/page.tsx` |
+| 4. Layers 탭과 빈 캔버스 | 완료(확장) | `thumbnail-layer-tabs.tsx`, 끌어 옮기기와 명령 줄 연결 |
+| 5. 기본 binding을 포함한 노드 추가 | 완료(규격 맞춤) | `utils/thumbnail-studio/node-defaults.ts` |
+| 6. 선택과 이동 | 완료(금지 규칙 추가) | `layer-drag.ts`의 판단을 그대로 씀 |
+| 7. Transform 인스펙터 | 완료 | `thumbnail-inspector.tsx` |
+| 8. 레이어 순서와 잠금·숨김 | 완료 | `graph-commands.ts`에 숨김 토글 추가 |
+| 9. resize와 rotate | 완료 | `components/studio/canvas/studio-selection-overlay.tsx` |
+| 10. 그룹화와 그룹 해제 | 완료 | 기존 `planStudioGroupNodes` / `planStudioUngroupNodes` |
+| 11. 복사·붙여넣기와 복제 | 완료 | 기존 `useStudioClipboard` / `clipboard-commands.ts` |
+| 12. Canvas 인스펙터 | 완료 | `transform-commands.ts`의 최소값 보정과 캔버스 밖 알림 |
+| 13. 정렬과 분배 | 완료 | `utils/template-studio/align-commands.ts` |
+| 14. 기본 preview | 완료 | client의 draft preview overlay |
+
+2번과 4번은 Phase 1에서 이미 되어 있었다. 2번은 값을 고치지 않고 가드
+(`check:thumbnail-studio:node-defaults`)만 붙였다. 4번은 셸·패널 연결은 그대로 두고
+끌어 옮기기(`useStudioLayerDrag`), 잘라내기 표시, 명령 줄, 숨김 표시를 더했다.
+
+5번과 6번은 부분 구현이었다. 고친 것:
+
+- 크기가 종류와 무관하게 240×80(group 320×200)이었다. §5 표의 값으로 맞췄고
+  그 값을 노드 정의표가 갖는다.
+- 좌표가 80,80 고정이었다. 지금은 보고 있는 화면 중앙에 놓고, 묶음을 골랐으면 그
+  묶음의 자식으로 넣고, 캔버스를 벗어나지 않게 가둔다.
+- 기본 스타일이 32px/700이었다. §5의 64px/700/왼쪽 정렬로 맞췄다.
+- 이동에 금지 규칙이 없었다. 잠근 노드와 `fillParent` 노드를 막고, 여러 개를
+  골랐으면 최상위만 옮긴다. 판단은 `getStudioCanvasNodeDragBlockedReason`을 그대로 쓴다.
+
+### 20.2 §18 완료 조건
+
+11개 조건을 모두 확인했다.
+
+- 시간표 도메인 없이 빈 썸네일 문서가 열린다.
+  (`check:thumbnail-studio:node-defaults`가 `domains.timetable`이 없음을 값으로 고정)
+- 모든 `StudioGraphNodeType`이 registry와 renderer에서 exhaustive하게 처리된다.
+  (`check:studio:node-definitions`)
+- Text, Auto-fit Text, Image, Rectangle, Group을 추가할 수 있다.
+  (`check:thumbnail-studio:editor`가 추가 메뉴 단추를 눌러 확인)
+- 새 Text와 Auto-fit Text가 기본 `staticText` binding을 가진다.
+- 좌측 레이어와 캔버스 선택이 동기화된다. 두 곳이 같은 store의 선택을 읽고 쓴다.
+- 노드를 이동·resize·rotate·복제·삭제할 수 있다.
+- 레이어 순서, 잠금, 숨김, 그룹 구조를 편집할 수 있다.
+- 우측 공통 속성에서 위치와 기본 스타일을 바꿀 수 있다.
+- undo/redo가 사용자 동작 단위로 동작한다. 한 번의 끌기, 한 번의 크기 조절, 한 번의
+  회전, 숫자 칸의 focus~blur, 색 패널을 열고 닫는 사이가 각각 한 단위다.
+- 캔버스 크기와 배경을 설정할 수 있다.
+- 시간표 전용 UI와 상태가 썸네일 문서 변경에 개입하지 않는다.
+  (`check:studio:thumbnail-shell`)
+
+### 20.3 문서와 다르게 간 곳
+
+- **글자색을 흰색이 아니라 `#111827`로 뒀다.** §5는 "흰색 또는 현재 테마와 무관한
+  명시적 글자색"을 허용한다. 기본 캔버스 배경이 흰색이므로 흰 글자를 넣으면 새 글자가
+  보이지 않는다. 넣었는데 아무것도 안 보이면 사용자는 추가가 안 된 것으로 읽는다.
+- **좌측 탭을 `Layers / Assets / Text / Inputs` 네 개로 뒀고 추가 메뉴는 탭 위에
+  뒀다.** §2는 탭 네 개를 적었고 §5는 추가 메뉴를 적었는데 그 메뉴가 어디 있어야
+  하는지는 적지 않았다. 탭 안에 두면 다른 탭을 보는 동안 객체를 넣을 수 없다. 그래서
+  공통 사이드바의 `contextHeader`에 뒀다.
+- **여러 개를 골랐을 때는 조작 손잡이를 그리지 않는다.** 테두리만 보여준다. 여러 개를
+  한 번에 늘이는 계산은 각 노드의 비율과 부모 좌표계를 함께 다뤄야 해서 이 단계 범위를
+  넘는다. 잡을 수 없는 손잡이를 그리면 눌러도 아무 일이 없는 표적이 된다.
+- **정렬과 분배는 고른 것들이 같은 부모에 있을 때만 실행한다.** §13은 "그룹 안의
+  노드는 부모의 좌표계를 기준으로 계산한다"까지만 적었다. 부모가 섞인 선택을 각자의
+  부모 안에서 맞추면 화면에서는 정렬되지 않은 상태로 흩어지고, 한쪽 좌표계로 몰아
+  맞추면 다른 부모의 자식이 엉뚱한 자리로 튄다. 그래서 이유를 알리고 막는다.
+- **`StudioTimetableAssetSlot`을 `StudioAssetSlot`으로 개명했다.** 01 문서 §16.3이
+  남겨 둔 무른 곳이다. 아래 20.4에 적었다.
+- **`studio-hex-color-picker.tsx`를 `src/components/studio/inspector/`로 옮겼다.**
+  색 고르기는 도메인과 무관하고 두 편집기가 함께 쓴다. 옮기면서 연속 조작을 되돌리기
+  한 단위로 묶는 `onChangeStart`를 더했다.
+- **`shape` 노드는 카드 프리셋 목록에 넣지 않았다.** 카드 배경은 상태별 그림 자리를
+  가진 전용 프리셋이 담당한다. 도형을 더하면 같은 일을 하는 두 가지 방법이 생긴다.
+
+### 20.4 공통 렌더러의 시간표 의존 정리
+
+01 문서 §16.3이 남겨 둔 무른 곳을 이 단계에서 해결했다.
+
+- `StudioTimetableAssetSlot` → `StudioAssetSlot`. 그림 한 장을 끼우는 자리의 모양은
+  도메인과 무관하다.
+- 상태 카드 배경 판단을 렌더러에서 뺐다. 렌더러는 노드에 붙은 배경 자리
+  (`assetSlots.asset`)를 그대로 쓰고, 상태에 따라 자리가 달라지는 시간표만
+  `resolveNodeBackgroundAssetSlot`으로 판단 함수를 넘긴다
+  (`createStudioStatusCardBackgroundSlotResolver`).
+- `check:studio:thumbnail-shell`이 `src/components/studio/canvas/**`에서
+  `status-card-background` import와 `StudioTimetable*` 타입 import를 막는다.
+
+가드를 처음 줄 단위로 썼더니 여러 줄에 걸친 import의 가운데 줄을 놓쳐
+`StudioTimetableAssetSlot`을 되살린 회귀를 잡지 못했다. import 문 전체를 한 덩어리로
+모아 보도록 고쳤다.
+
+### 20.5 되돌리기 한 단위
+
+되돌리기 한 단위는 `src/stores/studio/studio-editor-store.ts` 한 곳이 소유한다.
+연속으로 값이 바뀌는 조작은 시작할 때 한 번만 이력을 쌓고 그 뒤에는
+`updateDocument(..., { history: false })`로 문서만 고친다.
+
+| 조작 | 한 단위를 시작하는 곳 |
+| --- | --- |
+| 캔버스에서 끌어 옮기기 | `onMoveNodeStart` → `beginNodeMove` |
+| 크기 조절과 회전 | overlay의 `onTransformStart` |
+| 숫자 칸 | `StudioNumberField`가 blur/Enter에 한 번만 값을 넘긴다 |
+| 색 고르기 | `StudioHexColorPicker`의 `onChangeStart`(패널을 열고 닫을 때까지 한 묶음) |
+| 복사 | 이력을 만들지 않는다 |
+| 붙여넣기·잘라내기 완료 | `useStudioClipboard`가 부르는 `updateDocument` |
+
+### 20.6 가드 목록
+
+새로 쓴 것:
+
+```text
+npm run check:studio:node-definitions        노드 정의표와 renderer 분기
+npm run check:studio:transform-commands      크기·회전·캔버스 최소값·보이는 중앙
+npm run check:studio:align-commands          정렬과 분배의 좌표계
+npm run check:thumbnail-studio:node-defaults 빈 문서와 새 노드 넣을 자리
+npm run check:thumbnail-studio:editor        추가 메뉴·레이어 명령·인스펙터·선택 overlay
+```
+
+고친 것:
+
+```text
+npm run check:studio:graph-commands       숨김 토글을 더했다
+npm run check:studio:thumbnail-shell      탭 구성과 공통 캔버스의 시간표 의존 금지
+```
+
+`check:studio:*`와 `check:thumbnail-studio:*`를 합쳐 36종이다.
+
+회귀를 심어 잡히는지 확인한 것 35가지. 그 가운데 두 번은 검사가 그 경로를 타지 않아
+검사를 고쳐야 했다.
+
+- 여러 줄 import의 가운데 줄을 못 봤다(20.4).
+- 값이 갈렸다는 표시를 "있는지"로만 봤다. 칸 하나에서 표시를 떼어내도 다른 칸이 여전히
+  갈렸다고 알리므로 잡히지 않았다. 개수를 세도록 고치고, 한 칸만 갈린 경우를 함께 본다.
+
+### 20.7 다음 단계로 넘긴 것
+
+§19가 적은 것 외에 이 단계에서 만나 넘긴 것:
+
+- 여러 개를 한 번에 늘이기. 20.3에 이유를 적었다.
+- 조상이 회전한 상태에서 선택선을 겹쳐 그리기. 지금은 조상 좌표만 더하고 조상 회전은
+  다루지 않는다.
+- 겹친 노드 선택 메뉴(§6). 캔버스 우클릭 picker는 시간표 client에만 있다. 공통으로
+  빼는 일은 남았다.
+- 이미지 업로드와 crop(§12). 지금은 문서에 이미 담긴 에셋만 고를 수 있다.

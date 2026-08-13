@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -53,3 +54,8 @@ public/workbox-*.js.map
 # local browser automation artifacts
 .playwright-cli/
 .playwright-mcp/
+# local one-off refactor scripts (never committed)
+/scripts/tmp/
+
+# local git worktrees (never committed)
+/.worktrees/

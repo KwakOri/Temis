@@ -1,0 +1,15 @@
+node_modules
+.next
+out
+build
+coverage
+
+# 생성물 및 로그 아티팩트
+.playwright-cli
+.playwright-mcp
+backups
+public/sw.js
+public/workbox-*.js
+src/types/supabase.ts
+
+package-lock.json

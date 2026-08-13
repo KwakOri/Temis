@@ -1,6 +1,9 @@
 import { CardInputConfig } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
-import { getDefaultCards } from "@/utils/time-table/data";
+import {
+  createInitialGlobalDataFromConfig,
+  getDefaultCards,
+} from "@/utils/time-table/data";
 import { useEffect, useState } from "react";
 import { useTimeTableData } from "./useTimeTableData";
 import { useTimeTablePersistence } from "./useTimeTablePersistence";
@@ -34,7 +37,9 @@ export const useTimeTableEditor = ({
   // 개별 상태 관리 훅들 (CardInputConfig 전파)
   const {
     data,
+    globalData,
     updateData,
+    updateGlobalData,
     updateCard,
     updateCardField,
     toggleOffline,
@@ -49,6 +54,7 @@ export const useTimeTableEditor = ({
   const { saveData, loadPersistedData, clearAllData, autoSave } =
     useTimeTablePersistence(
       data,
+      globalData,
       currentTheme,
       cardInputConfig,
       defaultTheme,
@@ -72,6 +78,10 @@ export const useTimeTableEditor = ({
         if (configMatches) {
           // 설정이 일치하면 저장된 데이터 복원
           updateData(persistedData.data);
+          updateGlobalData(
+            persistedData.globalData ??
+              createInitialGlobalDataFromConfig({ cardInputConfig })
+          );
           if (persistedData.theme) {
             updateTheme(persistedData.theme);
           }
@@ -79,6 +89,7 @@ export const useTimeTableEditor = ({
           // 설정이 다르면 새로운 기본값으로 초기화
           const newDefaultCards = getDefaultCards({ cardInputConfig });
           updateData(newDefaultCards);
+          updateGlobalData(createInitialGlobalDataFromConfig({ cardInputConfig }));
         }
       }
 
@@ -88,6 +99,7 @@ export const useTimeTableEditor = ({
     isInitialized,
     loadPersistedData,
     updateData,
+    updateGlobalData,
     updateTheme,
     cardInputConfig,
   ]);
@@ -107,7 +119,9 @@ export const useTimeTableEditor = ({
 
     // 데이터 상태와 함수들
     data,
+    globalData,
     updateData,
+    updateGlobalData,
     updateCard,
     updateCardField,
     toggleOffline,

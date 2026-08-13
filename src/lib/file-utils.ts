@@ -1,6 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
 import { v4 as uuidv4 } from "uuid";
 import { deleteFileFromR2, getFileUrl, uploadFileToR2 } from "./r2";
+import { supabase } from "./supabase";
 
 export type UploadType = "character-images" | "reference-files";
 const BYTES_PER_MB = 1000 * 1000;
@@ -58,11 +58,6 @@ export function getUploadValidationOptions(
     : DEFAULT_UPLOAD_VALIDATION_OPTIONS;
 }
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export interface FileMetadata {
   id: string;
   file_key: string;
@@ -70,7 +65,7 @@ export interface FileMetadata {
   file_size: number;
   mime_type: string;
   url: string;
-  created_at: string;
+  created_at: string | null;
 }
 
 /**

@@ -1,0 +1,64 @@
+{
+  "success": true,
+  "purchase_templates": [
+    {
+      "id": "a0100001-0101-0101-0001-010101010101",
+      "access_level": "read",
+      "granted_at": "2026-08-05T00:00:00.000Z",
+      "templates": {
+        "id": "f0100001-0101-0101-0101-010101010101",
+        "name": "[01 baseline] Legacy timetable",
+        "description": "Legacy fixture",
+        "thumbnail_url": "",
+        "is_public": true,
+        "template_engine": "legacy",
+        "template_kind": null,
+        "status": "published",
+        "created_at": "2026-08-05T00:00:00.000Z",
+        "use_href": "/time-table/f0100001-0101-0101-0101-010101010101"
+      },
+      "template_plan": null
+    },
+    {
+      "id": "a0100003-0103-0103-0003-030303030303",
+      "access_level": "read",
+      "granted_at": "2026-08-05T00:00:00.000Z",
+      "templates": {
+        "id": "f0100003-0103-0103-0303-030303030303",
+        "name": "[01 baseline] Studio thumbnail",
+        "description": "Studio thumbnail fixture",
+        "thumbnail_url": "",
+        "is_public": true,
+        "template_engine": "studio",
+        "template_kind": "thumbnail",
+        "status": "published",
+        "created_at": "2026-08-05T00:00:00.000Z",
+        "use_href": "/thumbnail/f0100003-0103-0103-0303-030303030303"
+      },
+      "template_plan": null
+    }
+  ],
+  "artist_templates": [
+    {
+      "id": "artist-b0100001-0101-0101-0001-010101010101",
+      "access_level": "write",
+      "granted_at": "2026-08-05T00:00:00.000Z",
+      "templates": {
+        "id": "f0100002-0102-0102-0202-020202020202",
+        "name": "[01 baseline] Studio timetable",
+        "description": "Studio timetable fixture",
+        "thumbnail_url": "",
+        "is_public": true,
+        "template_engine": "studio",
+        "template_kind": "timetable",
+        "status": "published",
+        "created_at": "2026-08-05T00:00:00.000Z",
+        "use_href": "/template-studio/f0100002-0102-0102-0202-020202020202"
+      },
+      "template_plan": null
+    }
+  ],
+  "total_purchase": 2,
+  "total_artist": 1,
+  "total": 3
+}

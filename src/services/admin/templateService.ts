@@ -35,7 +35,7 @@ export class AdminTemplateService {
     if (params?.visibility) queryParams.append("visibility", params.visibility);
     if (params?.search) queryParams.append("search", params.search);
 
-    const url = `${this.baseUrl}/templates${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const url = `${this.baseUrl}/templates${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
 
     const response = await fetch(url);
 
@@ -47,7 +47,7 @@ export class AdminTemplateService {
   }
 
   static async getTemplate(
-    templateId: string
+    templateId: string,
   ): Promise<TemplateWithShopTemplateAndPlans> {
     const response = await fetch(`${this.baseUrl}/templates/${templateId}`);
 
@@ -61,7 +61,7 @@ export class AdminTemplateService {
   }
 
   static async createTemplate(
-    data: CreateTemplateData
+    data: CreateTemplateData,
   ): Promise<TemplateWithShopTemplateAndPlans> {
     const response = await fetch(`${this.baseUrl}/templates`, {
       method: "POST",
@@ -82,7 +82,7 @@ export class AdminTemplateService {
 
   static async updateTemplate(
     templateId: string,
-    data: UpdateTemplateData
+    data: UpdateTemplateData,
   ): Promise<TemplateWithShopTemplateAndPlans> {
     const response = await fetch(`${this.baseUrl}/templates/${templateId}`, {
       method: "PATCH",
@@ -103,7 +103,7 @@ export class AdminTemplateService {
 
   // Shop Templates
   static async createShopTemplate(
-    data: CreateShopTemplateData
+    data: CreateShopTemplateData,
   ): Promise<ShopTemplate> {
     const response = await fetch(`${this.baseUrl}/shop-templates`, {
       method: "POST",
@@ -124,7 +124,7 @@ export class AdminTemplateService {
 
   static async updateShopTemplate(
     productId: string,
-    data: UpdateShopTemplateData
+    data: UpdateShopTemplateData,
   ): Promise<ShopTemplate> {
     const response = await fetch(
       `${this.baseUrl}/shop-templates/${productId}`,
@@ -134,7 +134,7 @@ export class AdminTemplateService {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -148,7 +148,7 @@ export class AdminTemplateService {
 
   // Template Plans
   static async getTemplatePlans(
-    shopTemplateId?: string
+    shopTemplateId?: string,
   ): Promise<{ plans: TemplatePlan[] }> {
     const url = shopTemplateId
       ? `${this.baseUrl}/template-plans?shop_template_id=${shopTemplateId}`
@@ -164,7 +164,7 @@ export class AdminTemplateService {
   }
 
   static async createTemplatePlan(
-    data: CreateTemplatePlanData
+    data: CreateTemplatePlanData,
   ): Promise<TemplatePlan> {
     const response = await fetch(`${this.baseUrl}/template-plans`, {
       method: "POST",
@@ -185,7 +185,7 @@ export class AdminTemplateService {
 
   static async updateTemplatePlan(
     planId: string,
-    data: UpdateTemplatePlanData
+    data: UpdateTemplatePlanData,
   ): Promise<TemplatePlan> {
     const response = await fetch(`${this.baseUrl}/template-plans/${planId}`, {
       method: "PATCH",
@@ -202,5 +202,16 @@ export class AdminTemplateService {
 
     const result = await response.json();
     return (result.plan ?? result) as TemplatePlan;
+  }
+
+  static async deleteTemplatePlan(planId: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/template-plans/${planId}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "템플릿 플랜 삭제에 실패했습니다.");
+    }
   }
 }

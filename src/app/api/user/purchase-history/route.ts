@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/middleware';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdminServer as supabase } from "@/lib/supabase-admin-server";
 
 /**
  * 사용자의 구매 내역 조회 API

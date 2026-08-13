@@ -1,11 +1,12 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
 import { queryKeys } from "@/lib/queryKeys";
 import { AdminArtistService } from "@/services/admin/artistService";
-import {
+import type {
   CreateArtistData,
   TemplateArtistInput,
   UpdateArtistData,
 } from "@/types/admin";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export const useAdminArtists = (params?: {
   search?: string;
@@ -23,7 +24,8 @@ export const useCreateAdminArtist = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateArtistData) => AdminArtistService.createArtist(data),
+    mutationFn: (data: CreateArtistData) =>
+      AdminArtistService.createArtist(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.artists() });
     },
@@ -34,8 +36,13 @@ export const useUpdateAdminArtist = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ artistId, data }: { artistId: string; data: UpdateArtistData }) =>
-      AdminArtistService.updateArtist(artistId, data),
+    mutationFn: ({
+      artistId,
+      data,
+    }: {
+      artistId: string;
+      data: UpdateArtistData;
+    }) => AdminArtistService.updateArtist(artistId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.artists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.templates() });
@@ -83,6 +90,9 @@ export const useUpdateTemplateArtists = () => {
       });
       queryClient.invalidateQueries({
         queryKey: queryKeys.admin.templateArtists(variables.templateId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.user.templates(),
       });
     },
   });

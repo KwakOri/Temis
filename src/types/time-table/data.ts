@@ -5,6 +5,7 @@ export type TLanOpt = "kr" | "en" | "jp";
 
 export interface SimpleFieldConfig {
   key: string;
+  scope?: "entry" | "card" | "global";
   type: "text" | "textarea" | "time" | "date" | "select" | "number";
   label?: string;
   placeholder: string;
@@ -38,6 +39,14 @@ export interface TEntry {
     | undefined;
 }
 
+export type TFieldValue =
+  | string
+  | number
+  | boolean
+  | Array<{ text: string; checked: boolean }>;
+
+export type TGlobalData = Record<string, TFieldValue | undefined>;
+
 export interface TDefaultCard extends TDynamicCard {
   day: number;
 }
@@ -55,6 +64,6 @@ export interface TDynamicCard {
     | undefined;
 }
 
-export type TPlaceholders = Record<string, string> & { profileText: string };
+export type TPlaceholders = Record<string, string>;
 
 export type TAddonPlaceholders = Record<string, string>;

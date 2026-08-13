@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/auth/middleware";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdminServer as supabase } from "@/lib/supabase-admin-server";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -36,21 +36,21 @@ export async function POST(request: NextRequest) {
     // 템플릿이 존재하고 공개 템플릿인지 확인
     const { data: template, error: templateError } = await supabase
       .from("templates")
-      .select("id, is_public")
+      .select("id, is_public, template_engine, template_kind")
       .eq("id", template_id)
       .single();
 
     if (templateError || !template) {
       return NextResponse.json(
         { error: "템플릿을 찾을 수 없습니다." },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (!template.is_public) {
       return NextResponse.json(
         { error: "비공개 템플릿은 상품으로 등록할 수 없습니다." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -71,7 +71,28 @@ export async function POST(request: NextRequest) {
         {
           error: "이미 이 템플릿에 대한 상품이 등록되어 있습니다.",
         },
-        { status: 409 }
+        { status: 409 },
+      );
+    }
+
+    const isThumbnailTemplate =
+      template.template_engine === "studio" &&
+      template.template_kind === "thumbnail";
+    const timetableOptionKeys = [
+      "is_artist",
+      "is_memo",
+      "is_multi_schedule",
+      "is_guerrilla",
+      "is_offline_memo",
+    ] as const;
+
+    if (
+      isThumbnailTemplate &&
+      timetableOptionKeys.some((key) => body[key] === true)
+    ) {
+      return NextResponse.json(
+        { error: "썸네일 상품에는 시간표 전용 옵션을 설정할 수 없습니다." },
+        { status: 400 },
       );
     }
 
@@ -86,16 +107,27 @@ export async function POST(request: NextRequest) {
         requirements: requirements?.trim() || null,
         purchase_instructions: purchase_instructions?.trim() || null,
         is_shop_visible: false, // 상품 등록 단계(임시 저장)로 시작
-        is_artist: is_artist || false,
-        is_memo: is_memo || false,
-        is_multi_schedule: is_multi_schedule || false,
-        is_guerrilla: is_guerrilla || false,
-        is_offline_memo: is_offline_memo || false,
+        is_artist: isThumbnailTemplate ? false : Boolean(is_artist),
+        is_memo: isThumbnailTemplate ? false : Boolean(is_memo),
+        is_multi_schedule: isThumbnailTemplate
+          ? false
+          : Boolean(is_multi_schedule),
+        is_guerrilla: isThumbnailTemplate ? false : Boolean(is_guerrilla),
+        is_offline_memo: isThumbnailTemplate ? false : Boolean(is_offline_memo),
       })
       .select()
       .single();
 
     if (insertError) {
+      // 사전 조회와 이 insert 사이의 경합은 DB unique 제약
+      // (`shop_templates_template_id_unique`)이 최종적으로 막는다. 동시
+      // 요청 중 하나만 여기 도달하고, 나머지는 23505로 거부된다.
+      if (insertError.code === "23505") {
+        return NextResponse.json(
+          { error: "이미 이 템플릿에 대한 상품이 등록되어 있습니다." },
+          { status: 409 }
+        );
+      }
       console.error("Shop template creation error:", insertError);
       throw insertError;
     }

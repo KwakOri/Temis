@@ -52,6 +52,7 @@ export interface CustomOrderWithStatus {
   price_quoted?: number;
   depositor_name?: string;
   admin_notes?: string;
+  deadline?: string | null;
   created_at: string;
   updated_at: string;
 }

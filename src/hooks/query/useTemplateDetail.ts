@@ -26,14 +26,22 @@ export const useTemplateDetail = (templateId: string) => {
 export const useSubmitPurchaseRequest = () => {
   const queryClient = useQueryClient();
 
+  const invalidatePurchaseRelatedQueries = () =>
+    Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.purchaseHistory.list(),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: [...queryKeys.shop.all, "userAccess"],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.user.templates(),
+      }),
+    ]);
+
   return useMutation({
     mutationFn: (requestData: PurchaseRequestData) =>
       TemplateDetailService.submitPurchaseRequest(requestData),
-    onSuccess: () => {
-      // 구매 내역 캐시 무효화
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.purchaseHistory.list(),
-      });
-    },
+    onSettled: invalidatePurchaseRelatedQueries,
   });
 };

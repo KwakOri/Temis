@@ -1,22 +1,35 @@
 import { Database } from "@/types/supabase";
 import { createClient } from "@supabase/supabase-js";
 
-// Supabase 설정
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error("Missing Supabase environment variables");
+if (typeof window !== "undefined") {
+  throw new Error("The Supabase server client cannot run in the browser.");
 }
 
-// Supabase 클라이언트 생성 (타입 안전성과 함께)
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-    detectSessionInUrl: false,
-  },
-});
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabasePublishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
+
+if (!supabaseUrl) {
+  throw new Error("Missing SUPABASE_URL");
+}
+
+if (!supabasePublishableKey?.startsWith("sb_publishable_")) {
+  throw new Error(
+    "Missing or invalid SUPABASE_PUBLISHABLE_KEY (expected sb_publishable_...)."
+  );
+}
+
+// Low-privilege server client. Browser callers must use the app's API routes.
+export const supabase = createClient<Database>(
+  supabaseUrl,
+  supabasePublishableKey,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+  }
+);
 
 export type User = Database["public"]["Tables"]["users"]["Row"];
 

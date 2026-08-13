@@ -5,6 +5,9 @@ export type AdminTabId =
   | "salesStats"
   | "settlements"
   | "templates"
+  | "templateStudio"
+  | "thumbnailStudio"
+  | "templateHub"
   | "artists"
   | "thumbnails"
   | "portfolios"
@@ -24,6 +27,9 @@ export const ADMIN_TAB_SEGMENT_BY_ID: Record<AdminTabId, string> = {
   salesStats: "sales-stats",
   settlements: "settlements",
   templates: "templates",
+  templateStudio: "template-studio",
+  thumbnailStudio: "thumbnail-studio",
+  templateHub: "template-hub",
   artists: "artists",
   thumbnails: "thumbnails",
   portfolios: "portfolios",
@@ -36,7 +42,7 @@ export const ADMIN_TAB_SEGMENT_BY_ID: Record<AdminTabId, string> = {
 };
 
 export const ADMIN_TAB_ID_BY_SEGMENT = Object.entries(
-  ADMIN_TAB_SEGMENT_BY_ID
+  ADMIN_TAB_SEGMENT_BY_ID,
 ).reduce<Record<string, AdminTabId>>((acc, [tabId, segment]) => {
   acc[segment] = tabId as AdminTabId;
   return acc;
@@ -45,12 +51,11 @@ export const ADMIN_TAB_ID_BY_SEGMENT = Object.entries(
 export const getAdminPathByTabId = (tabId: AdminTabId): string =>
   `/admin/${ADMIN_TAB_SEGMENT_BY_ID[tabId]}`;
 
-export const getAdminTabIdBySegment = (
-  segment: string
-): AdminTabId | null => ADMIN_TAB_ID_BY_SEGMENT[segment] || null;
+export const getAdminTabIdBySegment = (segment: string): AdminTabId | null =>
+  ADMIN_TAB_ID_BY_SEGMENT[segment] || null;
 
 export const getAdminTabIdFromQuery = (
-  rawTab: string | null | undefined
+  rawTab: string | null | undefined,
 ): AdminTabId | null => {
   if (!rawTab) {
     return null;

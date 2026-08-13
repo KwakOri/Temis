@@ -1,8 +1,13 @@
 "use client";
 
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { TemplateCover } from "@/components/templates/template-cover";
 import TemplateDetailContent from "@/components/shop/TemplateDetailContent";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  useDeleteCatalogCover,
+  useUploadCatalogCover,
+} from "@/hooks/query/useCatalogCover";
 import {
   useAdminArtists,
   useUpdateTemplateArtists,
@@ -15,6 +20,7 @@ import {
   useAdminTemplate,
   useCreateShopTemplate,
   useCreateTemplatePlan,
+  useDeleteTemplatePlan,
   useUpdateAdminTemplate,
   useUpdateShopTemplate,
   useUpdateTemplatePlan,
@@ -29,9 +35,10 @@ import type {
   TemplateWithShopTemplateAndPlans,
 } from "@/types/admin";
 import type { ShopTemplateWithPlans as ShopTemplateDetailData } from "@/types/templateDetail";
+import { resolveConsumerTemplateKind } from "@/utils/templates/consumer-template";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface PlanOptions {
   is_artist: boolean;
@@ -46,6 +53,7 @@ interface ProductForm {
   templateDescription: string;
   title: string;
   detailed_description: string;
+  litePrice: number | null;
   proPrice: number;
   features: string[];
   requirements: string;
@@ -83,7 +91,10 @@ function formatRoyaltyRule(rule: ArtistRoyaltyRule | null): string {
 
 interface ProductRoyaltyRuleEditorProps {
   item: TemplateProductRoyaltySettingsArtist;
-  onSave: (item: TemplateProductRoyaltySettingsArtist, data: RoyaltyRuleInput) => Promise<void>;
+  onSave: (
+    item: TemplateProductRoyaltySettingsArtist,
+    data: RoyaltyRuleInput,
+  ) => Promise<void>;
   disabled?: boolean;
 }
 
@@ -93,17 +104,19 @@ function ProductRoyaltyRuleEditor({
   disabled,
 }: ProductRoyaltyRuleEditorProps) {
   const [royaltyType, setRoyaltyType] = useState<RoyaltyRuleType>(
-    item.templateRule?.royalty_type === "fixed" ? "fixed" : "percentage"
+    item.templateRule?.royalty_type === "fixed" ? "fixed" : "percentage",
   );
   const [royaltyValue, setRoyaltyValue] = useState(
-    item.templateRule ? String(item.templateRule.royalty_value) : ""
+    item.templateRule ? String(item.templateRule.royalty_value) : "",
   );
 
   useEffect(() => {
     setRoyaltyType(
-      item.templateRule?.royalty_type === "fixed" ? "fixed" : "percentage"
+      item.templateRule?.royalty_type === "fixed" ? "fixed" : "percentage",
     );
-    setRoyaltyValue(item.templateRule ? String(item.templateRule.royalty_value) : "");
+    setRoyaltyValue(
+      item.templateRule ? String(item.templateRule.royalty_value) : "",
+    );
   }, [item.templateRule]);
 
   const save = async () => {
@@ -144,7 +157,9 @@ function ProductRoyaltyRuleEditor({
     <div className="flex flex-wrap items-center gap-2">
       <select
         value={royaltyType}
-        onChange={(event) => setRoyaltyType(event.target.value as RoyaltyRuleType)}
+        onChange={(event) =>
+          setRoyaltyType(event.target.value as RoyaltyRuleType)
+        }
         className="px-2 py-1.5 border border-[#DCC7B7] rounded-md text-xs bg-white"
         disabled={disabled}
       >
@@ -203,8 +218,12 @@ function TemplateProductEditorContent() {
   const updateProductMutation = useUpdateShopTemplate();
   const createPlanMutation = useCreateTemplatePlan();
   const updatePlanMutation = useUpdateTemplatePlan();
+  const deletePlanMutation = useDeleteTemplatePlan();
   const updateTemplateArtistsMutation = useUpdateTemplateArtists();
-  const { data: templateRoyaltySettings } = useRoyaltySettingsTemplate(templateId);
+  const uploadCatalogCoverMutation = useUploadCatalogCover();
+  const deleteCatalogCoverMutation = useDeleteCatalogCover();
+  const { data: templateRoyaltySettings } =
+    useRoyaltySettingsTemplate(templateId);
   const updateTemplateRoyaltyRuleMutation = useUpdateTemplateRoyaltyRule();
 
   const [productFormData, setProductFormData] = useState<ProductForm>({
@@ -212,6 +231,7 @@ function TemplateProductEditorContent() {
     templateDescription: "",
     title: "",
     detailed_description: "",
+    litePrice: null,
     proPrice: 25000,
     features: [
       "고화질 시간표 템플릿",
@@ -226,10 +246,23 @@ function TemplateProductEditorContent() {
   const [primaryArtistId, setPrimaryArtistId] = useState<string | null>(null);
   const [artistSearchTerm, setArtistSearchTerm] = useState("");
   const [formInitializing, setFormInitializing] = useState(true);
+  const [selectedCoverFile, setSelectedCoverFile] = useState<File | null>(null);
+  const [selectedCoverPreviewUrl, setSelectedCoverPreviewUrl] = useState<
+    string | null
+  >(null);
+  const coverFileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    return () => {
+      if (selectedCoverPreviewUrl) {
+        URL.revokeObjectURL(selectedCoverPreviewUrl);
+      }
+    };
+  }, [selectedCoverPreviewUrl]);
 
   const temisArtistOption = useMemo(
     () => artists.find((artist) => artist.slug === "temis"),
-    [artists]
+    [artists],
   );
   const artistById = useMemo(() => {
     const map = new Map<string, Artist>();
@@ -257,9 +290,7 @@ function TemplateProductEditorContent() {
       const name = artist.name?.toLowerCase() || "";
       const bio = artist.bio?.toLowerCase() || "";
       const slug = artist.slug?.toLowerCase() || "";
-      return (
-        name.includes(term) || bio.includes(term) || slug.includes(term)
-      );
+      return name.includes(term) || bio.includes(term) || slug.includes(term);
     });
   }, [artists, artistSearchTerm]);
 
@@ -269,7 +300,7 @@ function TemplateProductEditorContent() {
         artistId,
         artist: artistById.get(artistId) || null,
       })),
-    [artistById, selectedArtistIds]
+    [artistById, selectedArtistIds],
   );
 
   const hasProduct = (item: TemplateWithShopTemplateAndPlans) =>
@@ -282,7 +313,7 @@ function TemplateProductEditorContent() {
     Boolean(getShopTemplate(item)?.is_shop_visible);
 
   const applyArtistSelectionFromTemplate = (
-    item: TemplateWithShopTemplateAndPlans
+    item: TemplateWithShopTemplateAndPlans,
   ) => {
     const relations = (item.template_artists || []).slice().sort((a, b) => {
       if (a.is_primary === b.is_primary) {
@@ -292,7 +323,9 @@ function TemplateProductEditorContent() {
     });
 
     const artistIds = relations.map((relation) => relation.artist_id);
-    const primary = relations.find((relation) => relation.is_primary)?.artist_id;
+    const primary = relations.find(
+      (relation) => relation.is_primary,
+    )?.artist_id;
 
     setSelectedArtistIds(artistIds);
     setPrimaryArtistId(primary || artistIds[0] || null);
@@ -311,6 +344,12 @@ function TemplateProductEditorContent() {
 
       applyArtistSelectionFromTemplate(template);
 
+      const templateKind = resolveConsumerTemplateKind(
+        template.template_engine,
+        template.template_kind,
+      );
+      const isThumbnailTemplate = templateKind === "thumbnail";
+
       const product = template.shop_templates?.[0];
       if (!product) {
         if (active) {
@@ -319,6 +358,7 @@ function TemplateProductEditorContent() {
             templateDescription: template.description || "",
             title: template.name,
             detailed_description: "",
+            litePrice: null,
             proPrice: 25000,
             features: [
               "고화질 시간표 템플릿",
@@ -335,7 +375,9 @@ function TemplateProductEditorContent() {
       }
 
       try {
-        const { plans } = await AdminTemplateService.getTemplatePlans(product.id);
+        const { plans } = await AdminTemplateService.getTemplatePlans(
+          product.id,
+        );
         const proPlan = plans.find((p) => p.plan === "pro");
         const litePlan = plans.find((p) => p.plan === "lite");
 
@@ -348,17 +390,20 @@ function TemplateProductEditorContent() {
           templateDescription: template.description || "",
           title: product.title || template.name,
           detailed_description: product.detailed_description || "",
-          proPrice: proPlan?.price || litePlan?.price || 25000,
+          litePrice: litePlan?.price ?? null,
+          proPrice: proPlan?.price ?? litePlan?.price ?? 25000,
           features: product.features || [],
           requirements: product.requirements || "",
           purchase_instructions: product.purchase_instructions || "",
-          templateOptions: {
-            is_artist: product.is_artist || false,
-            is_memo: product.is_memo || false,
-            is_multi_schedule: product.is_multi_schedule || false,
-            is_guerrilla: product.is_guerrilla || false,
-            is_offline_memo: product.is_offline_memo || false,
-          },
+          templateOptions: isThumbnailTemplate
+            ? defaultPlanOptions
+            : {
+                is_artist: product.is_artist || false,
+                is_memo: product.is_memo || false,
+                is_multi_schedule: product.is_multi_schedule || false,
+                is_guerrilla: product.is_guerrilla || false,
+                is_offline_memo: product.is_offline_memo || false,
+              },
         });
       } catch (error) {
         console.error("상품 편집 초기화 실패:", error);
@@ -414,6 +459,99 @@ function TemplateProductEditorContent() {
     setPrimaryArtistId(temisArtistOption.id);
   };
 
+  const clearSelectedCover = () => {
+    setSelectedCoverFile(null);
+    setSelectedCoverPreviewUrl(null);
+    if (coverFileInputRef.current) {
+      coverFileInputRef.current.value = "";
+    }
+  };
+
+  const handleCoverFileChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (
+      !["image/png", "image/jpeg", "image/webp"].includes(file.type) ||
+      file.size <= 0 ||
+      file.size > 10 * 1000 * 1000
+    ) {
+      alert(
+        "대표 이미지는 PNG, JPEG, WebP 형식의 10MB 이하 파일만 업로드할 수 있습니다.",
+      );
+      event.currentTarget.value = "";
+      return;
+    }
+
+    setSelectedCoverFile(file);
+    setSelectedCoverPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleCoverUpload = async () => {
+    if (!selectedCoverFile) {
+      alert("먼저 대표 이미지 파일을 선택해주세요.");
+      return;
+    }
+
+    try {
+      const result = await uploadCatalogCoverMutation.mutateAsync({
+        templateId,
+        file: selectedCoverFile,
+      });
+      clearSelectedCover();
+      alert(
+        result.cleanupWarning
+          ? "대표 이미지를 등록했지만 이전 이미지 정리에 실패했습니다. 운영 cleanup 대상입니다."
+          : "대표 이미지가 등록되었습니다.",
+      );
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "대표 이미지 업로드에 실패했습니다.",
+      );
+    }
+  };
+
+  const handleCoverDelete = async () => {
+    if (!template?.thumbnail_url) return;
+    if (
+      !confirm("대표 이미지를 삭제하고 종류별 placeholder를 사용하시겠습니까?")
+    ) {
+      return;
+    }
+
+    try {
+      const result = await deleteCatalogCoverMutation.mutateAsync(templateId);
+      clearSelectedCover();
+      alert(
+        result.cleanupWarning
+          ? "대표 이미지를 삭제했지만 R2 이전 파일 정리에 실패했습니다. 운영 cleanup 대상입니다."
+          : "대표 이미지가 삭제되었습니다.",
+      );
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "대표 이미지 삭제에 실패했습니다.",
+      );
+    }
+  };
+
+  const isStudioCatalogTemplate =
+    template?.template_engine === "studio" &&
+    (template.template_kind === "timetable" ||
+      template.template_kind === "thumbnail");
+  const catalogCoverKind =
+    template?.template_kind === "thumbnail" ? "thumbnail" : "timetable";
+  const editorTemplateKind = resolveConsumerTemplateKind(
+    template?.template_engine,
+    template?.template_kind,
+  );
+  const isThumbnailProduct = editorTemplateKind === "thumbnail";
+
   const previewTemplate = useMemo<ShopTemplateDetailData | null>(() => {
     if (!template) {
       return null;
@@ -427,8 +565,8 @@ function TemplateProductEditorContent() {
       selectedArtistIds.length === 0
         ? null
         : selectedArtistIds.includes(primaryArtistId || "")
-        ? primaryArtistId
-        : selectedArtistIds[0];
+          ? primaryArtistId
+          : selectedArtistIds[0];
 
     const previewTemplateArtists: ShopTemplateDetailData["template_artists"] =
       selectedArtistIds.map((artistId, index) => ({
@@ -442,7 +580,23 @@ function TemplateProductEditorContent() {
         artist: artistById.get(artistId) || null,
       }));
 
+    const previewOptions = isThumbnailProduct
+      ? defaultPlanOptions
+      : productFormData.templateOptions;
     const previewPlans: ShopTemplateDetailData["template_plans"] = [
+      ...(isThumbnailProduct || productFormData.litePrice === null
+        ? []
+        : [
+            {
+              id: `preview-plan-lite-${template.id}`,
+              shop_template_id: previewShopTemplateId,
+              plan: "lite" as const,
+              price: productFormData.litePrice,
+              created_at: now,
+              updated_at: now,
+              ...previewOptions,
+            },
+          ]),
       {
         id: `preview-plan-pro-${template.id}`,
         shop_template_id: previewShopTemplateId,
@@ -450,7 +604,7 @@ function TemplateProductEditorContent() {
         price: productFormData.proPrice,
         created_at: now,
         updated_at: now,
-        ...productFormData.templateOptions,
+        ...previewOptions,
       },
     ];
 
@@ -465,10 +619,11 @@ function TemplateProductEditorContent() {
       is_shop_visible: true,
       created_at: existingShopTemplate?.created_at || now,
       updated_at: now,
-      ...productFormData.templateOptions,
+      ...previewOptions,
       templates: {
         id: template.id,
         created_at: template.created_at,
+        created_by: template.created_by,
         updated_at: template.updated_at,
         name: productFormData.templateName || template.name,
         description: productFormData.templateDescription,
@@ -476,11 +631,21 @@ function TemplateProductEditorContent() {
         thumbnail_url: template.thumbnail_url,
         is_public: template.is_public,
         is_shop_visible: template.is_shop_visible,
+        status: template.status,
+        template_engine: template.template_engine,
+        template_kind: template.template_kind,
       },
       template_plans: previewPlans,
       template_artists: previewTemplateArtists,
     };
-  }, [artistById, primaryArtistId, productFormData, selectedArtistIds, template]);
+  }, [
+    artistById,
+    isThumbnailProduct,
+    primaryArtistId,
+    productFormData,
+    selectedArtistIds,
+    template,
+  ]);
 
   const handleOpenShopPreview = () => {
     if (!previewTemplate || typeof window === "undefined") {
@@ -494,13 +659,13 @@ function TemplateProductEditorContent() {
         JSON.stringify({
           template: previewTemplate,
           createdAt: Date.now(),
-        })
+        }),
       );
 
       window.open(
         `/shop/preview?previewKey=${encodeURIComponent(previewKey)}`,
         "_blank",
-        "noopener,noreferrer"
+        "noopener,noreferrer",
       );
     } catch (error) {
       console.error("상점 미리보기 열기 실패:", error);
@@ -514,11 +679,14 @@ function TemplateProductEditorContent() {
     updateProductMutation.isPending ||
     createPlanMutation.isPending ||
     updatePlanMutation.isPending ||
-    updateTemplateArtistsMutation.isPending;
+    deletePlanMutation.isPending ||
+    updateTemplateArtistsMutation.isPending ||
+    uploadCatalogCoverMutation.isPending ||
+    deleteCatalogCoverMutation.isPending;
 
   const saveTemplateRoyaltyRule = async (
     item: TemplateProductRoyaltySettingsArtist,
-    data: RoyaltyRuleInput
+    data: RoyaltyRuleInput,
   ) => {
     try {
       await updateTemplateRoyaltyRuleMutation.mutateAsync({
@@ -527,7 +695,9 @@ function TemplateProductEditorContent() {
         data,
       });
     } catch (error) {
-      alert(error instanceof Error ? error.message : "저장 중 오류가 발생했습니다.");
+      alert(
+        error instanceof Error ? error.message : "저장 중 오류가 발생했습니다.",
+      );
     }
   };
 
@@ -538,6 +708,9 @@ function TemplateProductEditorContent() {
     try {
       const product = template.shop_templates?.[0];
       const isEditing = !!product;
+      const normalizedOptions = isThumbnailProduct
+        ? defaultPlanOptions
+        : productFormData.templateOptions;
 
       await updateTemplateMutation.mutateAsync({
         templateId: template.id,
@@ -554,7 +727,7 @@ function TemplateProductEditorContent() {
         requirements: productFormData.requirements,
         purchase_instructions: productFormData.purchase_instructions,
         is_shop_visible: isEditing ? product.is_shop_visible : false,
-        ...productFormData.templateOptions,
+        ...normalizedOptions,
       };
 
       let shopTemplateId: string;
@@ -573,15 +746,17 @@ function TemplateProductEditorContent() {
         shopTemplateId = createdShopTemplate.id;
       }
 
-      const { plans } = await AdminTemplateService.getTemplatePlans(shopTemplateId);
+      const { plans } =
+        await AdminTemplateService.getTemplatePlans(shopTemplateId);
       const proPlan = plans.find((p) => p.plan === "pro");
+      const litePlan = plans.find((p) => p.plan === "lite");
 
       if (proPlan) {
         await updatePlanMutation.mutateAsync({
           planId: proPlan.id,
           data: {
             price: productFormData.proPrice,
-            ...productFormData.templateOptions,
+            ...normalizedOptions,
           },
         });
       } else {
@@ -589,16 +764,41 @@ function TemplateProductEditorContent() {
           shop_template_id: shopTemplateId,
           plan: "pro",
           price: productFormData.proPrice,
-          ...productFormData.templateOptions,
+          ...normalizedOptions,
         });
+      }
+
+      if (isThumbnailProduct) {
+        if (litePlan) {
+          await deletePlanMutation.mutateAsync(litePlan.id);
+        }
+      } else if (productFormData.litePrice !== null) {
+        if (litePlan) {
+          await updatePlanMutation.mutateAsync({
+            planId: litePlan.id,
+            data: {
+              price: productFormData.litePrice,
+              ...normalizedOptions,
+            },
+          });
+        } else {
+          await createPlanMutation.mutateAsync({
+            shop_template_id: shopTemplateId,
+            plan: "lite",
+            price: productFormData.litePrice,
+            ...normalizedOptions,
+          });
+        }
+      } else if (litePlan) {
+        await deletePlanMutation.mutateAsync(litePlan.id);
       }
 
       const normalizedPrimaryArtistId =
         selectedArtistIds.length === 0
           ? null
           : selectedArtistIds.includes(primaryArtistId || "")
-          ? primaryArtistId
-          : selectedArtistIds[0];
+            ? primaryArtistId
+            : selectedArtistIds[0];
 
       await updateTemplateArtistsMutation.mutateAsync({
         templateId: template.id,
@@ -627,7 +827,9 @@ function TemplateProductEditorContent() {
       <div className="min-h-screen flex items-center justify-center bg-timetable-form-bg">
         <div className="text-center">
           <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
-          <p className="mt-3 text-dark-gray/70">상품 편집 화면을 준비하는 중...</p>
+          <p className="mt-3 text-dark-gray/70">
+            상품 편집 화면을 준비하는 중...
+          </p>
         </div>
       </div>
     );
@@ -637,7 +839,9 @@ function TemplateProductEditorContent() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-timetable-form-bg">
         <div className="bg-white border border-[#E8D8CB] rounded-2xl p-8 text-center max-w-md">
-          <h2 className="text-xl font-semibold text-[#3B3028]">접근 권한 없음</h2>
+          <h2 className="text-xl font-semibold text-[#3B3028]">
+            접근 권한 없음
+          </h2>
           <p className="text-sm text-[#6A5648] mt-2">
             관리자 권한이 필요한 페이지입니다.
           </p>
@@ -657,7 +861,9 @@ function TemplateProductEditorContent() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-timetable-form-bg">
         <div className="bg-white border border-[#E8D8CB] rounded-2xl p-8 text-center max-w-md">
-          <h2 className="text-xl font-semibold text-[#3B3028]">템플릿을 찾을 수 없습니다</h2>
+          <h2 className="text-xl font-semibold text-[#3B3028]">
+            템플릿을 찾을 수 없습니다
+          </h2>
           <p className="text-sm text-[#6A5648] mt-2">
             {templateError instanceof Error
               ? templateError.message
@@ -694,7 +900,8 @@ function TemplateProductEditorContent() {
             템플릿 관리로 돌아가기
           </button>
           <span className="hidden lg:inline text-xs text-[#7A685A]">
-            데스크톱에서는 오른쪽에서 실시간 상세페이지 미리보기를 확인할 수 있습니다.
+            데스크톱에서는 오른쪽에서 실시간 상세페이지 미리보기를 확인할 수
+            있습니다.
           </span>
         </div>
 
@@ -770,13 +977,110 @@ function TemplateProductEditorContent() {
                 </div>
                 {selectedArtistIds.length === 0 && (
                   <div className="mt-2 text-xs text-red-600">
-                    현재 작가 미연결 상태입니다. 이 상태에서는 판매 시작이 불가합니다.
+                    현재 작가 미연결 상태입니다. 이 상태에서는 판매 시작이
+                    불가합니다.
                   </div>
                 )}
               </div>
 
               <section className="rounded-xl border border-[#E8D8CB] bg-[#FFFAF6] p-4 sm:p-5">
-                <h3 className="text-sm font-semibold text-[#3B3028] mb-4">상점 기본 정보</h3>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-[#3B3028]">
+                      카탈로그 대표 이미지
+                    </h3>
+                    <p className="mt-1 text-xs text-[#7A685A]">
+                      마이페이지와 상점에서 함께 사용하는 상품 대표
+                      이미지입니다. 사용자 썸네일 결과물은 여기에 저장하지
+                      않습니다.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-[#F5ECE5] px-2.5 py-1 text-xs font-semibold text-[#7A685A]">
+                    {isStudioCatalogTemplate
+                      ? catalogCoverKind === "thumbnail"
+                        ? "Studio 썸네일"
+                        : "Studio 시간표"
+                      : "Legacy 정적 cover"}
+                  </span>
+                </div>
+
+                {isStudioCatalogTemplate ? (
+                  <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,220px)_1fr] md:items-start">
+                    <TemplateCover
+                      alt={template.name}
+                      className="aspect-video rounded-lg border border-[#E8D8CB]"
+                      kind={catalogCoverKind}
+                      src={
+                        selectedCoverPreviewUrl ||
+                        template.thumbnail_url ||
+                        null
+                      }
+                    />
+                    <div className="space-y-3">
+                      <label className="block text-sm font-medium text-[#5F4F44]">
+                        이미지 파일
+                        <input
+                          ref={coverFileInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          className="mt-2 block w-full rounded-lg border border-[#DCC7B7] bg-white px-3 py-2 text-sm text-[#5F4F44] file:mr-3 file:rounded-md file:border-0 file:bg-[#F5ECE5] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-[#6D594D]"
+                          onChange={handleCoverFileChange}
+                          disabled={productLoading}
+                        />
+                      </label>
+                      <p className="text-xs leading-5 text-[#7A685A]">
+                        PNG, JPEG, WebP · 최대 10MB · 권장 비율 16:9 (1280×720)
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleCoverUpload()}
+                          disabled={!selectedCoverFile || productLoading}
+                          className="rounded-lg bg-[#D88A4A] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#C97A3A] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {uploadCatalogCoverMutation.isPending
+                            ? "업로드 중..."
+                            : "대표 이미지 등록"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={clearSelectedCover}
+                          disabled={!selectedCoverFile || productLoading}
+                          className="rounded-lg border border-[#DCC7B7] bg-white px-3 py-2 text-sm font-medium text-[#6D594D] hover:bg-[#F5ECE5] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          선택 취소
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleCoverDelete()}
+                          disabled={!template.thumbnail_url || productLoading}
+                          className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {deleteCatalogCoverMutation.isPending
+                            ? "삭제 중..."
+                            : "대표 이미지 삭제"}
+                        </button>
+                      </div>
+                      <p className="text-xs text-[#8A725F]">
+                        교체 시 새 이미지와 DB 갱신을 먼저 완료한 뒤 기존 관리
+                        R2 자산을 정리합니다. 정리에 실패하면 운영 cleanup
+                        대상으로 기록합니다.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-4 rounded-lg border border-[#E7D7C9] bg-[#FAF2EA] p-3 text-xs leading-5 text-[#7A685A]">
+                    Legacy 템플릿은 기존 정적 cover와 fallback을 유지합니다. 이
+                    화면에서는 Legacy 사용자 결과물이나 정적 파일을 catalog
+                    cover로 교체하지 않습니다.
+                  </p>
+                )}
+              </section>
+
+              <section className="rounded-xl border border-[#E8D8CB] bg-[#FFFAF6] p-4 sm:p-5">
+                <h3 className="text-sm font-semibold text-[#3B3028] mb-4">
+                  상점 기본 정보
+                </h3>
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-[#5F4F44] mb-1.5">
@@ -840,14 +1144,17 @@ function TemplateProductEditorContent() {
               </section>
 
               <section className="rounded-xl border border-[#E8D8CB] bg-[#FFFAF6] p-4 sm:p-5">
-                <h3 className="text-sm font-semibold text-[#3B3028] mb-1">작가 연결</h3>
+                <h3 className="text-sm font-semibold text-[#3B3028] mb-1">
+                  작가 연결
+                </h3>
                 <p className="text-xs text-[#7A685A] mb-4">
                   이 템플릿에 연결할 작가를 선택하고 대표 작가를 지정하세요.
                 </p>
 
                 {artists.length === 0 ? (
                   <div className="text-sm text-[#7A685A] bg-[#F9F1E8] border border-[#E7D7C9] rounded-lg p-3">
-                    등록된 작가가 없습니다. 먼저 작가 관리 탭에서 작가를 등록해 주세요.
+                    등록된 작가가 없습니다. 먼저 작가 관리 탭에서 작가를 등록해
+                    주세요.
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -884,7 +1191,10 @@ function TemplateProductEditorContent() {
                                   type="checkbox"
                                   checked={checked}
                                   onChange={(e) =>
-                                    handleArtistToggle(artist.id, e.target.checked)
+                                    handleArtistToggle(
+                                      artist.id,
+                                      e.target.checked,
+                                    )
                                   }
                                   className="w-4 h-4 text-orange-600 border-[#CFB9A8] rounded focus:ring-[#E6AD82]"
                                 />
@@ -897,7 +1207,9 @@ function TemplateProductEditorContent() {
                                   type="radio"
                                   name="primary-artist"
                                   disabled={!checked}
-                                  checked={checked && primaryArtistId === artist.id}
+                                  checked={
+                                    checked && primaryArtistId === artist.id
+                                  }
                                   onChange={() => setPrimaryArtistId(artist.id)}
                                   className="w-4 h-4 text-orange-600 border-[#CFB9A8] focus:ring-[#E6AD82]"
                                 />
@@ -926,7 +1238,8 @@ function TemplateProductEditorContent() {
                             >
                               <div className="min-w-0">
                                 <p className="text-sm text-[#3F342D] truncate">
-                                  {artist?.name || `알 수 없는 작가 (${artistId})`}
+                                  {artist?.name ||
+                                    `알 수 없는 작가 (${artistId})`}
                                 </p>
                                 {artist?.slug && (
                                   <p className="text-xs text-[#7A685A] truncate">
@@ -940,14 +1253,18 @@ function TemplateProductEditorContent() {
                                     type="radio"
                                     name="selected-primary-artist"
                                     checked={primaryArtistId === artistId}
-                                    onChange={() => setPrimaryArtistId(artistId)}
+                                    onChange={() =>
+                                      setPrimaryArtistId(artistId)
+                                    }
                                     className="w-4 h-4 text-orange-600 border-[#CFB9A8] focus:ring-[#E6AD82]"
                                   />
                                   대표
                                 </label>
                                 <button
                                   type="button"
-                                  onClick={() => handleArtistToggle(artistId, false)}
+                                  onClick={() =>
+                                    handleArtistToggle(artistId, false)
+                                  }
                                   className="text-xs text-red-600 hover:text-red-700"
                                 >
                                   해제
@@ -964,8 +1281,8 @@ function TemplateProductEditorContent() {
                 {selectedArtistIds.length === 0 && (
                   <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3">
                     <p className="text-xs text-red-700">
-                      미연결 상태는 판매 불가입니다. &apos;테미스&apos; 또는 실제 작가를 연결해
-                      주세요.
+                      미연결 상태는 판매 불가입니다. &apos;테미스&apos; 또는
+                      실제 작가를 연결해 주세요.
                     </p>
                     <div className="mt-2">
                       <button
@@ -988,14 +1305,14 @@ function TemplateProductEditorContent() {
                   템플릿 로열티
                 </h3>
                 <p className="text-xs text-[#7A685A] mb-4">
-                  이 상품에서만 적용할 작가별 로열티 override를 설정합니다. 비워두면
-                  작가 기본 로열티가 적용됩니다.
+                  이 상품에서만 적용할 작가별 로열티 override를 설정합니다.
+                  비워두면 작가 기본 로열티가 적용됩니다.
                 </p>
 
                 {(templateRoyaltySettings?.artists.length || 0) === 0 ? (
                   <div className="text-sm text-[#7A685A] bg-[#F9F1E8] border border-[#E7D7C9] rounded-lg p-3">
-                    저장된 작가 연결이 없습니다. 작가 연결을 저장한 뒤 템플릿 로열티를
-                    설정할 수 있습니다.
+                    저장된 작가 연결이 없습니다. 작가 연결을 저장한 뒤 템플릿
+                    로열티를 설정할 수 있습니다.
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -1010,19 +1327,22 @@ function TemplateProductEditorContent() {
                               {item.artistName}
                             </div>
                             <div className="text-xs text-[#7A685A] mt-1">
-                              작가 기본 {formatRoyaltyRule(item.defaultRule)} · 현재 적용{" "}
+                              작가 기본 {formatRoyaltyRule(item.defaultRule)} ·
+                              현재 적용{" "}
                               {item.appliedSource === "template"
                                 ? "템플릿"
                                 : item.appliedSource === "artist"
-                                ? "작가 기본"
-                                : "미설정"}{" "}
+                                  ? "작가 기본"
+                                  : "미설정"}{" "}
                               {formatRoyaltyRule(item.appliedRule)}
                             </div>
                           </div>
                           <ProductRoyaltyRuleEditor
                             item={item}
                             onSave={saveTemplateRoyaltyRule}
-                            disabled={updateTemplateRoyaltyRuleMutation.isPending}
+                            disabled={
+                              updateTemplateRoyaltyRuleMutation.isPending
+                            }
                           />
                         </div>
                       </div>
@@ -1033,34 +1353,65 @@ function TemplateProductEditorContent() {
 
               <section className="rounded-xl border border-[#E8D8CB] bg-[#FFFAF6] p-4 sm:p-5">
                 <h3 className="text-sm font-semibold text-[#3B3028] mb-1">
-                  템플릿 기본 기능
+                  {isThumbnailProduct ? "썸네일 상품 설정" : "시간표 상품 설정"}
                 </h3>
                 <p className="text-xs text-[#7A685A] mb-4">
-                  템플릿에 포함되는 기준 기능입니다. PRO 플랜에도 동일하게 적용됩니다.
+                  {isThumbnailProduct
+                    ? "썸네일 상품은 PRO 단일 플랜으로 판매됩니다. 시간표 전용 옵션은 제공하지 않습니다."
+                    : "시간표 상품은 LITE와 PRO 플랜을 선택적으로 운영할 수 있습니다."}
                 </p>
 
-                <div className="mb-4">
-                  <label className="block text-xs font-medium text-[#6E5A4D] mb-1">
-                    판매 가격 (원) *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    value={productFormData.proPrice}
-                    onChange={(e) =>
-                      setProductFormData((prev) => ({
-                        ...prev,
-                        proPrice: parseInt(e.target.value, 10) || 0,
-                      }))
-                    }
-                    className="w-full max-w-xs px-3 py-2 border border-[#DCC7B7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#E6AD82]/35 focus:border-[#D7925C]"
-                  />
+                <div
+                  className={`grid gap-4 ${isThumbnailProduct ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}
+                >
+                  {!isThumbnailProduct && (
+                    <div>
+                      <label className="block text-xs font-medium text-[#6E5A4D] mb-1">
+                        LITE 판매 가격 (원)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={productFormData.litePrice ?? ""}
+                        onChange={(e) =>
+                          setProductFormData((prev) => ({
+                            ...prev,
+                            litePrice:
+                              e.target.value === ""
+                                ? null
+                                : parseInt(e.target.value, 10) || 0,
+                          }))
+                        }
+                        className="w-full px-3 py-2 border border-[#DCC7B7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#E6AD82]/35 focus:border-[#D7925C]"
+                        placeholder="선택 사항"
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-xs font-medium text-[#6E5A4D] mb-1">
+                      PRO 판매 가격 (원) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      value={productFormData.proPrice}
+                      onChange={(e) =>
+                        setProductFormData((prev) => ({
+                          ...prev,
+                          proPrice: parseInt(e.target.value, 10) || 0,
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-[#DCC7B7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#E6AD82]/35 focus:border-[#D7925C]"
+                    />
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  {(Object.keys(optionLabels) as Array<keyof PlanOptions>).map(
-                    (optionKey) => (
+                {!isThumbnailProduct ? (
+                  <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    {(
+                      Object.keys(optionLabels) as Array<keyof PlanOptions>
+                    ).map((optionKey) => (
                       <button
                         key={optionKey}
                         type="button"
@@ -1073,9 +1424,15 @@ function TemplateProductEditorContent() {
                       >
                         {optionLabels[optionKey]}
                       </button>
-                    )
-                  )}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-lg border border-[#E7D7C9] bg-[#FAF2EA] p-3 text-xs leading-5 text-[#7A685A]">
+                    썸네일은 PRO 플랜으로만 제공되며 시간표 전용 기능(아티스트,
+                    메모, 다중 스케줄, 게릴라, 오프라인 메모)은 저장되지
+                    않습니다.
+                  </div>
+                )}
               </section>
             </div>
 
@@ -1111,8 +1468,8 @@ function TemplateProductEditorContent() {
                   {productLoading
                     ? "처리 중..."
                     : hasProduct(template)
-                    ? "상품 수정"
-                    : "상품 등록"}
+                      ? "상품 수정"
+                      : "상품 등록"}
                 </button>
               </div>
             </div>
