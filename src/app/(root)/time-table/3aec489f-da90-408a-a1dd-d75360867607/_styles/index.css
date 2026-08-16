@@ -4,4 +4,9 @@
     format('woff');
   font-weight: normal;
   font-style: normal;
+
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
 }
