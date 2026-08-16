@@ -83,6 +83,7 @@ const LEGACY_TEMPLATE_ROUTE_IDS = new Set([
   "f8bb165b-a42b-4146-9322-64c6a2e78df5",
   "f8da2116-87e2-4cf2-b04f-d1b639495abc",
   "f9e1366a-2a53-461c-874e-1fc75e4cfaa5",
+  "28c2b9fb-9d7e-4aaa-822d-96909d384032",
 ]);
 
 export const isLegacyTemplateRouteId = (templateId: string): boolean =>
