@@ -14,6 +14,7 @@ import {
 import { getStudioGraphNodeTypeLabel } from "@/utils/template-studio/graph-node-label";
 import { createStudioId } from "@/utils/template-studio/id";
 import { getStudioNodeDefinition } from "@/utils/template-studio/node-definitions";
+import { getStudioTemplateKind } from "@/utils/template-studio/template-kind";
 import type {
   StudioCardContextObjectPreset,
   StudioCardStatusBackgroundPreset,
@@ -319,7 +320,10 @@ export const planStudioDeleteNodes = (
   const remainingRootIds = document.graph.rootNodeIds.filter(
     (nodeId) => !nodeIds.includes(nodeId),
   );
-  if (remainingRootIds.length === 0) {
+  if (
+    remainingRootIds.length === 0 &&
+    getStudioTemplateKind(document) !== "thumbnail"
+  ) {
     return { ok: false, reason: "Last root object is locked" };
   }
 

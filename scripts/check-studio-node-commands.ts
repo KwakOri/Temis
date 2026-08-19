@@ -21,6 +21,7 @@ import {
   planStudioDeleteNodes,
   resolveStudioNodeInsertionParentId,
 } from "../src/utils/template-studio/node-commands";
+import { validateStudioDocument } from "../src/utils/template-studio/validator";
 
 const createNode = (
   id: string,
@@ -366,6 +367,36 @@ expectFail(
   planStudioDeleteNodes(lastRootDocument, ["loose"]),
   "Last root object is locked",
   "마지막 루트 객체는 남겨야 한다.",
+);
+
+const thumbnailLastRootDocument = createDocument();
+thumbnailLastRootDocument.metadata.kind = "thumbnail";
+thumbnailLastRootDocument.domains = {
+  thumbnail: {
+    version: 1,
+    export: { defaultFormat: "png", transparentBackground: false },
+  },
+};
+thumbnailLastRootDocument.graph.rootNodeIds = ["loose"];
+const thumbnailLastRootPlan = planStudioDeleteNodes(thumbnailLastRootDocument, [
+  "loose",
+]);
+assert.ok(
+  thumbnailLastRootPlan.ok,
+  "빈 캔버스를 허용하는 썸네일은 마지막 루트 객체도 지울 수 있다.",
+);
+applyStudioDeleteNodes(
+  thumbnailLastRootDocument,
+  thumbnailLastRootPlan.nodeIds,
+);
+assert.deepEqual(thumbnailLastRootDocument.graph.rootNodeIds, []);
+assert.equal(thumbnailLastRootDocument.graph.nodes.loose, undefined);
+assert.deepEqual(
+  validateStudioDocument(thumbnailLastRootDocument).filter(
+    (diagnostic) => diagnostic.severity === "error",
+  ),
+  [],
+  "마지막 객체를 지운 빈 썸네일도 저장 가능한 유효 문서여야 한다.",
 );
 
 // 자식을 지우면 부모가 다음 선택이 된다.

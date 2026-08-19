@@ -29,6 +29,7 @@
     "check:template-studio:persistence": "tsx scripts/check-template-studio-persistence.ts",
     "check:template-studio:api": "tsx scripts/check-template-studio-api.ts",
     "check:template-studio:runtime": "tsx scripts/check-template-studio-runtime.ts",
+    "check:template-studio:save-audit": "tsx scripts/check-template-studio-save-audit.ts",
     "check:admin-purchase-requests": "tsx scripts/check-admin-purchase-requests.ts",
     "check:admin-template-access": "tsx scripts/check-admin-template-access.ts",
     "check:pilot-e2e": "tsx scripts/check-pilot-e2e.ts",

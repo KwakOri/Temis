@@ -48,6 +48,7 @@ import { useStudioTemplatePersistence } from "@/hooks/studio/use-studio-template
 import {
   useCreateTemplateStudioTemplate,
   usePublishTemplateStudioDocument,
+  useRecordTemplateStudioSaveEvent,
   useSaveTemplateStudioDraft,
   useSyncTemplateStudioAssets,
   useTemplateStudioTemplate,
@@ -297,6 +298,8 @@ export function ThumbnailStudioClient({
   const publishTemplateStudioDocumentMutation =
     usePublishTemplateStudioDocument();
   const syncTemplateStudioAssetsMutation = useSyncTemplateStudioAssets();
+  const recordTemplateStudioSaveEventMutation =
+    useRecordTemplateStudioSaveEvent();
   const document = useStore(studioStore, (state) => state.document);
   const selectedInputId = useStore(
     studioStore,
@@ -1200,6 +1203,7 @@ export function ThumbnailStudioClient({
     saveRemoteDraft: saveTemplateStudioDraftMutation.mutateAsync,
     publishRemoteDocument: publishTemplateStudioDocumentMutation.mutateAsync,
     syncRemoteAssets: syncTemplateStudioAssetsMutation.mutateAsync,
+    recordRemoteSaveEvent: recordTemplateStudioSaveEventMutation.mutateAsync,
     onReplaceDocument: replaceEditorDocument,
     onStatusMessage: showStatus,
     onExportBlocked: () => showStatus("Export blocked: check diagnostics"),
@@ -1212,6 +1216,7 @@ export function ThumbnailStudioClient({
     saveTemplateStudioDraftMutation.isPending ||
     publishTemplateStudioDocumentMutation.isPending ||
     syncTemplateStudioAssetsMutation.isPending ||
+    recordTemplateStudioSaveEventMutation.isPending ||
     templateStudioTemplateQuery.isFetching;
 
   useStudioKeyboardShortcuts({

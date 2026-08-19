@@ -10,6 +10,10 @@ import type {
   StudioTemplateDocument,
   StudioTemplateKind,
 } from "@/types/template-studio";
+import type {
+  TemplateStudioDocumentSummary,
+  TemplateStudioSaveOperation,
+} from "@/utils/template-studio/save-audit";
 
 export interface TemplateStudioTemplateListResponse {
   success: boolean;
@@ -51,9 +55,12 @@ export interface TemplateStudioSaveDraftPayload {
   runtimeValues: StudioRuntimeValues;
   baseRevisionNo?: number | null;
   isAutosave?: boolean;
+  attemptId: string;
+  operation: TemplateStudioSaveOperation;
 }
 
 export interface TemplateStudioSaveDraftResponse extends TemplateStudioDraftResponse {
+  attemptId: string;
   diagnostics: StudioDiagnostic[];
   migrationWarnings: string[];
 }
@@ -62,11 +69,14 @@ export interface TemplateStudioPublishPayload {
   document: StudioTemplateDocument;
   runtimeValues: StudioRuntimeValues;
   deleteDraft?: boolean;
+  attemptId: string;
+  operation: TemplateStudioSaveOperation;
 }
 
 export interface TemplateStudioPublishResponse {
   success: boolean;
   templateId: string;
+  attemptId: string;
   revisionNo: number;
   latestRevisionNo: number;
   document: TemplateStudioDocumentRecord;
@@ -100,12 +110,45 @@ export interface TemplateStudioUploadedAsset {
 export interface TemplateStudioUploadAssetsResponse {
   success: boolean;
   templateId: string;
+  attemptId?: string;
   assets: TemplateStudioUploadedAsset[];
+}
+
+export interface TemplateStudioAssetSyncContext {
+  attemptId: string;
+  operation: TemplateStudioSaveOperation;
+}
+
+export interface TemplateStudioSaveEventPayload {
+  attemptId: string;
+  operation: TemplateStudioSaveOperation;
+  errorMessage: string;
+  diagnostics: StudioDiagnostic[];
+  documentSummary: TemplateStudioDocumentSummary;
 }
 
 export interface TemplateStudioDeleteTemplateResponse {
   success: boolean;
   templateId: string;
+}
+
+export class TemplateStudioApiError extends Error {
+  readonly attemptId: string | null;
+  readonly diagnostics: StudioDiagnostic[];
+  readonly status: number;
+
+  constructor(input: {
+    message: string;
+    status: number;
+    attemptId?: string | null;
+    diagnostics?: StudioDiagnostic[];
+  }) {
+    super(input.message);
+    this.name = "TemplateStudioApiError";
+    this.status = input.status;
+    this.attemptId = input.attemptId ?? null;
+    this.diagnostics = input.diagnostics ?? [];
+  }
 }
 
 const parseJsonResponse = async <T>(
@@ -119,7 +162,26 @@ const parseJsonResponse = async <T>(
       result && typeof result === "object" && "error" in result
         ? String((result as { error?: unknown }).error)
         : fallbackMessage;
-    throw new Error(message || fallbackMessage);
+    const attemptId =
+      result &&
+      typeof result === "object" &&
+      "attemptId" in result &&
+      typeof (result as { attemptId?: unknown }).attemptId === "string"
+        ? (result as { attemptId: string }).attemptId
+        : null;
+    const diagnostics =
+      result &&
+      typeof result === "object" &&
+      "diagnostics" in result &&
+      Array.isArray((result as { diagnostics?: unknown }).diagnostics)
+        ? ((result as { diagnostics: StudioDiagnostic[] }).diagnostics ?? [])
+        : [];
+    throw new TemplateStudioApiError({
+      message: message || fallbackMessage,
+      status: response.status,
+      attemptId,
+      diagnostics,
+    });
   }
 
   return result as T;
@@ -233,18 +295,37 @@ export class TemplateStudioService {
   static async syncAssets(
     templateId: string,
     assets: TemplateStudioUploadAssetPayload[],
+    context: TemplateStudioAssetSyncContext,
   ): Promise<TemplateStudioUploadAssetsResponse> {
     const response = await fetch(`${this.baseUrl}/${templateId}/assets/sync`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ assets }),
+      body: JSON.stringify({ assets, ...context }),
     });
 
     return parseJsonResponse<TemplateStudioUploadAssetsResponse>(
       response,
       "Template Studio asset 동기화에 실패했습니다.",
+    );
+  }
+
+  static async recordSaveEvent(
+    templateId: string,
+    payload: TemplateStudioSaveEventPayload,
+  ): Promise<{ success: boolean; templateId: string; attemptId: string }> {
+    const response = await fetch(`${this.baseUrl}/${templateId}/save-events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    return parseJsonResponse(
+      response,
+      "Template Studio 저장 오류 기록에 실패했습니다.",
     );
   }
 
