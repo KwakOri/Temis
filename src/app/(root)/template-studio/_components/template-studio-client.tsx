@@ -42,6 +42,7 @@ import { useStudioTimetableLayerDrag } from "@/hooks/studio/use-studio-timetable
 import {
   useCreateTemplateStudioTemplate,
   usePublishTemplateStudioDocument,
+  useRecordTemplateStudioSaveEvent,
   useSaveTemplateStudioDraft,
   useSyncTemplateStudioAssets,
   useTemplateStudioTemplate,
@@ -144,9 +145,7 @@ import {
   type StudioRuntimeContext,
 } from "@/utils/template-studio/input-values";
 import { resolveStudioRuntimeCropSize } from "@/utils/template-studio/runtime-image-crop";
-import {
-  getStudioPresetGroups,
-} from "@/utils/template-studio/preset-registry";
+import { getStudioPresetGroups } from "@/utils/template-studio/preset-registry";
 import {
   createInitialStudioRuntimeValues,
   createSampleStudioDocument,
@@ -659,6 +658,8 @@ export function TemplateStudioClient({
   const publishTemplateStudioDocumentMutation =
     usePublishTemplateStudioDocument();
   const syncTemplateStudioAssetsMutation = useSyncTemplateStudioAssets();
+  const recordTemplateStudioSaveEventMutation =
+    useRecordTemplateStudioSaveEvent();
 
   useEffect(() => {
     const nextTemplateId = initialRemoteTemplateId ?? null;
@@ -705,6 +706,7 @@ export function TemplateStudioClient({
     saveTemplateStudioDraftMutation.isPending ||
     publishTemplateStudioDocumentMutation.isPending ||
     syncTemplateStudioAssetsMutation.isPending ||
+    recordTemplateStudioSaveEventMutation.isPending ||
     templateStudioTemplateQuery.isFetching;
   const timetableComposition = useMemo(
     () => getStudioTimetableComposition(document.domains?.timetable),
@@ -1379,6 +1381,7 @@ export function TemplateStudioClient({
     saveRemoteDraft: saveTemplateStudioDraftMutation.mutateAsync,
     publishRemoteDocument: publishTemplateStudioDocumentMutation.mutateAsync,
     syncRemoteAssets: syncTemplateStudioAssetsMutation.mutateAsync,
+    recordRemoteSaveEvent: recordTemplateStudioSaveEventMutation.mutateAsync,
     onReplaceDocument: replaceEditorDocument,
     onStatusMessage: showShortcutStatus,
     // 무엇이 내보내기를 막았는지 보여줘야 고칠 수 있다.
@@ -1805,8 +1808,7 @@ export function TemplateStudioClient({
   });
 
   const uploadCardsGuide = (file: File) => uploadGuide("cards", file);
-  const uploadTimetableGuide = (file: File) =>
-    uploadGuide("timetable", file);
+  const uploadTimetableGuide = (file: File) => uploadGuide("timetable", file);
   const removeCardsGuide = () => removeGuide("cards");
   const removeTimetableGuide = () => removeGuide("timetable");
   const setActiveGuideVisibility = (visible: boolean) =>
