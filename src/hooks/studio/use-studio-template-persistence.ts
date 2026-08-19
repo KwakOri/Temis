@@ -5,8 +5,12 @@ import type {
   StudioTemplateDocument,
   StudioTemplateKind,
 } from "@/types/template-studio";
+import { TemplateStudioApiError } from "@/services/templateStudioService";
 import type {
+  TemplateStudioAssetSyncContext,
+  TemplateStudioPublishPayload,
   TemplateStudioSaveDraftPayload,
+  TemplateStudioSaveEventPayload,
   TemplateStudioUploadAssetPayload,
   TemplateStudioUploadedAsset,
 } from "@/services/templateStudioService";
@@ -28,6 +32,10 @@ import {
 import { validateStudioRuntimeValuesForDocument } from "@/utils/template-studio/timetable-runtime";
 import { getStudioTemplateKind } from "@/utils/template-studio/template-kind";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
+import {
+  createTemplateStudioDocumentSummary,
+  type TemplateStudioSaveOperation,
+} from "@/utils/template-studio/save-audit";
 /** 원격에 저장해 둔 문서 한 벌. 초안이 있으면 초안을 먼저 본다. */
 export interface StudioRemoteTemplateSnapshot {
   draft?: {
@@ -69,15 +77,17 @@ export interface StudioTemplatePersistenceOptions {
   }) => Promise<unknown>;
   publishRemoteDocument: (input: {
     templateId: string;
-    payload: {
-      document: StudioTemplateDocument;
-      runtimeValues: StudioRuntimeValues;
-    };
+    payload: TemplateStudioPublishPayload;
   }) => Promise<{ revisionNo: number }>;
   syncRemoteAssets: (input: {
     templateId: string;
     assets: TemplateStudioUploadAssetPayload[];
+    context: TemplateStudioAssetSyncContext;
   }) => Promise<{ assets: TemplateStudioUploadedAsset[] }>;
+  recordRemoteSaveEvent?: (input: {
+    templateId: string;
+    payload: TemplateStudioSaveEventPayload;
+  }) => Promise<unknown>;
   /**
    * 문서 한 벌을 갈아끼운다.
    *
@@ -105,7 +115,10 @@ export interface StudioTemplatePersistence {
    * 저장·발행·미리보기가 모두 이 함수를 먼저 부른다. 빼먹으면 사진 내용이 담긴
    * 채로 저장되어 문서가 커지고, 열어 보는 쪽에서 사진이 나오지 않는다.
    */
-  ensureAssetsSynced: (templateId: string) => Promise<StudioTemplateDocument>;
+  ensureAssetsSynced: (
+    templateId: string,
+    context: TemplateStudioAssetSyncContext,
+  ) => Promise<StudioTemplateDocument>;
   loadRemoteTemplate: () => Promise<void>;
   saveDraft: () => Promise<void>;
   publish: () => Promise<void>;
@@ -138,12 +151,80 @@ export function useStudioTemplatePersistence({
   saveRemoteDraft,
   publishRemoteDocument,
   syncRemoteAssets,
+  recordRemoteSaveEvent,
   onReplaceDocument,
   onStatusMessage,
   onExportBlocked,
   previewPathForTemplate = (nextTemplateId) =>
     `/admin/template-studio/${nextTemplateId}/preview`,
 }: StudioTemplatePersistenceOptions): StudioTemplatePersistence {
+  const createAttemptId = useCallback(() => globalThis.crypto.randomUUID(), []);
+  const getFailureStatus = useCallback((prefix: string, error: unknown) => {
+    if (!(error instanceof TemplateStudioApiError)) return `${prefix} failed`;
+    const diagnostic = error.diagnostics[0];
+    const reason = diagnostic?.title ?? error.message;
+    const attemptLabel = error.attemptId
+      ? ` · ref ${error.attemptId.slice(0, 8)}`
+      : "";
+    return `${prefix} failed: ${reason}${attemptLabel}`;
+  }, []);
+  const validateBeforePersistence = useCallback(
+    async (
+      attemptId: string,
+      operation: TemplateStudioSaveOperation,
+    ): Promise<boolean> => {
+      const currentDocument = getDocument();
+      const currentRuntimeValues = getRuntimeValues();
+      const diagnostics = [
+        ...validateStudioDocument(currentDocument),
+        ...validateStudioRuntimeValuesForDocument(
+          currentDocument,
+          currentRuntimeValues,
+        ),
+      ];
+      const blockingDiagnostics =
+        getStudioTemplateBlockingDiagnostics(diagnostics);
+      if (blockingDiagnostics.length === 0) return true;
+
+      const firstError = blockingDiagnostics[0];
+      const message = `${operation === "publish" ? "Publish" : "Save"} blocked: ${blockingDiagnostics.length} error(s) · ${firstError?.title ?? "Check diagnostics"}`;
+      onExportBlocked();
+      onStatusMessage(message);
+
+      if (templateId && recordRemoteSaveEvent) {
+        try {
+          await recordRemoteSaveEvent({
+            templateId,
+            payload: {
+              attemptId,
+              operation,
+              errorMessage: message,
+              diagnostics: blockingDiagnostics,
+              documentSummary: createTemplateStudioDocumentSummary(
+                currentDocument,
+                currentRuntimeValues,
+              ),
+            },
+          });
+        } catch (error) {
+          console.error(
+            "Template Studio client validation audit failed:",
+            error,
+          );
+        }
+      }
+
+      return false;
+    },
+    [
+      getDocument,
+      getRuntimeValues,
+      onExportBlocked,
+      onStatusMessage,
+      recordRemoteSaveEvent,
+      templateId,
+    ],
+  );
   const exportJson = useCallback(() => {
     const currentDocument = getDocument();
     const exportDiagnostics = [
@@ -229,7 +310,10 @@ export function useStudioTemplatePersistence({
     return created.template.id;
   }, [createRemoteTemplate, getDocument, onTemplateIdChange, templateId]);
   const ensureAssetsSynced = useCallback(
-    async (nextTemplateId: string): Promise<StudioTemplateDocument> => {
+    async (
+      nextTemplateId: string,
+      context: TemplateStudioAssetSyncContext,
+    ): Promise<StudioTemplateDocument> => {
       const currentDocument = getDocument();
       const assets = Object.values(currentDocument.assets);
       // 내용이 담긴 사진만 지문을 읽는다. 주소만 있는 사진은 읽을 내용이 없다.
@@ -259,6 +343,7 @@ export function useStudioTemplatePersistence({
         const synced = await syncRemoteAssets({
           templateId: nextTemplateId,
           assets: plan.uploads,
+          context,
         });
         changed =
           applyStudioSyncedAssets(nextDocument, synced.assets) || changed;
@@ -310,10 +395,15 @@ export function useStudioTemplatePersistence({
     }
   }, [onReplaceDocument, onStatusMessage, refetchRemoteTemplate, templateId]);
   const saveDraft = useCallback(async () => {
+    const attemptId = createAttemptId();
     try {
+      if (!(await validateBeforePersistence(attemptId, "save_draft"))) return;
       const nextTemplateId = await ensureTemplateId();
       const latestRevisionNo = getRemoteTemplate()?.latestRevisionNo ?? null;
-      const nextDocument = await ensureAssetsSynced(nextTemplateId);
+      const nextDocument = await ensureAssetsSynced(nextTemplateId, {
+        attemptId,
+        operation: "save_draft",
+      });
       await saveRemoteDraft({
         templateId: nextTemplateId,
         payload: {
@@ -321,43 +411,58 @@ export function useStudioTemplatePersistence({
           runtimeValues: getRuntimeValues(),
           baseRevisionNo: latestRevisionNo,
           isAutosave: false,
+          attemptId,
+          operation: "save_draft",
         },
       });
       onStatusMessage("Draft saved to database");
     } catch (error) {
       console.error("Template Studio database draft save failed:", error);
-      onStatusMessage("Database draft save failed");
+      onStatusMessage(getFailureStatus("Database draft save", error));
     }
   }, [
+    createAttemptId,
     ensureAssetsSynced,
     ensureTemplateId,
+    getFailureStatus,
     getRemoteTemplate,
     getRuntimeValues,
     onStatusMessage,
     saveRemoteDraft,
+    validateBeforePersistence,
   ]);
   const publish = useCallback(async () => {
+    const attemptId = createAttemptId();
     try {
+      if (!(await validateBeforePersistence(attemptId, "publish"))) return;
       const nextTemplateId = await ensureTemplateId();
-      const nextDocument = await ensureAssetsSynced(nextTemplateId);
+      const nextDocument = await ensureAssetsSynced(nextTemplateId, {
+        attemptId,
+        operation: "publish",
+      });
       const published = await publishRemoteDocument({
         templateId: nextTemplateId,
         payload: {
           document: nextDocument,
           runtimeValues: getRuntimeValues(),
+          attemptId,
+          operation: "publish",
         },
       });
       onStatusMessage(`Published revision ${published.revisionNo}`);
     } catch (error) {
       console.error("Template Studio publish failed:", error);
-      onStatusMessage("Publish failed");
+      onStatusMessage(getFailureStatus("Publish", error));
     }
   }, [
+    createAttemptId,
     ensureAssetsSynced,
     ensureTemplateId,
     getRuntimeValues,
+    getFailureStatus,
     onStatusMessage,
     publishRemoteDocument,
+    validateBeforePersistence,
   ]);
   const openPreviewWindow = useCallback(
     (nextTemplateId: string) => {
@@ -369,9 +474,14 @@ export function useStudioTemplatePersistence({
     [previewPathForTemplate],
   );
   const openDraftPreview = useCallback(async () => {
+    const attemptId = createAttemptId();
     try {
+      if (!(await validateBeforePersistence(attemptId, "preview"))) return;
       const nextTemplateId = await ensureTemplateId();
-      const syncedDocument = await ensureAssetsSynced(nextTemplateId);
+      const syncedDocument = await ensureAssetsSynced(nextTemplateId, {
+        attemptId,
+        operation: "preview",
+      });
       const latestRevisionNo = getRemoteTemplate()?.latestRevisionNo ?? null;
       // 미리보기는 저장해 둔 것을 읽는다. 저장하지 않고 열면 방금 고친 것이
       // 빠진 화면을 보게 된다.
@@ -382,22 +492,27 @@ export function useStudioTemplatePersistence({
           runtimeValues: getRuntimeValues(),
           baseRevisionNo: latestRevisionNo,
           isAutosave: false,
+          attemptId,
+          operation: "preview",
         },
       });
       openPreviewWindow(nextTemplateId);
       onStatusMessage("Saved draft preview");
     } catch (error) {
       console.error("Template Studio preview open failed:", error);
-      onStatusMessage("Preview open failed");
+      onStatusMessage(getFailureStatus("Preview", error));
     }
   }, [
+    createAttemptId,
     ensureAssetsSynced,
     ensureTemplateId,
     getRemoteTemplate,
     getRuntimeValues,
+    getFailureStatus,
     onStatusMessage,
     openPreviewWindow,
     saveRemoteDraft,
+    validateBeforePersistence,
   ]);
   const openSavedPreview = useCallback(() => {
     if (!templateId) {

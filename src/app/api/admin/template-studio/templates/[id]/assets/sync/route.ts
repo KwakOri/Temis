@@ -16,6 +16,11 @@ import {
   upsertTemplateStudioAssetMetadata,
 } from "@/services/server/templateStudioPersistenceService";
 import {
+  getTemplateStudioAuditError,
+  recordTemplateStudioSaveEventSafe,
+  resolveTemplateStudioSaveAttempt,
+} from "@/services/server/templateStudioSaveAuditService";
+import {
   buildTemplateStudioAssetTemplatePrefix,
   sanitizeTemplateStudioPathSegment,
 } from "@/utils/template-studio/asset-storage";
@@ -140,48 +145,122 @@ export async function POST(
   }
 
   const uploadedFileKeys: string[] = [];
+  let auditAttempt: ReturnType<typeof resolveTemplateStudioSaveAttempt> | null =
+    null;
+  let auditTemplateId: string | null = null;
+  let auditMetadata: Record<string, unknown> = {};
 
   try {
     const templateId = await parseTemplateStudioTemplateId({ params });
     if (!templateId) {
       return templateStudioBadTemplateIdResponse();
     }
+    auditTemplateId = templateId;
 
     const template = await getTemplateStudioTemplate(templateId);
     if (!template) {
       return templateStudioTemplateNotFoundResponse();
     }
 
-    const assets = getSyncAssets(await request.json());
+    const body = await request.json();
+    auditAttempt = resolveTemplateStudioSaveAttempt(body, "save_draft");
+    const assets = getSyncAssets(body);
     if (!assets) {
+      await recordTemplateStudioSaveEventSafe({
+        ...auditAttempt,
+        templateId,
+        userId: actor.userId,
+        stage: "asset_sync",
+        status: "failed",
+        errorCode: "INVALID_ASSET_SYNC_PAYLOAD",
+        errorMessage: "Asset sync payload is invalid.",
+      });
       return NextResponse.json(
-        { error: "동기화할 Template Studio asset 목록이 필요합니다." },
+        {
+          error: "동기화할 Template Studio asset 목록이 필요합니다.",
+          attemptId: auditAttempt.attemptId,
+        },
         { status: 400 },
       );
     }
+
+    auditMetadata = {
+      assetCount: assets.length,
+      totalByteSize: assets.reduce(
+        (sum, asset) => sum + (asset.byteSize ?? 0),
+        0,
+      ),
+    };
+    await recordTemplateStudioSaveEventSafe({
+      ...auditAttempt,
+      templateId,
+      userId: actor.userId,
+      stage: "asset_sync",
+      status: "started",
+      metadata: auditMetadata,
+    });
 
     const syncedAssets = [];
 
     for (const asset of assets) {
       const parsed = parseDataUrl(asset.src);
       if (!parsed) {
+        await recordTemplateStudioSaveEventSafe({
+          ...auditAttempt,
+          templateId,
+          userId: actor.userId,
+          stage: "asset_sync",
+          status: "failed",
+          errorCode: "UNSUPPORTED_ASSET_DATA_URL",
+          errorMessage: `Unsupported asset data URL: ${asset.label}`,
+          metadata: auditMetadata,
+        });
         return NextResponse.json(
-          { error: `지원하지 않는 asset data URL입니다: ${asset.label}` },
+          {
+            error: `지원하지 않는 asset data URL입니다: ${asset.label}`,
+            attemptId: auditAttempt.attemptId,
+          },
           { status: 400 },
         );
       }
 
       const contentHash = getContentHash(parsed.buffer);
       if (asset.localContentHash && asset.localContentHash !== contentHash) {
+        await recordTemplateStudioSaveEventSafe({
+          ...auditAttempt,
+          templateId,
+          userId: actor.userId,
+          stage: "asset_sync",
+          status: "failed",
+          errorCode: "ASSET_HASH_MISMATCH",
+          errorMessage: `Asset hash mismatch: ${asset.label}`,
+          metadata: auditMetadata,
+        });
         return NextResponse.json(
-          { error: `asset hash가 일치하지 않습니다: ${asset.label}` },
+          {
+            error: `asset hash가 일치하지 않습니다: ${asset.label}`,
+            attemptId: auditAttempt.attemptId,
+          },
           { status: 400 },
         );
       }
 
       if (asset.mimeType && asset.mimeType !== parsed.mimeType) {
+        await recordTemplateStudioSaveEventSafe({
+          ...auditAttempt,
+          templateId,
+          userId: actor.userId,
+          stage: "asset_sync",
+          status: "failed",
+          errorCode: "ASSET_MIME_MISMATCH",
+          errorMessage: `Asset MIME mismatch: ${asset.label}`,
+          metadata: auditMetadata,
+        });
         return NextResponse.json(
-          { error: `asset MIME 타입이 일치하지 않습니다: ${asset.label}` },
+          {
+            error: `asset MIME 타입이 일치하지 않습니다: ${asset.label}`,
+            attemptId: auditAttempt.attemptId,
+          },
           { status: 400 },
         );
       }
@@ -190,8 +269,21 @@ export async function POST(
         asset.byteSize !== undefined &&
         asset.byteSize !== parsed.buffer.length
       ) {
+        await recordTemplateStudioSaveEventSafe({
+          ...auditAttempt,
+          templateId,
+          userId: actor.userId,
+          stage: "asset_sync",
+          status: "failed",
+          errorCode: "ASSET_SIZE_MISMATCH",
+          errorMessage: `Asset size mismatch: ${asset.label}`,
+          metadata: auditMetadata,
+        });
         return NextResponse.json(
-          { error: `asset 크기가 일치하지 않습니다: ${asset.label}` },
+          {
+            error: `asset 크기가 일치하지 않습니다: ${asset.label}`,
+            attemptId: auditAttempt.attemptId,
+          },
           { status: 400 },
         );
       }
@@ -276,9 +368,23 @@ export async function POST(
       });
     }
 
+    await recordTemplateStudioSaveEventSafe({
+      ...auditAttempt,
+      templateId,
+      userId: actor.userId,
+      stage: "asset_sync",
+      status: "succeeded",
+      metadata: {
+        ...auditMetadata,
+        uploadedCount: syncedAssets.filter((asset) => asset.uploaded).length,
+        reusedCount: syncedAssets.filter((asset) => !asset.uploaded).length,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       templateId,
+      attemptId: auditAttempt.attemptId,
       assets: syncedAssets,
     });
   } catch (error) {
@@ -287,8 +393,28 @@ export async function POST(
     }
 
     console.error("Template Studio asset sync error:", error);
+    const failedAttempt =
+      auditAttempt ??
+      (auditTemplateId
+        ? resolveTemplateStudioSaveAttempt(null, "save_draft")
+        : null);
+    if (failedAttempt && auditTemplateId) {
+      const auditError = getTemplateStudioAuditError(error);
+      await recordTemplateStudioSaveEventSafe({
+        ...failedAttempt,
+        templateId: auditTemplateId,
+        userId: actor.userId,
+        stage: "asset_sync",
+        status: "failed",
+        ...auditError,
+        metadata: auditMetadata,
+      });
+    }
     return NextResponse.json(
-      { error: "Template Studio asset 동기화 중 오류가 발생했습니다." },
+      {
+        error: "Template Studio asset 동기화 중 오류가 발생했습니다.",
+        attemptId: failedAttempt?.attemptId ?? null,
+      },
       { status: 500 },
     );
   }

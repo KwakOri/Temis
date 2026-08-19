@@ -3,7 +3,9 @@ import {
   TemplateStudioCreateTemplatePayload,
   TemplateStudioPublishPayload,
   TemplateStudioSaveDraftPayload,
+  TemplateStudioSaveEventPayload,
   TemplateStudioService,
+  TemplateStudioAssetSyncContext,
   TemplateStudioUploadAssetPayload,
 } from "@/services/templateStudioService";
 import { TemplateStudioRuntimeService } from "@/services/templateStudioRuntimeService";
@@ -134,10 +136,12 @@ export const useSyncTemplateStudioAssets = () => {
     mutationFn: ({
       templateId,
       assets,
+      context,
     }: {
       templateId: string;
       assets: TemplateStudioUploadAssetPayload[];
-    }) => TemplateStudioService.syncAssets(templateId, assets),
+      context: TemplateStudioAssetSyncContext;
+    }) => TemplateStudioService.syncAssets(templateId, assets, context),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.admin.templateStudioTemplate(variables.templateId),
@@ -145,6 +149,17 @@ export const useSyncTemplateStudioAssets = () => {
     },
   });
 };
+
+export const useRecordTemplateStudioSaveEvent = () =>
+  useMutation({
+    mutationFn: ({
+      templateId,
+      payload,
+    }: {
+      templateId: string;
+      payload: TemplateStudioSaveEventPayload;
+    }) => TemplateStudioService.recordSaveEvent(templateId, payload),
+  });
 
 export const useTemplateStudioRuntime = (templateId?: string) =>
   useQuery({
