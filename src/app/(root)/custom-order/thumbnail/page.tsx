@@ -9,40 +9,35 @@ import {
   useSubmitThumbnailCustomOrder,
 } from "@/hooks/query/useCustomThumbnailOrder";
 import type { ThumbnailCustomOrderFormData } from "@/types/customThumbnailOrder";
-import {
-  CalendarDays,
-  Download,
-  ImageIcon,
-  LockKeyhole,
-  Pencil,
-} from "lucide-react";
+import { CalendarDays, Download, ImageIcon, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+const formatDisplayDate = (value?: string | null) => {
+  if (!value) return null;
+
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return null;
+
+  return new Date(year, month - 1, day).toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+};
+
 const thumbnailOrderFeatures = [
   {
-    icon: ImageIcon,
-    title: "4K UHD 기본 규격",
-    description:
-      "3840 × 2160, 16:9 기준의 고객 전용 썸네일 템플릿을 제작합니다.",
-  },
-  {
     icon: Pencil,
-    title: "런타임 편집",
+    title: "화면에서 이미지를 보며 편집",
     description:
-      "관리자가 공개한 텍스트와 이미지 입력만 변경해 반복 사용할 수 있습니다.",
+      "고정된 템플릿에 텍스트와 이미지만 변경하며 편리하게 사용할 수 있습니다.",
   },
   {
     icon: Download,
     title: "PNG 다운로드",
     description:
-      "완성한 썸네일을 사용자 화면에서 미리보고 PNG로 다운로드합니다.",
-  },
-  {
-    icon: LockKeyhole,
-    title: "고객 전용 비공개 템플릿",
-    description:
-      "제작 완료 후 고객 계정에만 사용 권한을 부여하며 상점에 재판매하지 않습니다.",
+      "완성한 썸네일을 사용자 화면에서 미리보고 PNG로 다운로드할 수 있습니다.",
   },
 ];
 
@@ -60,12 +55,17 @@ export default function ThumbnailCustomOrderPage() {
   const isIntakeReady = user
     ? Boolean(isThumbnailOrderEnabled && intakeData?.accepting)
     : Boolean(isThumbnailOrderEnabled);
-  const isCheckingIntake = isLoadingOptions || (Boolean(user) && isLoadingIntake);
+  const isCheckingIntake =
+    isLoadingOptions || (Boolean(user) && isLoadingIntake);
   const intakeStatus = isCheckingIntake
     ? "접수 상태 확인 중"
     : isIntakeReady
       ? "신청 가능"
       : "신청 준비 중";
+  const estimatedDeadlineLabel = isCheckingIntake
+    ? "확인 중..."
+    : formatDisplayDate(intakeData?.estimatedDeadline) ||
+      (user ? "문의 후 안내" : "로그인 후 확인");
 
   const handleOrderSubmit = async (formData: ThumbnailCustomOrderFormData) => {
     await submitMutation.mutateAsync(formData);
@@ -88,19 +88,39 @@ export default function ThumbnailCustomOrderPage() {
         <BackButton className="mb-6" />
 
         <section className="rounded-2xl border border-tertiary bg-timetable-form-bg p-6 shadow-xl backdrop-blur-sm md:p-10">
-          <div className="text-center">
-            <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-full bg-secondary text-white">
-              <ImageIcon className="h-8 w-8" />
+          <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1fr_auto_1fr]">
+            <div className="hidden lg:block" />
+
+            <div className="text-center">
+              <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-full bg-secondary text-white">
+                <ImageIcon className="h-8 w-8" />
+              </div>
+              <h1 className="text-2xl font-bold text-dark-gray md:text-3xl">
+                맞춤형 썸네일 제작
+              </h1>
+              <p className="mx-auto mt-3 max-w-2xl text-dark-gray/70">
+                방송과 콘텐츠에 맞는 고객 전용 4K 썸네일 템플릿을
+                제작해드립니다.
+              </p>
+              <span className="mt-4 inline-flex rounded-full bg-secondary/10 px-3 py-1 text-xs font-semibold text-secondary">
+                {intakeStatus}
+              </span>
             </div>
-            <h1 className="text-2xl font-bold text-dark-gray md:text-3xl">
-              맞춤형 썸네일 제작
-            </h1>
-            <p className="mx-auto mt-3 max-w-2xl text-dark-gray/70">
-              방송과 콘텐츠에 맞는 고객 전용 4K 썸네일 템플릿을 제작해드립니다.
-            </p>
-            <span className="mt-4 inline-flex rounded-full bg-secondary/10 px-3 py-1 text-xs font-semibold text-secondary">
-              {intakeStatus}
-            </span>
+
+            <div className="w-full rounded-lg border border-primary/20 bg-white/80 px-4 py-3 text-left shadow-sm lg:max-w-xs lg:justify-self-end">
+              <div className="flex items-center gap-2 text-primary">
+                <CalendarDays className="h-4 w-4" />
+                <p className="text-xs font-semibold">
+                  현재 신청 기준 예상 마감일
+                </p>
+              </div>
+              <p className="mt-2 text-xl font-bold text-dark-gray">
+                {estimatedDeadlineLabel}
+              </p>
+              <p className="mt-1 text-xs text-dark-gray/60">
+                활성 주문 대기열과 목·일 기준
+              </p>
+            </div>
           </div>
 
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -130,20 +150,15 @@ export default function ThumbnailCustomOrderPage() {
               <div>
                 <h2 className="font-semibold text-dark-gray">제작 일정</h2>
                 <p className="mt-2 text-sm leading-relaxed text-dark-gray/70">
-                  기본 마감일은 매주 목요일과 일요일을 기준으로 운영할
-                  예정입니다. 세부 일정은 주문제작 접수와 외부 소통 과정에서
-                  안내합니다.
+                  기본 마감일은 매주 목요일과 일요일을 기준으로 운영하고
+                  있습니다. 세부 일정은 주문제작 접수와 개별 연락으로
+                  안내중입니다.
                 </p>
               </div>
             </div>
           </div>
 
           <div className="mt-6 rounded-xl border border-secondary/20 bg-secondary/5 p-5 text-sm leading-relaxed text-dark-gray/70">
-            <p>
-              제작 완료 후 관리자가 비공개 v2 썸네일 템플릿을 발행하고 고객
-              계정에 사용 권한을 부여합니다. 고객은 레이어 구조를 편집하지 않고
-              공개된 입력값만 변경할 수 있습니다.
-            </p>
             <p className="mt-2">
               신청은 제작 요청 입력과 가격 선택의 2단계로 진행되며, 추가 옵션
               없이 필요한 자료만 간단히 제출할 수 있습니다.

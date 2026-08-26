@@ -91,7 +91,7 @@ export default function CustomOrderSelectionPage() {
             <CustomOrderChoice
               href="/custom-order/timetable"
               title="맞춤형 시간표"
-              description="나만의 디자인과 방송 정보를 담은 시간표를 전문가와 함께 제작합니다."
+              description="나만의 디자인과 방송 정보를 담은 시간표를 제작합니다."
               status={timetableStatus}
               statusClassName={
                 isLoading
@@ -105,7 +105,7 @@ export default function CustomOrderSelectionPage() {
             <CustomOrderChoice
               href="/custom-order/thumbnail"
               title="맞춤형 썸네일"
-              description="4K UHD 규격의 고객 전용 v2 썸네일 템플릿 제작 안내를 확인합니다."
+              description="나만의 디자인을 담은 미리보기 썸네일를 제작합니다."
               status={thumbnailStatus}
               statusClassName={
                 isLoading

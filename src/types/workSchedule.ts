@@ -5,7 +5,7 @@ export interface WorkScheduleOrder {
   status: "accepted" | "in_progress";
   selected_options?: string; // 내부 주문의 경우에만 존재
   created_at: string;
-  source: "internal" | "legacy";
+  source: "internal" | "legacy" | "thumbnail";
 }
 
 export interface WorkScheduleResponse {
