@@ -153,19 +153,20 @@ assert.ok(
   "외곽선 레이어에 어느 stroke인지 남아야 한다.",
 );
 assert.ok(
-  singleStrokeMarkup.includes("-webkit-text-stroke:12px #111827"),
-  "실효 두께 6px은 CSS 12px로 그린다. 이 변환이 빠지면 화면 두께가 절반이 된다.",
+  singleStrokeMarkup.includes('stroke="#111827"') &&
+    singleStrokeMarkup.includes('stroke-width="12"'),
+  "실효 두께 6px은 SVG stroke-width 12로 그린다. 이 변환이 빠지면 화면 두께가 절반이 된다.",
 );
 assert.ok(
-  singleStrokeMarkup.includes("paint-order:stroke fill"),
+  singleStrokeMarkup.includes('paint-order="stroke fill"'),
   "외곽선을 먼저 그려야 글자가 그 위에 온다.",
 );
 assert.ok(
-  singleStrokeMarkup.includes("stroke-linejoin:round"),
+  singleStrokeMarkup.includes('stroke-linejoin="round"'),
   "굵은 외곽선은 round join을 사용해야 글리프 예각이 삼각형으로 돌출되지 않는다.",
 );
 assert.ok(
-  singleStrokeMarkup.includes("stroke-miterlimit:1"),
+  singleStrokeMarkup.includes('stroke-miterlimit="1"'),
   "round join을 무시하는 렌더러에서도 miter 돌출을 제한해야 한다.",
 );
 
@@ -289,15 +290,17 @@ const shadowMarkup = render(
   {},
 );
 assert.equal(
-  (shadowMarkup.match(/filter:drop-shadow\(/g) ?? []).length,
+  (shadowMarkup.match(/filter="url\(#/g) ?? []).length,
   1,
-  "구조화 그림자는 root의 합성 실루엣에 정확히 한 번 적용한다.",
+  "구조화 그림자는 root의 합성 실루엣에 SVG filter로 정확히 한 번 적용한다.",
 );
 assert.ok(
-  shadowMarkup.includes(
-    "filter:drop-shadow(10px 14px 18px rgba(15, 23, 42, 0.65))",
-  ),
-  "shadow offset, blur와 alpha 색상은 drop-shadow 함수에 보존해야 한다.",
+  shadowMarkup.includes("feDropShadow") &&
+    shadowMarkup.includes('dx="10"') &&
+    shadowMarkup.includes('dy="14"') &&
+    shadowMarkup.includes('stdDeviation="9"') &&
+    shadowMarkup.includes('flood-opacity="0.65"'),
+  "shadow offset, blur와 alpha 색상은 SVG filter에 보존해야 한다.",
 );
 assert.ok(
   shadowMarkup.includes('data-studio-text-shadow-source="composite"'),
@@ -309,12 +312,12 @@ assert.equal(
   "stroke/fill 레이어에 text-shadow를 남기면 외곽 stroke가 그림자 원본이 되지 않는다.",
 );
 assert.equal(
-  (shadowMarkup.match(/filter:drop-shadow\(/g) ?? []).length,
+  (shadowMarkup.match(/filter="url\(#/g) ?? []).length,
   1,
-  "stroke가 여러 개여도 shadow filter는 하나여야 한다.",
+  "stroke가 여러 개여도 SVG shadow filter는 하나여야 한다.",
 );
 assert.equal(
-  (singleStrokeMarkup.match(/filter:drop-shadow\(/g) ?? []).length,
+  (singleStrokeMarkup.match(/filter="url\(#/g) ?? []).length,
   0,
   "shadow가 없으면 불필요한 filter를 만들지 않는다.",
 );
@@ -329,13 +332,13 @@ const edgeShadowMarkup = render(
   {},
 );
 assert.ok(
-  edgeShadowMarkup.includes(
-    "filter:drop-shadow(-6px -7px 0px rgba(0, 0, 0, 0.8))",
-  ),
-  "blur 0과 음수 X/Y offset도 합성 shadow filter에 그대로 전달해야 한다.",
+  edgeShadowMarkup.includes('dx="-6"') &&
+    edgeShadowMarkup.includes('dy="-7"') &&
+    edgeShadowMarkup.includes('stdDeviation="0"'),
+  "blur 0과 음수 X/Y offset도 합성 SVG shadow filter에 그대로 전달해야 한다.",
 );
 assert.ok(
-  edgeShadowMarkup.includes("opacity:0.4"),
+  edgeShadowMarkup.includes('opacity="0.4"'),
   "반투명 stroke는 자체 alpha만 적용하고 shadow root filter는 한 번만 만들어야 한다.",
 );
 
@@ -356,9 +359,9 @@ const shadowOnlyMarkup = render(
   {},
 );
 assert.equal(
-  (shadowOnlyMarkup.match(/filter:drop-shadow\(/g) ?? []).length,
+  (shadowOnlyMarkup.match(/filter="url\(#/g) ?? []).length,
   1,
-  "외곽선이 없어도 fill 실루엣에 그림자를 한 번 만들어야 한다.",
+  "외곽선이 없어도 fill 실루엣에 SVG 그림자를 한 번 만들어야 한다.",
 );
 assert.ok(shadowOnlyMarkup.includes('data-effect-layer="foreground"'));
 assert.equal(
@@ -384,14 +387,14 @@ assert.ok(
       }),
     }),
     {},
-  ).includes("filter:drop-shadow("),
+  ).includes('filter="url(#'),
   "꺼 둔 그림자가 그려지면 껐는데도 화면이 그대로다.",
 );
 
 // --- 채우기 ---
 
 assert.ok(
-  singleStrokeMarkup.includes("color:#fde047"),
+  singleStrokeMarkup.includes('fill="#fde047"'),
   "채우기 색을 foreground에 적용한다.",
 );
 assert.ok(
@@ -403,7 +406,7 @@ assert.ok(
       },
     }),
     { color: "#123456" },
-  ).includes("color:#123456"),
+  ).includes('fill="#123456"'),
   "구조화된 효과가 있으면 style의 색을 쓰지 않는다.",
 );
 const gradientMarkup = render(
@@ -421,17 +424,15 @@ const gradientMarkup = render(
   {},
 );
 assert.ok(
-  gradientMarkup.includes(
-    "background-image:linear-gradient(90deg, #ef4444, #3b82f6)",
-  ),
-  "gradient fill uses the shared CSS gradient helper",
+  gradientMarkup.includes("linearGradient") &&
+    gradientMarkup.includes('stop-color="#ef4444"') &&
+    gradientMarkup.includes('stop-color="#3b82f6"'),
+  "gradient fill uses the shared SVG gradient renderer",
 );
 assert.ok(
-  gradientMarkup.includes("background-clip:text") &&
-    gradientMarkup.includes("-webkit-background-clip:text") &&
-    gradientMarkup.includes("-webkit-text-fill-color:transparent") &&
-    gradientMarkup.includes("color:transparent"),
-  "gradient fill is clipped to glyphs and does not paint the text box",
+  gradientMarkup.includes('fill="url(#') &&
+    gradientMarkup.includes('data-studio-text-renderer="svg"'),
+  "gradient fill is clipped to glyphs by the SVG foreground layer",
 );
 
 // --- 공용 렌더러에 붙였을 때 ---
@@ -482,8 +483,9 @@ assert.ok(
   "공용 렌더러가 저장된 효과를 그려야 한다.",
 );
 assert.ok(
-  effectDocumentMarkup.includes("-webkit-text-stroke:12px"),
-  "공용 렌더러도 같은 두께 변환을 거쳐야 한다.",
+  effectDocumentMarkup.includes('data-studio-text-renderer="svg"') &&
+    effectDocumentMarkup.includes('stroke-width="12"'),
+  "공용 렌더러도 같은 SVG 두께 변환을 거쳐야 한다.",
 );
 
 /**
@@ -504,8 +506,9 @@ assert.ok(
   "자동 크기 노드의 저장된 효과가 그려져야 한다.",
 );
 assert.ok(
-  autoFitDocumentMarkup.includes("-webkit-text-stroke:12px"),
-  "자동 크기 갈래도 같은 두께 변환을 거쳐야 한다.",
+  autoFitDocumentMarkup.includes('data-studio-text-renderer="svg"') &&
+    autoFitDocumentMarkup.includes('stroke-width="12"'),
+  "자동 크기 갈래도 같은 SVG 두께 변환을 거쳐야 한다.",
 );
 
 const autoFitSingleLineDocumentMarkup = renderDocument(
@@ -569,6 +572,11 @@ assert.equal(
   (autoFitSingleLineEffectsMarkup.match(/filter:drop-shadow\(/g) ?? []).length,
   0,
   "SVG shadow는 root CSS와 SVG group에 이중 적용하면 안 된다.",
+);
+assert.equal(
+  (autoFitSingleLineEffectsMarkup.match(/filter="url\(#/g) ?? []).length,
+  1,
+  "SVG shadow는 합성 group에 한 번만 적용해야 한다.",
 );
 
 const autoFitPlainDocumentMarkup = renderDocument(
@@ -644,8 +652,9 @@ const autoFitGradientMarkup = renderAutoFit(
   {},
 );
 assert.ok(
-  autoFitGradientMarkup.includes("linear-gradient(0deg, #ef4444, #3b82f6)"),
-  "Auto-fit text uses the same gradient fill renderer",
+  autoFitGradientMarkup.includes("linearGradient") &&
+    autoFitGradientMarkup.includes('fill="url(#'),
+  "Auto-fit text uses the same SVG gradient fill renderer",
 );
 
 /**
@@ -680,9 +689,9 @@ assert.ok(
   "효과 레이어는 논리 측정 요소와 형제여야 한다.",
 );
 assert.equal(
-  (autoFitEffectMarkup.match(/font-size:/g) ?? []).length,
-  1,
-  "자동 크기 효과 조합은 root 하나의 font-size만 소유해야 한다.",
+  (autoFitEffectMarkup.match(/font-size:42px/g) ?? []).length,
+  4,
+  "자동 크기 SVG 레이어와 논리 root는 같은 최종 font-size를 사용해야 한다.",
 );
 
 // 레이어가 그 요소 안에 있어야 크기를 물려받는다.
@@ -695,8 +704,8 @@ assert.deepEqual(
   [...autoFitEffectMarkup.matchAll(/data-effect-layer="([^"]+)"/g)].map(
     (match) => match[1],
   ),
-  ["stroke:outer", "stroke:inner", "fill"],
-  "저장된 외곽선 순서를 유지하고 채우기를 마지막에 덮는다.",
+  ["stroke:outer", "stroke:inner", "foreground"],
+  "저장된 외곽선 순서를 유지하고 SVG foreground를 마지막에 덮는다.",
 );
 assert.ok(
   autoFitEffectMarkup.includes("color:transparent"),
@@ -704,17 +713,18 @@ assert.ok(
 );
 assert.equal(
   (autoFitEffectMarkup.match(/aria-hidden="true"/g) ?? []).length,
-  3,
-  "겹쳐 그린 레이어는 모두 낭독에서 빠진다. 읽히는 글자는 크기를 재는 요소 하나다.",
+  1,
+  "SVG 시각 레이어는 하나의 aria-hidden 그룹으로 낭독에서 빠진다. 읽히는 글자는 측정 요소 하나다.",
 );
 assert.equal(
   (autoFitEffectMarkup.match(/pointer-events:none/g) ?? []).length,
-  3,
-  "겹쳐 그린 레이어는 클릭을 먹지 않아야 한다.",
+  1,
+  "SVG 시각 레이어는 하나의 pointer-events 차단으로 클릭을 먹지 않아야 한다.",
 );
 assert.ok(
-  autoFitEffectMarkup.includes("-webkit-text-stroke:12px"),
-  "자동 크기 경로도 같은 두께 변환을 거쳐야 한다.",
+  autoFitEffectMarkup.includes('stroke-width="12"') &&
+    autoFitEffectMarkup.includes('data-studio-text-renderer="svg"'),
+  "자동 크기 경로도 같은 SVG 두께 변환을 거쳐야 한다.",
 );
 
 const shadowOnlyAutoMarkup = renderAutoFit(
@@ -729,17 +739,18 @@ assert.deepEqual(
   [...shadowOnlyAutoMarkup.matchAll(/data-effect-layer="([^"]+)"/g)].map(
     (match) => match[1],
   ),
-  ["fill"],
-  "shadow-only 자동 크기는 fill 레이어 하나를 root 합성에 포함해야 한다.",
+  ["foreground"],
+  "shadow-only 자동 크기는 SVG foreground 레이어 하나를 root 합성에 포함해야 한다.",
 );
 assert.ok(
-  shadowOnlyAutoMarkup.includes("filter:drop-shadow(2px 3px 4px"),
-  "shadow-only 자동 크기는 root에 drop-shadow를 적용해야 한다.",
+  shadowOnlyAutoMarkup.includes('filter="url(#') &&
+    shadowOnlyAutoMarkup.includes("feDropShadow"),
+  "shadow-only 자동 크기는 root에 SVG drop-shadow를 적용해야 한다.",
 );
 assert.equal(
-  (shadowOnlyAutoMarkup.match(/filter:drop-shadow\(/g) ?? []).length,
+  (shadowOnlyAutoMarkup.match(/filter="url\(#/g) ?? []).length,
   1,
-  "shadow-only 자동 크기도 shadow filter는 하나여야 한다.",
+  "shadow-only 자동 크기도 SVG shadow filter는 하나여야 한다.",
 );
 
 const strokeShadowAutoMarkup = renderAutoFit(
@@ -755,17 +766,18 @@ assert.deepEqual(
   [...strokeShadowAutoMarkup.matchAll(/data-effect-layer="([^"]+)"/g)].map(
     (match) => match[1],
   ),
-  ["stroke:outer", "fill"],
-  "stroke + shadow 자동 크기는 stroke와 fill 레이어를 한 root 아래에 둬야 한다.",
+  ["stroke:outer", "foreground"],
+  "stroke + shadow 자동 크기는 stroke와 SVG foreground를 한 root 아래에 둬야 한다.",
 );
 assert.ok(
-  strokeShadowAutoMarkup.includes("filter:drop-shadow(2px 3px 4px"),
-  "stroke + shadow 자동 크기는 root 합성 실루엣에 drop-shadow를 적용해야 한다.",
+  strokeShadowAutoMarkup.includes('filter="url(#') &&
+    strokeShadowAutoMarkup.includes("feDropShadow"),
+  "stroke + shadow 자동 크기는 root 합성 실루엣에 SVG drop-shadow를 적용해야 한다.",
 );
 assert.equal(
-  (strokeShadowAutoMarkup.match(/filter:drop-shadow\(/g) ?? []).length,
+  (strokeShadowAutoMarkup.match(/filter="url\(#/g) ?? []).length,
   1,
-  "stroke가 여러 개여도 자동 크기 shadow filter는 하나여야 한다.",
+  "stroke가 여러 개여도 자동 크기 SVG shadow filter는 하나여야 한다.",
 );
 assert.equal(
   (strokeShadowAutoMarkup.match(/text-shadow:/g) ?? []).length,
@@ -773,9 +785,9 @@ assert.equal(
   "자동 크기의 stroke/fill 레이어에도 text-shadow가 없어야 한다.",
 );
 assert.equal(
-  fixedSharedShadowMarkup.match(/filter:drop-shadow\([^;]+\)/)?.[0],
-  strokeShadowAutoMarkup.match(/filter:drop-shadow\([^;]+\)/)?.[0],
-  "고정 텍스트와 Auto Text가 같은 shadow 표현을 사용해야 한다.",
+  (fixedSharedShadowMarkup.match(/<filter /g) ?? []).length,
+  (strokeShadowAutoMarkup.match(/<filter /g) ?? []).length,
+  "고정 텍스트와 Auto Text가 같은 SVG shadow 표현을 사용해야 한다.",
 );
 
 // --- 맞춤 여유 ---
@@ -860,8 +872,14 @@ assert.ok(
   "Studio 자동 맞춤은 logical measurement 요소의 overflow만 읽어야 한다.",
 );
 assert.ok(
-  studioTextSource.includes("function StudioTextEffectLayers"),
-  "고정/자동 텍스트는 하나의 효과 레이어 생성기를 공유해야 한다.",
+  studioTextSource.includes("StudioFixedSvgText") &&
+    studioTextSource.includes("StudioSvgText"),
+  "고정/자동 텍스트는 공통 SVG 효과 렌더러를 공유해야 한다.",
+);
+assert.ok(
+  !studioTextSource.includes("WebkitTextStroke") &&
+    !studioTextSource.includes("strokeLinejoin"),
+  "구조화된 효과는 브라우저별 CSS text stroke 대신 공통 SVG stroke만 사용해야 한다.",
 );
 const inspectorSource = readFileSync(
   "src/app/(root)/admin/thumbnail-studio/_components/thumbnail-inspector.tsx",

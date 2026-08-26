@@ -2,7 +2,10 @@
 
 import React, { useId } from "react";
 
-import type { StudioTextLayoutResult } from "@/components/studio/text/use-studio-text-layout";
+import {
+  useStudioFixedTextLayout,
+  type StudioTextLayoutResult,
+} from "@/components/studio/text/use-studio-text-layout";
 import type { ResolvedStudioTextAppearance } from "@/utils/template-studio/text-appearance";
 import {
   getStudioDrawableTextStrokes,
@@ -14,6 +17,14 @@ export interface StudioSvgTextProps {
   appearance: ResolvedStudioTextAppearance;
   typography: React.CSSProperties;
   textAlign: "left" | "center" | "right";
+  hidden?: boolean;
+}
+
+export interface StudioFixedSvgTextProps {
+  text: string;
+  appearance: ResolvedStudioTextAppearance;
+  typography: React.CSSProperties;
+  className?: string;
 }
 
 interface CanvasTextMetrics {
@@ -32,6 +43,14 @@ const getTextAnchor = (
   if (textAlign === "center") return "middle";
   if (textAlign === "right") return "end";
   return "start";
+};
+
+const getStudioSvgTextAlign = (
+  textAlign: React.CSSProperties["textAlign"],
+): StudioSvgTextProps["textAlign"] => {
+  if (textAlign === "center") return "center";
+  if (textAlign === "right" || textAlign === "end") return "right";
+  return "left";
 };
 
 const getFontString = (
@@ -113,6 +132,7 @@ export function StudioSvgText({
   appearance,
   typography,
   textAlign,
+  hidden = false,
 }: StudioSvgTextProps) {
   const rawId = useId();
   const idPrefix = normalizeSvgId(rawId);
@@ -177,7 +197,11 @@ export function StudioSvgText({
       pointerEvents="none"
       preserveAspectRatio="none"
       width="100%"
-      style={{ pointerEvents: "none", overflow: "visible" }}
+      style={{
+        pointerEvents: "none",
+        overflow: "visible",
+        ...(hidden ? { visibility: "hidden" } : {}),
+      }}
     >
       {(appearance.fill.type === "linearGradient" || shadow) && (
         <defs>
@@ -241,5 +265,60 @@ export function StudioSvgText({
         </text>
       </g>
     </svg>
+  );
+}
+
+/**
+ * Fixed-size structured text uses the same SVG effect renderer as Auto Text.
+ *
+ * The transparent span remains the layout/accessibility source of truth. SVG is only a
+ * visual layer, so its viewport follows the measured span instead of introducing a second
+ * font or wrapping algorithm.
+ */
+export function StudioFixedSvgText({
+  text,
+  appearance,
+  typography,
+  className,
+}: StudioFixedSvgTextProps) {
+  const { rootRef, measurementRef, layout } = useStudioFixedTextLayout({
+    text,
+    typography,
+  });
+  const textAlign = getStudioSvgTextAlign(typography.textAlign);
+
+  return (
+    <span
+      ref={rootRef}
+      className={className}
+      data-studio-text-node="true"
+      {...(appearance.shadow
+        ? { "data-studio-text-shadow-source": "composite" }
+        : {})}
+      style={{
+        ...typography,
+        display: "inline-block",
+        position: "relative",
+        color: "transparent",
+      }}
+    >
+      <span
+        ref={measurementRef}
+        data-studio-text-measurement="true"
+        style={{
+          display: "inline-block",
+          whiteSpace: "pre",
+        }}
+      >
+        {text}
+      </span>
+      <StudioSvgText
+        appearance={appearance}
+        layout={layout}
+        textAlign={textAlign}
+        typography={typography}
+        hidden={!layout.ready}
+      />
+    </span>
   );
 }

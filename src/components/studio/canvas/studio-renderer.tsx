@@ -91,6 +91,24 @@ const toCssStyle = (styleRecord?: StudioStyleRecord): React.CSSProperties => {
   return style;
 };
 
+/**
+ * Text SVG and its logical HTML measurement span must use the same font metrics.
+ * Keep layout/position declarations on the node wrapper and pass only typography
+ * declarations to StudioText so visual layers cannot accidentally change flex sizing.
+ */
+const getStudioTextTypography = (
+  style: React.CSSProperties,
+): React.CSSProperties => ({
+  fontFamily: style.fontFamily,
+  fontSize: style.fontSize,
+  fontStyle: style.fontStyle,
+  fontVariant: style.fontVariant,
+  fontWeight: style.fontWeight,
+  letterSpacing: style.letterSpacing,
+  lineHeight: style.lineHeight,
+  textAlign: style.textAlign,
+});
+
 const resolveStudioAssetSlotAsset = (
   document: StudioTemplateDocument,
   values: StudioRuntimeValues,
@@ -295,11 +313,9 @@ export function StudioRenderer({
               className="m-0 block w-full leading-tight"
               text={text}
               typography={{
-                fontFamily: style.fontFamily,
-                fontWeight: style.fontWeight,
+                ...getStudioTextTypography(style),
                 letterSpacing: 0,
                 lineHeight: style.lineHeight ?? 1.08,
-                textAlign: style.textAlign as React.CSSProperties["textAlign"],
               }}
             />
             {children}
@@ -320,6 +336,7 @@ export function StudioRenderer({
             <StudioText
               appearance={resolveStudioTextAppearance(node, styleRecord)}
               text={text}
+              typography={getStudioTextTypography(style)}
             />
             {children}
           </div>
