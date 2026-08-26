@@ -4,15 +4,15 @@
 import React from "react";
 
 import { StudioAutoFitText } from "@/components/studio/text/studio-auto-fit-text";
-import { StudioSvgText } from "@/components/studio/text/studio-svg-text";
+import {
+  StudioFixedSvgText,
+  StudioSvgText,
+} from "@/components/studio/text/studio-svg-text";
 import type { StudioTextLayoutResult } from "@/components/studio/text/use-studio-text-layout";
 import type { StudioStyleRecord } from "@/types/template-studio";
 import {
   shouldRenderStudioTextEffectLayers,
-  getStudioDrawableTextStrokes,
   getStudioTextFillRenderStyle,
-  toStudioCssColor,
-  toStudioCssStrokeWidth,
   type ResolvedStudioTextAppearance,
 } from "@/utils/template-studio/text-appearance";
 import { STUDIO_TEXT_FIT_MARGIN_PX } from "@/utils/template-studio/text-layout";
@@ -58,39 +58,6 @@ export interface StudioTextProps {
   className?: string;
 }
 
-/**
- * 텍스트 효과 레이어 하나가 쓰는 CSS.
- *
- * 외곽선은 중앙 정렬로 그려지므로 절반이 글자 안쪽을 덮는다. `paint-order`로 외곽선을
- * 먼저 그리게 하고, 안쪽으로 들어온 부분은 위에 놓이는 다음 레이어와 foreground가 덮는다.
- * 굵은 stroke의 기본 miter join은 글리프 예각에서 긴 삼각형을 만들므로 round join으로
- * 제한한다. miter limit도 낮춰 round를 무시하는 렌더러의 돌출을 줄인다.
- */
-const getStrokeLayerStyle = (
-  color: string,
-  outset: number,
-  opacity: number,
-): React.CSSProperties => ({
-  color,
-  WebkitTextStroke: `${toStudioCssStrokeWidth(outset)}px ${color}`,
-  strokeLinejoin: "round",
-  strokeMiterlimit: 1,
-  paintOrder: "stroke fill",
-  opacity,
-});
-
-const getShadowFilter = (
-  appearance: ResolvedStudioTextAppearance,
-): string | undefined => {
-  const { shadow } = appearance;
-  if (!shadow) return undefined;
-
-  return `drop-shadow(${shadow.offsetX}px ${shadow.offsetY}px ${shadow.blur}px ${toStudioCssColor(
-    shadow.color,
-    shadow.opacity,
-  )})`;
-};
-
 const getStudioTextAlign = (
   textAlign: React.CSSProperties["textAlign"],
 ): "left" | "center" | "right" => {
@@ -98,66 +65,6 @@ const getStudioTextAlign = (
   if (textAlign === "right" || textAlign === "end") return "right";
   return "left";
 };
-
-interface StudioTextEffectLayersProps {
-  content: string;
-  fillStyle: React.CSSProperties;
-  strokes: ReturnType<typeof getStudioDrawableTextStrokes>;
-  typography?: React.CSSProperties;
-  fillLayer: "fill" | "foreground";
-}
-
-/**
- * 고정 크기와 자동 맞춤이 공유하는 텍스트 효과 레이어.
- *
- * `foreground`는 흐름 안에 남는 고정 크기용 접근성 foreground이고, `fill`은 논리 측정
- * span 위에 absolute로 겹치는 자동 맞춤용 시각 레이어다. stroke 필터링·순서·두께 변환·
- * 접근성 및 pointer 차단은 두 경로에서 이 컴포넌트가 동일하게 소유한다. 그림자는 이
- * 컴포넌트 바깥의 root가 자식 전체를 합성한 뒤 한 번만 만든다.
- */
-function StudioTextEffectLayers({
-  content,
-  fillStyle,
-  strokes,
-  typography,
-  fillLayer,
-}: StudioTextEffectLayersProps) {
-  const isAutoFitLayer = fillLayer === "fill";
-
-  return (
-    <>
-      {strokes.map((stroke) => (
-        <span
-          aria-hidden="true"
-          data-effect-layer={`stroke:${stroke.id}`}
-          key={stroke.id}
-          style={{
-            position: "absolute",
-            inset: 0,
-            pointerEvents: "none",
-            ...typography,
-            ...getStrokeLayerStyle(stroke.color, stroke.outset, stroke.opacity),
-          }}
-        >
-          {content}
-        </span>
-      ))}
-      <span
-        {...(isAutoFitLayer ? { "aria-hidden": "true" } : {})}
-        data-effect-layer={fillLayer}
-        style={{
-          position: isAutoFitLayer ? "absolute" : "relative",
-          ...(isAutoFitLayer ? { inset: 0 } : {}),
-          ...(isAutoFitLayer ? { pointerEvents: "none" } : {}),
-          ...typography,
-          ...fillStyle,
-        }}
-      >
-        {content}
-      </span>
-    </>
-  );
-}
 
 /**
  * Studio 문서의 글자 하나를 그린다.
@@ -190,39 +97,21 @@ export function StudioText({
 }: StudioTextProps) {
   const content = text || EMPTY_TEXT_PLACEHOLDER;
   const hasEffectLayers = shouldRenderStudioTextEffectLayers(appearance);
-  const shadowFilter = getShadowFilter(appearance);
   const { fill } = appearance;
-  const strokes = getStudioDrawableTextStrokes(appearance.strokes);
   const fillStyle: React.CSSProperties = getStudioTextFillRenderStyle(fill);
-
-  const effectLayers = (
-    fillLayer: StudioTextEffectLayersProps["fillLayer"],
-  ) => (
-    <StudioTextEffectLayers
-      content={content}
-      fillLayer={fillLayer}
-      fillStyle={fillStyle}
-      strokes={strokes}
-      typography={typography}
-    />
-  );
 
   if (autoFit) {
     const wrapMode = getStudioTextWrapMode(autoFit.styleRecord);
-    const useSvgRenderer = hasEffectLayers && wrapMode === "single";
-    const htmlShadowFilter = useSvgRenderer ? undefined : shadowFilter;
     const textAlign = getStudioTextAlign(typography?.textAlign);
     const renderVisual = hasEffectLayers
-      ? useSvgRenderer
-        ? (layout: StudioTextLayoutResult) => (
-            <StudioSvgText
-              appearance={appearance}
-              layout={layout}
-              textAlign={textAlign}
-              typography={typography ?? {}}
-            />
-          )
-        : () => effectLayers("fill")
+      ? (layout: StudioTextLayoutResult) => (
+          <StudioSvgText
+            appearance={appearance}
+            layout={layout}
+            textAlign={textAlign}
+            typography={typography ?? {}}
+          />
+        )
       : undefined;
 
     return (
@@ -239,15 +128,18 @@ export function StudioText({
           ...(hasEffectLayers
             ? {
                 position: "relative",
-                ...(htmlShadowFilter ? { filter: htmlShadowFilter } : {}),
                 // 실제 텍스트는 측정 span으로 남겨 접근성 트리에서 한 번만 읽힌다.
                 color: "transparent",
               }
             : fillStyle),
         }}
         typography={typography}
-        {...(htmlShadowFilter
-          ? { "data-studio-text-shadow-source": "composite" }
+        {...(hasEffectLayers
+          ? {
+              "data-studio-text-shadow-source": appearance.shadow
+                ? "composite"
+                : undefined,
+            }
           : {})}
       >
         {content}
@@ -271,19 +163,11 @@ export function StudioText({
   }
 
   return (
-    <span
+    <StudioFixedSvgText
+      appearance={appearance}
       className={className}
-      data-studio-text-node="true"
-      {...(shadowFilter
-        ? { "data-studio-text-shadow-source": "composite" }
-        : {})}
-      style={{
-        position: "relative",
-        ...typography,
-        ...(shadowFilter ? { filter: shadowFilter } : {}),
-      }}
-    >
-      {effectLayers("foreground")}
-    </span>
+      text={content}
+      typography={typography ?? {}}
+    />
   );
 }
