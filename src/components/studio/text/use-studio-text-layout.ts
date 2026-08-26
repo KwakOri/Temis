@@ -33,6 +33,11 @@ export interface UseStudioTextLayoutOptions {
   measureWithSpan?: boolean;
 }
 
+export interface UseStudioFixedTextLayoutOptions {
+  text: string;
+  typography: React.CSSProperties;
+}
+
 const DEFAULT_LINE_HEIGHT_MULTIPLIER = 1.2;
 
 const normalizeMaxLines = (
@@ -131,6 +136,30 @@ const getInitialLayout = (
   return {
     fontSize,
     renderedFontSize: Math.floor(fontSize),
+    displayText,
+    lines: displayText.split("\n"),
+    lineHeightPx: getFallbackLineHeight(fontSize, options.typography),
+    availableWidth: 0,
+    availableHeight: 0,
+    width: 0,
+    height: 0,
+    ready: false,
+  };
+};
+
+const getInitialFixedTextLayout = (
+  options: UseStudioFixedTextLayoutOptions,
+): StudioTextLayoutResult => {
+  const displayText = options.text;
+  const fontSize =
+    typeof options.typography.fontSize === "number" &&
+    Number.isFinite(options.typography.fontSize)
+      ? options.typography.fontSize
+      : 16;
+
+  return {
+    fontSize,
+    renderedFontSize: fontSize,
     displayText,
     lines: displayText.split("\n"),
     lineHeightPx: getFallbackLineHeight(fontSize, options.typography),
@@ -328,6 +357,96 @@ export function useStudioTextLayout(options: UseStudioTextLayoutOptions): {
     options.measureWithSpan,
     stableTypography,
   ]);
+
+  const renderedLayout =
+    layout.displayText === displayText
+      ? layout
+      : {
+          ...layout,
+          displayText,
+          lines: displayText.split("\n"),
+          ready: false,
+        };
+
+  return { rootRef, measurementRef, layout: renderedLayout };
+}
+
+/**
+ * 고정 크기 텍스트가 SVG viewport로 사용할 실제 ink box를 측정한다.
+ *
+ * 고정 Text는 Auto Text처럼 부모 상자에 맞춰 font-size를 탐색하지 않는다. 대신 SVG가
+ * HTML 텍스트와 같은 위치·크기를 사용하도록, 투명한 논리 텍스트 span의 실제 box만 읽는다.
+ * 폰트가 늦게 로드되거나 부모 크기가 바뀌어도 Auto Text와 같은 측정 경계로 갱신한다.
+ */
+export function useStudioFixedTextLayout(
+  options: UseStudioFixedTextLayoutOptions,
+): {
+  rootRef: React.RefObject<HTMLSpanElement | null>;
+  measurementRef: React.RefObject<HTMLSpanElement | null>;
+  layout: StudioTextLayoutResult;
+} {
+  const rootRef = useRef<HTMLSpanElement>(null);
+  const measurementRef = useRef<HTMLSpanElement>(null);
+  const displayText = options.text;
+  const typographyKey = getTypographyKey(options.typography);
+  const stableTypographyRef = useRef(options.typography);
+  const stableTypographyKeyRef = useRef(typographyKey);
+  if (stableTypographyKeyRef.current !== typographyKey) {
+    stableTypographyKeyRef.current = typographyKey;
+    stableTypographyRef.current = options.typography;
+  }
+  const stableTypography = stableTypographyRef.current;
+  const [layout, setLayout] = useState<StudioTextLayoutResult>(() =>
+    getInitialFixedTextLayout(options),
+  );
+
+  useEffect(() => {
+    const root = rootRef.current;
+    const measurement = measurementRef.current;
+    if (!root || !measurement) return;
+
+    const calculateLayout = () => {
+      const computedStyle = window.getComputedStyle(measurement);
+      const fontSize = getPixelValue(computedStyle.fontSize) || 16;
+      const lineHeightPx = getMeasuredLineHeight(
+        measurement,
+        fontSize,
+        stableTypography,
+      );
+      const width = root.clientWidth || measurement.scrollWidth || 1;
+      const height =
+        root.clientHeight || measurement.scrollHeight || lineHeightPx;
+
+      setLayout({
+        fontSize,
+        renderedFontSize: fontSize,
+        displayText,
+        lines: displayText.split("\n"),
+        lineHeightPx,
+        availableWidth: width,
+        availableHeight: height,
+        width,
+        height,
+        ready: true,
+      });
+    };
+
+    calculateLayout();
+
+    const resizeObserver = new ResizeObserver(calculateLayout);
+    resizeObserver.observe(root);
+    if (root.parentElement) resizeObserver.observe(root.parentElement);
+
+    const fontSet = document.fonts;
+    const handleFontLoadingDone = () => calculateLayout();
+    fontSet?.addEventListener("loadingdone", handleFontLoadingDone);
+    void fontSet?.ready.then(calculateLayout);
+
+    return () => {
+      resizeObserver.disconnect();
+      fontSet?.removeEventListener("loadingdone", handleFontLoadingDone);
+    };
+  }, [displayText, stableTypography]);
 
   const renderedLayout =
     layout.displayText === displayText
