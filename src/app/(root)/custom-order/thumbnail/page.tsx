@@ -52,11 +52,16 @@ export default function ThumbnailCustomOrderPage() {
   const isThumbnailOrderEnabled = generalOptions?.some(
     (option) => option.value === "custom_thumbnail_orders" && option.is_enabled,
   );
-  const isIntakeReady = user
-    ? Boolean(isThumbnailOrderEnabled && intakeData?.accepting)
-    : Boolean(isThumbnailOrderEnabled);
-  const isCheckingIntake =
-    isLoadingOptions || (Boolean(user) && isLoadingIntake);
+  // TODO: 로컬 테스트가 끝나면 임시 override를 제거하거나 false로 바꾸세요.
+  const isLocalIntakeTestOverride = process.env.NODE_ENV === "development";
+  const isIntakeReady = isLocalIntakeTestOverride
+    ? true
+    : user
+      ? Boolean(isThumbnailOrderEnabled && intakeData?.accepting)
+      : Boolean(isThumbnailOrderEnabled);
+  const isCheckingIntake = isLocalIntakeTestOverride
+    ? false
+    : isLoadingOptions || (Boolean(user) && isLoadingIntake);
   const intakeStatus = isCheckingIntake
     ? "접수 상태 확인 중"
     : isIntakeReady
@@ -160,8 +165,8 @@ export default function ThumbnailCustomOrderPage() {
 
           <div className="mt-6 rounded-xl border border-secondary/20 bg-secondary/5 p-5 text-sm leading-relaxed text-dark-gray/70">
             <p className="mt-2">
-              신청은 제작 요청 입력과 가격 선택의 2단계로 진행되며, 추가 옵션
-              없이 필요한 자료만 간단히 제출할 수 있습니다.
+              신청은 제작 요청 입력, 가격 선택, 입금 안내 확인의 3단계로
+              진행됩니다.
             </p>
           </div>
 

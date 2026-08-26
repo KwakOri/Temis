@@ -1,5 +1,6 @@
 "use client";
 
+import DepositInfoModal from "@/components/shop/DepositInfoModal";
 import { useCustomOrderFeed } from "@/hooks/query/useCustomOrderFeed";
 import { useCancelThumbnailCustomOrder } from "@/hooks/query/useCustomThumbnailOrder";
 import type { CustomOrderWithStatus } from "@/types/customOrder";
@@ -11,6 +12,7 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
+  CreditCard,
   Edit,
   Eye,
   Image as ImageIcon,
@@ -19,6 +21,7 @@ import {
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
 interface CustomOrderFeedProps {
   onEditTimetableOrder: (order: CustomOrderWithStatus) => void;
@@ -79,6 +82,8 @@ export default function CustomOrderFeed({
 }: CustomOrderFeedProps) {
   const { data, isLoading, error } = useCustomOrderFeed();
   const cancelThumbnailMutation = useCancelThumbnailCustomOrder();
+  const [depositInfoItem, setDepositInfoItem] =
+    useState<CustomOrderFeedItem | null>(null);
   const orders = data?.orders ?? [];
 
   const handleCancelThumbnailOrder = async (orderId: string) => {
@@ -111,7 +116,9 @@ export default function CustomOrderFeed({
       <div className="rounded-lg bg-red-50 p-5 text-sm text-red-700">
         <p>맞춤 제작 주문 내역을 불러오지 못했습니다.</p>
         <p className="mt-1">
-          {error instanceof Error ? error.message : "잠시 후 다시 시도해주세요."}
+          {error instanceof Error
+            ? error.message
+            : "잠시 후 다시 시도해주세요."}
         </p>
       </div>
     );
@@ -132,155 +139,175 @@ export default function CustomOrderFeed({
   }
 
   return (
-    <section>
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold text-slate-900">
-          맞춤 제작 신청 내역
-        </h2>
-        <p className="mt-1 text-sm text-slate-600">
-          시간표와 썸네일 주문을 신청일 기준으로 함께 확인할 수 있습니다.
-        </p>
-      </div>
+    <>
+      <section>
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-slate-900">
+            맞춤 제작 신청 내역
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">
+            시간표와 썸네일 주문을 신청일 기준으로 함께 확인할 수 있습니다.
+          </p>
+        </div>
 
-      <div className="space-y-4">
-        {orders.map((item) => (
-          <article
-            key={item.type + "-" + item.id}
-            className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
-          >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex min-w-0 items-start gap-3">
-                {getStatusIcon(item.status)}
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="truncate font-semibold text-slate-900">
-                      {item.title}
-                    </h3>
-                    <span
-                      className={
-                        "rounded-full px-2 py-0.5 text-xs font-semibold " +
-                        getTypeClassName(item)
-                      }
-                    >
-                      {getTypeLabel(item)}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {formatDate(item.createdAt)}
-                  </p>
-                </div>
-              </div>
-              <span
-                className={
-                  "inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-semibold " +
-                  statusClassName[item.status]
-                }
-              >
-                {statusLabel[item.status]}
-              </span>
-            </div>
-
-            <p className="mt-4 line-clamp-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-600">
-              {item.summary}
-            </p>
-
-            <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-100 pt-4 text-xs text-slate-500">
-              {item.type === "timetable" ? (
-                <span>
-                  캐릭터 이미지{" "}
-                  {item.order.has_character_images ? "첨부됨" : "없음"}
-                </span>
-              ) : (
-                <span>
-                  첨부파일 {item.order.files?.length ?? 0}개 · 4K 썸네일
-                </span>
-              )}
-              {item.priceQuoted !== null && (
-                <span className="font-semibold text-slate-700">
-                  견적 ₩{item.priceQuoted.toLocaleString()}
-                </span>
-              )}
-              {item.deadline && <span>예정 마감 {item.deadline}</span>}
-            </div>
-
-            {item.adminNotes && (
-              <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-                <p className="font-semibold">관리자 안내</p>
-                <p className="mt-1 whitespace-pre-wrap">{item.adminNotes}</p>
-              </div>
-            )}
-
-            <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-              {item.type === "timetable" ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => onViewTimetableOrder(item.order)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                    상세보기
-                  </button>
-                  {(item.status === "pending" ||
-                    item.status === "accepted" ||
-                    item.status === "in_progress") && (
-                    <button
-                      type="button"
-                      onClick={() => onEditTimetableOrder(item.order)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-100"
-                    >
-                      <Edit className="h-3.5 w-3.5" />
-                      수정
-                    </button>
-                  )}
-                  {item.status === "pending" && (
-                    <button
-                      type="button"
-                      onClick={() => onCancelTimetableOrder(item.id)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-600 transition-colors hover:bg-red-100"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      취소
-                    </button>
-                  )}
-                </>
-              ) : (
-                <>
-                  {item.order.result_template_id && item.status === "completed" && (
-                    <Link
-                      href={"/thumbnail/" + item.order.result_template_id}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-secondary/90"
-                    >
-                      <ImageIcon className="h-3.5 w-3.5" />
-                      썸네일 만들기
-                    </Link>
-                  )}
-                  {item.status === "pending" && (
-                    <>
-                      <Link
-                        href="/my-page?tab=custom-orders"
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+        <div className="space-y-4">
+          {orders.map((item) => (
+            <article
+              key={item.type + "-" + item.id}
+              className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
+                  {getStatusIcon(item.status)}
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="truncate font-semibold text-slate-900">
+                        {item.title}
+                      </h3>
+                      <span
+                        className={
+                          "rounded-full px-2 py-0.5 text-xs font-semibold " +
+                          getTypeClassName(item)
+                        }
                       >
-                        <Clock className="h-3.5 w-3.5" />
-                        진행 상태 확인
-                      </Link>
+                        {getTypeLabel(item)}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {formatDate(item.createdAt)}
+                    </p>
+                  </div>
+                </div>
+                <span
+                  className={
+                    "inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-semibold " +
+                    statusClassName[item.status]
+                  }
+                >
+                  {statusLabel[item.status]}
+                </span>
+              </div>
+
+              <p className="mt-4 line-clamp-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-600">
+                {item.summary}
+              </p>
+
+              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-100 pt-4 text-xs text-slate-500">
+                {item.type === "timetable" ? (
+                  <span>
+                    캐릭터 이미지{" "}
+                    {item.order.has_character_images ? "첨부됨" : "없음"}
+                  </span>
+                ) : (
+                  <span>
+                    첨부파일 {item.order.files?.length ?? 0}개 · 4K 썸네일
+                  </span>
+                )}
+                {item.priceQuoted !== null && (
+                  <span className="font-semibold text-slate-700">
+                    견적 ₩{item.priceQuoted.toLocaleString()}
+                  </span>
+                )}
+                {item.deadline && <span>예정 마감 {item.deadline}</span>}
+              </div>
+
+              {item.adminNotes && (
+                <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                  <p className="font-semibold">관리자 안내</p>
+                  <p className="mt-1 whitespace-pre-wrap">{item.adminNotes}</p>
+                </div>
+              )}
+
+              <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setDepositInfoItem(item)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+                >
+                  <CreditCard className="h-3.5 w-3.5" />
+                  입금 정보
+                </button>
+                {item.type === "timetable" ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => onViewTimetableOrder(item.order)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      상세보기
+                    </button>
+                    {(item.status === "pending" ||
+                      item.status === "accepted" ||
+                      item.status === "in_progress") && (
                       <button
                         type="button"
-                        onClick={() => handleCancelThumbnailOrder(item.id)}
-                        disabled={cancelThumbnailMutation.isPending}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={() => onEditTimetableOrder(item.order)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-100"
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                        수정
+                      </button>
+                    )}
+                    {item.status === "pending" && (
+                      <button
+                        type="button"
+                        onClick={() => onCancelTimetableOrder(item.id)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-600 transition-colors hover:bg-red-100"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                         취소
                       </button>
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {item.order.result_template_id &&
+                      item.status === "completed" && (
+                        <Link
+                          href={"/thumbnail/" + item.order.result_template_id}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-secondary/90"
+                        >
+                          <ImageIcon className="h-3.5 w-3.5" />
+                          썸네일 만들기
+                        </Link>
+                      )}
+                    {item.status === "pending" && (
+                      <>
+                        <Link
+                          href="/my-page?tab=custom-orders"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                        >
+                          <Clock className="h-3.5 w-3.5" />
+                          진행 상태 확인
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => handleCancelThumbnailOrder(item.id)}
+                          disabled={cancelThumbnailMutation.isPending}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          취소
+                        </button>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {depositInfoItem && (
+        <DepositInfoModal
+          orderType={getTypeLabel(depositInfoItem)}
+          amount={depositInfoItem.priceQuoted}
+          depositorName={depositInfoItem.depositorName}
+          onClose={() => setDepositInfoItem(null)}
+        />
+      )}
+    </>
   );
 }
