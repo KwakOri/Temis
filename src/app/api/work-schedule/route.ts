@@ -1,10 +1,12 @@
 import { supabase } from "@/lib/supabase";
+import { supabaseAdminServer } from "@/lib/supabase-admin-server";
+import type { WorkScheduleOrder } from "@/types/workSchedule";
 import { NextResponse } from "next/server";
 
 // 닉네임 마스킹 함수
 function maskName(name: string | null | undefined): string {
-  if (!name) return 'Unknown';
-  
+  if (!name) return "Unknown";
+
   if (name.length === 1) {
     return `${name[0]}*${name[0]}`;
   } else {
@@ -31,7 +33,7 @@ export async function GET() {
           name,
           email
         )
-      `
+      `,
       )
       .in("status", ["accepted", "in_progress"])
       .not("deadline", "is", null)
@@ -44,7 +46,7 @@ export async function GET() {
           error: "작업 예정표 조회 중 오류가 발생했습니다.",
           details: ordersError.message,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -59,7 +61,7 @@ export async function GET() {
         deadline,
         status,
         created_at
-      `
+      `,
       )
       .in("status", ["accepted", "in_progress"])
       .order("deadline", { ascending: true, nullsFirst: false });
@@ -71,15 +73,47 @@ export async function GET() {
           error: "레거시 주문 조회 중 오류가 발생했습니다.",
           details: legacyError.message,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-    // 3. 일반 주문 가공
+    // 3. 썸네일 주문들을 조회
+    // 썸네일 주문 테이블은 브라우저용 키에 공개되지 않으므로 서버 전용 클라이언트를 사용한다.
+    const { data: thumbnailOrders, error: thumbnailError } =
+      await supabaseAdminServer
+        .from("custom_thumbnail_orders")
+        .select(
+          `
+        id,
+        deadline,
+        status,
+        created_at,
+        users!inner(
+          id,
+          name,
+          email
+        )
+      `,
+        )
+        .in("status", ["accepted", "in_progress"])
+        .order("deadline", { ascending: true, nullsFirst: false });
+
+    if (thumbnailError) {
+      console.error("Thumbnail orders query error:", thumbnailError);
+      return NextResponse.json(
+        {
+          error: "썸네일 작업 일정 조회 중 오류가 발생했습니다.",
+          details: thumbnailError.message,
+        },
+        { status: 500 },
+      );
+    }
+
+    // 4. 일반 주문 가공
     const processedOrders = (orders || []).map((order) => ({
       id: order.id,
       email_prefix:
-        maskName(order.users?.name) !== 'Unknown' 
+        maskName(order.users?.name) !== "Unknown"
           ? maskName(order.users?.name)
           : order.users?.email?.slice(0, 5) || "Unknown",
       deadline: order.deadline,
@@ -89,11 +123,11 @@ export async function GET() {
       source: "internal", // 내부 주문 표시
     }));
 
-    // 4. 레거시 주문 가공
+    // 5. 레거시 주문 가공
     const processedLegacyOrders = (legacyOrders || []).map((order) => ({
       id: order.id,
       email_prefix:
-        maskName(order.nickname) !== 'Unknown' 
+        maskName(order.nickname) !== "Unknown"
           ? maskName(order.nickname)
           : order.email?.slice(0, 5) || "Unknown",
       deadline: order.deadline,
@@ -102,8 +136,32 @@ export async function GET() {
       source: "legacy", // 레거시 주문 표시
     }));
 
-    // 5. 레거시 주문을 먼저, 그 다음 일반 주문 순서로 합치기
-    const allOrders = [...processedLegacyOrders, ...processedOrders];
+    // 6. 썸네일 주문 가공
+    const processedThumbnailOrders: WorkScheduleOrder[] = (
+      thumbnailOrders || []
+    ).map((order) => ({
+      id: order.id,
+      email_prefix:
+        maskName(order.users?.name) !== "Unknown"
+          ? maskName(order.users?.name)
+          : order.users?.email?.slice(0, 5) || "Unknown",
+      deadline: order.deadline,
+      status: order.status as WorkScheduleOrder["status"],
+      created_at: order.created_at,
+      source: "thumbnail",
+    }));
+
+    // 모든 주문을 마감일 기준으로 정렬한다.
+    const allOrders = [
+      ...processedLegacyOrders,
+      ...processedOrders,
+      ...processedThumbnailOrders,
+    ].sort((a, b) => {
+      if (!a.deadline && !b.deadline) return 0;
+      if (!a.deadline) return 1;
+      if (!b.deadline) return -1;
+      return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+    });
 
     return NextResponse.json({
       orders: allOrders,
@@ -111,6 +169,7 @@ export async function GET() {
       breakdown: {
         legacy: processedLegacyOrders.length,
         internal: processedOrders.length,
+        thumbnail: processedThumbnailOrders.length,
       },
     });
   } catch (error) {
@@ -120,7 +179,7 @@ export async function GET() {
         error: "서버 오류가 발생했습니다.",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

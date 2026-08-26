@@ -1,8 +1,7 @@
 import { getCurrentUserId } from "@/lib/auth/jwt";
-import {
-  getThumbnailOrderIntakeStatus,
-  listThumbnailOrders,
-} from "@/lib/custom-thumbnail-order";
+import { getThumbnailOrderIntakeStatus } from "@/lib/custom-thumbnail-order";
+import { supabaseAdminServer } from "@/lib/supabase-admin-server";
+import { getThumbnailEstimatedDeadline } from "@/utils/thumbnail-deadline";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -16,25 +15,28 @@ export async function GET(request: NextRequest) {
 
   try {
     const intake = await getThumbnailOrderIntakeStatus();
-    const activeOrders = intake.accepting
-      ? await listThumbnailOrders({ userId: undefined, limit: 100 })
+    let latestDeadline: string | null = null;
+    if (intake.accepting) {
+      const { data: latestOrder, error } = await supabaseAdminServer
+        .from("custom_thumbnail_orders")
+        .select("deadline")
+        .not("status", "in", '("completed","cancelled")')
+        .not("deadline", "is", null)
+        .order("deadline", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      latestDeadline = latestOrder?.deadline ?? null;
+    }
+    const estimatedDeadline = intake.accepting
+      ? getThumbnailEstimatedDeadline(new Date(), latestDeadline)
       : null;
-    const latestDeadline =
-      activeOrders?.orders
-        .filter(
-          (order) =>
-            order.status !== "completed" &&
-            order.status !== "cancelled" &&
-            Boolean(order.deadline),
-        )
-        .map((order) => order.deadline as string)
-        .sort()
-        .at(-1) ?? null;
 
     return NextResponse.json({
       accepting: intake.accepting,
       latestDeadline,
-      estimatedDeadline: null,
+      estimatedDeadline,
       timezone: "Asia/Seoul",
       weekdays: [0, 4],
       message:

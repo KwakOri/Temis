@@ -294,7 +294,10 @@ export default function ThumbnailCustomOrderForm({
               <h2 className="text-xl font-bold text-dark-gray">
                 TEMIS 맞춤형 썸네일 제작 신청
               </h2>
-              <div className="mt-3 flex items-center gap-2" aria-label="신청 단계">
+              <div
+                className="mt-3 flex items-center gap-2"
+                aria-label="신청 단계"
+              >
                 {[1, 2].map((step) => (
                   <div key={step} className="flex items-center gap-2">
                     <span
@@ -332,8 +335,8 @@ export default function ThumbnailCustomOrderForm({
           {currentStep === 1 ? (
             <form onSubmit={handleRequestStepSubmit} className="space-y-6">
               <div className="rounded-xl border border-secondary/20 bg-secondary/5 p-4 text-sm leading-relaxed text-dark-gray/75">
-                캐릭터 사진과 원하는 썸네일 방향을 보내주시면, 3840 × 2160 규격의
-                고객 전용 썸네일 템플릿으로 제작합니다.
+                캐릭터 사진과 원하는 썸네일 방향을 보내주시면, 3840 × 2160
+                규격의 고객 전용 썸네일 템플릿으로 제작합니다.
               </div>
 
               <div className="grid gap-5 sm:grid-cols-2">
@@ -409,8 +412,8 @@ export default function ThumbnailCustomOrderForm({
                       캐릭터 사진 *
                     </h3>
                     <p className="mt-1 text-xs leading-relaxed text-dark-gray/60">
-                      제작에 사용할 캐릭터 사진을 1~5개 업로드해주세요. JPG, PNG,
-                      WebP 형식, 파일당 10MB까지 가능합니다.
+                      제작에 사용할 캐릭터 사진을 1~5개 업로드해주세요. JPG,
+                      PNG, WebP 형식, 파일당 10MB까지 가능합니다.
                     </p>
                   </div>
                   <label className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-secondary px-3 py-2 text-sm font-semibold text-white transition hover:bg-secondary/90">
@@ -465,8 +468,7 @@ export default function ThumbnailCustomOrderForm({
                       onChange={(event) => handleUpload(event, "reference")}
                       disabled={
                         isUploading ||
-                        requestData.referenceFiles.length >=
-                          MAX_REFERENCE_FILES
+                        requestData.referenceFiles.length >= MAX_REFERENCE_FILES
                       }
                     />
                   </label>
@@ -518,7 +520,9 @@ export default function ThumbnailCustomOrderForm({
                   가격 옵션을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
                 </p>
               ) : priceOptions && priceOptions.length > 0 ? (
-                <div className="space-y-3">{priceOptions.map(renderPriceOption)}</div>
+                <div className="space-y-3">
+                  {priceOptions.map(renderPriceOption)}
+                </div>
               ) : (
                 <p className="rounded-lg bg-amber-50 p-4 text-sm text-amber-700">
                   현재 선택할 수 있는 썸네일 가격 옵션이 없습니다.
@@ -541,7 +545,7 @@ export default function ThumbnailCustomOrderForm({
                 />
               </label>
 
-              <label className="flex items-start gap-2 text-sm text-dark-gray/80">
+              {/* <label className="flex items-start gap-2 text-sm text-dark-gray/80">
                 <input
                   type="checkbox"
                   checked={priceData.portfolioConsent}
@@ -556,7 +560,7 @@ export default function ThumbnailCustomOrderForm({
                 <span>
                   완성된 작업물을 TEMIS 포트폴리오에 공개하는 것에 동의합니다.
                 </span>
-              </label>
+              </label> */}
 
               <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm">
                 <h3 className="font-semibold text-dark-gray">신청 내용 확인</h3>

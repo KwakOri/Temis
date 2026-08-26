@@ -85,7 +85,7 @@ export default function WorkSchedulePage() {
   };
 
   // 모든 주문을 마감일 기준으로 정렬
-  const allOrders = orders.sort((a, b) => {
+  const allOrders = [...orders].sort((a, b) => {
     // 마감일이 없는 경우 마지막으로
     if (!a.deadline && !b.deadline) return 0;
     if (!a.deadline) return 1;
@@ -120,7 +120,7 @@ export default function WorkSchedulePage() {
                 작업 일정표
               </h1>
               <p className="mt-2 text-sm text-dark-gray/70">
-                현재 진행 중인 맞춤형 시간표 제작 작업 현황을 확인하실 수
+                현재 진행 중인 맞춤형 시간표·썸네일 제작 작업 현황을 확인하실 수
                 있습니다.
               </p>
             </div>
@@ -150,7 +150,9 @@ export default function WorkSchedulePage() {
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            <p className="ml-4 text-dark-gray/70">작업 예정표를 불러오는 중...</p>
+            <p className="ml-4 text-dark-gray/70">
+              작업 예정표를 불러오는 중...
+            </p>
           </div>
         ) : error ? (
           <div className="text-center py-12">
@@ -171,7 +173,8 @@ export default function WorkSchedulePage() {
               진행 중인 작업이 없습니다
             </h3>
             <p className="text-dark-gray/60">
-              새로운 맞춤형 시간표 제작 요청이 들어오면 여기에 표시됩니다.
+              새로운 맞춤형 시간표 또는 썸네일 제작 요청이 들어오면 여기에
+              표시됩니다.
             </p>
           </div>
         ) : (
@@ -183,7 +186,8 @@ export default function WorkSchedulePage() {
                   전체 작업 일정
                 </h3>
                 <p className="text-sm text-dark-gray/60">
-                  모든 주문의 마감 일정을 마감 예정일 순으로 정렬하여 표시합니다
+                  시간표와 썸네일 주문의 마감 일정을 마감 예정일 순으로 정렬하여
+                  표시합니다
                 </p>
               </div>
 
@@ -193,6 +197,9 @@ export default function WorkSchedulePage() {
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-dark-gray/70 uppercase tracking-wider">
                         순번
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-dark-gray/70 uppercase tracking-wider">
+                        유형
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-dark-gray/70 uppercase tracking-wider">
                         주문자
@@ -208,15 +215,15 @@ export default function WorkSchedulePage() {
                   <tbody className="bg-timetable-card-bg divide-y divide-tertiary">
                     {allOrders.map((order, index) => (
                       <tr
-                        key={order.id}
+                        key={`${order.source}-${order.id}`}
                         className={`hover:bg-timetable-input-hover transition-colors ${
                           order.deadline &&
                           getDeadlineStatus(order.deadline) === "overdue"
                             ? "bg-holiday/10"
                             : order.deadline &&
-                              getDeadlineStatus(order.deadline) === "urgent"
-                            ? "bg-primary/10"
-                            : ""
+                                getDeadlineStatus(order.deadline) === "urgent"
+                              ? "bg-primary/10"
+                              : ""
                         }`}
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -228,6 +235,17 @@ export default function WorkSchedulePage() {
                             }`}
                           >
                             {index + 1}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
+                              order.source === "thumbnail"
+                                ? "bg-secondary/10 text-secondary"
+                                : "bg-primary/10 text-primary"
+                            }`}
+                          >
+                            {order.source === "thumbnail" ? "썸네일" : "시간표"}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
