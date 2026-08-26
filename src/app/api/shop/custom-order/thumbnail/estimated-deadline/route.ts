@@ -16,31 +16,46 @@ export async function GET(request: NextRequest) {
   try {
     const intake = await getThumbnailOrderIntakeStatus();
     let latestDeadline: string | null = null;
+    let pendingOrderCount = 0;
     if (intake.accepting) {
-      const { data: latestOrder, error } = await supabaseAdminServer
-        .from("custom_thumbnail_orders")
-        .select("deadline")
-        .not("status", "in", '("completed","cancelled")')
-        .not("deadline", "is", null)
-        .order("deadline", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const [latestOrderResult, pendingOrderResult] = await Promise.all([
+        supabaseAdminServer
+          .from("custom_thumbnail_orders")
+          .select("deadline")
+          .not("status", "in", '("completed","cancelled")')
+          .not("deadline", "is", null)
+          .order("deadline", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabaseAdminServer
+          .from("custom_thumbnail_orders")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pending"),
+      ]);
 
-      if (error) throw error;
+      if (latestOrderResult.error) throw latestOrderResult.error;
+      if (pendingOrderResult.error) throw pendingOrderResult.error;
+
+      const latestOrder = latestOrderResult.data;
       latestDeadline = latestOrder?.deadline ?? null;
+      pendingOrderCount = pendingOrderResult.count ?? 0;
     }
     const estimatedDeadline = intake.accepting
-      ? getThumbnailEstimatedDeadline(new Date(), latestDeadline)
+      ? getThumbnailEstimatedDeadline(
+          new Date(),
+          latestDeadline,
+          pendingOrderCount,
+        )
       : null;
 
     return NextResponse.json({
       accepting: intake.accepting,
       latestDeadline,
+      pendingOrderCount,
       estimatedDeadline,
       timezone: "Asia/Seoul",
-      weekdays: [0, 4],
       message:
-        "기본 마감 요일은 목요일·일요일이며, 세부 일정은 협의 후 안내합니다.",
+        "가장 마지막 마감일을 기준으로 확인 대기 주문마다 2일을 반영합니다.",
     });
   } catch (error) {
     console.error("Thumbnail estimated deadline error:", error);

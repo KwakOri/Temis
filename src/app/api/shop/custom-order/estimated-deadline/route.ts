@@ -16,39 +16,53 @@ const formatDateInputValue = (date: Date) => {
 
 export async function GET() {
   try {
-    const { data: latestOrder, error } = await supabase
-      .from("custom_timetable_orders")
-      .select("deadline")
-      .not("deadline", "is", null)
-      .not("status", "in", '("completed","cancelled")')
-      .order("deadline", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const [latestOrderResult, pendingOrderResult] = await Promise.all([
+      supabase
+        .from("custom_timetable_orders")
+        .select("deadline")
+        .not("deadline", "is", null)
+        .not("status", "in", '("completed","cancelled")')
+        .order("deadline", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("custom_timetable_orders")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending"),
+    ]);
 
-    if (error) {
-      console.error("Estimated deadline fetch error:", error);
+    if (latestOrderResult.error || pendingOrderResult.error) {
+      console.error(
+        "Estimated deadline fetch error:",
+        latestOrderResult.error || pendingOrderResult.error,
+      );
       return NextResponse.json(
         { error: "예상 마감일 조회 중 오류가 발생했습니다." },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
+    const latestOrder = latestOrderResult.data;
     const latestDeadline = latestOrder?.deadline ?? null;
+    const pendingOrderCount = pendingOrderResult.count ?? 0;
     const baseDate = latestDeadline ? new Date(latestDeadline) : new Date();
-    const estimatedDeadline = formatDateInputValue(addDays(baseDate, 7));
+    const estimatedDeadline = formatDateInputValue(
+      addDays(baseDate, (pendingOrderCount + 1) * 7),
+    );
 
     return NextResponse.json(
       {
         latestDeadline,
+        pendingOrderCount,
         estimatedDeadline,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("Estimated deadline fetch error:", error);
     return NextResponse.json(
       { error: "서버 오류가 발생했습니다." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
