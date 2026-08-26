@@ -96,8 +96,9 @@ if (colorlessMaterialized.ok) {
     }),
   );
   assert.ok(
-    opacityMarkup.includes("rgba(255, 255, 255, 0.25)"),
-    "colorless legacy shadow materializes to fill color so shadow opacity is rendered",
+    opacityMarkup.includes('flood-color="#ffffff"') &&
+      opacityMarkup.includes('flood-opacity="0.25"'),
+    "colorless legacy shadow materializes to fill color so SVG shadow opacity is rendered",
   );
   assert.ok(!opacityMarkup.includes("currentColor"));
 }
