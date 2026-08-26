@@ -123,7 +123,7 @@ export default function ThumbnailCustomOrderPage() {
                 {estimatedDeadlineLabel}
               </p>
               <p className="mt-1 text-xs text-dark-gray/60">
-                활성 주문 대기열과 목·일 기준
+                마지막 마감일과 확인 대기 주문을 반영
               </p>
             </div>
           </div>
@@ -155,9 +155,9 @@ export default function ThumbnailCustomOrderPage() {
               <div>
                 <h2 className="font-semibold text-dark-gray">제작 일정</h2>
                 <p className="mt-2 text-sm leading-relaxed text-dark-gray/70">
-                  기본 마감일은 매주 목요일과 일요일을 기준으로 운영하고
-                  있습니다. 세부 일정은 주문제작 접수와 개별 연락으로
-                  안내중입니다.
+                  가장 마지막 마감일을 기준으로 확인 대기 중인 주문 하나당 약
+                  2일을 더해 예상 마감일을 안내합니다. 세부 일정은 주문제작
+                  접수와 개별 연락으로 안내중입니다.
                 </p>
               </div>
             </div>

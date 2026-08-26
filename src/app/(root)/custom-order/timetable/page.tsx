@@ -162,7 +162,7 @@ export default function CustomOrderPage() {
                     {estimatedDeadlineLabel}
                   </p>
                   <p className="mt-1 text-xs text-dark-gray/60">
-                    현재 대기열의 마지막 마감일 기준
+                    마지막 마감일과 확인 대기 주문을 반영
                   </p>
                 </div>
               </div>

@@ -1,20 +1,10 @@
 const THUMBNAIL_TIME_ZONE = "Asia/Seoul";
-const WEEKDAY_NAMES = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-] as const;
-const THUMBNAIL_DEADLINE_WEEKDAYS = [0, 4] as const;
+const THUMBNAIL_DAYS_PER_PENDING_ORDER = 2;
 
 type CalendarDate = {
   year: number;
   month: number;
   day: number;
-  weekday: number;
 };
 
 const addDays = (date: Date, days: number) => {
@@ -29,7 +19,6 @@ const getCalendarDateInTimeZone = (date: Date): CalendarDate => {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-    weekday: "long",
   }).formatToParts(date);
   const values = Object.fromEntries(
     parts
@@ -41,13 +30,10 @@ const getCalendarDateInTimeZone = (date: Date): CalendarDate => {
     year: Number(values.year),
     month: Number(values.month),
     day: Number(values.day),
-    weekday: WEEKDAY_NAMES.indexOf(
-      values.weekday as (typeof WEEKDAY_NAMES)[number],
-    ),
   };
 };
 
-const toUtcDate = (calendarDate: Omit<CalendarDate, "weekday">) =>
+const toUtcDate = (calendarDate: CalendarDate) =>
   new Date(
     Date.UTC(calendarDate.year, calendarDate.month - 1, calendarDate.day),
   );
@@ -80,67 +66,24 @@ const formatDateInputValue = (date: Date) =>
     )
     .join("-");
 
-const getDaysUntilWeekday = (
-  currentWeekday: number,
-  targetWeekday: number,
-  includeToday: boolean,
-) => {
-  const days = (targetWeekday - currentWeekday + 7) % 7;
-  return days === 0 && !includeToday ? 7 : days;
-};
-
-const getClosestScheduledDate = (today: Date, weekday: number) => {
-  const days = Math.min(
-    ...THUMBNAIL_DEADLINE_WEEKDAYS.map((targetWeekday) =>
-      getDaysUntilWeekday(weekday, targetWeekday, true),
-    ),
-  );
-  return addDays(today, days);
-};
-
-const getInitialEstimatedDeadline = (today: CalendarDate) => {
-  const todayDate = toUtcDate(today);
-
-  // 월·화에는 임박한 목요일을 건너뛰고 일요일 슬롯을 제안합니다.
-  if (today.weekday === 1 || today.weekday === 2) {
-    return addDays(todayDate, getDaysUntilWeekday(today.weekday, 0, true));
-  }
-
-  // 금·토에는 임박한 일요일을 건너뛰고 다음 목요일 슬롯을 제안합니다.
-  if (today.weekday === 5 || today.weekday === 6) {
-    return addDays(todayDate, getDaysUntilWeekday(today.weekday, 4, true));
-  }
-
-  return getClosestScheduledDate(todayDate, today.weekday);
-};
-
-const getNextEstimatedDeadline = (baseDate: Date) => {
-  const weekday = baseDate.getUTCDay();
-  const days = Math.min(
-    ...THUMBNAIL_DEADLINE_WEEKDAYS.map((targetWeekday) =>
-      getDaysUntilWeekday(weekday, targetWeekday, false),
-    ),
-  );
-  return addDays(baseDate, days);
-};
-
 export const getThumbnailEstimatedDeadline = (
   now: Date = new Date(),
   latestDeadline: string | null = null,
+  pendingOrderCount = 0,
 ) => {
   const today = getCalendarDateInTimeZone(now);
   const todayDate = toUtcDate(today);
   const parsedLatestDeadline = latestDeadline
     ? parseDateInputValue(latestDeadline)
     : null;
+  const baseDate =
+    parsedLatestDeadline &&
+    parsedLatestDeadline.getTime() >= todayDate.getTime()
+      ? parsedLatestDeadline
+      : todayDate;
+  const safePendingOrderCount = Math.max(0, pendingOrderCount);
 
-  if (parsedLatestDeadline) {
-    const baseDate =
-      parsedLatestDeadline.getTime() >= todayDate.getTime()
-        ? parsedLatestDeadline
-        : todayDate;
-    return formatDateInputValue(getNextEstimatedDeadline(baseDate));
-  }
-
-  return formatDateInputValue(getInitialEstimatedDeadline(today));
+  return formatDateInputValue(
+    addDays(baseDate, safePendingOrderCount * THUMBNAIL_DAYS_PER_PENDING_ORDER),
+  );
 };

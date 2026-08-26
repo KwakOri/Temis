@@ -85,9 +85,9 @@ export interface SubmitThumbnailCustomOrderResponse {
 export interface ThumbnailEstimatedDeadlineResponse {
   accepting: boolean;
   latestDeadline: string | null;
+  pendingOrderCount: number;
   estimatedDeadline: string | null;
   timezone: "Asia/Seoul";
-  weekdays: [0, 4];
   message: string;
 }
 

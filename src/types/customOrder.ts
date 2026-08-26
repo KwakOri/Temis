@@ -77,6 +77,7 @@ export interface CustomOrderHistoryResponse {
 
 export interface EstimatedDeadlineResponse {
   latestDeadline: string | null;
+  pendingOrderCount: number;
   estimatedDeadline: string;
 }
 
