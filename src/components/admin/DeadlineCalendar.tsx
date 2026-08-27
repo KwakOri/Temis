@@ -1,8 +1,13 @@
 import OrderDetailModal from "@/components/admin/OrderDetailModal";
+import ThumbnailOrderDetailModal from "@/components/admin/ThumbnailOrderDetailModal";
 import {
   useAdminCustomOrders,
   useAdminCustomOrdersCalendar,
   useAdminLegacyOrdersCalendar,
+  useAdminThumbnailOrders,
+  useAdminThumbnailOrdersCalendar,
+  useCompleteThumbnailCustomOrder,
+  useUpdateAdminThumbnailOrder,
   useUpdateCustomOrderStatus,
 } from "@/hooks/query/useAdminOrders";
 import {
@@ -10,6 +15,10 @@ import {
   LegacyOrder as LegacyOrderType,
 } from "@/types/admin";
 import { LegacyOrderLocal } from "@/types/customOrder";
+import type {
+  AdminUpdateThumbnailCustomOrderData,
+  ThumbnailCustomOrder,
+} from "@/types/customThumbnailOrder";
 import { getStatusIconHelper } from "@/utils/custom-order";
 import {
   AlertTriangle,
@@ -20,6 +29,13 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+type CalendarOrder =
+  CustomOrderWithUser | LegacyOrderType | ThumbnailCustomOrder;
+
+const isThumbnailOrder = (
+  order: CalendarOrder,
+): order is ThumbnailCustomOrder => "canvas_width" in order;
+
 // 데드라인 캘린더 뷰 컴포넌트 - 이제 내부에서 데이터를 관리
 export const DeadlineCalendarView = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -27,33 +43,56 @@ export const DeadlineCalendarView = () => {
     CustomOrderWithUser | LegacyOrderType | null
   >(null);
   const [showDeadlineModal, setShowDeadlineModal] = useState(false);
-  const [mobileTab, setMobileTab] = useState<'incomplete' | 'complete'>('incomplete');
+  const [mobileTab, setMobileTab] = useState<"incomplete" | "complete">(
+    "incomplete",
+  );
 
   // 상세보기 모달 state 추가 (CustomOrder만 지원)
-  const [selectedOrder, setSelectedOrder] = useState<CustomOrderWithUser | null>(
-    null
-  );
+  const [selectedOrder, setSelectedOrder] =
+    useState<CustomOrderWithUser | null>(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
+  const [selectedThumbnailOrder, setSelectedThumbnailOrder] =
+    useState<ThumbnailCustomOrder | null>(null);
+  const [showThumbnailOrderModal, setShowThumbnailOrderModal] = useState(false);
 
   // React Query hooks
   const { data: customOrdersResponse, isLoading: loadingCustomCalendar } =
     useAdminCustomOrdersCalendar(
       currentDate.getFullYear(),
-      currentDate.getMonth()
+      currentDate.getMonth(),
     );
 
   const { data: legacyOrdersResponse, isLoading: loadingLegacyCalendar } =
     useAdminLegacyOrdersCalendar(
       currentDate.getFullYear(),
-      currentDate.getMonth()
+      currentDate.getMonth(),
+    );
+
+  const { data: thumbnailOrdersResponse, isLoading: loadingThumbnailCalendar } =
+    useAdminThumbnailOrdersCalendar(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
     );
 
   // 미등록 일정을 가져오기 위해 전체 주문 목록 호출
   const { data: allCustomOrdersResponse, isLoading: loadingAllCustomOrders } =
     useAdminCustomOrders({ status: "all" });
 
+  const {
+    data: allThumbnailOrdersResponse,
+    isLoading: loadingAllThumbnailOrders,
+  } = useAdminThumbnailOrders({
+    status: "all",
+    page: 1,
+    limit: 100,
+    sortBy: "deadline",
+    sortOrder: "asc",
+  });
+
   // 주문 업데이트 mutation
   const updateOrderMutation = useUpdateCustomOrderStatus();
+  const updateThumbnailOrderMutation = useUpdateAdminThumbnailOrder();
+  const completeThumbnailOrderMutation = useCompleteThumbnailCustomOrder();
 
   // 전체 주문에서 미등록 일정 필터링
   const allCustomOrders = allCustomOrdersResponse?.orders || [];
@@ -61,12 +100,21 @@ export const DeadlineCalendarView = () => {
     (order) =>
       !order.deadline &&
       order.status !== "completed" &&
-      order.status !== "cancelled"
+      order.status !== "cancelled",
+  );
+
+  const allThumbnailOrders = allThumbnailOrdersResponse?.orders || [];
+  const unscheduledThumbnailOrders = allThumbnailOrders.filter(
+    (order) =>
+      !order.deadline &&
+      order.status !== "completed" &&
+      order.status !== "cancelled",
   );
 
   // Extract orders from response objects
   const orders = customOrdersResponse?.orders || [];
   const legacyOrders = legacyOrdersResponse?.orders || [];
+  const thumbnailOrders = thumbnailOrdersResponse?.orders || [];
 
   // 데이터 로깅
   if (orders.length > 0) {
@@ -75,16 +123,25 @@ export const DeadlineCalendarView = () => {
     console.log("First order sample:", orders[0]);
     if (orders[0]) {
       console.log("First order - files:", orders[0].files);
-      console.log("First order - selected_options:", orders[0].selected_options);
+      console.log(
+        "First order - selected_options:",
+        orders[0].selected_options,
+      );
     }
   }
 
-  const loading = loadingCustomCalendar || loadingLegacyCalendar || loadingAllCustomOrders;
+  const loading =
+    loadingCustomCalendar ||
+    loadingLegacyCalendar ||
+    loadingThumbnailCalendar ||
+    loadingAllCustomOrders ||
+    loadingAllThumbnailOrders;
 
   // 긴급 작업 계산 (3일 이내) - 완료된 작업과 취소된 작업 제외
   const urgentOrders = orders.filter((order: CustomOrderWithUser) => {
     if (!order.deadline) return false;
-    if (order.status === "completed" || order.status === "cancelled") return false;
+    if (order.status === "completed" || order.status === "cancelled")
+      return false;
     const deadline = new Date(order.deadline);
     const now = new Date();
     const diffTime = deadline.getTime() - now.getTime();
@@ -94,7 +151,8 @@ export const DeadlineCalendarView = () => {
 
   const urgentLegacyOrders = legacyOrders.filter((order: LegacyOrderType) => {
     if (!order.deadline) return false;
-    if (order.status === "completed" || order.status === "cancelled") return false;
+    if (order.status === "completed" || order.status === "cancelled")
+      return false;
     const deadline = new Date(order.deadline);
     const now = new Date();
     const diffTime = deadline.getTime() - now.getTime();
@@ -102,9 +160,27 @@ export const DeadlineCalendarView = () => {
     return diffDays <= 3 && diffDays >= 0;
   });
 
-  const allOrders = orders; // 캘린더에 표시될 주문 데이터
+  const urgentThumbnailOrders = thumbnailOrders.filter(
+    (order: ThumbnailCustomOrder) => {
+      if (!order.deadline) return false;
+      if (order.status === "completed" || order.status === "cancelled") {
+        return false;
+      }
+      const deadline = new Date(order.deadline);
+      const now = new Date();
+      const diffTime = deadline.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays <= 3 && diffDays >= 0;
+    },
+  );
 
-  const onOrderClick = (order: CustomOrderWithUser | LegacyOrderType) => {
+  const onOrderClick = (order: CalendarOrder) => {
+    if (isThumbnailOrder(order)) {
+      setSelectedThumbnailOrder(order);
+      setShowThumbnailOrderModal(true);
+      return;
+    }
+
     // CustomOrder만 상세보기 모달 열기 (LegacyOrder는 더 이상 지원하지 않음)
     if ("users" in order) {
       console.log("=== DeadlineCalendar: 선택된 주문 데이터 ===");
@@ -139,7 +215,7 @@ export const DeadlineCalendarView = () => {
     status: string,
     notes?: string,
     price?: number,
-    deadline?: string
+    deadline?: string,
   ) => {
     try {
       await updateOrderMutation.mutateAsync({
@@ -160,20 +236,71 @@ export const DeadlineCalendarView = () => {
     }
   };
 
+  const handleUpdateThumbnailOrder = async (
+    orderId: string,
+    data: AdminUpdateThumbnailCustomOrderData,
+  ) => {
+    try {
+      await updateThumbnailOrderMutation.mutateAsync({ orderId, data });
+      setShowThumbnailOrderModal(false);
+      setSelectedThumbnailOrder(null);
+    } catch (error) {
+      console.error("Error updating thumbnail order:", error);
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "썸네일 주문 업데이트에 실패했습니다.",
+      );
+      throw error;
+    }
+  };
+
+  const handleCompleteThumbnailOrder = async (
+    orderId: string,
+    resultTemplateId: string,
+  ) => {
+    try {
+      await completeThumbnailOrderMutation.mutateAsync({
+        orderId,
+        resultTemplateId,
+      });
+      setShowThumbnailOrderModal(false);
+      setSelectedThumbnailOrder(null);
+    } catch (error) {
+      console.error("Error completing thumbnail order:", error);
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "썸네일 주문 완료 처리에 실패했습니다.",
+      );
+      throw error;
+    }
+  };
+
   // 레거시 주문의 미등록 일정은 아직 API가 없으므로 빈 배열로 처리 (향후 구현 필요)
   const unscheduledLegacyOrders: LegacyOrderLocal[] = [];
 
   // 마감기한별로 주문 그룹핑 (맞춤 제작 + 레거시) - 취소된 주문 제외
   const ordersByDate = orders
     .filter((order) => order.deadline && order.status !== "cancelled")
-    .reduce((acc, order) => {
-      const dateKey = order.deadline!;
-      if (!acc[dateKey]) {
-        acc[dateKey] = { custom: [], legacy: [] };
-      }
-      acc[dateKey].custom.push(order);
-      return acc;
-    }, {} as Record<string, { custom: CustomOrderWithUser[]; legacy: LegacyOrderType[] }>);
+    .reduce(
+      (acc, order) => {
+        const dateKey = order.deadline!;
+        if (!acc[dateKey]) {
+          acc[dateKey] = { custom: [], legacy: [], thumbnail: [] };
+        }
+        acc[dateKey].custom.push(order);
+        return acc;
+      },
+      {} as Record<
+        string,
+        {
+          custom: CustomOrderWithUser[];
+          legacy: LegacyOrderType[];
+          thumbnail: ThumbnailCustomOrder[];
+        }
+      >,
+    );
 
   // 레거시 주문도 날짜별 그룹핑에 추가 - 취소된 주문 제외
   legacyOrders
@@ -181,18 +308,32 @@ export const DeadlineCalendarView = () => {
     .forEach((order) => {
       const dateKey = order.deadline!;
       if (!ordersByDate[dateKey]) {
-        ordersByDate[dateKey] = { custom: [], legacy: [] };
+        ordersByDate[dateKey] = { custom: [], legacy: [], thumbnail: [] };
       }
       ordersByDate[dateKey].legacy.push(order);
     });
 
+  thumbnailOrders
+    .filter((order) => order.deadline && order.status !== "cancelled")
+    .forEach((order) => {
+      const dateKey = order.deadline!;
+      if (!ordersByDate[dateKey]) {
+        ordersByDate[dateKey] = { custom: [], legacy: [], thumbnail: [] };
+      }
+      ordersByDate[dateKey].thumbnail.push(order);
+    });
+
   // 긴급도별로 정렬된 주문들 (현재 날짜 기준 3일 이내, 별도 상태에서 관리)
   const urgentCustomOrders = urgentOrders.sort(
-    (a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime()
+    (a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime(),
   );
 
   const urgentLegacyOrdersSorted = urgentLegacyOrders.sort(
-    (a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime()
+    (a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime(),
+  );
+
+  const urgentThumbnailOrdersSorted = urgentThumbnailOrders.sort(
+    (a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime(),
   );
 
   // 캘린더 날짜 계산
@@ -244,14 +385,25 @@ export const DeadlineCalendarView = () => {
   }
 
   // 완료/미완료 작업 분류
-  const completeOrders = [...orders.filter(order => order.status === 'completed'), ...legacyOrders.filter(order => order.status === 'completed')];
+  const completeOrders: CalendarOrder[] = [
+    ...orders.filter((order) => order.status === "completed"),
+    ...legacyOrders.filter((order) => order.status === "completed"),
+    ...thumbnailOrders.filter((order) => order.status === "completed"),
+  ];
   const incompleteOrders = [
-    ...orders.filter(order => order.status !== 'completed' && order.status !== 'cancelled'),
-    ...legacyOrders.filter(order => order.status !== 'completed' && order.status !== 'cancelled')
+    ...orders.filter(
+      (order) => order.status !== "completed" && order.status !== "cancelled",
+    ),
+    ...legacyOrders.filter(
+      (order) => order.status !== "completed" && order.status !== "cancelled",
+    ),
+    ...thumbnailOrders.filter(
+      (order) => order.status !== "completed" && order.status !== "cancelled",
+    ),
   ];
 
   // 날짜순 정렬 (현재 날짜와 가까운 순)
-  const sortByDate = (a: CustomOrderWithUser | LegacyOrderType, b: CustomOrderWithUser | LegacyOrderType) => {
+  const sortByDate = (a: CalendarOrder, b: CalendarOrder) => {
     const aDeadline = a.deadline ? new Date(a.deadline).getTime() : Infinity;
     const bDeadline = b.deadline ? new Date(b.deadline).getTime() : Infinity;
     const now = new Date().getTime();
@@ -289,10 +441,14 @@ export const DeadlineCalendarView = () => {
             <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
               <Clock className="w-4 h-4 mr-2" />
               미등록 작업 (
-              {unscheduledCustomOrders.length + unscheduledLegacyOrders.length})
+              {unscheduledCustomOrders.length +
+                unscheduledThumbnailOrders.length +
+                unscheduledLegacyOrders.length}
+              )
             </h4>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {unscheduledCustomOrders.length === 0 &&
+              unscheduledThumbnailOrders.length === 0 &&
               unscheduledLegacyOrders.length === 0 ? (
                 <p className="text-xs text-gray-500 py-2">
                   모든 작업에 마감일이 설정되었습니다
@@ -321,6 +477,37 @@ export const DeadlineCalendarView = () => {
                           </div>
                           <p className="text-xs text-gray-500 truncate">
                             {order.order_requirements.slice(0, 30)}...
+                          </p>
+                        </div>
+                        <div className="ml-2 flex items-center">
+                          {getStatusIconHelper(order.status)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* 썸네일 주문 */}
+                  {unscheduledThumbnailOrders.map((order) => (
+                    <div
+                      key={`thumbnail-${order.id}`}
+                      onClick={() => onOrderClick(order)}
+                      className="rounded-md border-l-2 border-secondary bg-gray-50 p-2 transition-colors hover:bg-gray-100"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center space-x-1">
+                            <p className="truncate text-xs font-medium text-gray-900">
+                              {order.users?.name || "고객"}
+                            </p>
+                            <span
+                              className="rounded bg-secondary/10 px-1 text-xs text-secondary"
+                              title="썸네일 주문"
+                            >
+                              T
+                            </span>
+                          </div>
+                          <p className="truncate text-xs text-gray-500">
+                            {order.purpose}
                           </p>
                         </div>
                         <div className="ml-2 flex items-center">
@@ -369,11 +556,15 @@ export const DeadlineCalendarView = () => {
             <h4 className="text-sm font-medium text-red-600 mb-3 flex items-center">
               <AlertTriangle className="w-4 h-4 mr-2" />
               긴급 작업 (
-              {urgentCustomOrders.length + urgentLegacyOrdersSorted.length})
+              {urgentCustomOrders.length +
+                urgentLegacyOrdersSorted.length +
+                urgentThumbnailOrdersSorted.length}
+              )
             </h4>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {urgentCustomOrders.length === 0 &&
-              urgentLegacyOrdersSorted.length === 0 ? (
+              urgentLegacyOrdersSorted.length === 0 &&
+              urgentThumbnailOrdersSorted.length === 0 ? (
                 <p className="text-xs text-gray-500 py-2">
                   긴급 작업이 없습니다
                 </p>
@@ -409,7 +600,7 @@ export const DeadlineCalendarView = () => {
                           <p className="text-xs text-gray-600 mt-1">
                             마감:{" "}
                             {new Date(order.deadline!).toLocaleDateString(
-                              "ko-KR"
+                              "ko-KR",
                             )}
                           </p>
                           <p className="text-xs text-gray-500 truncate">
@@ -452,11 +643,59 @@ export const DeadlineCalendarView = () => {
                           <p className="text-xs text-gray-600 mt-1">
                             마감:{" "}
                             {new Date(order.deadline!).toLocaleDateString(
-                              "ko-KR"
+                              "ko-KR",
                             )}
                           </p>
                           <p className="text-xs text-gray-500 truncate">
                             {order.email}
+                          </p>
+                        </div>
+                        <div className="ml-2">
+                          {getStatusIconHelper(order.status)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* 썸네일 긴급 주문 */}
+                  {urgentThumbnailOrdersSorted.map((order, index) => (
+                    <div
+                      key={`urgent-thumbnail-${order.id}`}
+                      onClick={() => onOrderClick(order)}
+                      className={`cursor-pointer rounded-md border-l-4 p-3 transition-colors ${
+                        new Date(order.deadline!) < new Date()
+                          ? "border-red-500 bg-red-50 hover:bg-red-100"
+                          : "border-yellow-500 bg-yellow-50 hover:bg-yellow-100"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs font-bold text-gray-900">
+                              #
+                              {urgentCustomOrders.length +
+                                urgentLegacyOrdersSorted.length +
+                                index +
+                                1}
+                            </span>
+                            <span className="truncate text-xs font-medium text-gray-900">
+                              {order.users?.name || "고객"}
+                            </span>
+                            <span
+                              className="rounded bg-secondary/10 px-1 text-xs text-secondary"
+                              title="썸네일 주문"
+                            >
+                              T
+                            </span>
+                          </div>
+                          <p className="mt-1 text-xs text-gray-600">
+                            마감:{" "}
+                            {new Date(order.deadline!).toLocaleDateString(
+                              "ko-KR",
+                            )}
+                          </p>
+                          <p className="truncate text-xs text-gray-500">
+                            {order.purpose}
                           </p>
                         </div>
                         <div className="ml-2">
@@ -513,15 +752,17 @@ export const DeadlineCalendarView = () => {
           <div className="grid grid-cols-7 gap-1">
             {calendarDays.map((date) => {
               const dateKey = `${date.getFullYear()}-${String(
-                date.getMonth() + 1
+                date.getMonth() + 1,
               ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
               const dayOrderData = ordersByDate[dateKey] || {
                 custom: [],
                 legacy: [],
+                thumbnail: [],
               };
               const allDayOrders = [
                 ...dayOrderData.custom,
                 ...dayOrderData.legacy,
+                ...dayOrderData.thumbnail,
               ];
               const isCurrentMonth = date.getMonth() === month;
               const isToday = date.toDateString() === new Date().toDateString();
@@ -542,8 +783,9 @@ export const DeadlineCalendarView = () => {
                   </div>
                   <div className="mt-1 space-y-1">
                     {allDayOrders.slice(0, 3).map((order) => {
+                      const isThumbnail = isThumbnailOrder(order);
                       const isLegacy = !("users" in order);
-                      const isCustomOrder = "users" in order;
+                      const isCustomOrder = "users" in order && !isThumbnail;
 
                       return (
                         <div
@@ -553,25 +795,33 @@ export const DeadlineCalendarView = () => {
                             order.status === "completed"
                               ? "bg-green-100 text-green-800 hover:bg-green-200"
                               : new Date(order.deadline!) < new Date()
-                              ? "bg-red-100 text-red-800 hover:bg-red-200"
-                              : isLegacy
-                              ? "bg-gray-100 text-gray-800 hover:bg-gray-200 border-l-2 border-gray-400"
-                              : "bg-blue-100 text-blue-800 hover:bg-blue-200"
+                                ? "bg-red-100 text-red-800 hover:bg-red-200"
+                                : isThumbnail
+                                  ? "bg-secondary/10 text-secondary hover:bg-secondary/20"
+                                  : isLegacy
+                                    ? "bg-gray-100 text-gray-800 hover:bg-gray-200 border-l-2 border-gray-400"
+                                    : "bg-blue-100 text-blue-800 hover:bg-blue-200"
                           }`}
                         >
                           <div className="flex items-center justify-between">
                             <span className="truncate">
-                              {isCustomOrder
-                                ? (order as CustomOrderWithUser).users.name
-                                : (order as LegacyOrderType).nickname}
+                              {isThumbnail
+                                ? order.users?.name || "고객"
+                                : isCustomOrder
+                                  ? (order as CustomOrderWithUser).users.name
+                                  : (order as LegacyOrderType).nickname}
                             </span>
                             <span
                               className="text-xs text-gray-500 ml-1"
                               title={
-                                isLegacy ? "레거시 주문" : "맞춤 제작 주문"
+                                isThumbnail
+                                  ? "썸네일 주문"
+                                  : isLegacy
+                                    ? "레거시 주문"
+                                    : "맞춤 제작 주문"
                               }
                             >
-                              {isLegacy ? "L" : "C"}
+                              {isThumbnail ? "T" : isLegacy ? "L" : "C"}
                             </span>
                           </div>
                         </div>
@@ -623,11 +873,11 @@ export const DeadlineCalendarView = () => {
         <div className="border-b border-gray-200">
           <nav className="flex">
             <button
-              onClick={() => setMobileTab('incomplete')}
+              onClick={() => setMobileTab("incomplete")}
               className={`flex-1 py-3 px-4 text-center text-sm font-medium border-b-2 transition-colors ${
-                mobileTab === 'incomplete'
-                  ? 'border-primary text-primary bg-blue-50'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                mobileTab === "incomplete"
+                  ? "border-primary text-primary bg-blue-50"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
               미완료 작업
@@ -636,11 +886,11 @@ export const DeadlineCalendarView = () => {
               </span>
             </button>
             <button
-              onClick={() => setMobileTab('complete')}
+              onClick={() => setMobileTab("complete")}
               className={`flex-1 py-3 px-4 text-center text-sm font-medium border-b-2 transition-colors ${
-                mobileTab === 'complete'
-                  ? 'border-primary text-primary bg-blue-50'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                mobileTab === "complete"
+                  ? "border-primary text-primary bg-blue-50"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
               완료 작업
@@ -653,20 +903,29 @@ export const DeadlineCalendarView = () => {
 
         {/* 리스트 컨텐츠 */}
         <div className="divide-y divide-gray-200">
-          {mobileTab === 'incomplete' ? (
+          {mobileTab === "incomplete" ? (
             sortedIncompleteOrders.length === 0 ? (
               <div className="p-8 text-center text-gray-500 text-sm">
                 미완료 작업이 없습니다
               </div>
             ) : (
               sortedIncompleteOrders.map((order) => {
-                const isCustomOrder = 'users' in order;
-                const isLegacy = !isCustomOrder;
+                const isThumbnail = isThumbnailOrder(order);
+                const isCustomOrder = "users" in order && !isThumbnail;
+                const isLegacy = !isCustomOrder && !isThumbnail;
                 const daysUntilDeadline = order.deadline
-                  ? Math.ceil((new Date(order.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+                  ? Math.ceil(
+                      (new Date(order.deadline).getTime() -
+                        new Date().getTime()) /
+                        (1000 * 60 * 60 * 24),
+                    )
                   : null;
-                const isOverdue = daysUntilDeadline !== null && daysUntilDeadline < 0;
-                const isUrgent = daysUntilDeadline !== null && daysUntilDeadline >= 0 && daysUntilDeadline <= 3;
+                const isOverdue =
+                  daysUntilDeadline !== null && daysUntilDeadline < 0;
+                const isUrgent =
+                  daysUntilDeadline !== null &&
+                  daysUntilDeadline >= 0 &&
+                  daysUntilDeadline <= 3;
 
                 return (
                   <div
@@ -681,16 +940,24 @@ export const DeadlineCalendarView = () => {
                           <span className="font-medium text-gray-900 text-sm">
                             {isCustomOrder
                               ? (order as CustomOrderWithUser).users.name
-                              : (order as LegacyOrderType).nickname}
+                              : isThumbnail
+                                ? order.users?.name || "고객"
+                                : (order as LegacyOrderType).nickname}
                           </span>
                           <span
                             className={`text-xs px-2 py-0.5 rounded ${
                               isLegacy
-                                ? 'bg-gray-200 text-gray-700'
-                                : 'bg-blue-100 text-blue-700'
+                                ? "bg-gray-200 text-gray-700"
+                                : isThumbnail
+                                  ? "bg-secondary/10 text-secondary"
+                                  : "bg-blue-100 text-blue-700"
                             }`}
                           >
-                            {isLegacy ? '레거시' : '맞춤'}
+                            {isLegacy
+                              ? "레거시"
+                              : isThumbnail
+                                ? "썸네일"
+                                : "맞춤"}
                           </span>
                         </div>
                         {getStatusIconHelper(order.status)}
@@ -703,16 +970,22 @@ export const DeadlineCalendarView = () => {
                           <span
                             className={`text-xs px-2 py-1 rounded-full font-medium ${
                               isOverdue
-                                ? 'bg-red-100 text-red-800'
+                                ? "bg-red-100 text-red-800"
                                 : isUrgent
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-green-100 text-green-800'
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-green-100 text-green-800"
                             }`}
                           >
-                            {new Date(order.deadline).toLocaleDateString('ko-KR')}
+                            {new Date(order.deadline).toLocaleDateString(
+                              "ko-KR",
+                            )}
                             {daysUntilDeadline !== null && (
                               <span className="ml-1">
-                                ({isOverdue ? `${Math.abs(daysUntilDeadline)}일 초과` : `D-${daysUntilDeadline}`})
+                                (
+                                {isOverdue
+                                  ? `${Math.abs(daysUntilDeadline)}일 초과`
+                                  : `D-${daysUntilDeadline}`}
+                                )
                               </span>
                             )}
                           </span>
@@ -720,7 +993,9 @@ export const DeadlineCalendarView = () => {
                       ) : (
                         <div className="flex items-center gap-2">
                           <Clock className="w-4 h-4 text-gray-400" />
-                          <span className="text-xs text-gray-500">마감일 미설정</span>
+                          <span className="text-xs text-gray-500">
+                            마감일 미설정
+                          </span>
                         </div>
                       )}
 
@@ -728,29 +1003,31 @@ export const DeadlineCalendarView = () => {
                       <div className="flex items-center gap-2">
                         <span
                           className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            order.status === 'pending'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : order.status === 'accepted'
-                              ? 'bg-blue-100 text-blue-800'
-                              : order.status === 'in_progress'
-                              ? 'bg-indigo-100 text-indigo-800'
-                              : 'bg-gray-100 text-gray-800'
+                            order.status === "pending"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : order.status === "accepted"
+                                ? "bg-blue-100 text-blue-800"
+                                : order.status === "in_progress"
+                                  ? "bg-indigo-100 text-indigo-800"
+                                  : "bg-gray-100 text-gray-800"
                           }`}
                         >
-                          {order.status === 'pending'
-                            ? '대기중'
-                            : order.status === 'accepted'
-                            ? '접수됨'
-                            : order.status === 'in_progress'
-                            ? '진행중'
-                            : order.status}
+                          {order.status === "pending"
+                            ? "대기중"
+                            : order.status === "accepted"
+                              ? "접수됨"
+                              : order.status === "in_progress"
+                                ? "진행중"
+                                : order.status}
                         </span>
                       </div>
 
-                      {/* 요구사항 (맞춤 제작만) */}
-                      {isCustomOrder && (
+                      {/* 요구사항 */}
+                      {(isCustomOrder || isThumbnail) && (
                         <p className="text-xs text-gray-600 line-clamp-2">
-                          {(order as CustomOrderWithUser).order_requirements}
+                          {isThumbnail
+                            ? order.purpose
+                            : (order as CustomOrderWithUser).order_requirements}
                         </p>
                       )}
 
@@ -765,79 +1042,89 @@ export const DeadlineCalendarView = () => {
                 );
               })
             )
+          ) : sortedCompleteOrders.length === 0 ? (
+            <div className="p-8 text-center text-gray-500 text-sm">
+              완료된 작업이 없습니다
+            </div>
           ) : (
-            sortedCompleteOrders.length === 0 ? (
-              <div className="p-8 text-center text-gray-500 text-sm">
-                완료된 작업이 없습니다
-              </div>
-            ) : (
-              sortedCompleteOrders.map((order) => {
-                const isCustomOrder = 'users' in order;
-                const isLegacy = !isCustomOrder;
+            sortedCompleteOrders.map((order) => {
+              const isThumbnail = isThumbnailOrder(order);
+              const isCustomOrder = "users" in order && !isThumbnail;
+              const isLegacy = !isCustomOrder && !isThumbnail;
 
-                return (
-                  <div
-                    key={`mobile-complete-${order.id}`}
-                    onClick={() => onOrderClick(order)}
-                    className="p-4 hover:bg-gray-50 cursor-pointer bg-green-50/30"
-                  >
-                    <div className="space-y-2">
-                      {/* 헤더: 이름과 타입 */}
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900 text-sm">
-                            {isCustomOrder
-                              ? (order as CustomOrderWithUser).users.name
-                              : (order as LegacyOrderType).nickname}
-                          </span>
-                          <span
-                            className={`text-xs px-2 py-0.5 rounded ${
-                              isLegacy
-                                ? 'bg-gray-200 text-gray-700'
-                                : 'bg-blue-100 text-blue-700'
-                            }`}
-                          >
-                            {isLegacy ? '레거시' : '맞춤'}
-                          </span>
-                        </div>
-                        {getStatusIconHelper(order.status)}
-                      </div>
-
-                      {/* 마감일 정보 */}
-                      {order.deadline && (
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-gray-400" />
-                          <span className="text-xs text-gray-600">
-                            완료일: {new Date(order.deadline).toLocaleDateString('ko-KR')}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* 완료 상태 */}
+              return (
+                <div
+                  key={`mobile-complete-${order.id}`}
+                  onClick={() => onOrderClick(order)}
+                  className="p-4 hover:bg-gray-50 cursor-pointer bg-green-50/30"
+                >
+                  <div className="space-y-2">
+                    {/* 헤더: 이름과 타입 */}
+                    <div className="flex justify-between items-start">
                       <div className="flex items-center gap-2">
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                          완료
+                        <span className="font-medium text-gray-900 text-sm">
+                          {isCustomOrder
+                            ? (order as CustomOrderWithUser).users.name
+                            : isThumbnail
+                              ? order.users?.name || "고객"
+                              : (order as LegacyOrderType).nickname}
+                        </span>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded ${
+                            isLegacy
+                              ? "bg-gray-200 text-gray-700"
+                              : isThumbnail
+                                ? "bg-secondary/10 text-secondary"
+                                : "bg-blue-100 text-blue-700"
+                          }`}
+                        >
+                          {isLegacy
+                            ? "레거시"
+                            : isThumbnail
+                              ? "썸네일"
+                              : "맞춤"}
                         </span>
                       </div>
-
-                      {/* 요구사항 (맞춤 제작만) */}
-                      {isCustomOrder && (
-                        <p className="text-xs text-gray-600 line-clamp-2">
-                          {(order as CustomOrderWithUser).order_requirements}
-                        </p>
-                      )}
-
-                      {/* 이메일 (레거시만) */}
-                      {isLegacy && (
-                        <p className="text-xs text-gray-500">
-                          {(order as LegacyOrderType).email}
-                        </p>
-                      )}
+                      {getStatusIconHelper(order.status)}
                     </div>
+
+                    {/* 마감일 정보 */}
+                    {order.deadline && (
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-gray-400" />
+                        <span className="text-xs text-gray-600">
+                          완료일:{" "}
+                          {new Date(order.deadline).toLocaleDateString("ko-KR")}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* 완료 상태 */}
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                        완료
+                      </span>
+                    </div>
+
+                    {/* 요구사항 */}
+                    {(isCustomOrder || isThumbnail) && (
+                      <p className="text-xs text-gray-600 line-clamp-2">
+                        {isThumbnail
+                          ? order.purpose
+                          : (order as CustomOrderWithUser).order_requirements}
+                      </p>
+                    )}
+
+                    {/* 이메일 (레거시만) */}
+                    {isLegacy && (
+                      <p className="text-xs text-gray-500">
+                        {(order as LegacyOrderType).email}
+                      </p>
+                    )}
                   </div>
-                );
-              })
-            )
+                </div>
+              );
+            })
           )}
         </div>
       </div>
@@ -852,6 +1139,19 @@ export const DeadlineCalendarView = () => {
           }}
           onUpdate={handleUpdateOrder}
           updating={updateOrderMutation.isPending}
+        />
+      )}
+      {showThumbnailOrderModal && selectedThumbnailOrder && (
+        <ThumbnailOrderDetailModal
+          order={selectedThumbnailOrder}
+          onClose={() => {
+            setShowThumbnailOrderModal(false);
+            setSelectedThumbnailOrder(null);
+          }}
+          onUpdate={handleUpdateThumbnailOrder}
+          onComplete={handleCompleteThumbnailOrder}
+          updating={updateThumbnailOrderMutation.isPending}
+          completing={completeThumbnailOrderMutation.isPending}
         />
       )}
     </div>

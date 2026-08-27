@@ -92,6 +92,8 @@ export interface ListThumbnailOrdersOptions {
   limit?: number;
   sortBy?: "created_at" | "deadline";
   sortOrder?: "asc" | "desc";
+  deadlineFrom?: string;
+  deadlineTo?: string;
 }
 
 export interface ListThumbnailOrdersResult {
@@ -617,6 +619,8 @@ export const listThumbnailOrders = async (
   } else if (options.status === "default") {
     query = query.not("status", "in", '("completed","cancelled")');
   }
+  if (options.deadlineFrom) query = query.gte("deadline", options.deadlineFrom);
+  if (options.deadlineTo) query = query.lte("deadline", options.deadlineTo);
 
   if (options.id) {
     query = query.limit(1);
