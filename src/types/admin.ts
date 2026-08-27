@@ -175,6 +175,7 @@ export interface GetCustomOrdersParams {
   limit?: number;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
+  deadlineRequired?: boolean;
 }
 
 export interface GetCustomOrdersResponse {

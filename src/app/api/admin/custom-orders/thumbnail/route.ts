@@ -30,12 +30,14 @@ export async function GET(request: NextRequest) {
     const sortBy =
       searchParams.get("sortBy") === "deadline" ? "deadline" : "created_at";
     const sortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
+    const deadlineRequired = searchParams.get("deadlineRequired") === "true";
     const result = await listThumbnailOrders({
       status: rawStatus,
       page,
       limit,
       sortBy,
       sortOrder,
+      deadlineRequired,
     });
 
     return NextResponse.json({

@@ -124,6 +124,14 @@ export interface ThumbnailCustomOrdersResponse {
   };
 }
 
+export interface ThumbnailCustomOrdersCalendarResponse {
+  orders: ThumbnailCustomOrder[];
+  dateRange: {
+    startDate: string;
+    endDate: string;
+  };
+}
+
 export interface CompleteThumbnailCustomOrderResponse {
   success: boolean;
   order: ThumbnailCustomOrder;

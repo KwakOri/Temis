@@ -132,10 +132,13 @@ export const queryKeys = {
       params
         ? ([...queryKeys.admin.thumbnailOrdersRoot(), params] as const)
         : queryKeys.admin.thumbnailOrdersRoot(),
-    calendarRoot: (type: "custom" | "legacy") =>
+    calendarRoot: (type: "custom" | "legacy" | "thumbnail") =>
       [...queryKeys.admin.all, "calendar", type] as const,
-    calendar: (type: "custom" | "legacy", startDate: string, endDate: string) =>
-      [...queryKeys.admin.calendarRoot(type), startDate, endDate] as const,
+    calendar: (
+      type: "custom" | "legacy" | "thumbnail",
+      startDate: string,
+      endDate: string,
+    ) => [...queryKeys.admin.calendarRoot(type), startDate, endDate] as const,
     purchaseRequests: () =>
       [...queryKeys.admin.all, "purchaseRequests"] as const,
     workSchedule: () => [...queryKeys.admin.all, "workSchedule"] as const,

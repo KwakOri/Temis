@@ -12,6 +12,7 @@ import type {
   AdminUpdateThumbnailCustomOrderData,
   CompleteThumbnailCustomOrderResponse,
   ThumbnailCustomOrder,
+  ThumbnailCustomOrdersCalendarResponse,
   ThumbnailCustomOrdersResponse,
 } from "@/types/customThumbnailOrder";
 
@@ -70,6 +71,9 @@ export class AdminOrderService {
     if (params.limit) searchParams.append("limit", params.limit.toString());
     if (params.sortBy) searchParams.append("sortBy", params.sortBy);
     if (params.sortOrder) searchParams.append("sortOrder", params.sortOrder);
+    if (params.deadlineRequired) {
+      searchParams.append("deadlineRequired", "true");
+    }
 
     const response = await fetch(
       `${this.baseUrl}/custom-orders/thumbnail?${searchParams.toString()}`,
@@ -78,6 +82,22 @@ export class AdminOrderService {
     if (!response.ok) {
       throw new Error(
         result.error || "썸네일 주문 목록을 가져오는데 실패했습니다.",
+      );
+    }
+    return result;
+  }
+
+  static async getThumbnailCustomOrdersCalendar(
+    startDate: string,
+    endDate: string,
+  ): Promise<ThumbnailCustomOrdersCalendarResponse> {
+    const response = await fetch(
+      `${this.baseUrl}/custom-orders/thumbnail/calendar?startDate=${startDate}&endDate=${endDate}`,
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(
+        result.error || "썸네일 캘린더 데이터를 가져오는데 실패했습니다.",
       );
     }
     return result;

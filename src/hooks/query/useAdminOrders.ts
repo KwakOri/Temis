@@ -61,6 +61,9 @@ export const useUpdateAdminThumbnailOrder = () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.admin.customOrdersRoot(),
       });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.calendarRoot("thumbnail"),
+      });
     },
   });
 };
@@ -83,6 +86,9 @@ export const useCompleteThumbnailCustomOrder = () => {
       });
       queryClient.invalidateQueries({
         queryKey: queryKeys.admin.customOrdersRoot(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.calendarRoot("thumbnail"),
       });
       queryClient.invalidateQueries({
         queryKey: queryKeys.user.templates(),
@@ -160,6 +166,35 @@ export const useAdminLegacyOrdersCalendar = (year: number, month: number) => {
       AdminOrderService.getLegacyOrdersCalendar(startDateStr, endDateStr),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+
+export const useAdminThumbnailOrdersCalendar = (
+  year: number,
+  month: number,
+) => {
+  const startDate = new Date(year, month, 1);
+  const endDate = new Date(year, month + 1, 0);
+
+  const formatDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const startDateStr = formatDate(startDate);
+  const endDateStr = formatDate(endDate);
+
+  return useQuery({
+    queryKey: queryKeys.admin.calendar("thumbnail", startDateStr, endDateStr),
+    queryFn: () =>
+      AdminOrderService.getThumbnailCustomOrdersCalendar(
+        startDateStr,
+        endDateStr,
+      ),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 };
 
