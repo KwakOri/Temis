@@ -52,6 +52,7 @@ const latestDeadlineQueryParams = {
   limit: 1,
   sortBy: "deadline",
   sortOrder: "desc" as const,
+  deadlineRequired: true,
 };
 
 const formatDateInputValue = (date: Date) => {

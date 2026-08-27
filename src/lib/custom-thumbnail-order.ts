@@ -92,6 +92,7 @@ export interface ListThumbnailOrdersOptions {
   limit?: number;
   sortBy?: "created_at" | "deadline";
   sortOrder?: "asc" | "desc";
+  deadlineRequired?: boolean;
   deadlineFrom?: string;
   deadlineTo?: string;
 }
@@ -619,6 +620,7 @@ export const listThumbnailOrders = async (
   } else if (options.status === "default") {
     query = query.not("status", "in", '("completed","cancelled")');
   }
+  if (options.deadlineRequired) query = query.not("deadline", "is", null);
   if (options.deadlineFrom) query = query.gte("deadline", options.deadlineFrom);
   if (options.deadlineTo) query = query.lte("deadline", options.deadlineTo);
 

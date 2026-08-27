@@ -71,6 +71,9 @@ export class AdminOrderService {
     if (params.limit) searchParams.append("limit", params.limit.toString());
     if (params.sortBy) searchParams.append("sortBy", params.sortBy);
     if (params.sortOrder) searchParams.append("sortOrder", params.sortOrder);
+    if (params.deadlineRequired) {
+      searchParams.append("deadlineRequired", "true");
+    }
 
     const response = await fetch(
       `${this.baseUrl}/custom-orders/thumbnail?${searchParams.toString()}`,
