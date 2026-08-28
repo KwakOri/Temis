@@ -61,6 +61,7 @@ const studioTimetable = normalize({
   id: "studio-timetable",
   template_engine: "studio",
   template_kind: "timetable",
+  studio_preview_url: "https://cdn.example.test/should-not-render.png",
   use_href: "/template-studio/studio-timetable",
 });
 assert(studioTimetable);
@@ -98,6 +99,16 @@ assert.equal(
     studioPreviewUrl: "https://cdn.example.test/auto.png",
   }),
   "https://cdn.example.test/auto.png",
+);
+assert.equal(
+  resolveConsumerTemplateCover({
+    id: "studio-timetable-auto-cover",
+    engine: "studio",
+    kind: "timetable",
+    thumbnailUrl: null,
+    studioPreviewUrl: "https://cdn.example.test/should-not-render.png",
+  }),
+  null,
 );
 
 for (const invalid of [

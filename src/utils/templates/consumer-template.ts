@@ -114,7 +114,9 @@ export const resolveConsumerTemplateCover = ({
   studioPreviewUrl,
 }: ConsumerTemplateCoverInput): string | null => {
   if (thumbnailUrl) return thumbnailUrl;
-  if (engine === "studio" && studioPreviewUrl) return studioPreviewUrl;
+  if (engine === "studio" && kind === "thumbnail" && studioPreviewUrl) {
+    return studioPreviewUrl;
+  }
   if (engine === "legacy" && kind === "timetable") {
     return `/thumbnail/${id}.png`;
   }

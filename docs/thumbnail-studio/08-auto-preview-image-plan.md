@@ -1,6 +1,6 @@
 # Phase 8. Thumbnail Studio 자동 미리보기 이미지 저장 계획
 
-상태: 코드 구현 완료 (원격 migration 적용 대기, 미리보기 공개 URL 정책 확정)
+상태: 코드·원격 migration 적용 완료 (기존 게시 템플릿 preview 보정 대기)
 작성일: 2026-08-29
 대상: 관리자 Thumbnail Studio, 템플릿 목록·마이페이지·상점·주문 상세의 미리보기
 
@@ -187,9 +187,11 @@ revision별 복원·감사·비교가 요구되면 나중에
    동일한 크기, PNG, 10MB 이하로 시작하고 실제 결과를 측정해 더 낮출 수 있다.
 4. preview 실패 시 발행을 유지하고 `미리보기 재시도`를 제공하는 운영 정책을 확정한다.
 
-### 7.2 Phase 8-1 — schema와 persistence layer (코드 완료, migration 적용 대기)
+### 7.2 Phase 8-1 — schema와 persistence layer (완료)
 
-1. 새 Supabase migration으로 `public.templates.studio_preview_*` 필드를 추가한다.
+1. 새 Supabase migration으로 `public.templates.studio_preview_*` 필드를 추가한다. migration
+   `20260829030000_add_template_studio_preview_metadata.sql`은 temis 원격 프로젝트에
+   적용되었다.
 2. migration에 제약조건과 필요한 인덱스/column comment를 추가한다.
 3. Template Studio service와 공용 template 타입에 새 필드를 반영한다.
 4. 기존 catalog cover API가 자동 필드를 수정하지 않는지 회귀 검증한다.
@@ -369,8 +371,9 @@ check script와 관리자·일반 사용자 브라우저 실측으로 수행한�
 - [x] 기존 legacy/v2 대표 이미지와 catalog cover 회귀가 없다.
 - [x] lint, typecheck, 관련 check script와 정적 회귀 검증을 통과한다.
 
-원격 migration 적용은 배포 전 별도 운영 작업으로 남겨 둔다. signed URL과 인증 proxy는
-현재 완료 조건이 아니며, 미리보기 이미지의 정보 민감도가 높아질 때 재검토한다.
+기존 게시 템플릿의 preview 보정은 allowlist 확인 후 별도 운영 작업으로 진행한다.
+signed URL과 인증 proxy는 현재 완료 조건이 아니며, 미리보기 이미지의 정보 민감도가
+높아질 때 재검토한다.
 
 ## 11. 관련 문서와 코드
 
