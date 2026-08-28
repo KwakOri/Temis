@@ -11,9 +11,11 @@ import {
 import type {
   AdminUpdateThumbnailCustomOrderData,
   CompleteThumbnailCustomOrderResponse,
+  RevokeThumbnailOrderTemplateGrantResponse,
   ThumbnailCustomOrder,
   ThumbnailCustomOrdersCalendarResponse,
   ThumbnailCustomOrdersResponse,
+  ThumbnailOrderTemplateCandidatesResponse,
 } from "@/types/customThumbnailOrder";
 
 export class AdminOrderService {
@@ -103,6 +105,19 @@ export class AdminOrderService {
     return result;
   }
 
+  static async getThumbnailOrderTemplateCandidates(): Promise<ThumbnailOrderTemplateCandidatesResponse> {
+    const response = await fetch(
+      `${this.baseUrl}/custom-orders/thumbnail/templates`,
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(
+        result.error || "완료 처리 가능한 썸네일 템플릿을 불러오지 못했습니다.",
+      );
+    }
+    return result;
+  }
+
   static async updateThumbnailCustomOrder(
     orderId: string,
     data: AdminUpdateThumbnailCustomOrderData,
@@ -137,6 +152,24 @@ export class AdminOrderService {
     const result = await response.json();
     if (!response.ok) {
       throw new Error(result.error || "썸네일 주문 완료 처리에 실패했습니다.");
+    }
+    return result;
+  }
+
+  static async revokeThumbnailOrderTemplateGrant(
+    orderId: string,
+    grantId: string,
+  ): Promise<RevokeThumbnailOrderTemplateGrantResponse> {
+    const response = await fetch(
+      `${this.baseUrl}/custom-orders/thumbnail/${orderId}/grants/${grantId}/revoke`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || "썸네일 권한 회수에 실패했습니다.");
     }
     return result;
   }

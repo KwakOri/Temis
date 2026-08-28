@@ -138,6 +138,19 @@ const REQUIRED_SCHEMAS: Array<{ table: string; columns: string[] }> = [
     table: "template_purchase_requests",
     columns: ["id", "template_id", "user_id", "plan_id", "status"],
   },
+  {
+    table: "custom_thumbnail_order_template_grants",
+    columns: [
+      "id",
+      "order_id",
+      "template_id",
+      "user_id",
+      "granted_by",
+      "granted_at",
+      "revoked_by",
+      "revoked_at",
+    ],
+  },
 ];
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -185,6 +198,45 @@ async function main(): Promise<void> {
     `approve_template_purchase_request is not installed: ${rpcError}`,
   );
   console.log("✅ approve_template_purchase_request RPC installed");
+
+  const completionProbe = await db.rpc("complete_custom_thumbnail_order", {
+    p_order_id: randomUUID(),
+    p_result_template_id: randomUUID(),
+    p_admin_id: 9190101,
+  });
+  assert(
+    completionProbe.error,
+    "Completion RPC probe unexpectedly succeeded for random IDs.",
+  );
+  const completionError = `${completionProbe.error.code ?? ""} ${completionProbe.error.message}`;
+  assert(
+    !/pgrst202|function .*complete_custom_thumbnail_order|could not find the function/i.test(
+      completionError,
+    ),
+    `complete_custom_thumbnail_order is not installed: ${completionError}`,
+  );
+  console.log("✅ complete_custom_thumbnail_order RPC installed");
+
+  const revokeProbe = await db.rpc(
+    "revoke_custom_thumbnail_order_template_grant",
+    {
+      p_order_id: randomUUID(),
+      p_grant_id: randomUUID(),
+      p_admin_id: 9190101,
+    },
+  );
+  assert(
+    revokeProbe.error,
+    "Grant revoke RPC probe unexpectedly succeeded for random IDs.",
+  );
+  const revokeError = `${revokeProbe.error.code ?? ""} ${revokeProbe.error.message}`;
+  assert(
+    !/pgrst202|function .*revoke_custom_thumbnail_order_template_grant|could not find the function/i.test(
+      revokeError,
+    ),
+    `revoke_custom_thumbnail_order_template_grant is not installed: ${revokeError}`,
+  );
+  console.log("✅ revoke_custom_thumbnail_order_template_grant RPC installed");
   console.log("DB schema 검증 통과");
 }
 

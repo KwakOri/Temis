@@ -4,6 +4,7 @@ import ThumbnailOrderDetailModal from "@/components/admin/ThumbnailOrderDetailMo
 import {
   useAdminThumbnailOrders,
   useCompleteThumbnailCustomOrder,
+  useRevokeThumbnailOrderTemplateGrant,
   useUpdateAdminThumbnailOrder,
 } from "@/hooks/query/useAdminOrders";
 import type {
@@ -59,6 +60,7 @@ export default function AdminThumbnailOrdersPanel() {
   });
   const updateMutation = useUpdateAdminThumbnailOrder();
   const completeMutation = useCompleteThumbnailCustomOrder();
+  const revokeGrantMutation = useRevokeThumbnailOrderTemplateGrant();
   const orders = data?.orders ?? [];
 
   const closeModal = () => {
@@ -94,6 +96,21 @@ export default function AdminThumbnailOrdersPanel() {
         mutationError instanceof Error
           ? mutationError.message
           : "썸네일 주문 완료 처리에 실패했습니다.",
+      );
+    }
+  };
+
+  const revokeGrant = async (orderId: string, grantId: string) => {
+    try {
+      await revokeGrantMutation.mutateAsync({ orderId, grantId });
+      window.alert("썸네일 템플릿 권한을 회수했습니다.");
+      closeModal();
+    } catch (mutationError) {
+      console.error("Thumbnail order grant revoke error:", mutationError);
+      window.alert(
+        mutationError instanceof Error
+          ? mutationError.message
+          : "썸네일 템플릿 권한 회수에 실패했습니다.",
       );
     }
   };
@@ -134,61 +151,70 @@ export default function AdminThumbnailOrdersPanel() {
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {orders.map((order) => (
-              <div
-                key={order.id}
-                className="flex flex-col gap-4 p-4 transition-colors hover:bg-gray-50 sm:flex-row sm:items-center sm:justify-between sm:px-6"
-              >
-                <div className="min-w-0 space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded bg-secondary/10 px-2 py-1 text-xs font-semibold text-secondary">
-                      썸네일 · 4K
-                    </span>
-                    <span className="font-mono text-xs text-gray-500">
-                      {order.id.slice(0, 8)}...
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      {getStatusIcon(order.status)}
-                      <span
-                        className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
-                          statusClassName[order.status] ||
-                          "border-gray-200 bg-gray-100 text-gray-700"
-                        }`}
-                      >
-                        {statusLabel[order.status] || order.status}
-                      </span>
-                    </span>
-                  </div>
-                  <p className="text-sm font-medium text-gray-900">
-                    {order.users?.name || "고객"} ·{" "}
-                    {order.users?.email || "이메일 없음"}
-                  </p>
-                  <p className="line-clamp-2 text-sm text-gray-600">
-                    {order.purpose} · {order.requirements}
-                  </p>
-                  <div className="flex flex-wrap gap-2 text-xs text-gray-500">
-                    <span>첨부파일 {order.files?.length ?? 0}개</span>
-                    <span>
-                      포트폴리오 {order.portfolio_consent ? "동의" : "비공개"}
-                    </span>
-                    {order.result_template_id && (
-                      <span>결과 템플릿 연결됨</span>
-                    )}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedOrder(order);
-                    setShowModal(true);
-                  }}
-                  className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md bg-quaternary px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-tertiary"
+            {orders.map((order) => {
+              const activeGrantCount = (order.template_grants ?? []).filter(
+                (grant) => !grant.revoked_at,
+              ).length;
+              return (
+                <div
+                  key={order.id}
+                  className="flex flex-col gap-4 p-4 transition-colors hover:bg-gray-50 sm:flex-row sm:items-center sm:justify-between sm:px-6"
                 >
-                  <Eye className="h-4 w-4" />
-                  상세·완료 처리
-                </button>
-              </div>
-            ))}
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded bg-secondary/10 px-2 py-1 text-xs font-semibold text-secondary">
+                        썸네일 · 4K
+                      </span>
+                      <span className="font-mono text-xs text-gray-500">
+                        {order.id.slice(0, 8)}...
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        {getStatusIcon(order.status)}
+                        <span
+                          className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
+                            statusClassName[order.status] ||
+                            "border-gray-200 bg-gray-100 text-gray-700"
+                          }`}
+                        >
+                          {statusLabel[order.status] || order.status}
+                        </span>
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium text-gray-900">
+                      {order.users?.name || "고객"} ·{" "}
+                      {order.users?.email || "이메일 없음"}
+                    </p>
+                    <p className="line-clamp-2 text-sm text-gray-600">
+                      {order.purpose} · {order.requirements}
+                    </p>
+                    <div className="flex flex-wrap gap-2 text-xs text-gray-500">
+                      <span>첨부파일 {order.files?.length ?? 0}개</span>
+                      <span>
+                        포트폴리오 {order.portfolio_consent ? "동의" : "비공개"}
+                      </span>
+                      <span>
+                        {activeGrantCount > 0
+                          ? `템플릿 권한 ${activeGrantCount}개 부여됨`
+                          : order.status === "completed"
+                            ? "완료 · 권한 미부여"
+                            : "권한 미부여"}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedOrder(order);
+                      setShowModal(true);
+                    }}
+                    className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md bg-quaternary px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-tertiary"
+                  >
+                    <Eye className="h-4 w-4" />
+                    상세·완료 처리
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>
@@ -199,8 +225,10 @@ export default function AdminThumbnailOrdersPanel() {
           onClose={closeModal}
           onUpdate={updateOrder}
           onComplete={completeOrder}
+          onRevoke={revokeGrant}
           updating={updateMutation.isPending}
           completing={completeMutation.isPending}
+          revoking={revokeGrantMutation.isPending}
         />
       )}
     </>

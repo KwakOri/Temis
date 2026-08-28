@@ -1,9 +1,14 @@
 "use client";
 
-import { useAdminThumbnailOrders } from "@/hooks/query/useAdminOrders";
+import {
+  useAdminThumbnailOrderTemplateCandidates,
+  useAdminThumbnailOrders,
+} from "@/hooks/query/useAdminOrders";
 import type {
   AdminUpdateThumbnailCustomOrderData,
   ThumbnailCustomOrder,
+  ThumbnailOrderTemplateCandidate,
+  ThumbnailOrderTemplateGrant,
 } from "@/types/customThumbnailOrder";
 import {
   CalendarDays,
@@ -14,6 +19,9 @@ import {
   Eye,
   Image as ImageIcon,
   LockKeyhole,
+  Plus,
+  ShieldCheck,
+  ShieldOff,
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -26,8 +34,10 @@ interface ThumbnailOrderDetailModalProps {
     data: AdminUpdateThumbnailCustomOrderData,
   ) => Promise<void>;
   onComplete: (orderId: string, resultTemplateId: string) => Promise<void>;
+  onRevoke: (orderId: string, grantId: string) => Promise<void>;
   updating: boolean;
   completing: boolean;
+  revoking: boolean;
 }
 
 const statusOptions: {
@@ -38,6 +48,7 @@ const statusOptions: {
   { value: "pending", label: "대기 중", className: "yellow" },
   { value: "accepted", label: "접수됨", className: "blue" },
   { value: "in_progress", label: "진행 중", className: "indigo" },
+  { value: "completed", label: "완료", className: "green" },
   { value: "cancelled", label: "취소", className: "red" },
 ];
 
@@ -118,8 +129,10 @@ export default function ThumbnailOrderDetailModal({
   onClose,
   onUpdate,
   onComplete,
+  onRevoke,
   updating,
   completing,
+  revoking,
 }: ThumbnailOrderDetailModalProps) {
   const [status, setStatus] = useState(order.status);
   const [notes, setNotes] = useState(order.admin_notes || "");
@@ -137,10 +150,24 @@ export default function ThumbnailOrderDetailModal({
   const [draftDeadline, setDraftDeadline] = useState(
     orderDeadline || getDefaultDeadline(),
   );
-  const [resultTemplateId, setResultTemplateId] = useState(
-    order.result_template_id || "",
+  // `result_template_id` is retained only as a legacy first-result pointer.
+  // Selection must always come from the server-validated candidate cards.
+  const [resultTemplateId, setResultTemplateId] = useState("");
+  const [isAdditionalGrantOpen, setIsAdditionalGrantOpen] = useState(false);
+  const {
+    data: templateCandidatesData,
+    isLoading: isTemplateCandidatesLoading,
+  } = useAdminThumbnailOrderTemplateCandidates();
+  const activeTemplateGrants = (order.template_grants ?? []).filter(
+    (grant) => !grant.revoked_at,
   );
-  const isCompleted = order.status === "completed";
+  const hasActiveTemplateGrant = activeTemplateGrants.length > 0;
+  const canSelectTemplate = !hasActiveTemplateGrant || isAdditionalGrantOpen;
+  const templateCandidates = templateCandidatesData?.templates ?? [];
+  const availableTemplateCandidates = templateCandidates.filter(
+    (template) =>
+      !activeTemplateGrants.some((grant) => grant.template_id === template.id),
+  );
 
   const { data: latestDeadlineData, isLoading: isLatestDeadlineLoading } =
     useAdminThumbnailOrders(latestDeadlineQueryParams);
@@ -178,7 +205,7 @@ export default function ThumbnailOrderDetailModal({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     await onUpdate(order.id, {
-      status: isCompleted ? undefined : status,
+      status,
       adminNotes: notes,
       priceQuoted: price === "" ? null : Number(price),
       deadline: deadline || null,
@@ -187,8 +214,91 @@ export default function ThumbnailOrderDetailModal({
 
   const handleComplete = async () => {
     const templateId = resultTemplateId.trim();
-    if (!templateId || order.status === "cancelled" || isCompleted) return;
+    if (!templateId) return;
     await onComplete(order.id, templateId);
+  };
+
+  const handleRevoke = async (grant: ThumbnailOrderTemplateGrant) => {
+    const templateName = grant.template?.name || grant.template_id;
+    if (
+      !window.confirm(
+        `${templateName} 템플릿의 이 주문 권한을 회수할까요? 다른 주문에서 유지 중인 권한은 영향을 받지 않습니다.`,
+      )
+    ) {
+      return;
+    }
+    await onRevoke(order.id, grant.id);
+  };
+
+  const getStatusClasses = (option: (typeof statusOptions)[number]) => {
+    if (status !== option.value) {
+      return "border-gray-300 bg-white text-gray-700 hover:bg-gray-50";
+    }
+    switch (option.className) {
+      case "yellow":
+        return "border-yellow-200 bg-yellow-100 text-yellow-800";
+      case "blue":
+        return "border-blue-200 bg-blue-100 text-blue-800";
+      case "indigo":
+        return "border-indigo-200 bg-indigo-100 text-indigo-800";
+      case "green":
+        return "border-green-200 bg-green-100 text-green-800";
+      default:
+        return "border-red-200 bg-red-100 text-red-800";
+    }
+  };
+
+  const renderTemplateCard = (template: ThumbnailOrderTemplateCandidate) => {
+    const isSelected = resultTemplateId === template.id;
+    return (
+      <button
+        key={template.id}
+        type="button"
+        role="radio"
+        aria-checked={isSelected}
+        aria-label={`${template.name} 템플릿 선택`}
+        onClick={() => setResultTemplateId(template.id)}
+        disabled={updating || completing || revoking}
+        className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+          isSelected
+            ? "border-secondary bg-secondary/5 ring-1 ring-secondary"
+            : "border-gray-200 bg-white hover:border-secondary/50 hover:bg-gray-50"
+        } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2`}
+      >
+        <div className="h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+          {template.thumbnail_url ? (
+            // eslint-disable-next-line @next/next/no-img-element -- Admin candidate cards use the stored catalog cover URL.
+            <img
+              src={template.thumbnail_url}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-[10px] text-gray-400">
+              미리보기 없음
+            </div>
+          )}
+        </div>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-gray-900">
+            {template.name}
+          </span>
+          <span className="mt-1 block line-clamp-2 text-xs text-gray-500">
+            {template.description || "설명 없음"}
+          </span>
+          <span className="mt-1 block text-[11px] text-gray-400">
+            게시됨 · 수정 {formatDate(template.updated_at)} · 기존 권한{" "}
+            {template.existing_access_count}명
+          </span>
+        </span>
+        <span
+          className={`mt-1 h-4 w-4 shrink-0 rounded-full border ${
+            isSelected ? "border-[5px] border-secondary" : "border-gray-300"
+          }`}
+          aria-hidden="true"
+        />
+      </button>
+    );
   };
 
   return (
@@ -370,19 +480,9 @@ export default function ThumbnailOrderDetailModal({
                     <button
                       key={option.value}
                       type="button"
-                      disabled={isCompleted || updating || completing}
+                      disabled={updating || completing || revoking}
                       onClick={() => setStatus(option.value)}
-                      className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                        status === option.value
-                          ? option.className === "yellow"
-                            ? "border-yellow-200 bg-yellow-100 text-yellow-800"
-                            : option.className === "blue"
-                              ? "border-blue-200 bg-blue-100 text-blue-800"
-                              : option.className === "indigo"
-                                ? "border-indigo-200 bg-indigo-100 text-indigo-800"
-                                : "border-red-200 bg-red-100 text-red-800"
-                          : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                      }`}
+                      className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${getStatusClasses(option)}`}
                     >
                       {option.label}
                     </button>
@@ -396,7 +496,7 @@ export default function ThumbnailOrderDetailModal({
                   type="number"
                   min="0"
                   value={price}
-                  disabled={isCompleted || updating || completing}
+                  disabled={updating || completing || revoking}
                   onChange={(event) => setPrice(event.target.value)}
                   placeholder="정책 확정 후 입력"
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 font-normal focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-100"
@@ -435,7 +535,7 @@ export default function ThumbnailOrderDetailModal({
                           <button
                             type="button"
                             onClick={openDeadlineModal}
-                            disabled={isCompleted || updating || completing}
+                            disabled={updating || completing || revoking}
                             className="shrink-0 rounded-full border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             직접 설정
@@ -448,9 +548,9 @@ export default function ThumbnailOrderDetailModal({
                           type="button"
                           onClick={() => adjustDeadlineByDays(-1)}
                           disabled={
-                            isCompleted ||
                             updating ||
                             completing ||
+                            revoking ||
                             isLatestDeadlineLoading
                           }
                           className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -461,9 +561,9 @@ export default function ThumbnailOrderDetailModal({
                           type="button"
                           onClick={() => adjustDeadlineByDays(1)}
                           disabled={
-                            isCompleted ||
                             updating ||
                             completing ||
+                            revoking ||
                             isLatestDeadlineLoading
                           }
                           className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -482,7 +582,7 @@ export default function ThumbnailOrderDetailModal({
                 <textarea
                   rows={3}
                   value={notes}
-                  disabled={isCompleted || updating || completing}
+                  disabled={updating || completing || revoking}
                   onChange={(event) => setNotes(event.target.value)}
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 font-normal focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-100"
                 />
@@ -492,49 +592,140 @@ export default function ThumbnailOrderDetailModal({
                 <div className="flex items-start gap-2">
                   <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-secondary" />
                   <div className="text-sm">
-                    <p className="font-semibold text-gray-900">
-                      결과 템플릿 연결
-                    </p>
+                    <p className="font-semibold text-gray-900">템플릿 권한</p>
                     <p className="mt-1 leading-relaxed text-gray-600">
-                      Thumbnail Studio에서 발행한 비공개 v2 썸네일 템플릿 UUID를
-                      입력하세요. 서버가 Studio·thumbnail·비공개·published
-                      상태를 다시 검증합니다.
+                      주문 상태와 별도로 고객에게 실제로 권한을 부여한 템플릿을
+                      관리합니다. 상태를 변경해도 이미 부여한 권한은 유지됩니다.
                     </p>
                   </div>
                 </div>
-                <input
-                  type="text"
-                  value={resultTemplateId}
-                  disabled={
-                    isCompleted ||
-                    order.status === "cancelled" ||
-                    updating ||
-                    completing
-                  }
-                  onChange={(event) => setResultTemplateId(event.target.value)}
-                  placeholder="결과 template_id"
-                  className="mt-3 w-full rounded-md border border-gray-300 bg-white px-3 py-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-secondary disabled:bg-gray-100"
-                />
-                {order.result_template_id && (
-                  <p className="mt-2 text-xs text-green-700">
-                    이미 연결된 결과 템플릿: {order.result_template_id}
+
+                <div className="mt-3 space-y-2" role="list">
+                  {activeTemplateGrants.map((grant) => (
+                    <div
+                      key={grant.id}
+                      role="listitem"
+                      className="rounded-lg border border-green-200 bg-white p-3"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md bg-gray-100">
+                          {grant.template?.thumbnail_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element -- Admin grant cards use the stored catalog cover URL.
+                            <img
+                              src={grant.template.thumbnail_url}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <ShieldCheck className="h-5 w-5 text-green-600" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-gray-900">
+                            {grant.template?.name || grant.template_id}
+                          </p>
+                          <p className="mt-1 text-xs text-green-700">
+                            권한 부여 완료 · {formatDate(grant.granted_at)}
+                          </p>
+                          <p className="mt-1 text-[11px] text-gray-500">
+                            {grant.granted_by
+                              ? `관리자 #${grant.granted_by}`
+                              : "관리자 정보 없음"}
+                          </p>
+                          <p className="mt-1 truncate font-mono text-[10px] text-gray-400">
+                            {grant.template_id}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void handleRevoke(grant)}
+                          disabled={updating || completing || revoking}
+                          className="inline-flex shrink-0 items-center gap-1 rounded-md border border-red-200 bg-white px-2 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <ShieldOff className="h-3.5 w-3.5" />
+                          회수
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {order.status === "completed" && !hasActiveTemplateGrant ? (
+                  <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
+                    주문 상태는 완료지만 템플릿 권한은 아직 부여되지 않았습니다.
                   </p>
-                )}
-                <button
-                  type="button"
-                  onClick={handleComplete}
-                  disabled={
-                    isCompleted ||
-                    order.status === "cancelled" ||
-                    !resultTemplateId.trim() ||
-                    updating ||
-                    completing
-                  }
-                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-md bg-secondary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-secondary/90 disabled:cursor-not-allowed disabled:bg-slate-300"
-                >
-                  <CheckCircle className="h-4 w-4" />
-                  {completing ? "권한 부여 중..." : "완료 및 권한 부여"}
-                </button>
+                ) : null}
+
+                {hasActiveTemplateGrant && !isAdditionalGrantOpen ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResultTemplateId("");
+                      setIsAdditionalGrantOpen(true);
+                    }}
+                    disabled={updating || completing || revoking}
+                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-md border border-secondary/50 bg-white px-4 py-2.5 text-sm font-semibold text-secondary transition-colors hover:bg-secondary/5 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Plus className="h-4 w-4" />
+                    템플릿 추가 부여
+                  </button>
+                ) : null}
+
+                {canSelectTemplate ? (
+                  <div className="mt-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-gray-700">
+                        {hasActiveTemplateGrant
+                          ? "추가로 부여할 템플릿"
+                          : "완료 처리할 템플릿"}
+                      </p>
+                      {hasActiveTemplateGrant ? (
+                        <button
+                          type="button"
+                          onClick={() => setIsAdditionalGrantOpen(false)}
+                          className="text-xs text-gray-500 underline hover:text-gray-700"
+                        >
+                          닫기
+                        </button>
+                      ) : null}
+                    </div>
+                    {isTemplateCandidatesLoading ? (
+                      <p className="rounded-lg border border-dashed border-gray-300 px-3 py-4 text-center text-xs text-gray-500">
+                        선택 가능한 템플릿을 불러오는 중...
+                      </p>
+                    ) : availableTemplateCandidates.length > 0 ? (
+                      <div
+                        className="max-h-72 space-y-2 overflow-y-auto"
+                        role="radiogroup"
+                        aria-label="권한을 부여할 썸네일 템플릿"
+                      >
+                        {availableTemplateCandidates.map(renderTemplateCard)}
+                      </div>
+                    ) : (
+                      <p className="rounded-lg border border-dashed border-gray-300 px-3 py-4 text-center text-xs text-gray-500">
+                        선택 가능한 게시 썸네일 템플릿이 없습니다.
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleComplete}
+                      disabled={
+                        !resultTemplateId.trim() ||
+                        updating ||
+                        completing ||
+                        revoking
+                      }
+                      className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-md bg-secondary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-secondary/90 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                      {completing
+                        ? "권한 부여 중..."
+                        : hasActiveTemplateGrant
+                          ? "선택 템플릿 추가 부여"
+                          : "템플릿 권한 부여 및 완료"}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </div>
 
@@ -548,7 +739,7 @@ export default function ThumbnailOrderDetailModal({
               </button>
               <button
                 type="submit"
-                disabled={isCompleted || updating || completing}
+                disabled={updating || completing || revoking}
                 className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {updating ? "저장 중..." : "저장"}

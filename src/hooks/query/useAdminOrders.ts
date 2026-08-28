@@ -43,6 +43,15 @@ export const useAdminThumbnailOrders = (params: GetCustomOrdersParams = {}) => {
   });
 };
 
+export const useAdminThumbnailOrderTemplateCandidates = () => {
+  return useQuery({
+    queryKey: queryKeys.admin.thumbnailOrderTemplateCandidates(),
+    queryFn: () => AdminOrderService.getThumbnailOrderTemplateCandidates(),
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
+};
+
 export const useUpdateAdminThumbnailOrder = () => {
   const queryClient = useQueryClient();
 
@@ -91,10 +100,42 @@ export const useCompleteThumbnailCustomOrder = () => {
         queryKey: queryKeys.admin.calendarRoot("thumbnail"),
       });
       queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.thumbnailOrderTemplateCandidates(),
+      });
+      queryClient.invalidateQueries({
         queryKey: queryKeys.user.templates(),
       });
       queryClient.invalidateQueries({
         queryKey: queryKeys.shop.userAccess(String(result.access.user_id)),
+      });
+    },
+  });
+};
+
+export const useRevokeThumbnailOrderTemplateGrant = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ orderId, grantId }: { orderId: string; grantId: string }) =>
+      AdminOrderService.revokeThumbnailOrderTemplateGrant(orderId, grantId),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.thumbnailOrdersRoot(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.customOrdersRoot(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.calendarRoot("thumbnail"),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.thumbnailOrderTemplateCandidates(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.user.templates(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.shop.userAccess(String(result.grant.user_id)),
       });
     },
   });

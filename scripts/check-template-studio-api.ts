@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { signJWT } from "../src/lib/auth/jwt";
 import { supabaseAdminServer } from "../src/lib/supabase-admin-server";
 import { deleteTemplateStudioTemplate } from "../src/services/server/templateStudioPersistenceService";
-import { deleteFilesFromR2 } from "../src/lib/r2";
+import { deleteFilesFromR2, deleteFilesFromR2Prefix } from "../src/lib/r2";
+import { buildTemplateStudioAssetTemplatePrefix } from "../src/utils/template-studio/asset-storage";
 import {
   createInitialStudioRuntimeValues,
   createSampleStudioDocument,
@@ -154,6 +155,7 @@ const main = async () => {
     draftRoutes,
     publishRoutes,
     publishedPreviewRoutes,
+    duplicateRoutes,
   ] = await Promise.all([
     import("../src/app/api/admin/template-studio/templates/route"),
     import("../src/app/api/admin/template-studio/templates/[id]/route"),
@@ -161,6 +163,7 @@ const main = async () => {
     import("../src/app/api/admin/template-studio/templates/[id]/draft/route"),
     import("../src/app/api/admin/template-studio/templates/[id]/publish/route"),
     import("../src/app/api/template-studio/templates/[id]/preview/route"),
+    import("../src/app/api/admin/template-studio/templates/[id]/duplicate/route"),
   ]);
 
   const token = await signJWT(
@@ -182,6 +185,7 @@ const main = async () => {
   const routeBaseUrl = "http://127.0.0.1/template-studio-api-check";
 
   let templateId: string | null = null;
+  let duplicateTemplateId: string | null = null;
   let legacyTemplateId: string | null = null;
 
   try {
@@ -461,6 +465,91 @@ const main = async () => {
       "Detail asset metadata should use r2 provider.",
     );
 
+    const duplicateResponse = await callRoute<{
+      success: boolean;
+      sourceTemplateId: string;
+      copiedAssetCount: number;
+      template: { id: string; name: string; status: string };
+    }>(
+      "duplicate template",
+      duplicateRoutes.POST,
+      createRequest(
+        `${routeBaseUrl}/api/admin/template-studio/templates/${templateId}/duplicate`,
+        token,
+        { method: "POST" },
+      ),
+      context,
+    );
+    assert(duplicateResponse.success, "Duplicate response was not success.");
+    assert(
+      duplicateResponse.sourceTemplateId === templateId,
+      "Duplicate response source template id mismatch.",
+    );
+    assert(
+      duplicateResponse.template.name === "Template Studio API Check 복사본",
+      "Duplicate name should use the source name with a copy suffix.",
+    );
+    assert(
+      duplicateResponse.template.status === "draft",
+      "Duplicate template should start as a draft.",
+    );
+    assert(
+      duplicateResponse.copiedAssetCount ===
+        Object.keys(document.assets).length,
+      "Duplicate should copy every document asset.",
+    );
+    duplicateTemplateId = duplicateResponse.template.id;
+
+    const duplicateContext = {
+      params: Promise.resolve({ id: duplicateTemplateId }),
+    };
+    const duplicateDetailResponse = await callRoute<{
+      success: boolean;
+      source: string;
+      template: { id: string; name: string; status: string };
+      document: {
+        document: {
+          metadata: { name: string };
+          assets: Record<string, { src: string; storagePath?: string }>;
+        };
+      } | null;
+      assets: Array<{ storageProvider: string | null; storagePath: string }>;
+    }>(
+      "load duplicated template",
+      templateDetailRoutes.GET,
+      createRequest(
+        `${routeBaseUrl}/api/admin/template-studio/templates/${duplicateTemplateId}`,
+        token,
+      ),
+      duplicateContext,
+    );
+    assert(
+      duplicateDetailResponse.source === "draft",
+      "Duplicate detail should load the copied draft.",
+    );
+    assert(
+      duplicateDetailResponse.template.name === duplicateResponse.template.name,
+      "Duplicate detail name mismatch.",
+    );
+    assert(
+      duplicateDetailResponse.document?.document.metadata.name ===
+        duplicateResponse.template.name,
+      "Duplicate document metadata name mismatch.",
+    );
+    assert(
+      duplicateDetailResponse.assets.length ===
+        Object.keys(document.assets).length,
+      "Duplicate detail should include copied asset metadata.",
+    );
+    assert(
+      duplicateDetailResponse.assets.every(
+        (asset) =>
+          asset.storageProvider === "r2" &&
+          asset.storagePath.includes(duplicateTemplateId!),
+      ),
+      "Duplicate asset metadata should point to the new template prefix.",
+    );
+
     legacyTemplateId = await insertTempLegacyTemplate();
     const legacyContext = {
       params: Promise.resolve({ id: legacyTemplateId }),
@@ -551,6 +640,18 @@ const main = async () => {
 
     if (templateId) {
       await deleteTemplateStudioTemplate(templateId);
+    }
+
+    if (duplicateTemplateId) {
+      await deleteFilesFromR2Prefix(
+        buildTemplateStudioAssetTemplatePrefix(duplicateTemplateId),
+      ).catch((error) => {
+        console.warn(
+          "Failed to cleanup duplicated Template Studio R2 keys.",
+          error,
+        );
+      });
+      await deleteTemplateStudioTemplate(duplicateTemplateId);
     }
 
     if (legacyTemplateId) {

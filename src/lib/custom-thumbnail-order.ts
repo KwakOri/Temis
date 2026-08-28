@@ -4,6 +4,9 @@ import type {
   ThumbnailCustomOrder,
   ThumbnailCustomOrderFile,
   ThumbnailCustomOrderStatus,
+  ThumbnailOrderTemplateCandidate,
+  ThumbnailOrderResultTemplate,
+  ThumbnailOrderTemplateGrant,
   ThumbnailOrderFileRole,
 } from "@/types/customThumbnailOrder";
 
@@ -102,6 +105,10 @@ export interface ListThumbnailOrdersResult {
   total: number;
 }
 
+export interface ListThumbnailOrderTemplateCandidatesResult {
+  templates: ThumbnailOrderTemplateCandidate[];
+}
+
 type StoredFile = Pick<
   Tables<"files">,
   | "id"
@@ -114,6 +121,20 @@ type StoredFile = Pick<
 >;
 
 type StoredOrder = Tables<"custom_thumbnail_orders">;
+type StoredTemplateGrant = Tables<"custom_thumbnail_order_template_grants">;
+type StoredResultTemplate = Pick<
+  Tables<"templates">,
+  | "id"
+  | "name"
+  | "description"
+  | "thumbnail_url"
+  | "status"
+  | "template_kind"
+  | "template_engine"
+  | "is_public"
+  | "is_shop_visible"
+  | "updated_at"
+>;
 
 type StoredUser = Pick<Tables<"users">, "id" | "name" | "email">;
 
@@ -533,14 +554,81 @@ const toThumbnailOrder = (
   row: StoredOrder,
   files?: ThumbnailCustomOrderFile[],
   user?: StoredUser,
+  templateGrants?: ThumbnailOrderTemplateGrant[],
 ): ThumbnailCustomOrder => ({
   ...row,
   status: row.status as ThumbnailCustomOrderStatus,
   canvas_width: 3840,
   canvas_height: 2160,
   ...(files ? { files } : {}),
+  ...(templateGrants ? { template_grants: templateGrants } : {}),
   ...(user ? { users: user } : {}),
 });
+
+const toTemplateResult = (
+  row: StoredResultTemplate,
+): ThumbnailOrderResultTemplate => ({
+  id: row.id,
+  name: row.name,
+  description: row.description,
+  thumbnail_url: row.thumbnail_url || null,
+  status: row.status,
+  template_kind: row.template_kind ?? null,
+  template_engine: row.template_engine,
+  is_public: row.is_public,
+  is_shop_visible: row.is_shop_visible,
+  updated_at: row.updated_at,
+});
+
+const getTemplateGrantsByOrderIds = async (
+  orderIds: string[],
+): Promise<Map<string, ThumbnailOrderTemplateGrant[]>> => {
+  const result = new Map<string, ThumbnailOrderTemplateGrant[]>();
+  if (orderIds.length === 0) return result;
+
+  const { data: grantRows, error: grantError } = await supabaseAdminServer
+    .from("custom_thumbnail_order_template_grants")
+    .select(
+      "id, order_id, template_id, user_id, granted_by, granted_at, revoked_by, revoked_at",
+    )
+    .in("order_id", orderIds)
+    .order("granted_at", { ascending: false });
+  if (grantError) throw grantError;
+  if (!grantRows || grantRows.length === 0) return result;
+
+  const templateIds = [...new Set(grantRows.map((grant) => grant.template_id))];
+  const { data: templateRows, error: templateError } = await supabaseAdminServer
+    .from("templates")
+    .select(
+      "id, name, description, thumbnail_url, status, template_kind, template_engine, is_public, is_shop_visible, updated_at",
+    )
+    .in("id", templateIds);
+  if (templateError) throw templateError;
+
+  const templatesById = new Map(
+    (templateRows ?? []).map((template) => [
+      template.id,
+      toTemplateResult(template),
+    ]),
+  );
+  for (const row of grantRows as StoredTemplateGrant[]) {
+    const grant: ThumbnailOrderTemplateGrant = {
+      id: row.id,
+      order_id: row.order_id,
+      template_id: row.template_id,
+      user_id: row.user_id,
+      granted_by: row.granted_by,
+      granted_at: row.granted_at,
+      revoked_by: row.revoked_by,
+      revoked_at: row.revoked_at,
+      template: templatesById.get(row.template_id) ?? null,
+    };
+    const current = result.get(row.order_id) ?? [];
+    current.push(grant);
+    result.set(row.order_id, current);
+  }
+  return result;
+};
 
 const getFilesByOrderIds = async (
   orderIds: string[],
@@ -634,9 +722,10 @@ export const listThumbnailOrders = async (
   if (error) throw error;
 
   const rows = data ?? [];
-  const fileMap = await getFilesByOrderIds(rows.map((row) => row.id));
-  const userMap = await getUsersByIds([
-    ...new Set(rows.map((row) => row.user_id)),
+  const [fileMap, userMap, templateGrantMap] = await Promise.all([
+    getFilesByOrderIds(rows.map((row) => row.id)),
+    getUsersByIds([...new Set(rows.map((row) => row.user_id))]),
+    getTemplateGrantsByOrderIds(rows.map((row) => row.id)),
   ]);
 
   return {
@@ -645,6 +734,7 @@ export const listThumbnailOrders = async (
         row,
         fileMap.get(row.id) ?? [],
         userMap.get(row.user_id),
+        templateGrantMap.get(row.id) ?? [],
       ),
     ),
     total: count ?? rows.length,
@@ -660,3 +750,60 @@ export const getThumbnailOrderById = async (
 
 export const getThumbnailOrderUser = (order: ThumbnailCustomOrder): number =>
   order.user_id;
+
+export const listThumbnailOrderTemplateCandidates =
+  async (): Promise<ListThumbnailOrderTemplateCandidatesResult> => {
+    const { data: templates, error: templateError } = await supabaseAdminServer
+      .from("templates")
+      .select(
+        "id, name, description, thumbnail_url, status, template_kind, template_engine, is_public, is_shop_visible, updated_at",
+      )
+      .eq("template_engine", "studio")
+      .eq("template_kind", "thumbnail")
+      .eq("is_public", false)
+      .eq("is_shop_visible", false)
+      .eq("status", "published")
+      .order("updated_at", { ascending: false });
+    if (templateError) throw templateError;
+
+    const templateRows = (templates ?? []) as StoredResultTemplate[];
+    if (templateRows.length === 0) return { templates: [] };
+
+    const templateIds = templateRows.map((template) => template.id);
+    const [
+      { data: documents, error: documentError },
+      { data: accesses, error: accessError },
+    ] = await Promise.all([
+      supabaseAdminServer
+        .from("template_studio_documents")
+        .select("template_id, published_revision_no")
+        .in("template_id", templateIds)
+        .not("published_revision_no", "is", null),
+      supabaseAdminServer
+        .from("template_access")
+        .select("template_id")
+        .in("template_id", templateIds),
+    ]);
+    if (documentError) throw documentError;
+    if (accessError) throw accessError;
+
+    const publishedTemplateIds = new Set(
+      (documents ?? []).map((document) => document.template_id),
+    );
+    const accessCounts = new Map<string, number>();
+    for (const access of accesses ?? []) {
+      accessCounts.set(
+        access.template_id,
+        (accessCounts.get(access.template_id) ?? 0) + 1,
+      );
+    }
+
+    return {
+      templates: templateRows
+        .filter((template) => publishedTemplateIds.has(template.id))
+        .map((template) => ({
+          ...toTemplateResult(template),
+          existing_access_count: accessCounts.get(template.id) ?? 0,
+        })),
+    };
+  };

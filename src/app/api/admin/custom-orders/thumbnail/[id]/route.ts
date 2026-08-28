@@ -62,16 +62,6 @@ export async function PUT(
     if (status !== undefined && !isThumbnailOrderStatus(status)) {
       throw new ThumbnailOrderApiError("유효하지 않은 주문 상태입니다.");
     }
-    if (status === "completed") {
-      return NextResponse.json(
-        {
-          error:
-            "썸네일 주문 완료는 결과 템플릿을 검증하는 전용 action으로 처리해야 합니다.",
-        },
-        { status: 409 },
-      );
-    }
-
     const updateData: TablesUpdate<"custom_thumbnail_orders"> = {
       updated_at: new Date().toISOString(),
     };

@@ -58,6 +58,23 @@ export const useCreateTemplateStudioTemplate = () => {
   });
 };
 
+export const useDuplicateTemplateStudioTemplate = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (templateId: string) =>
+      TemplateStudioService.duplicateTemplate(templateId),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.templateStudioTemplates(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.templateStudioTemplate(response.template.id),
+      });
+    },
+  });
+};
+
 export const useSaveTemplateStudioDraft = () => {
   const queryClient = useQueryClient();
 

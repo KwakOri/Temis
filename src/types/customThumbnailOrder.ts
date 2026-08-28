@@ -42,6 +42,31 @@ export interface ThumbnailCustomOrderFile {
   } | null;
 }
 
+export interface ThumbnailOrderTemplateGrant {
+  id: string;
+  order_id: string;
+  template_id: string;
+  user_id: number;
+  granted_by: number | null;
+  granted_at: string;
+  revoked_by: number | null;
+  revoked_at: string | null;
+  template?: ThumbnailOrderResultTemplate | null;
+}
+
+export interface ThumbnailOrderResultTemplate {
+  id: string;
+  name: string;
+  description: string;
+  thumbnail_url: string | null;
+  status: string;
+  template_kind: string | null;
+  template_engine: string;
+  is_public: boolean;
+  is_shop_visible: boolean;
+  updated_at: string;
+}
+
 export interface ThumbnailCustomOrder {
   id: string;
   user_id: number;
@@ -65,6 +90,7 @@ export interface ThumbnailCustomOrder {
   created_at: string;
   updated_at: string;
   files?: ThumbnailCustomOrderFile[];
+  template_grants?: ThumbnailOrderTemplateGrant[];
   users?: {
     id: number;
     name: string;
@@ -144,4 +170,19 @@ export interface CompleteThumbnailCustomOrderResponse {
     granted_at: string;
     template_plan_id: string | null;
   };
+  grant: ThumbnailOrderTemplateGrant;
+}
+
+export interface RevokeThumbnailOrderTemplateGrantResponse {
+  success: boolean;
+  grant: ThumbnailOrderTemplateGrant;
+  accessDeleted: boolean;
+}
+
+export interface ThumbnailOrderTemplateCandidate extends ThumbnailOrderResultTemplate {
+  existing_access_count: number;
+}
+
+export interface ThumbnailOrderTemplateCandidatesResponse {
+  templates: ThumbnailOrderTemplateCandidate[];
 }
