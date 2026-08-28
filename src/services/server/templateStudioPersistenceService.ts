@@ -73,6 +73,12 @@ type TemplateStudioTemplateRow = {
   name: string;
   description: string;
   thumbnail_url: string | null;
+  studio_preview_url: string | null;
+  studio_preview_file_key: string | null;
+  studio_preview_revision_no: number | null;
+  studio_preview_mime_type: string | null;
+  studio_preview_byte_size: number | null;
+  studio_preview_updated_at: string | null;
   status: TemplateStudioTemplateStatus;
   template_kind: StudioTemplateKind | null;
   created_by: number | null;
@@ -150,10 +156,26 @@ export type TemplateStudioTemplateRecord = {
   name: string;
   description: string;
   thumbnailUrl: string | null;
+  studioPreviewUrl: string | null;
+  studioPreviewFileKey: string | null;
+  studioPreviewRevisionNo: number | null;
+  studioPreviewMimeType: string | null;
+  studioPreviewByteSize: number | null;
+  studioPreviewUpdatedAt: string | null;
   status: TemplateStudioTemplateStatus;
   templateKind: StudioTemplateKind;
   createdBy: number | null;
   createdAt: string;
+  updatedAt: string;
+};
+
+export type TemplateStudioPreviewMetadata = {
+  templateId: string;
+  revisionNo: number;
+  previewUrl: string;
+  fileKey: string;
+  mimeType: string;
+  byteSize: number;
   updatedAt: string;
 };
 
@@ -264,7 +286,7 @@ const TEMPLATE_STUDIO_REVISION_COLUMNS =
 const TEMPLATE_STUDIO_ASSET_COLUMNS =
   "id, template_id, asset_id, storage_provider, storage_path, public_url, content_hash, mime_type, width, height, byte_size, created_by, created_at, updated_at, last_synced_at";
 const TEMPLATE_STUDIO_TEMPLATE_COLUMNS =
-  "id, name, description, thumbnail_url, status, template_kind, created_by, created_at, updated_at";
+  "id, name, description, thumbnail_url, studio_preview_url, studio_preview_file_key, studio_preview_revision_no, studio_preview_mime_type, studio_preview_byte_size, studio_preview_updated_at, status, template_kind, created_by, created_at, updated_at";
 const TEMPLATE_STUDIO_USER_STATE_COLUMNS =
   "id, template_id, user_id, base_revision_no, runtime_values, version, created_at, updated_at";
 
@@ -392,6 +414,12 @@ const toTemplateRecord = (
   name: row.name,
   description: row.description,
   thumbnailUrl: row.thumbnail_url || null,
+  studioPreviewUrl: row.studio_preview_url || null,
+  studioPreviewFileKey: row.studio_preview_file_key || null,
+  studioPreviewRevisionNo: row.studio_preview_revision_no ?? null,
+  studioPreviewMimeType: row.studio_preview_mime_type || null,
+  studioPreviewByteSize: row.studio_preview_byte_size ?? null,
+  studioPreviewUpdatedAt: row.studio_preview_updated_at || null,
   status: row.status,
   // Migration 6 backfills all existing studio rows as timetable. Keep the
   // fallback for a short compatibility window while older local databases
@@ -618,6 +646,53 @@ export const assertTemplateStudioTemplateKind = async (
     );
   }
   return template;
+};
+
+export const storeTemplateStudioPreview = async (
+  input: {
+    templateId: string;
+    revisionNo: number;
+    previewUrl: string;
+    fileKey: string;
+    mimeType: string;
+    byteSize: number;
+  },
+  client?: TemplateStudioPersistenceClient,
+): Promise<TemplateStudioPreviewMetadata> => {
+  const supabase = getClient(client);
+  const { data, error } = await supabase.rpc<{
+    template_id: string;
+    revision_no: number;
+    preview_url: string;
+    file_key: string;
+    mime_type: string;
+    byte_size: number;
+    updated_at: string;
+  }>("store_template_studio_preview", {
+    p_template_id: input.templateId,
+    p_revision_no: input.revisionNo,
+    p_preview_url: input.previewUrl,
+    p_file_key: input.fileKey,
+    p_mime_type: input.mimeType,
+    p_byte_size: input.byteSize,
+  });
+
+  throwOnError("Failed to store Template Studio preview", error);
+  if (!data) {
+    throw new TemplateStudioPersistenceError(
+      "Failed to store Template Studio preview: empty response",
+    );
+  }
+
+  return {
+    templateId: data.template_id,
+    revisionNo: data.revision_no,
+    previewUrl: data.preview_url,
+    fileKey: data.file_key,
+    mimeType: data.mime_type,
+    byteSize: data.byte_size,
+    updatedAt: data.updated_at,
+  };
 };
 
 export const deleteTemplateStudioTemplate = async (

@@ -2,6 +2,7 @@ import type {
   TemplateStudioAssetRecord,
   TemplateStudioDocumentRecord,
   TemplateStudioDraftRecord,
+  TemplateStudioPreviewMetadata,
   TemplateStudioTemplateRecord,
 } from "@/services/server/templateStudioPersistenceService";
 import type {
@@ -82,6 +83,12 @@ export interface TemplateStudioPublishResponse {
   document: TemplateStudioDocumentRecord;
   diagnostics: StudioDiagnostic[];
   migrationWarnings: string[];
+}
+
+export interface TemplateStudioPreviewUploadResponse {
+  success: boolean;
+  templateId: string;
+  preview: TemplateStudioPreviewMetadata;
 }
 
 export interface TemplateStudioUploadAssetPayload {
@@ -278,6 +285,26 @@ export class TemplateStudioService {
     return parseJsonResponse<TemplateStudioPublishResponse>(
       response,
       "Template Studio 문서 발행에 실패했습니다.",
+    );
+  }
+
+  static async uploadPreview(
+    templateId: string,
+    revisionNo: number,
+    file: File,
+  ): Promise<TemplateStudioPreviewUploadResponse> {
+    const formData = new FormData();
+    formData.set("revisionNo", String(revisionNo));
+    formData.set("file", file, file.name || "thumbnail-preview.png");
+
+    const response = await fetch(`${this.baseUrl}/${templateId}/preview`, {
+      method: "POST",
+      body: formData,
+    });
+
+    return parseJsonResponse<TemplateStudioPreviewUploadResponse>(
+      response,
+      "Template Studio 자동 미리보기 저장에 실패했습니다.",
     );
   }
 

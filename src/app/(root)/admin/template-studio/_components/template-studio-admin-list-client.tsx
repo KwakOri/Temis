@@ -74,33 +74,40 @@ const ThumbnailCoverStatus = ({
   template,
 }: {
   template: TemplateStudioTemplateRecord;
-}) => (
-  <div className="mt-2 flex items-center gap-2">
-    <div className="flex h-12 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-gray-200 bg-gray-50">
-      {template.thumbnailUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- Catalog covers are stored URLs from the templates table.
-        <img
-          src={template.thumbnailUrl}
-          alt="대표 이미지"
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <ImageIcon className="h-4 w-4 text-gray-300" aria-hidden="true" />
-      )}
+}) => {
+  const coverUrl = template.thumbnailUrl ?? template.studioPreviewUrl;
+  const coverSource = template.thumbnailUrl
+    ? "대표 이미지 등록됨"
+    : template.studioPreviewUrl
+      ? "자동 미리보기 생성됨"
+      : "대표 이미지 없음";
+
+  return (
+    <div className="mt-2 flex items-center gap-2">
+      <div className="flex h-12 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-gray-200 bg-gray-50">
+        {coverUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- Catalog covers are stored URLs from the templates table.
+          <img
+            src={coverUrl}
+            alt={template.thumbnailUrl ? "대표 이미지" : "자동 미리보기"}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <ImageIcon className="h-4 w-4 text-gray-300" aria-hidden="true" />
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="text-[11px] font-medium text-gray-500">{coverSource}</p>
+        <Link
+          className="text-[11px] font-semibold text-blue-600 hover:underline"
+          href={"/admin/template-products/" + template.id}
+        >
+          {template.thumbnailUrl ? "대표 이미지 관리" : "대표 이미지 등록"}
+        </Link>
+      </div>
     </div>
-    <div className="min-w-0">
-      <p className="text-[11px] font-medium text-gray-500">
-        {template.thumbnailUrl ? "대표 이미지 등록됨" : "대표 이미지 없음"}
-      </p>
-      <Link
-        className="text-[11px] font-semibold text-blue-600 hover:underline"
-        href={"/admin/template-products/" + template.id}
-      >
-        {template.thumbnailUrl ? "대표 이미지 관리" : "대표 이미지 등록"}
-      </Link>
-    </div>
-  </div>
-);
+  );
+};
 
 const RowActions = ({
   template,

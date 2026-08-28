@@ -1586,6 +1586,12 @@ export type Database = {
           is_shop_visible: boolean;
           name: string;
           status: string;
+          studio_preview_byte_size?: number | null;
+          studio_preview_file_key?: string | null;
+          studio_preview_mime_type?: string | null;
+          studio_preview_revision_no?: number | null;
+          studio_preview_updated_at?: string | null;
+          studio_preview_url?: string | null;
           template_kind?: string | null;
           template_engine: string;
           thumbnail_url: string;
@@ -1601,6 +1607,12 @@ export type Database = {
           is_shop_visible?: boolean;
           name: string;
           status?: string;
+          studio_preview_byte_size?: number | null;
+          studio_preview_file_key?: string | null;
+          studio_preview_mime_type?: string | null;
+          studio_preview_revision_no?: number | null;
+          studio_preview_updated_at?: string | null;
+          studio_preview_url?: string | null;
           template_kind?: string | null;
           template_engine?: string;
           thumbnail_url?: string;
@@ -1616,6 +1628,12 @@ export type Database = {
           is_shop_visible?: boolean;
           name?: string;
           status?: string;
+          studio_preview_byte_size?: number | null;
+          studio_preview_file_key?: string | null;
+          studio_preview_mime_type?: string | null;
+          studio_preview_revision_no?: number | null;
+          studio_preview_updated_at?: string | null;
+          studio_preview_url?: string | null;
           template_kind?: string | null;
           template_engine?: string;
           thumbnail_url?: string;
@@ -1965,6 +1983,17 @@ export type Database = {
       recalculate_royalty_settlement_batch: {
         Args: { p_batch_id: string };
         Returns: undefined;
+      };
+      store_template_studio_preview: {
+        Args: {
+          p_byte_size: number;
+          p_file_key: string;
+          p_mime_type: string;
+          p_preview_url: string;
+          p_revision_no: number;
+          p_template_id: string;
+        };
+        Returns: Json;
       };
       template_hub_set_sale_visibility: {
         Args: { p_template_id: string; p_visible: boolean };

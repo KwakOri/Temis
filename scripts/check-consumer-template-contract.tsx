@@ -61,10 +61,25 @@ const studioTimetable = normalize({
   id: "studio-timetable",
   template_engine: "studio",
   template_kind: "timetable",
+  studio_preview_url: "https://cdn.example.test/should-not-render.png",
   use_href: "/template-studio/studio-timetable",
 });
 assert(studioTimetable);
 assert.equal(studioTimetable.coverUrl, null);
+
+const studioThumbnailWithAutoPreview = normalize({
+  id: "studio-thumbnail-auto-preview",
+  template_engine: "studio",
+  template_kind: "thumbnail",
+  is_public: true,
+  studio_preview_url: "https://cdn.example.test/studio-preview.png",
+  use_href: "/thumbnail/studio-thumbnail-auto-preview",
+});
+assert(studioThumbnailWithAutoPreview);
+assert.equal(
+  studioThumbnailWithAutoPreview.coverUrl,
+  "https://cdn.example.test/studio-preview.png",
+);
 
 assert.equal(
   resolveConsumerTemplateCover({
@@ -74,6 +89,26 @@ assert.equal(
     thumbnailUrl: "https://cdn.example.test/explicit.png",
   }),
   "https://cdn.example.test/explicit.png",
+);
+assert.equal(
+  resolveConsumerTemplateCover({
+    id: "studio-auto-cover",
+    engine: "studio",
+    kind: "thumbnail",
+    thumbnailUrl: null,
+    studioPreviewUrl: "https://cdn.example.test/auto.png",
+  }),
+  "https://cdn.example.test/auto.png",
+);
+assert.equal(
+  resolveConsumerTemplateCover({
+    id: "studio-timetable-auto-cover",
+    engine: "studio",
+    kind: "timetable",
+    thumbnailUrl: null,
+    studioPreviewUrl: "https://cdn.example.test/should-not-render.png",
+  }),
+  null,
 );
 
 for (const invalid of [
