@@ -331,21 +331,18 @@ const imageInputPanelMarkup = renderToStaticMarkup(
 );
 assert.ok(
   imageInputPanelMarkup.includes('data-thumbnail-image-input-policy="true"'),
-  "Image inputs must expose their runtime policy editor",
+  "Image input policy must remain available in the schema-backed hidden block",
 );
-for (const label of [
-  "Allow replace",
-  "Allow fit change",
-  "Allow focus change",
-  "Allow crop",
-  "Recommended aspect ratio",
-  "Help text",
-]) {
-  assert.ok(
-    imageInputPanelMarkup.includes(label),
-    `Image input panel must expose ${label}`,
-  );
-}
+assert.ok(
+  imageInputPanelMarkup.includes('data-thumbnail-input-advanced="true"') &&
+    imageInputPanelMarkup.includes('aria-expanded="false"'),
+  "Input cards should start collapsed with schema-level controls hidden.",
+);
+assert.doesNotMatch(
+  imageInputPanelMarkup,
+  /Preview value/,
+  "A collapsed input should not render preview controls until it is expanded.",
+);
 
 const createCommandsStub = (calls: string[] = []): ThumbnailNodeCommands =>
   ({
@@ -448,6 +445,39 @@ assert.ok(
 assert.ok(
   textMarkup.includes('value="Brand Sans"'),
   "문서에 등록된 웹 폰트가 Font 후보로 보여야 한다.",
+);
+
+const boundTextDocument = createInspectorDocument();
+boundTextDocument.inputs.title = {
+  id: "title",
+  type: "text",
+  scope: "global",
+  label: "제목",
+  placeholder: "내용을 입력해주세요",
+  defaultValue: "",
+};
+boundTextDocument.graph.nodes.text.binding = {
+  kind: "inputText",
+  inputId: "title",
+};
+const boundSections = buildSections({
+  document: boundTextDocument,
+  selectedNodeIds: ["text"],
+});
+const boundBindingSection = boundSections.find((item) => item.id === "binding");
+const boundTextSection = boundSections.find((item) => item.id === "text");
+assert.ok(boundBindingSection && boundBindingSection.kind !== "block");
+assert.ok(boundTextSection && boundTextSection.kind !== "block");
+const boundBindingMarkup = renderToStaticMarkup(<>{boundBindingSection.content}</>);
+assert.ok(
+  boundBindingMarkup.includes(">Label</span>") &&
+    boundBindingMarkup.includes(">Placeholder</span>"),
+  "Bound 입력은 Binding 섹션에서 label과 placeholder를 편집할 수 있어야 한다.",
+);
+assert.doesNotMatch(
+  renderToStaticMarkup(<>{boundTextSection.content}</>),
+  /Content|Text shown on the thumbnail/,
+  "Bound 텍스트에는 Static Content 편집 칸이 없어야 한다.",
 );
 assert.deepEqual(
   sectionIdsFor(["shape"]),

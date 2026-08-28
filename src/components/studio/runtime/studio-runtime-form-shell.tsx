@@ -2,7 +2,7 @@ import React from "react";
 
 interface StudioRuntimeFormShellProps {
   eyebrow: string;
-  title: string;
+  title?: string;
   meta?: React.ReactNode;
   children: React.ReactNode;
   footer?: React.ReactNode;
@@ -29,9 +29,11 @@ export function StudioRuntimeFormShell({
           <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--runtime-fg-muted)]">
             {eyebrow}
           </p>
-          <h2 className="truncate text-sm font-black text-[var(--runtime-fg)]">
-            {title}
-          </h2>
+          {title ? (
+            <h2 className="truncate text-sm font-black text-[var(--runtime-fg)]">
+              {title}
+            </h2>
+          ) : null}
           {meta ? (
             <div className="mt-1 truncate text-[10px] font-semibold text-[var(--runtime-fg-subtle)]">
               {meta}

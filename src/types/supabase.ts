@@ -308,6 +308,75 @@ export type Database = {
           },
         ];
       };
+      custom_thumbnail_order_template_grants: {
+        Row: {
+          granted_at: string;
+          granted_by: number | null;
+          id: string;
+          order_id: string;
+          revoked_at: string | null;
+          revoked_by: number | null;
+          template_id: string;
+          user_id: number;
+        };
+        Insert: {
+          granted_at?: string;
+          granted_by?: number | null;
+          id?: string;
+          order_id: string;
+          revoked_at?: string | null;
+          revoked_by?: number | null;
+          template_id: string;
+          user_id: number;
+        };
+        Update: {
+          granted_at?: string;
+          granted_by?: number | null;
+          id?: string;
+          order_id?: string;
+          revoked_at?: string | null;
+          revoked_by?: number | null;
+          template_id?: string;
+          user_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "custom_thumbnail_order_template_grants_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "custom_thumbnail_orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "custom_thumbnail_order_template_grants_template_id_fkey";
+            columns: ["template_id"];
+            isOneToOne: false;
+            referencedRelation: "templates";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "custom_thumbnail_order_template_grants_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "custom_thumbnail_order_template_grants_granted_by_fkey";
+            columns: ["granted_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "custom_thumbnail_order_template_grants_revoked_by_fkey";
+            columns: ["revoked_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       custom_thumbnail_orders: {
         Row: {
           admin_notes: string | null;
@@ -1005,6 +1074,47 @@ export type Database = {
             foreignKeyName: "template_artists_template_id_fkey";
             columns: ["template_id"];
             isOneToOne: false;
+            referencedRelation: "templates";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      template_studio_documents: {
+        Row: {
+          created_at: string;
+          document: Json;
+          document_version: number;
+          id: string;
+          published_revision_no: number | null;
+          runtime_values: Json;
+          template_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          document: Json;
+          document_version?: number;
+          id?: string;
+          published_revision_no?: number | null;
+          runtime_values: Json;
+          template_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          document?: Json;
+          document_version?: number;
+          id?: string;
+          published_revision_no?: number | null;
+          runtime_values?: Json;
+          template_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "template_studio_documents_template_id_fkey";
+            columns: ["template_id"];
+            isOneToOne: true;
             referencedRelation: "templates";
             referencedColumns: ["id"];
           },
@@ -1825,6 +1935,10 @@ export type Database = {
           p_order_id: string;
           p_result_template_id: string;
         };
+        Returns: Json;
+      };
+      revoke_custom_thumbnail_order_template_grant: {
+        Args: { p_admin_id: number; p_grant_id: string; p_order_id: string };
         Returns: Json;
       };
       calculate_template_sale_royalty: {

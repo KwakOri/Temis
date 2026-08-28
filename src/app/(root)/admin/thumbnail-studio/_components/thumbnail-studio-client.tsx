@@ -26,6 +26,7 @@ import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
 import { StudioSelectionOverlay } from "@/components/studio/canvas/studio-selection-overlay";
 import { StudioEditorShell } from "@/components/studio/editor-shell/studio-editor-shell";
 import { StudioGuideControl } from "@/components/studio/editor-shell/studio-guide-control";
+import { StudioOperationFeedback } from "@/components/studio/editor-shell/studio-operation-feedback";
 import {
   StudioLeftSidebar,
   type StudioPanelTab,
@@ -44,7 +45,11 @@ import { useStudioDocumentHistory } from "@/hooks/studio/use-studio-document-his
 import { useStudioKeyboardShortcuts } from "@/hooks/studio/use-studio-keyboard-shortcuts";
 import { useStudioLayerDrag } from "@/hooks/studio/use-studio-layer-drag";
 import { useStudioSelection } from "@/hooks/studio/use-studio-selection";
-import { useStudioTemplatePersistence } from "@/hooks/studio/use-studio-template-persistence";
+import {
+  useStudioTemplatePersistence,
+  type StudioPersistenceOperationResult,
+  type StudioPersistenceOperationState,
+} from "@/hooks/studio/use-studio-template-persistence";
 import {
   useCreateTemplateStudioTemplate,
   usePublishTemplateStudioDocument,
@@ -308,6 +313,10 @@ export function ThumbnailStudioClient({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [fitRequestKey, setFitRequestKey] = useState(0);
   const [statusMessage, setStatusMessage] = useState("Local draft");
+  const [persistenceOperation, setPersistenceOperation] =
+    useState<StudioPersistenceOperationState | null>(null);
+  const [operationToast, setOperationToast] =
+    useState<StudioPersistenceOperationResult | null>(null);
   const [thumbnailGuideUploadError, setThumbnailGuideUploadError] = useState<
     string | null
   >(null);
@@ -388,6 +397,25 @@ export function ThumbnailStudioClient({
   const showStatus = useCallback((message: string) => {
     if (message) setStatusMessage(message);
   }, []);
+
+  const handlePersistenceStateChange = useCallback(
+    (state: StudioPersistenceOperationState | null) => {
+      setPersistenceOperation(state);
+    },
+    [],
+  );
+  const handlePersistenceResult = useCallback(
+    (result: StudioPersistenceOperationResult) => {
+      setOperationToast(result);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!operationToast) return;
+    const timeout = window.setTimeout(() => setOperationToast(null), 6000);
+    return () => window.clearTimeout(timeout);
+  }, [operationToast]);
 
   const setDocumentForPersistence = useCallback(
     (nextDocument: StudioTemplateDocument) => {
@@ -1206,12 +1234,15 @@ export function ThumbnailStudioClient({
     recordRemoteSaveEvent: recordTemplateStudioSaveEventMutation.mutateAsync,
     onReplaceDocument: replaceEditorDocument,
     onStatusMessage: showStatus,
+    onOperationStateChange: handlePersistenceStateChange,
+    onOperationResult: handlePersistenceResult,
     onExportBlocked: () => showStatus("Export blocked: check diagnostics"),
     previewPathForTemplate: (nextTemplateId) =>
       `/admin/thumbnail-studio/${nextTemplateId}/preview`,
   });
 
   const isRemoteSyncing =
+    Boolean(persistenceOperation) ||
     createTemplateStudioTemplateMutation.isPending ||
     saveTemplateStudioDraftMutation.isPending ||
     publishTemplateStudioDocumentMutation.isPending ||
@@ -1382,6 +1413,7 @@ export function ThumbnailStudioClient({
     clippedCanvasNodeIds,
     groupOverflowDiagnostics,
     commands,
+    onUpdateInput: updateInput,
     captureHistory,
     onFitCanvas: () => setFitRequestKey((current) => current + 1),
     onCreateInput: (nodeId) => {
@@ -1390,10 +1422,6 @@ export function ThumbnailStudioClient({
       setSelectedInputId(inputId);
       setPanelMode("inputs");
       showStatus("Input created and connected");
-    },
-    onOpenInput: (inputId) => {
-      setSelectedInputId(inputId);
-      setPanelMode("inputs");
     },
     onCropImage: requestImageCrop,
   });
@@ -1635,6 +1663,18 @@ export function ThumbnailStudioClient({
         }
         overlays={
           <>
+            <StudioOperationFeedback
+              operation={persistenceOperation}
+              toast={
+                operationToast
+                  ? {
+                      tone: operationToast.ok ? "success" : "error",
+                      message: operationToast.message,
+                    }
+                  : null
+              }
+              onDismissToast={() => setOperationToast(null)}
+            />
             <StudioSettingsDialog
               common={{
                 theme,
@@ -1812,6 +1852,7 @@ export function ThumbnailStudioClient({
               </div>
             }
             previewAction={{
+              disabled: isRemoteSyncing,
               label: "Preview",
               title: "Open runtime preview",
               onClick: () => void thumbnailPersistence.openDraftPreview(),

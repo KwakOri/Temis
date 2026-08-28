@@ -12,6 +12,7 @@ import {
   getStudioRuntimeInputValue,
   StudioRuntimeContext,
 } from "@/utils/template-studio/input-values";
+import { getStudioTemplateKind } from "@/utils/template-studio/template-kind";
 
 const textBindingKinds = new Set<StudioBinding["kind"]>([
   "staticText",
@@ -148,7 +149,14 @@ export const resolveStudioTextBinding = (
   if (binding.kind === "inputText") {
     const input = document.inputs[binding.inputId];
     if (!input || input.type !== "text") return "";
-    return getStudioRuntimeInputValue(input, values, context);
+    const value = getStudioRuntimeInputValue(input, values, context);
+    // In Thumbnail Studio a placeholder is part of the WYSIWYG preview, but
+    // it must never become the runtime value submitted by the customer. Keep
+    // timetable semantics unchanged by scoping this fallback to thumbnails.
+    if (!value && getStudioTemplateKind(document) === "thumbnail") {
+      return input.placeholder ?? "";
+    }
+    return value;
   }
 
   if (binding.kind === "selectText") {

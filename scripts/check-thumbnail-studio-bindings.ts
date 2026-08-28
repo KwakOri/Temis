@@ -13,6 +13,7 @@ import {
   applyThumbnailStudioSetSelectAssetMapping,
   applyThumbnailStudioSetSelectTextOutput,
 } from "../src/utils/thumbnail-studio/binding-commands";
+import { resolveStudioTextBinding } from "../src/utils/template-studio/binding-resolver";
 import { collectThumbnailStudioInputConsumers } from "../src/utils/thumbnail-studio/input-consumers";
 import { createThumbnailStudioPreviewValues } from "../src/utils/thumbnail-studio/input-preview";
 import { createThumbnailStudioDocument } from "../src/utils/thumbnail-studio/document-factory";
@@ -124,7 +125,21 @@ assert.equal(document.inputs[createdInputId!]?.type, "text");
 const createdInput = document.inputs[createdInputId!];
 assert.equal(
   createdInput?.type === "text" ? createdInput.defaultValue : undefined,
+  "",
+  "A Thumbnail input created from a node must start empty.",
+);
+assert.equal(
+  createdInput?.type === "text" ? createdInput.placeholder : undefined,
   "Preview title",
+  "The node's current value belongs in placeholder, not defaultValue.",
+);
+assert.equal(
+  resolveStudioTextBinding(document, values, {
+    kind: "inputText",
+    inputId: createdInputId!,
+  }),
+  "Preview title",
+  "Thumbnail preview should show the placeholder while runtime input is empty.",
 );
 assert.deepEqual(document.graph.nodes.titleNode.binding, {
   kind: "inputText",

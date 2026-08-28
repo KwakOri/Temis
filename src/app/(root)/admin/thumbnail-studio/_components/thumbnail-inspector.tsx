@@ -27,6 +27,7 @@ import {
 import type {
   StudioGraphNode,
   StudioImageFit,
+  StudioInputDefinition,
   StudioShapeFill,
   StudioStyleRecord,
   StudioTemplateDocument,
@@ -113,11 +114,16 @@ export interface ThumbnailInspectorParams {
   /** overflow hidden/clip 그룹에서 잘릴 자식 진단. */
   groupOverflowDiagnostics: StudioGroupOverflowDiagnostic[];
   commands: ThumbnailNodeCommands;
+  onUpdateInput?: (
+    inputId: string,
+    updater: (input: StudioInputDefinition) => StudioInputDefinition,
+  ) => void;
   /** 연속 조작 한 묶음을 시작한다. 색 고르기가 부른다. */
   captureHistory: () => void;
   onFitCanvas: () => void;
   onCreateInput: (nodeId: string) => void;
-  onOpenInput: (inputId: string) => void;
+  /** @deprecated Thumbnail Bound inputs are edited inline now. */
+  onOpenInput?: (inputId: string) => void;
   onCropImage: (nodeId: string) => void;
 }
 
@@ -211,10 +217,10 @@ export const buildThumbnailInspectorSections = ({
   clippedCanvasNodeIds,
   groupOverflowDiagnostics,
   commands,
+  onUpdateInput,
   captureHistory,
   onFitCanvas,
   onCreateInput,
-  onOpenInput,
   onCropImage,
 }: ThumbnailInspectorParams): StudioPropertyItem[] => {
   const section = (
@@ -588,24 +594,51 @@ export const buildThumbnailInspectorSections = ({
                 </select>
               </label>
               {selectedBoundInput ? (
-                <div className="grid min-w-0 gap-1 rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] px-3 py-2">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
-                    Global source
-                  </span>
-                  <span className="truncate text-xs font-semibold text-[var(--fg)]">
-                    {selectedBoundInput.label}
-                  </span>
-                  <span className="truncate text-[10px] font-medium text-[var(--fg3)]">
-                    {getStudioInputTypeLabel(selectedBoundInput.type)} ·{" "}
-                    {selectedBoundInput.id}
-                  </span>
-                  <button
-                    className="justify-self-start text-[10px] font-semibold text-[var(--accent)] hover:underline"
-                    type="button"
-                    onClick={() => onOpenInput(selectedBoundInput.id)}
-                  >
-                    Open in Inputs
-                  </button>
+                <div className="grid min-w-0 gap-2 rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] px-3 py-2">
+                  <div className="grid gap-1">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
+                      Bound input
+                    </span>
+                    <span className="truncate text-[10px] font-medium text-[var(--fg3)]">
+                      {getStudioInputTypeLabel(selectedBoundInput.type)} ·{" "}
+                      {selectedBoundInput.id}
+                    </span>
+                  </div>
+                  <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+                    <span>Label</span>
+                    <input
+                      className="h-8 min-w-0 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={isLocked || !onUpdateInput}
+                      value={selectedBoundInput.label}
+                      onChange={(event) =>
+                        onUpdateInput?.(selectedBoundInput.id, (current) => ({
+                          ...current,
+                          label: event.currentTarget.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  {selectedBoundInput.type === "text" ? (
+                    <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+                      <span>Placeholder</span>
+                      <input
+                        className="h-8 min-w-0 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={isLocked || !onUpdateInput}
+                        placeholder="텍스트를 입력해주세요"
+                        value={selectedBoundInput.placeholder ?? ""}
+                        onChange={(event) =>
+                          onUpdateInput?.(selectedBoundInput.id, (current) =>
+                            current.type === "text"
+                              ? {
+                                  ...current,
+                                  placeholder: event.currentTarget.value,
+                                }
+                              : current,
+                          )
+                        }
+                      />
+                    </label>
+                  ) : null}
                 </div>
               ) : null}
               {selectedNode.binding?.kind === "selectText" ? (
@@ -837,14 +870,18 @@ export const buildThumbnailInspectorSections = ({
         "text",
         "Text",
         <div className="grid gap-2">
-          <StudioTextareaField
-            disabled={isLocked}
-            label="Content"
-            placeholder="Text shown on the thumbnail"
-            rows={3}
-            value={textValue}
-            onChange={(value) => commands.setStaticText(selectedNode.id, value)}
-          />
+          {selectedNode.binding?.kind === "staticText" ? (
+            <StudioTextareaField
+              disabled={isLocked}
+              label="Content"
+              placeholder="Text shown on the thumbnail"
+              rows={3}
+              value={textValue}
+              onChange={(value) =>
+                commands.setStaticText(selectedNode.id, value)
+              }
+            />
+          ) : null}
           <StudioSelectField
             disabled={isLocked}
             label="Font"

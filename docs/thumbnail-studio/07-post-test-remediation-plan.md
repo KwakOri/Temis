@@ -1,6 +1,6 @@
 # Phase 7. 운영 테스트 후 개선 계획
 
-상태: 구현 예정
+상태: 코드 반영 완료(원격 DB 적용·운영 계정 검증 대기)
 작성일: 2026-08-29
 대상: 마이페이지, 사용자 Thumbnail Editor, 관리자 Thumbnail Studio, 관리자 썸네일 주문 상세
 
@@ -47,7 +47,8 @@
 - 주문 상세: `src/components/admin/ThumbnailOrderDetailModal.tsx`
 - 주문 완료 API/RPC:
   `src/app/api/admin/custom-orders/thumbnail/[id]/complete/route.ts`,
-  `supabase/migrations/20260807010000_create_custom_thumbnail_orders.sql`
+  `supabase/migrations/20260807010000_create_custom_thumbnail_orders.sql`,
+  `supabase/migrations/20260829020000_decouple_thumbnail_order_status_and_grants.sql`
 
 ### 2.2 원격 DB 읽기 전용 점검
 
@@ -348,7 +349,8 @@ optional contract로 변경해 다른 화면의 제목까지 제거하지 않는
 - `npm run check:studio:input-inspector`
 - `npm run check:user-template-ui:consumer`
 - `npm run check:user-template-ui:my-page-browser`
-- 주문 상태 변경/권한 부여/권한 회수 전용 DB·API check script 추가
+- `npm run check:thumbnail-studio:order-grants`
+- 주문 상태 변경/권한 부여/권한 회수는 위 계약 check와 별도 DB·API 실측으로 검증
 
 ### 7.2 필수 회귀 시나리오
 

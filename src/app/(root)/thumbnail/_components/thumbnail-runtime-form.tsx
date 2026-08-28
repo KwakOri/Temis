@@ -502,7 +502,6 @@ export function ThumbnailRuntimeForm({
       eyebrow="Thumbnail Editor"
       meta={`${templateName} · revision ${revisionNo}`}
       testId="thumbnail-runtime-form"
-      title="내용 입력"
       footer={
         <div className="grid gap-2">
           {readinessMessage ? (

@@ -100,9 +100,9 @@ assert.ok(
   "복제 DOM에도 외부 이미지 URL이 남지 않도록 사전 임베드 경계를 유지해야 한다.",
 );
 assert.ok(
-  /cloudflare\\\.temis\\\.kr/.test(nextConfigSource) &&
+  nextConfigSource.includes("urlPattern: /^https?.*/") &&
     nextConfigSource.includes('handler: "NetworkOnly"'),
-  "R2 에셋은 PWA runtime cache를 거치지 않아야 한다.",
+  "외부 에셋은 PWA runtime cache에 저장하지 않아야 한다.",
 );
 
 // --- 두 라스터라이저가 더 갈라지지 않는다 ---

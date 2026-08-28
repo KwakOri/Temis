@@ -143,8 +143,8 @@ assert.equal(
  */
 assert.equal(
   (markup.match(/disabled=""/g) ?? []).length,
-  10,
-  "이름 변경 입력과 고른 것이 없을 때의 레이어 명령 9개가 비활성이어야 한다.",
+  11,
+  "가이드 슬라이더, 이름 변경 입력과 고른 것이 없을 때의 레이어 명령이 비활성이어야 한다.",
 );
 assert.ok(
   markup.includes('title="Open runtime preview"'),
@@ -168,7 +168,6 @@ const TIMETABLE_ONLY = [
   ">Online<",
   ">Offline<",
   ">Multi<",
-  ">가이드<",
   ">공유<",
   "Timetable Layers",
   "Timetable Context",

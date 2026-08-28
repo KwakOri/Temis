@@ -49,6 +49,27 @@ export interface StudioRemoteTemplateSnapshot {
   assets?: StudioRemoteAssetSnapshot[];
   latestRevisionNo?: number | null;
 }
+
+export type StudioPersistenceOperation = "save_draft" | "publish" | "preview";
+export type StudioPersistenceStage =
+  | "validating"
+  | "creating"
+  | "syncing-assets"
+  | "saving"
+  | "publishing"
+  | "previewing";
+
+export interface StudioPersistenceOperationState {
+  operation: StudioPersistenceOperation;
+  stage: StudioPersistenceStage;
+}
+
+export interface StudioPersistenceOperationResult {
+  operation: StudioPersistenceOperation;
+  ok: boolean;
+  message: string;
+}
+
 export interface StudioTemplatePersistenceOptions {
   /** 콜백 안에서 최신 문서를 읽는다. */
   getDocument: () => StudioTemplateDocument;
@@ -100,6 +121,12 @@ export interface StudioTemplatePersistenceOptions {
     message: string,
   ) => void;
   onStatusMessage: (message: string) => void;
+  /** 저장·발행·미리보기 진행 상태를 화면 overlay에 전달한다. */
+  onOperationStateChange?: (
+    state: StudioPersistenceOperationState | null,
+  ) => void;
+  /** 작업이 끝났을 때 성공·실패 토스트를 만들 수 있게 한다. */
+  onOperationResult?: (result: StudioPersistenceOperationResult) => void;
   /** 내보내기가 막혔을 때. 보통 진단 절을 펼친다. */
   onExportBlocked: () => void;
 }
@@ -120,10 +147,10 @@ export interface StudioTemplatePersistence {
     context: TemplateStudioAssetSyncContext,
   ) => Promise<StudioTemplateDocument>;
   loadRemoteTemplate: () => Promise<void>;
-  saveDraft: () => Promise<void>;
-  publish: () => Promise<void>;
+  saveDraft: () => Promise<boolean>;
+  publish: () => Promise<boolean>;
   /** 초안을 저장한 뒤 미리보기를 새 창으로 연다. */
-  openDraftPreview: () => Promise<void>;
+  openDraftPreview: () => Promise<boolean>;
   /** 이미 저장해 둔 것을 그대로 본다. */
   openSavedPreview: () => void;
 }
@@ -154,11 +181,22 @@ export function useStudioTemplatePersistence({
   recordRemoteSaveEvent,
   onReplaceDocument,
   onStatusMessage,
+  onOperationStateChange,
+  onOperationResult,
   onExportBlocked,
   previewPathForTemplate = (nextTemplateId) =>
     `/admin/template-studio/${nextTemplateId}/preview`,
 }: StudioTemplatePersistenceOptions): StudioTemplatePersistence {
   const createAttemptId = useCallback(() => globalThis.crypto.randomUUID(), []);
+  const setOperationState = useCallback(
+    (operation: StudioPersistenceOperation, stage: StudioPersistenceStage) => {
+      onOperationStateChange?.({ operation, stage });
+    },
+    [onOperationStateChange],
+  );
+  const clearOperationState = useCallback(() => {
+    onOperationStateChange?.(null);
+  }, [onOperationStateChange]);
   const getFailureStatus = useCallback((prefix: string, error: unknown) => {
     if (!(error instanceof TemplateStudioApiError)) return `${prefix} failed`;
     const diagnostic = error.diagnostics[0];
@@ -172,7 +210,7 @@ export function useStudioTemplatePersistence({
     async (
       attemptId: string,
       operation: TemplateStudioSaveOperation,
-    ): Promise<boolean> => {
+    ): Promise<{ ok: true } | { ok: false; message: string }> => {
       const currentDocument = getDocument();
       const currentRuntimeValues = getRuntimeValues();
       const diagnostics = [
@@ -184,10 +222,16 @@ export function useStudioTemplatePersistence({
       ];
       const blockingDiagnostics =
         getStudioTemplateBlockingDiagnostics(diagnostics);
-      if (blockingDiagnostics.length === 0) return true;
+      if (blockingDiagnostics.length === 0) return { ok: true };
 
       const firstError = blockingDiagnostics[0];
-      const message = `${operation === "publish" ? "Publish" : "Save"} blocked: ${blockingDiagnostics.length} error(s) · ${firstError?.title ?? "Check diagnostics"}`;
+      const operationLabel =
+        operation === "publish"
+          ? "Publish"
+          : operation === "preview"
+            ? "Preview"
+            : "Save";
+      const message = `${operationLabel} blocked: ${blockingDiagnostics.length} error(s) · ${firstError?.title ?? "Check diagnostics"}`;
       onExportBlocked();
       onStatusMessage(message);
 
@@ -214,7 +258,7 @@ export function useStudioTemplatePersistence({
         }
       }
 
-      return false;
+      return { ok: false, message };
     },
     [
       getDocument,
@@ -396,14 +440,29 @@ export function useStudioTemplatePersistence({
   }, [onReplaceDocument, onStatusMessage, refetchRemoteTemplate, templateId]);
   const saveDraft = useCallback(async () => {
     const attemptId = createAttemptId();
+    setOperationState("save_draft", "validating");
     try {
-      if (!(await validateBeforePersistence(attemptId, "save_draft"))) return;
+      const validation = await validateBeforePersistence(
+        attemptId,
+        "save_draft",
+      );
+      if (!validation.ok) {
+        onOperationResult?.({
+          operation: "save_draft",
+          ok: false,
+          message: validation.message,
+        });
+        return false;
+      }
+      setOperationState("save_draft", "creating");
       const nextTemplateId = await ensureTemplateId();
       const latestRevisionNo = getRemoteTemplate()?.latestRevisionNo ?? null;
+      setOperationState("save_draft", "syncing-assets");
       const nextDocument = await ensureAssetsSynced(nextTemplateId, {
         attemptId,
         operation: "save_draft",
       });
+      setOperationState("save_draft", "saving");
       await saveRemoteDraft({
         templateId: nextTemplateId,
         payload: {
@@ -415,12 +474,21 @@ export function useStudioTemplatePersistence({
           operation: "save_draft",
         },
       });
-      onStatusMessage("Draft saved to database");
+      const message = "Draft saved to database";
+      onStatusMessage(message);
+      onOperationResult?.({ operation: "save_draft", ok: true, message });
+      return true;
     } catch (error) {
       console.error("Template Studio database draft save failed:", error);
-      onStatusMessage(getFailureStatus("Database draft save", error));
+      const message = getFailureStatus("Database draft save", error);
+      onStatusMessage(message);
+      onOperationResult?.({ operation: "save_draft", ok: false, message });
+      return false;
+    } finally {
+      clearOperationState();
     }
   }, [
+    clearOperationState,
     createAttemptId,
     ensureAssetsSynced,
     ensureTemplateId,
@@ -428,18 +496,32 @@ export function useStudioTemplatePersistence({
     getRemoteTemplate,
     getRuntimeValues,
     onStatusMessage,
+    onOperationResult,
     saveRemoteDraft,
+    setOperationState,
     validateBeforePersistence,
   ]);
   const publish = useCallback(async () => {
     const attemptId = createAttemptId();
+    setOperationState("publish", "validating");
     try {
-      if (!(await validateBeforePersistence(attemptId, "publish"))) return;
+      const validation = await validateBeforePersistence(attemptId, "publish");
+      if (!validation.ok) {
+        onOperationResult?.({
+          operation: "publish",
+          ok: false,
+          message: validation.message,
+        });
+        return false;
+      }
+      setOperationState("publish", "creating");
       const nextTemplateId = await ensureTemplateId();
+      setOperationState("publish", "syncing-assets");
       const nextDocument = await ensureAssetsSynced(nextTemplateId, {
         attemptId,
         operation: "publish",
       });
+      setOperationState("publish", "publishing");
       const published = await publishRemoteDocument({
         templateId: nextTemplateId,
         payload: {
@@ -449,19 +531,30 @@ export function useStudioTemplatePersistence({
           operation: "publish",
         },
       });
-      onStatusMessage(`Published revision ${published.revisionNo}`);
+      const message = `Published revision ${published.revisionNo}`;
+      onStatusMessage(message);
+      onOperationResult?.({ operation: "publish", ok: true, message });
+      return true;
     } catch (error) {
       console.error("Template Studio publish failed:", error);
-      onStatusMessage(getFailureStatus("Publish", error));
+      const message = getFailureStatus("Publish", error);
+      onStatusMessage(message);
+      onOperationResult?.({ operation: "publish", ok: false, message });
+      return false;
+    } finally {
+      clearOperationState();
     }
   }, [
+    clearOperationState,
     createAttemptId,
     ensureAssetsSynced,
     ensureTemplateId,
     getRuntimeValues,
     getFailureStatus,
     onStatusMessage,
+    onOperationResult,
     publishRemoteDocument,
+    setOperationState,
     validateBeforePersistence,
   ]);
   const openPreviewWindow = useCallback(
@@ -475,9 +568,20 @@ export function useStudioTemplatePersistence({
   );
   const openDraftPreview = useCallback(async () => {
     const attemptId = createAttemptId();
+    setOperationState("preview", "validating");
     try {
-      if (!(await validateBeforePersistence(attemptId, "preview"))) return;
+      const validation = await validateBeforePersistence(attemptId, "preview");
+      if (!validation.ok) {
+        onOperationResult?.({
+          operation: "preview",
+          ok: false,
+          message: validation.message,
+        });
+        return false;
+      }
+      setOperationState("preview", "creating");
       const nextTemplateId = await ensureTemplateId();
+      setOperationState("preview", "syncing-assets");
       const syncedDocument = await ensureAssetsSynced(nextTemplateId, {
         attemptId,
         operation: "preview",
@@ -485,6 +589,7 @@ export function useStudioTemplatePersistence({
       const latestRevisionNo = getRemoteTemplate()?.latestRevisionNo ?? null;
       // 미리보기는 저장해 둔 것을 읽는다. 저장하지 않고 열면 방금 고친 것이
       // 빠진 화면을 보게 된다.
+      setOperationState("preview", "saving");
       await saveRemoteDraft({
         templateId: nextTemplateId,
         payload: {
@@ -496,13 +601,23 @@ export function useStudioTemplatePersistence({
           operation: "preview",
         },
       });
+      setOperationState("preview", "previewing");
       openPreviewWindow(nextTemplateId);
-      onStatusMessage("Saved draft preview");
+      const message = "Saved draft preview";
+      onStatusMessage(message);
+      onOperationResult?.({ operation: "preview", ok: true, message });
+      return true;
     } catch (error) {
       console.error("Template Studio preview open failed:", error);
-      onStatusMessage(getFailureStatus("Preview", error));
+      const message = getFailureStatus("Preview", error);
+      onStatusMessage(message);
+      onOperationResult?.({ operation: "preview", ok: false, message });
+      return false;
+    } finally {
+      clearOperationState();
     }
   }, [
+    clearOperationState,
     createAttemptId,
     ensureAssetsSynced,
     ensureTemplateId,
@@ -510,8 +625,10 @@ export function useStudioTemplatePersistence({
     getRuntimeValues,
     getFailureStatus,
     onStatusMessage,
+    onOperationResult,
     openPreviewWindow,
     saveRemoteDraft,
+    setOperationState,
     validateBeforePersistence,
   ]);
   const openSavedPreview = useCallback(() => {
