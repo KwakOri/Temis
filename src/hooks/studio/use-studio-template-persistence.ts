@@ -50,7 +50,8 @@ export interface StudioRemoteTemplateSnapshot {
   latestRevisionNo?: number | null;
 }
 
-export type StudioPersistenceOperation = "save_draft" | "publish" | "preview";
+export type StudioPersistenceOperation =
+  "save_draft" | "publish" | "preview" | "preview_image";
 export type StudioPersistenceStage =
   | "validating"
   | "creating"
@@ -68,6 +69,12 @@ export interface StudioPersistenceOperationResult {
   operation: StudioPersistenceOperation;
   ok: boolean;
   message: string;
+}
+
+export interface StudioPublishedPreviewInput {
+  templateId: string;
+  revisionNo: number;
+  document: StudioTemplateDocument;
 }
 
 export interface StudioTemplatePersistenceOptions {
@@ -99,7 +106,17 @@ export interface StudioTemplatePersistenceOptions {
   publishRemoteDocument: (input: {
     templateId: string;
     payload: TemplateStudioPublishPayload;
-  }) => Promise<{ revisionNo: number }>;
+  }) => Promise<{
+    revisionNo: number;
+    document: {
+      document: StudioTemplateDocument;
+      runtimeValues: StudioRuntimeValues;
+    };
+  }>;
+  /** 발행된 문서를 clean 이미지로 렌더링해 저장한다. */
+  createPublishedPreview?: (
+    input: StudioPublishedPreviewInput,
+  ) => Promise<void>;
   syncRemoteAssets: (input: {
     templateId: string;
     assets: TemplateStudioUploadAssetPayload[];
@@ -149,6 +166,8 @@ export interface StudioTemplatePersistence {
   loadRemoteTemplate: () => Promise<void>;
   saveDraft: () => Promise<boolean>;
   publish: () => Promise<boolean>;
+  /** 마지막 발행 revision의 자동 미리보기를 다시 생성한다. */
+  retryPublishedPreview: () => Promise<boolean>;
   /** 초안을 저장한 뒤 미리보기를 새 창으로 연다. */
   openDraftPreview: () => Promise<boolean>;
   /** 이미 저장해 둔 것을 그대로 본다. */
@@ -184,10 +203,13 @@ export function useStudioTemplatePersistence({
   onOperationStateChange,
   onOperationResult,
   onExportBlocked,
+  createPublishedPreview,
   previewPathForTemplate = (nextTemplateId) =>
     `/admin/template-studio/${nextTemplateId}/preview`,
 }: StudioTemplatePersistenceOptions): StudioTemplatePersistence {
   const createAttemptId = useCallback(() => globalThis.crypto.randomUUID(), []);
+  const lastPublishedPreviewInputRef =
+    useRef<StudioPublishedPreviewInput | null>(null);
   const setOperationState = useCallback(
     (operation: StudioPersistenceOperation, stage: StudioPersistenceStage) => {
       onOperationStateChange?.({ operation, stage });
@@ -206,6 +228,37 @@ export function useStudioTemplatePersistence({
       : "";
     return `${prefix} failed: ${reason}${attemptLabel}`;
   }, []);
+  const runPublishedPreview = useCallback(
+    async (
+      input: StudioPublishedPreviewInput,
+    ): Promise<{ ok: true } | { ok: false; message: string }> => {
+      if (!createPublishedPreview) return { ok: true };
+
+      setOperationState("preview_image", "previewing");
+      try {
+        await createPublishedPreview(input);
+        onStatusMessage(`Preview image saved for revision ${input.revisionNo}`);
+        return { ok: true };
+      } catch (error) {
+        console.error(
+          "Template Studio preview image generation failed:",
+          error,
+        );
+        const message = getFailureStatus("Preview image", error);
+        onStatusMessage(message);
+        return { ok: false, message };
+      } finally {
+        clearOperationState();
+      }
+    },
+    [
+      clearOperationState,
+      createPublishedPreview,
+      getFailureStatus,
+      onStatusMessage,
+      setOperationState,
+    ],
+  );
   const validateBeforePersistence = useCallback(
     async (
       attemptId: string,
@@ -531,7 +584,18 @@ export function useStudioTemplatePersistence({
           operation: "publish",
         },
       });
-      const message = `Published revision ${published.revisionNo}`;
+      const previewInput: StudioPublishedPreviewInput = {
+        templateId: nextTemplateId,
+        revisionNo: published.revisionNo,
+        document: published.document.document,
+      };
+      lastPublishedPreviewInputRef.current = previewInput;
+      const previewResult = createPublishedPreview
+        ? await runPublishedPreview(previewInput)
+        : { ok: true as const };
+      const message = previewResult.ok
+        ? `Published revision ${published.revisionNo}`
+        : `Published revision ${published.revisionNo}; preview image needs retry`;
       onStatusMessage(message);
       onOperationResult?.({ operation: "publish", ok: true, message });
       return true;
@@ -547,6 +611,7 @@ export function useStudioTemplatePersistence({
   }, [
     clearOperationState,
     createAttemptId,
+    createPublishedPreview,
     ensureAssetsSynced,
     ensureTemplateId,
     getRuntimeValues,
@@ -554,6 +619,7 @@ export function useStudioTemplatePersistence({
     onStatusMessage,
     onOperationResult,
     publishRemoteDocument,
+    runPublishedPreview,
     setOperationState,
     validateBeforePersistence,
   ]);
@@ -631,6 +697,49 @@ export function useStudioTemplatePersistence({
     setOperationState,
     validateBeforePersistence,
   ]);
+  const retryPublishedPreview = useCallback(async () => {
+    if (!createPublishedPreview) {
+      onStatusMessage("Preview image generation is not available");
+      return false;
+    }
+
+    const remoteTemplate = getRemoteTemplate();
+    const input =
+      lastPublishedPreviewInputRef.current ??
+      (templateId && remoteTemplate?.document && remoteTemplate.latestRevisionNo
+        ? {
+            templateId,
+            revisionNo: remoteTemplate.latestRevisionNo,
+            document: remoteTemplate.document.document,
+          }
+        : null);
+
+    if (!input) {
+      onStatusMessage(
+        "Publish a thumbnail template before generating a preview image",
+      );
+      return false;
+    }
+
+    lastPublishedPreviewInputRef.current = input;
+    const result = await runPublishedPreview(input);
+    const message = result.ok
+      ? `Preview image saved for revision ${input.revisionNo}`
+      : `${result.message}; please retry`;
+    onOperationResult?.({
+      operation: "preview_image",
+      ok: result.ok,
+      message,
+    });
+    return result.ok;
+  }, [
+    createPublishedPreview,
+    getRemoteTemplate,
+    onOperationResult,
+    onStatusMessage,
+    runPublishedPreview,
+    templateId,
+  ]);
   const openSavedPreview = useCallback(() => {
     if (!templateId) {
       onStatusMessage("Save or publish a database template first");
@@ -682,6 +791,7 @@ export function useStudioTemplatePersistence({
     loadRemoteTemplate,
     saveDraft,
     publish,
+    retryPublishedPreview,
     openDraftPreview,
     openSavedPreview,
   };

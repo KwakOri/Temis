@@ -132,6 +132,23 @@ const blobToDataUrl = (blob: Blob): Promise<string> =>
     reader.readAsDataURL(blob);
   });
 
+const dataUrlToBlob = (dataUrl: string): Blob => {
+  const [header, encoded] = dataUrl.split(",", 2);
+  if (!header || encoded === undefined) {
+    throw new StudioPngExportError("PNG data URL이 올바르지 않습니다.");
+  }
+
+  const mimeType = header.match(/^data:([^;]+);base64$/)?.[1] ?? "image/png";
+  const binary = window.atob(encoded);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return new Blob([bytes], { type: mimeType });
+};
+
 export const preloadStudioExportImages = async (
   element: HTMLElement,
 ): Promise<Map<string, string>> => {
@@ -227,10 +244,10 @@ const rewriteCloneNode = (
   }
 };
 
-export const exportStudioPng = async (
+export const renderStudioPng = async (
   element: HTMLElement,
   options: StudioPngExportOptions,
-): Promise<void> => {
+): Promise<Blob> => {
   const embeddedImages = await preloadStudioExportImages(element);
   const baseURI = element.ownerDocument.baseURI;
   const dataUrl = await domToPng(element, {
@@ -255,8 +272,22 @@ export const exportStudioPng = async (
     width: options.width,
   });
 
+  return dataUrlToBlob(dataUrl);
+};
+
+export const downloadStudioPng = (blob: Blob, fileName: string): void => {
+  const url = URL.createObjectURL(blob);
   const link = window.document.createElement("a");
-  link.download = options.fileName;
-  link.href = dataUrl;
+  link.download = fileName;
+  link.href = url;
   link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+};
+
+export const exportStudioPng = async (
+  element: HTMLElement,
+  options: StudioPngExportOptions,
+): Promise<void> => {
+  const blob = await renderStudioPng(element, options);
+  downloadStudioPng(blob, options.fileName);
 };

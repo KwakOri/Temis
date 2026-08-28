@@ -127,6 +127,41 @@ export const usePublishTemplateStudioDocument = () => {
   });
 };
 
+export const useUploadTemplateStudioPreview = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      templateId,
+      revisionNo,
+      file,
+    }: {
+      templateId: string;
+      revisionNo: number;
+      file: File;
+    }) => TemplateStudioService.uploadPreview(templateId, revisionNo, file),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.templateStudioTemplates(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.templateStudioTemplate(variables.templateId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.user.templates(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.shop.templates(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.template.templateStudioPreview(
+          variables.templateId,
+        ),
+      });
+    },
+  });
+};
+
 export const useUploadTemplateStudioAssets = () => {
   const queryClient = useQueryClient();
 

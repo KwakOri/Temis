@@ -66,6 +66,20 @@ const studioTimetable = normalize({
 assert(studioTimetable);
 assert.equal(studioTimetable.coverUrl, null);
 
+const studioThumbnailWithAutoPreview = normalize({
+  id: "studio-thumbnail-auto-preview",
+  template_engine: "studio",
+  template_kind: "thumbnail",
+  is_public: true,
+  studio_preview_url: "https://cdn.example.test/studio-preview.png",
+  use_href: "/thumbnail/studio-thumbnail-auto-preview",
+});
+assert(studioThumbnailWithAutoPreview);
+assert.equal(
+  studioThumbnailWithAutoPreview.coverUrl,
+  "https://cdn.example.test/studio-preview.png",
+);
+
 assert.equal(
   resolveConsumerTemplateCover({
     id: "legacy-cover",
@@ -74,6 +88,16 @@ assert.equal(
     thumbnailUrl: "https://cdn.example.test/explicit.png",
   }),
   "https://cdn.example.test/explicit.png",
+);
+assert.equal(
+  resolveConsumerTemplateCover({
+    id: "studio-auto-cover",
+    engine: "studio",
+    kind: "thumbnail",
+    thumbnailUrl: null,
+    studioPreviewUrl: "https://cdn.example.test/auto.png",
+  }),
+  "https://cdn.example.test/auto.png",
 );
 
 for (const invalid of [

@@ -17,6 +17,7 @@ export interface ConsumerTemplateSummary {
   accessSource: ConsumerTemplateAccessSource | null;
   plan: ConsumerTemplatePlan | null;
   thumbnailUrl: string | null;
+  studioPreviewUrl: string | null;
   coverUrl: string | null;
   useHref: string;
 }
@@ -26,6 +27,7 @@ export interface ConsumerTemplateCoverInput {
   engine: ConsumerTemplateEngine;
   kind: ConsumerTemplateKind;
   thumbnailUrl: string | null;
+  studioPreviewUrl?: string | null;
 }
 
 /**
@@ -109,8 +111,10 @@ export const resolveConsumerTemplateCover = ({
   engine,
   kind,
   thumbnailUrl,
+  studioPreviewUrl,
 }: ConsumerTemplateCoverInput): string | null => {
   if (thumbnailUrl) return thumbnailUrl;
+  if (engine === "studio" && studioPreviewUrl) return studioPreviewUrl;
   if (engine === "legacy" && kind === "timetable") {
     return `/thumbnail/${id}.png`;
   }
@@ -164,6 +168,7 @@ export const normalizeConsumerTemplate = (
   if (description === null) return null;
 
   const thumbnailUrl = normalizeOptionalUrl(template.thumbnail_url);
+  const studioPreviewUrl = normalizeOptionalUrl(template.studio_preview_url);
   const templatePlan = asRecord(row.template_plan);
 
   return {
@@ -176,11 +181,13 @@ export const normalizeConsumerTemplate = (
     accessSource: normalizeAccessSource(row.access_source),
     plan: normalizePlan(templatePlan?.plan),
     thumbnailUrl,
+    studioPreviewUrl,
     coverUrl: resolveConsumerTemplateCover({
       id,
       engine,
       kind,
       thumbnailUrl,
+      studioPreviewUrl,
     }),
     useHref,
   };
