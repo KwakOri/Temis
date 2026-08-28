@@ -121,7 +121,7 @@ export const applyThumbnailStudioCreateInputForNode = (
       resolveStudioTextBinding(document, values, node.binding) || node.label;
     input.label = node.label || input.label;
     if (input.type === "text") {
-      input.defaultValue = value;
+      input.defaultValue = "";
       input.placeholder = value;
     }
     return applyThumbnailStudioBindNodeToInput(document, nodeId, input.id)

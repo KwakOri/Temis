@@ -72,6 +72,7 @@ type TemplateStudioTemplateRow = {
   id: string;
   name: string;
   description: string;
+  thumbnail_url: string | null;
   status: TemplateStudioTemplateStatus;
   template_kind: StudioTemplateKind | null;
   created_by: number | null;
@@ -148,6 +149,7 @@ export type TemplateStudioTemplateRecord = {
   id: string;
   name: string;
   description: string;
+  thumbnailUrl: string | null;
   status: TemplateStudioTemplateStatus;
   templateKind: StudioTemplateKind;
   createdBy: number | null;
@@ -262,7 +264,7 @@ const TEMPLATE_STUDIO_REVISION_COLUMNS =
 const TEMPLATE_STUDIO_ASSET_COLUMNS =
   "id, template_id, asset_id, storage_provider, storage_path, public_url, content_hash, mime_type, width, height, byte_size, created_by, created_at, updated_at, last_synced_at";
 const TEMPLATE_STUDIO_TEMPLATE_COLUMNS =
-  "id, name, description, status, template_kind, created_by, created_at, updated_at";
+  "id, name, description, thumbnail_url, status, template_kind, created_by, created_at, updated_at";
 const TEMPLATE_STUDIO_USER_STATE_COLUMNS =
   "id, template_id, user_id, base_revision_no, runtime_values, version, created_at, updated_at";
 
@@ -389,6 +391,7 @@ const toTemplateRecord = (
   id: row.id,
   name: row.name,
   description: row.description,
+  thumbnailUrl: row.thumbnail_url || null,
   status: row.status,
   // Migration 6 backfills all existing studio rows as timetable. Keep the
   // fallback for a short compatibility window while older local databases

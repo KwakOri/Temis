@@ -6,6 +6,8 @@ import {
   ArrowUp,
   ArrowUpToLine,
   CalendarDays,
+  ChevronDown,
+  ChevronUp,
   Eye,
   EyeOff,
   Group,
@@ -337,11 +339,13 @@ export function ThumbnailInputPanel({
   onDelete,
   onMove,
   onSetGroup,
-  onRenameGroup,
   onPreviewChange,
   onResetPreview,
 }: ThumbnailInputPanelProps) {
   const groups = getThumbnailStudioInputGroups(document);
+  const [expandedInputIds, setExpandedInputIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const allGroups = groups
     .map((group) => group.groupId)
     .filter((groupId): groupId is string => Boolean(groupId));
@@ -375,17 +379,9 @@ export function ThumbnailInputPanel({
           <div className="grid gap-1.5" key={group.groupId ?? "ungrouped"}>
             <div className="flex items-center gap-1.5 px-1">
               {group.groupId ? (
-                <input
-                  aria-label={`${group.groupId} group name`}
-                  className="h-6 min-w-0 flex-1 bg-transparent text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg2)] outline-none"
-                  defaultValue={group.groupId}
-                  onBlur={(event) => {
-                    const next = event.currentTarget.value.trim();
-                    if (next && next !== group.groupId) {
-                      onRenameGroup(group.groupId as string, next);
-                    }
-                  }}
-                />
+                <span className="min-w-0 flex-1 truncate text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg2)]">
+                  {group.groupId}
+                </span>
               ) : (
                 <span className="flex-1 text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
                   Ungrouped
@@ -399,6 +395,7 @@ export function ThumbnailInputPanel({
               const inputConsumers = consumers[input.id] ?? [];
               const previewValue = getPreviewValue(input, previewValues);
               const isSelected = selectedInputId === input.id;
+              const isExpanded = expandedInputIds.has(input.id);
               const imagePolicy =
                 input.type === "image"
                   ? getStudioImageInputPolicy(input.policy)
@@ -411,197 +408,126 @@ export function ThumbnailInputPanel({
                   onClick={() => onSelectInput(input.id)}
                 >
                   <div className="flex min-w-0 items-center gap-1.5">
-                    <input
-                      aria-label={`${input.label} label`}
-                      className="h-7 min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-xs font-bold text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-                      value={input.label}
-                      onClick={(event) => event.stopPropagation()}
-                      onChange={(event) =>
-                        onUpdate(input.id, (current) => ({
-                          ...current,
-                          label: event.currentTarget.value,
-                        }))
-                      }
-                    />
+                    <span className="min-w-0 flex-1 truncate px-1 text-xs font-bold text-[var(--fg)]">
+                      {input.label}
+                    </span>
                     <span className="rounded bg-[var(--field)] px-1.5 py-1 text-[9px] font-bold uppercase text-[var(--fg3)]">
                       {getStudioInputTypeLabel(input.type)}
                     </span>
+                    <span className="text-[9px] font-semibold text-[var(--fg3)]">
+                      {inputConsumers.length} use{input.required ? " · required" : ""}
+                    </span>
+                    <button
+                      aria-expanded={isExpanded}
+                      aria-label={`${input.label} ${isExpanded ? "접기" : "펼치기"}`}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--fg2)] hover:bg-[var(--hover)]"
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setExpandedInputIds((current) => {
+                          const next = new Set(current);
+                          if (next.has(input.id)) next.delete(input.id);
+                          else next.add(input.id);
+                          return next;
+                        });
+                      }}
+                    >
+                      {isExpanded ? (
+                        <ChevronUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      )}
+                    </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <ThumbnailInputLabel label="Description">
-                      <input
-                        className={INPUT_FIELD_CLASS}
-                        value={input.description ?? ""}
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={(event) =>
-                          onUpdate(input.id, (current) => ({
-                            ...current,
-                            description: event.currentTarget.value || undefined,
-                          }))
-                        }
-                      />
-                    </ThumbnailInputLabel>
-                    <ThumbnailInputLabel label="Help text">
-                      <input
-                        className={INPUT_FIELD_CLASS}
-                        value={input.presentation?.helpText ?? ""}
-                        onChange={(event) =>
-                          onUpdate(input.id, (current) => ({
-                            ...current,
-                            presentation: {
-                              ...(current.presentation ?? {}),
-                              helpText: event.currentTarget.value || undefined,
-                            },
-                          }))
-                        }
-                      />
-                    </ThumbnailInputLabel>
-                    <ThumbnailInputLabel label="Group">
-                      <select
-                        className={INPUT_FIELD_CLASS}
-                        value={getThumbnailStudioInputGroupId(input) ?? ""}
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={(event) =>
-                          onSetGroup(
-                            input.id,
-                            event.currentTarget.value || null,
-                          )
-                        }
-                      >
-                        <option value="">Ungrouped</option>
-                        {allGroups.map((groupId) => (
-                          <option key={groupId} value={groupId}>
-                            {groupId}
-                          </option>
-                        ))}
-                        <option value="__new__">New group…</option>
-                      </select>
-                    </ThumbnailInputLabel>
-                    <label className="flex items-end gap-1.5 pb-1 text-[10px] font-semibold text-[var(--fg2)]">
-                      <input
-                        checked={Boolean(input.required)}
-                        type="checkbox"
-                        onChange={(event) =>
-                          onUpdate(input.id, (current) => ({
-                            ...current,
-                            required: event.currentTarget.checked,
-                          }))
-                        }
-                      />
-                      Required
-                    </label>
-                  </div>
-                  {input.type === "text" ? (
+                  {/*
+                    Schema-level controls stay available to migrations and old
+                    documents, but Thumbnail operations intentionally expose
+                    no editor for them. Label/placeholder are edited from the
+                    Bound inspector; the remaining controls are fixed policy.
+                  */}
+                  <div
+                    aria-hidden="true"
+                    className="hidden"
+                    data-thumbnail-input-advanced="true"
+                  >
                     <div className="grid grid-cols-2 gap-1.5">
-                      <ThumbnailInputLabel label="Default">
+                      <ThumbnailInputLabel label="Description">
                         <input
                           className={INPUT_FIELD_CLASS}
-                          value={input.defaultValue ?? ""}
+                          value={input.description ?? ""}
+                          onClick={(event) => event.stopPropagation()}
                           onChange={(event) =>
-                            onUpdate(input.id, (current) =>
-                              current.type === "text"
-                                ? {
-                                    ...current,
-                                    defaultValue: event.currentTarget.value,
-                                  }
-                                : current,
-                            )
+                            onUpdate(input.id, (current) => ({
+                              ...current,
+                              description:
+                                event.currentTarget.value || undefined,
+                            }))
                           }
                         />
                       </ThumbnailInputLabel>
-                      <ThumbnailInputLabel label="Placeholder">
+                      <ThumbnailInputLabel label="Help text">
                         <input
                           className={INPUT_FIELD_CLASS}
-                          value={input.placeholder ?? ""}
+                          value={input.presentation?.helpText ?? ""}
                           onChange={(event) =>
-                            onUpdate(input.id, (current) =>
-                              current.type === "text"
-                                ? {
-                                    ...current,
-                                    placeholder: event.currentTarget.value,
-                                  }
-                                : current,
-                            )
+                            onUpdate(input.id, (current) => ({
+                              ...current,
+                              presentation: {
+                                ...(current.presentation ?? {}),
+                                helpText:
+                                  event.currentTarget.value || undefined,
+                              },
+                            }))
                           }
                         />
                       </ThumbnailInputLabel>
-                      <ThumbnailInputLabel label="Max length">
-                        <input
+                      <ThumbnailInputLabel label="Group">
+                        <select
                           className={INPUT_FIELD_CLASS}
-                          inputMode="numeric"
-                          type="number"
-                          value={input.maxLength ?? ""}
+                          value={getThumbnailStudioInputGroupId(input) ?? ""}
+                          onClick={(event) => event.stopPropagation()}
                           onChange={(event) =>
-                            onUpdate(input.id, (current) =>
-                              current.type === "text"
-                                ? {
-                                    ...current,
-                                    maxLength: event.currentTarget.value
-                                      ? Number(event.currentTarget.value)
-                                      : undefined,
-                                  }
-                                : current,
+                            onSetGroup(
+                              input.id,
+                              event.currentTarget.value || null,
                             )
                           }
-                        />
-                      </ThumbnailInputLabel>
-                      <ThumbnailInputLabel label="Min rows">
-                        <input
-                          className={INPUT_FIELD_CLASS}
-                          inputMode="numeric"
-                          min={1}
-                          type="number"
-                          value={input.minRows ?? ""}
-                          onChange={(event) =>
-                            onUpdate(input.id, (current) =>
-                              current.type === "text"
-                                ? {
-                                    ...current,
-                                    minRows: event.currentTarget.value
-                                      ? Number(event.currentTarget.value)
-                                      : undefined,
-                                  }
-                                : current,
-                            )
-                          }
-                        />
+                        >
+                          <option value="">Ungrouped</option>
+                          {allGroups.map((groupId) => (
+                            <option key={groupId} value={groupId}>
+                              {groupId}
+                            </option>
+                          ))}
+                          <option value="__new__">New group…</option>
+                        </select>
                       </ThumbnailInputLabel>
                       <label className="flex items-end gap-1.5 pb-1 text-[10px] font-semibold text-[var(--fg2)]">
                         <input
-                          checked={Boolean(input.multiline)}
+                          checked={Boolean(input.required)}
                           type="checkbox"
                           onChange={(event) =>
-                            onUpdate(input.id, (current) =>
-                              current.type === "text"
-                                ? {
-                                    ...current,
-                                    multiline: event.currentTarget.checked,
-                                  }
-                                : current,
-                            )
+                            onUpdate(input.id, (current) => ({
+                              ...current,
+                              required: event.currentTarget.checked,
+                            }))
                           }
                         />
-                        Multiline
+                        Required
                       </label>
                     </div>
-                  ) : null}
-                  {input.type === "image" ? (
-                    <div
-                      className="grid gap-1.5"
-                      data-thumbnail-image-input-policy="true"
-                    >
+                    {input.type === "text" ? (
                       <div className="grid grid-cols-2 gap-1.5">
-                        <ThumbnailInputLabel label="Default URL">
+                        <ThumbnailInputLabel label="Default">
                           <input
                             className={INPUT_FIELD_CLASS}
-                            placeholder={input.placeholder}
-                            value={input.defaultUrl ?? ""}
+                            value={input.defaultValue ?? ""}
                             onChange={(event) =>
                               onUpdate(input.id, (current) =>
-                                current.type === "image"
+                                current.type === "text"
                                   ? {
                                       ...current,
-                                      defaultUrl: event.currentTarget.value,
+                                      defaultValue: event.currentTarget.value,
                                     }
                                   : current,
                               )
@@ -614,7 +540,7 @@ export function ThumbnailInputPanel({
                             value={input.placeholder ?? ""}
                             onChange={(event) =>
                               onUpdate(input.id, (current) =>
-                                current.type === "image"
+                                current.type === "text"
                                   ? {
                                       ...current,
                                       placeholder: event.currentTarget.value,
@@ -624,262 +550,377 @@ export function ThumbnailInputPanel({
                             }
                           />
                         </ThumbnailInputLabel>
+                        <ThumbnailInputLabel label="Max length">
+                          <input
+                            className={INPUT_FIELD_CLASS}
+                            inputMode="numeric"
+                            type="number"
+                            value={input.maxLength ?? ""}
+                            onChange={(event) =>
+                              onUpdate(input.id, (current) =>
+                                current.type === "text"
+                                  ? {
+                                      ...current,
+                                      maxLength: event.currentTarget.value
+                                        ? Number(event.currentTarget.value)
+                                        : undefined,
+                                    }
+                                  : current,
+                              )
+                            }
+                          />
+                        </ThumbnailInputLabel>
+                        <ThumbnailInputLabel label="Min rows">
+                          <input
+                            className={INPUT_FIELD_CLASS}
+                            inputMode="numeric"
+                            min={1}
+                            type="number"
+                            value={input.minRows ?? ""}
+                            onChange={(event) =>
+                              onUpdate(input.id, (current) =>
+                                current.type === "text"
+                                  ? {
+                                      ...current,
+                                      minRows: event.currentTarget.value
+                                        ? Number(event.currentTarget.value)
+                                        : undefined,
+                                    }
+                                  : current,
+                              )
+                            }
+                          />
+                        </ThumbnailInputLabel>
+                        <label className="flex items-end gap-1.5 pb-1 text-[10px] font-semibold text-[var(--fg2)]">
+                          <input
+                            checked={Boolean(input.multiline)}
+                            type="checkbox"
+                            onChange={(event) =>
+                              onUpdate(input.id, (current) =>
+                                current.type === "text"
+                                  ? {
+                                      ...current,
+                                      multiline: event.currentTarget.checked,
+                                    }
+                                  : current,
+                              )
+                            }
+                          />
+                          Multiline
+                        </label>
                       </div>
-                      <div className="grid grid-cols-2 gap-1.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-1.5">
-                        <span className="col-span-2 text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
-                          Runtime image policy
-                        </span>
-                        {(
-                          [
-                            ["allowReplace", "Allow replace"],
-                            ["allowFitChange", "Allow fit change"],
-                            ["allowFocusChange", "Allow focus change"],
-                            ["allowCrop", "Allow crop"],
-                          ] as const
-                        ).map(([key, label]) => (
-                          <label
-                            className="flex items-center gap-1.5 text-[10px] font-semibold text-[var(--fg2)]"
-                            key={key}
-                          >
+                    ) : null}
+                    {input.type === "image" ? (
+                      <div
+                        className="grid gap-1.5"
+                        data-thumbnail-image-input-policy="true"
+                      >
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <ThumbnailInputLabel label="Default URL">
                             <input
-                              checked={imagePolicy?.[key] ?? true}
-                              type="checkbox"
+                              className={INPUT_FIELD_CLASS}
+                              placeholder={input.placeholder}
+                              value={input.defaultUrl ?? ""}
                               onChange={(event) =>
                                 onUpdate(input.id, (current) =>
                                   current.type === "image"
                                     ? {
                                         ...current,
-                                        policy: normalizeStudioImageInputPolicy(
-                                          {
-                                            ...getStudioImageInputPolicy(
-                                              current.policy,
-                                            ),
-                                            [key]: event.currentTarget.checked,
-                                          },
+                                        defaultUrl: event.currentTarget.value,
+                                      }
+                                    : current,
+                                )
+                              }
+                            />
+                          </ThumbnailInputLabel>
+                          <ThumbnailInputLabel label="Placeholder">
+                            <input
+                              className={INPUT_FIELD_CLASS}
+                              value={input.placeholder ?? ""}
+                              onChange={(event) =>
+                                onUpdate(input.id, (current) =>
+                                  current.type === "image"
+                                    ? {
+                                        ...current,
+                                        placeholder: event.currentTarget.value,
+                                      }
+                                    : current,
+                                )
+                              }
+                            />
+                          </ThumbnailInputLabel>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-1.5">
+                          <span className="col-span-2 text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
+                            Runtime image policy
+                          </span>
+                          {(
+                            [
+                              ["allowReplace", "Allow replace"],
+                              ["allowFitChange", "Allow fit change"],
+                              ["allowFocusChange", "Allow focus change"],
+                              ["allowCrop", "Allow crop"],
+                            ] as const
+                          ).map(([key, label]) => (
+                            <label
+                              className="flex items-center gap-1.5 text-[10px] font-semibold text-[var(--fg2)]"
+                              key={key}
+                            >
+                              <input
+                                checked={imagePolicy?.[key] ?? true}
+                                type="checkbox"
+                                onChange={(event) =>
+                                  onUpdate(input.id, (current) =>
+                                    current.type === "image"
+                                      ? {
+                                          ...current,
+                                          policy:
+                                            normalizeStudioImageInputPolicy({
+                                              ...getStudioImageInputPolicy(
+                                                current.policy,
+                                              ),
+                                              [key]:
+                                                event.currentTarget.checked,
+                                            }),
+                                        }
+                                      : current,
+                                  )
+                                }
+                              />
+                              {label}
+                            </label>
+                          ))}
+                          <ThumbnailInputLabel label="Recommended aspect ratio">
+                            <input
+                              className={INPUT_FIELD_CLASS}
+                              inputMode="decimal"
+                              min={0}
+                              step="any"
+                              type="number"
+                              value={imagePolicy?.recommendedAspectRatio ?? ""}
+                              onChange={(event) =>
+                                onUpdate(input.id, (current) => {
+                                  if (current.type !== "image") return current;
+                                  const raw = event.currentTarget.value.trim();
+                                  const recommendedAspectRatio = raw
+                                    ? Number(raw)
+                                    : undefined;
+                                  return {
+                                    ...current,
+                                    policy: normalizeStudioImageInputPolicy({
+                                      ...getStudioImageInputPolicy(
+                                        current.policy,
+                                      ),
+                                      recommendedAspectRatio,
+                                    }),
+                                  };
+                                })
+                              }
+                            />
+                          </ThumbnailInputLabel>
+                        </div>
+                      </div>
+                    ) : null}
+                    {input.type === "select" ? (
+                      <div className="grid gap-1.5">
+                        <ThumbnailInputLabel label="Default option">
+                          <select
+                            className={INPUT_FIELD_CLASS}
+                            value={
+                              input.defaultValue ??
+                              input.options[0]?.value ??
+                              ""
+                            }
+                            onChange={(event) =>
+                              onUpdate(input.id, (current) =>
+                                current.type === "select"
+                                  ? {
+                                      ...current,
+                                      defaultValue: event.currentTarget.value,
+                                    }
+                                  : current,
+                              )
+                            }
+                          >
+                            {input.options.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </ThumbnailInputLabel>
+                        {input.options.map((option, optionIndex) => (
+                          <div
+                            className="grid grid-cols-[1fr_1fr_auto] gap-1"
+                            key={`${input.id}:${option.value}`}
+                          >
+                            <input
+                              aria-label={`${option.label} value`}
+                              className={INPUT_FIELD_CLASS}
+                              value={option.value}
+                              onChange={(event) =>
+                                onSelectOptionValue(
+                                  input.id,
+                                  optionIndex,
+                                  event.currentTarget.value,
+                                )
+                              }
+                            />
+                            <input
+                              aria-label={`${option.label} label`}
+                              className={INPUT_FIELD_CLASS}
+                              value={option.label}
+                              onChange={(event) =>
+                                onUpdate(input.id, (current) =>
+                                  current.type === "select"
+                                    ? {
+                                        ...current,
+                                        options: current.options.map(
+                                          (item, index) =>
+                                            index === optionIndex
+                                              ? {
+                                                  ...item,
+                                                  label:
+                                                    event.currentTarget.value,
+                                                }
+                                              : item,
                                         ),
                                       }
                                     : current,
                                 )
                               }
                             />
-                            {label}
-                          </label>
+                            <button
+                              className="h-8 rounded-md border border-[var(--field-border)] px-2 text-[10px] text-[var(--fg2)] disabled:opacity-40"
+                              disabled={input.options.length <= 1}
+                              type="button"
+                              onClick={() =>
+                                onRemoveOption(input.id, optionIndex)
+                              }
+                            >
+                              −
+                            </button>
+                          </div>
                         ))}
-                        <ThumbnailInputLabel label="Recommended aspect ratio">
-                          <input
-                            className={INPUT_FIELD_CLASS}
-                            inputMode="decimal"
-                            min={0}
-                            step="any"
-                            type="number"
-                            value={imagePolicy?.recommendedAspectRatio ?? ""}
-                            onChange={(event) =>
-                              onUpdate(input.id, (current) => {
-                                if (current.type !== "image") return current;
-                                const raw = event.currentTarget.value.trim();
-                                const recommendedAspectRatio = raw
-                                  ? Number(raw)
-                                  : undefined;
-                                return {
-                                  ...current,
-                                  policy: normalizeStudioImageInputPolicy({
-                                    ...getStudioImageInputPolicy(
-                                      current.policy,
-                                    ),
-                                    recommendedAspectRatio,
-                                  }),
-                                };
-                              })
-                            }
-                          />
-                        </ThumbnailInputLabel>
+                        <button
+                          className="h-7 rounded-md border border-dashed border-[var(--field-border)] text-[10px] font-semibold text-[var(--fg2)] hover:border-[var(--accent)]"
+                          type="button"
+                          onClick={() => onAddOption(input.id)}
+                        >
+                          + Add option
+                        </button>
                       </div>
-                    </div>
-                  ) : null}
-                  {input.type === "select" ? (
-                    <div className="grid gap-1.5">
-                      <ThumbnailInputLabel label="Default option">
-                        <select
-                          className={INPUT_FIELD_CLASS}
-                          value={
-                            input.defaultValue ?? input.options[0]?.value ?? ""
-                          }
-                          onChange={(event) =>
-                            onUpdate(input.id, (current) =>
-                              current.type === "select"
-                                ? {
-                                    ...current,
-                                    defaultValue: event.currentTarget.value,
-                                  }
-                                : current,
-                            )
-                          }
-                        >
-                          {input.options.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </ThumbnailInputLabel>
-                      {input.options.map((option, optionIndex) => (
-                        <div
-                          className="grid grid-cols-[1fr_1fr_auto] gap-1"
-                          key={`${input.id}:${option.value}`}
-                        >
-                          <input
-                            aria-label={`${option.label} value`}
+                    ) : null}
+                  </div>
+                  {isExpanded ? (
+                    <>
+                      <div className="grid gap-1.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
+                            Preview value
+                          </span>
+                          <button
+                            className="text-[10px] font-semibold text-[var(--accent)] hover:underline"
+                            type="button"
+                            onClick={() => onResetPreview(input.id)}
+                          >
+                            Reset
+                          </button>
+                        </div>
+                        {input.type === "select" ? (
+                          <select
                             className={INPUT_FIELD_CLASS}
-                            value={option.value}
+                            value={previewValue}
                             onChange={(event) =>
-                              onSelectOptionValue(
+                              onPreviewChange(
                                 input.id,
-                                optionIndex,
+                                event.currentTarget.value,
+                              )
+                            }
+                          >
+                            {input.options.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        ) : input.type === "text" && input.multiline ? (
+                          <textarea
+                            className={INPUT_TEXTAREA_CLASS}
+                            placeholder={input.placeholder}
+                            rows={input.minRows ?? 3}
+                            value={previewValue}
+                            onChange={(event) =>
+                              onPreviewChange(
+                                input.id,
                                 event.currentTarget.value,
                               )
                             }
                           />
+                        ) : (
                           <input
-                            aria-label={`${option.label} label`}
                             className={INPUT_FIELD_CLASS}
-                            value={option.label}
+                            placeholder={input.placeholder}
+                            type={input.type === "image" ? "url" : "text"}
+                            value={previewValue}
                             onChange={(event) =>
-                              onUpdate(input.id, (current) =>
-                                current.type === "select"
-                                  ? {
-                                      ...current,
-                                      options: current.options.map(
-                                        (item, index) =>
-                                          index === optionIndex
-                                            ? {
-                                                ...item,
-                                                label:
-                                                  event.currentTarget.value,
-                                              }
-                                            : item,
-                                      ),
-                                    }
-                                  : current,
+                              onPreviewChange(
+                                input.id,
+                                event.currentTarget.value,
                               )
                             }
                           />
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between gap-2 text-[10px] text-[var(--fg3)]">
+                        <span>
+                          {inputConsumers.length} consumer
+                          {inputConsumers.length === 1 ? "" : "s"}
+                          {input.required ? " · required" : ""}
+                        </span>
+                        <span className="flex gap-1">
                           <button
-                            className="h-8 rounded-md border border-[var(--field-border)] px-2 text-[10px] text-[var(--fg2)] disabled:opacity-40"
-                            disabled={input.options.length <= 1}
+                            className="rounded border border-[var(--field-border)] px-1.5 py-0.5 font-semibold hover:border-[var(--accent)]"
                             type="button"
                             onClick={() =>
-                              onRemoveOption(input.id, optionIndex)
+                              onMove(
+                                input.id,
+                                group.firstInputIndex + inputIndex - 1,
+                              )
                             }
                           >
-                            −
+                            ↑
                           </button>
-                        </div>
-                      ))}
-                      <button
-                        className="h-7 rounded-md border border-dashed border-[var(--field-border)] text-[10px] font-semibold text-[var(--fg2)] hover:border-[var(--accent)]"
-                        type="button"
-                        onClick={() => onAddOption(input.id)}
-                      >
-                        + Add option
-                      </button>
-                    </div>
+                          <button
+                            className="rounded border border-[var(--field-border)] px-1.5 py-0.5 font-semibold hover:border-[var(--accent)]"
+                            type="button"
+                            onClick={() =>
+                              onMove(
+                                input.id,
+                                group.firstInputIndex + inputIndex + 1,
+                              )
+                            }
+                          >
+                            ↓
+                          </button>
+                          <button
+                            className="rounded border border-[var(--field-border)] px-1.5 py-0.5 font-semibold hover:border-[var(--accent)]"
+                            type="button"
+                            onClick={() => onDuplicate(input.id)}
+                          >
+                            Copy
+                          </button>
+                          <button
+                            className="rounded border border-[var(--field-border)] px-1.5 py-0.5 font-semibold text-red-300 hover:border-red-300"
+                            type="button"
+                            onClick={() => onDelete(input.id)}
+                          >
+                            Delete
+                          </button>
+                        </span>
+                      </div>
+                    </>
                   ) : null}
-                  <div className="grid gap-1.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
-                        Preview value
-                      </span>
-                      <button
-                        className="text-[10px] font-semibold text-[var(--accent)] hover:underline"
-                        type="button"
-                        onClick={() => onResetPreview(input.id)}
-                      >
-                        Reset
-                      </button>
-                    </div>
-                    {input.type === "select" ? (
-                      <select
-                        className={INPUT_FIELD_CLASS}
-                        value={previewValue}
-                        onChange={(event) =>
-                          onPreviewChange(input.id, event.currentTarget.value)
-                        }
-                      >
-                        {input.options.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    ) : input.type === "text" && input.multiline ? (
-                      <textarea
-                        className={INPUT_TEXTAREA_CLASS}
-                        placeholder={input.placeholder}
-                        rows={input.minRows ?? 3}
-                        value={previewValue}
-                        onChange={(event) =>
-                          onPreviewChange(input.id, event.currentTarget.value)
-                        }
-                      />
-                    ) : (
-                      <input
-                        className={INPUT_FIELD_CLASS}
-                        placeholder={input.placeholder}
-                        type={input.type === "image" ? "url" : "text"}
-                        value={previewValue}
-                        onChange={(event) =>
-                          onPreviewChange(input.id, event.currentTarget.value)
-                        }
-                      />
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between gap-2 text-[10px] text-[var(--fg3)]">
-                    <span>
-                      {inputConsumers.length} consumer
-                      {inputConsumers.length === 1 ? "" : "s"}
-                      {input.required ? " · required" : ""}
-                    </span>
-                    <span className="flex gap-1">
-                      <button
-                        className="rounded border border-[var(--field-border)] px-1.5 py-0.5 font-semibold hover:border-[var(--accent)]"
-                        type="button"
-                        onClick={() =>
-                          onMove(
-                            input.id,
-                            group.firstInputIndex + inputIndex - 1,
-                          )
-                        }
-                      >
-                        ↑
-                      </button>
-                      <button
-                        className="rounded border border-[var(--field-border)] px-1.5 py-0.5 font-semibold hover:border-[var(--accent)]"
-                        type="button"
-                        onClick={() =>
-                          onMove(
-                            input.id,
-                            group.firstInputIndex + inputIndex + 1,
-                          )
-                        }
-                      >
-                        ↓
-                      </button>
-                      <button
-                        className="rounded border border-[var(--field-border)] px-1.5 py-0.5 font-semibold hover:border-[var(--accent)]"
-                        type="button"
-                        onClick={() => onDuplicate(input.id)}
-                      >
-                        Copy
-                      </button>
-                      <button
-                        className="rounded border border-[var(--field-border)] px-1.5 py-0.5 font-semibold text-red-300 hover:border-red-300"
-                        type="button"
-                        onClick={() => onDelete(input.id)}
-                      >
-                        Delete
-                      </button>
-                    </span>
-                  </div>
                 </div>
               );
             })}

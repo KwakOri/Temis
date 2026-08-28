@@ -54,6 +54,9 @@ export const createThumbnailStudioInputDefinition = (
   type: StudioInputType,
 ): StudioInputDefinition => {
   const input = createStudioInputDefinition(type, "global");
+  // Thumbnail runtime inputs start empty. The placeholder is an instruction,
+  // not content that the customer must delete before typing.
+  if (input.type === "text") input.defaultValue = "";
   input.presentation = { order: getNextThumbnailStudioInputOrder(document) };
   return input;
 };

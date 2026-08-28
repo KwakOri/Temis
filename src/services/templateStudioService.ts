@@ -132,6 +132,13 @@ export interface TemplateStudioDeleteTemplateResponse {
   templateId: string;
 }
 
+export interface TemplateStudioDuplicateTemplateResponse {
+  success: boolean;
+  sourceTemplateId: string;
+  template: TemplateStudioTemplateRecord;
+  copiedAssetCount: number;
+}
+
 export class TemplateStudioApiError extends Error {
   readonly attemptId: string | null;
   readonly diagnostics: StudioDiagnostic[];
@@ -339,6 +346,19 @@ export class TemplateStudioService {
     return parseJsonResponse<TemplateStudioDeleteTemplateResponse>(
       response,
       "Template Studio 템플릿 삭제에 실패했습니다.",
+    );
+  }
+
+  static async duplicateTemplate(
+    templateId: string,
+  ): Promise<TemplateStudioDuplicateTemplateResponse> {
+    const response = await fetch(`${this.baseUrl}/${templateId}/duplicate`, {
+      method: "POST",
+    });
+
+    return parseJsonResponse<TemplateStudioDuplicateTemplateResponse>(
+      response,
+      "Template Studio 템플릿 복제에 실패했습니다.",
     );
   }
 }

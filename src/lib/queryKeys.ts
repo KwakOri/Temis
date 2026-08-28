@@ -132,6 +132,8 @@ export const queryKeys = {
       params
         ? ([...queryKeys.admin.thumbnailOrdersRoot(), params] as const)
         : queryKeys.admin.thumbnailOrdersRoot(),
+    thumbnailOrderTemplateCandidates: () =>
+      [...queryKeys.admin.thumbnailOrdersRoot(), "templateCandidates"] as const,
     calendarRoot: (type: "custom" | "legacy" | "thumbnail") =>
       [...queryKeys.admin.all, "calendar", type] as const,
     calendar: (

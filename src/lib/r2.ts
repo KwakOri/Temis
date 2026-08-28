@@ -1,4 +1,5 @@
 import {
+  CopyObjectCommand,
   DeleteObjectsCommand,
   DeleteObjectCommand,
   GetObjectCommand,
@@ -35,7 +36,8 @@ const getR2Client = (): S3Client => {
   return cachedR2Client;
 };
 
-const getR2BucketName = (): string => getRequiredEnv("CLOUDFLARE_R2_BUCKET_NAME");
+const getR2BucketName = (): string =>
+  getRequiredEnv("CLOUDFLARE_R2_BUCKET_NAME");
 
 export interface UploadFileResult {
   fileKey: string;
@@ -62,7 +64,7 @@ export async function uploadFileToR2(
   file: Buffer,
   fileName: string,
   mimeType: string,
-  folder = "uploads/custom-orders"
+  folder = "uploads/custom-orders",
 ): Promise<UploadFileResult> {
   const fileKey = createFileKey(fileName, folder);
 
@@ -123,13 +125,44 @@ export async function uploadFileToR2Key(
 }
 
 /**
+ * R2 안의 객체를 다른 키로 서버 측 복사합니다.
+ *
+ * 템플릿 복제처럼 같은 버킷 안에서 파일을 독립된 경로로 옮길 때 사용합니다.
+ * 브라우저로 파일을 다시 내려받았다가 업로드하지 않으므로 큰 에셋도 서버
+ * 메모리를 불필요하게 점유하지 않습니다.
+ */
+export async function copyFileInR2(
+  sourceKey: string,
+  destinationKey: string,
+): Promise<UploadFileResult> {
+  try {
+    const bucketName = getR2BucketName();
+    const command = new CopyObjectCommand({
+      Bucket: bucketName,
+      CopySource: `${bucketName}/${sourceKey}`,
+      Key: destinationKey,
+    });
+
+    await getR2Client().send(command);
+
+    return {
+      fileKey: destinationKey,
+      url: getFileUrl(destinationKey),
+    };
+  } catch (error) {
+    console.error("R2 객체 복사 실패:", error);
+    throw new Error("파일 복사에 실패했습니다.");
+  }
+}
+
+/**
  * 브라우저가 R2로 직접 업로드할 수 있는 presigned PUT URL을 생성합니다.
  */
 export async function createPresignedUploadUrl(
   fileName: string,
   mimeType: string,
   folder = "uploads/custom-orders",
-  expiresIn = 5 * 60
+  expiresIn = 5 * 60,
 ): Promise<UploadFileResult & { uploadUrl: string }> {
   const fileKey = createFileKey(fileName, folder);
 

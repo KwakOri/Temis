@@ -9,7 +9,7 @@ const isCompletionResult = (
 ): value is CompleteThumbnailCustomOrderResponse => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const result = value as Record<string, unknown>;
-  return Boolean(result.order && result.access);
+  return Boolean(result.order && result.access && result.grant);
 };
 
 export async function POST(
@@ -77,6 +77,7 @@ export async function POST(
       success: true,
       order: data.order,
       access: data.access,
+      grant: data.grant,
     });
   } catch (error) {
     if (error instanceof ThumbnailOrderApiError) {

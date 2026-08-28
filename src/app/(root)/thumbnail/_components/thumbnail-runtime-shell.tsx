@@ -20,6 +20,8 @@ import {
   exportStudioPng,
   buildStudioExportFileName,
 } from "@/utils/template-studio/png-export";
+import { getStudioRuntimeInputValue } from "@/utils/template-studio/input-values";
+import { getThumbnailStudioInputDefinitions } from "@/utils/thumbnail-studio/input-order";
 import { ThumbnailRuntimeForm } from "./thumbnail-runtime-form";
 
 interface ThumbnailRuntimeShellProps {
@@ -160,15 +162,29 @@ export function ThumbnailRuntimeShell({
     readiness.imagesReady &&
     readiness.layoutReady &&
     readiness.blockingErrors.length === 0;
+  const missingRequiredInputLabels = useMemo(
+    () =>
+      getThumbnailStudioInputDefinitions(document)
+        .filter(
+          (input) =>
+            input.required &&
+            !getStudioRuntimeInputValue(input, runtimeValues).trim(),
+        )
+        .map((input) => input.label),
+    [document, runtimeValues],
+  );
+  const isExportReady = isReady && missingRequiredInputLabels.length === 0;
   const readinessMessage = readiness.blockingErrors[0]
     ? readiness.blockingErrors[0]
-    : isReady
-      ? undefined
-      : "리소스 준비 중…";
+    : missingRequiredInputLabels.length > 0
+      ? `필수 입력을 입력해주세요: ${missingRequiredInputLabels.join(", ")}`
+      : isReady
+        ? undefined
+        : "리소스 준비 중…";
 
   const exportPng = async () => {
     const root = exportRootRef.current;
-    if (!root || isExporting || !isReady) return;
+    if (!root || isExporting || !isExportReady) return;
     setIsExporting(true);
     try {
       if (window.document.fonts) await window.document.fonts.ready;
@@ -232,7 +248,7 @@ export function ThumbnailRuntimeShell({
           templateId={templateId}
           templateName={templateName}
           revisionNo={revisionNo}
-          exportDisabled={!isReady || isExporting}
+          exportDisabled={!isExportReady || isExporting}
           isExporting={isExporting}
           readinessMessage={readinessMessage}
           onExport={() => void exportPng()}

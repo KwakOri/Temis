@@ -47,7 +47,7 @@ assert.doesNotMatch(shell, /bg-\[#242424\]/);
 assert.match(shell, /fontsReady/);
 assert.match(shell, /imagesReady/);
 assert.match(shell, /layoutReady/);
-assert.match(shell, /exportDisabled={!isReady/);
+assert.match(shell, /exportDisabled={!isExportReady/);
 assert.match(shell, /thumbnail-runtime-preview-scale/);
 assert.match(form, /StudioRuntimeFormShell/);
 assert.match(form, /readinessMessage/);

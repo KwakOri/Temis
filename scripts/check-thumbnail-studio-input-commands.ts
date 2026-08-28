@@ -202,8 +202,8 @@ const syncedAfterAdd = syncThumbnailStudioPreviewValues(
 assert.equal(syncedAfterAdd.global.title, "Session title");
 assert.equal(
   syncedAfterAdd.global[newInput.id],
-  "New value",
-  "A new input starts its preview session at the default",
+  "",
+  "A new text input starts empty; its placeholder is preview-only",
 );
 
 const changedDefaultInput = previewAfterAdd.inputs.title;

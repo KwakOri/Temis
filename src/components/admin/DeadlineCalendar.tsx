@@ -7,6 +7,7 @@ import {
   useAdminThumbnailOrders,
   useAdminThumbnailOrdersCalendar,
   useCompleteThumbnailCustomOrder,
+  useRevokeThumbnailOrderTemplateGrant,
   useUpdateAdminThumbnailOrder,
   useUpdateCustomOrderStatus,
 } from "@/hooks/query/useAdminOrders";
@@ -93,6 +94,7 @@ export const DeadlineCalendarView = () => {
   const updateOrderMutation = useUpdateCustomOrderStatus();
   const updateThumbnailOrderMutation = useUpdateAdminThumbnailOrder();
   const completeThumbnailOrderMutation = useCompleteThumbnailCustomOrder();
+  const revokeThumbnailGrantMutation = useRevokeThumbnailOrderTemplateGrant();
 
   // 전체 주문에서 미등록 일정 필터링
   const allCustomOrders = allCustomOrdersResponse?.orders || [];
@@ -272,6 +274,26 @@ export const DeadlineCalendarView = () => {
         error instanceof Error
           ? error.message
           : "썸네일 주문 완료 처리에 실패했습니다.",
+      );
+      throw error;
+    }
+  };
+
+  const handleRevokeThumbnailGrant = async (
+    orderId: string,
+    grantId: string,
+  ) => {
+    try {
+      await revokeThumbnailGrantMutation.mutateAsync({ orderId, grantId });
+      window.alert("썸네일 템플릿 권한을 회수했습니다.");
+      setShowThumbnailOrderModal(false);
+      setSelectedThumbnailOrder(null);
+    } catch (error) {
+      console.error("Error revoking thumbnail template grant:", error);
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "썸네일 템플릿 권한 회수에 실패했습니다.",
       );
       throw error;
     }
@@ -1150,8 +1172,10 @@ export const DeadlineCalendarView = () => {
           }}
           onUpdate={handleUpdateThumbnailOrder}
           onComplete={handleCompleteThumbnailOrder}
+          onRevoke={handleRevokeThumbnailGrant}
           updating={updateThumbnailOrderMutation.isPending}
           completing={completeThumbnailOrderMutation.isPending}
+          revoking={revokeThumbnailGrantMutation.isPending}
         />
       )}
     </div>

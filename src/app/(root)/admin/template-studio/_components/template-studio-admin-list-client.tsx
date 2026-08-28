@@ -3,6 +3,7 @@
 import AdminTabHeader from "@/components/admin/AdminTabHeader";
 import {
   useDeleteTemplateStudioTemplate,
+  useDuplicateTemplateStudioTemplate,
   useTemplateStudioTemplates,
 } from "@/hooks/query/useTemplateStudio";
 import { cn } from "@/lib/utils";
@@ -10,14 +11,19 @@ import type { TemplateStudioTemplateRecord } from "@/services/server/templateStu
 import type { StudioTemplateKind } from "@/types/template-studio";
 import {
   ArrowUpRight,
+  Copy,
   Edit,
   Eye,
+  Image as ImageIcon,
   LayoutTemplate,
+  MoreHorizontal,
   Plus,
   RefreshCw,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return "-";
@@ -64,62 +70,167 @@ const StatusBadge = ({
   </span>
 );
 
+const ThumbnailCoverStatus = ({
+  template,
+}: {
+  template: TemplateStudioTemplateRecord;
+}) => (
+  <div className="mt-2 flex items-center gap-2">
+    <div className="flex h-12 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-gray-200 bg-gray-50">
+      {template.thumbnailUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- Catalog covers are stored URLs from the templates table.
+        <img
+          src={template.thumbnailUrl}
+          alt="대표 이미지"
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <ImageIcon className="h-4 w-4 text-gray-300" aria-hidden="true" />
+      )}
+    </div>
+    <div className="min-w-0">
+      <p className="text-[11px] font-medium text-gray-500">
+        {template.thumbnailUrl ? "대표 이미지 등록됨" : "대표 이미지 없음"}
+      </p>
+      <Link
+        className="text-[11px] font-semibold text-blue-600 hover:underline"
+        href={"/admin/template-products/" + template.id}
+      >
+        {template.thumbnailUrl ? "대표 이미지 관리" : "대표 이미지 등록"}
+      </Link>
+    </div>
+  </div>
+);
+
 const RowActions = ({
   template,
   onDelete,
+  onDuplicate,
   isDeleting,
+  isDuplicating,
   basePath,
+  showDuplicate,
 }: {
   template: TemplateStudioTemplateRecord;
   onDelete: (template: TemplateStudioTemplateRecord) => void;
+  onDuplicate: (template: TemplateStudioTemplateRecord) => void;
   isDeleting: boolean;
+  isDuplicating: boolean;
   basePath: string;
-}) => (
-  <div className="flex flex-wrap items-center gap-2">
-    <Link
-      className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
-      href={`${basePath}/${template.id}/edit`}
-    >
-      <Edit className="h-3.5 w-3.5" />
-      수정
-    </Link>
-    {template.status === "published" ? (
+  showDuplicate: boolean;
+}) => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isMenuOpen]);
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
       <Link
-        className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium transition-colors bg-[#F5F0ED] text-[#2d2d2d] border border-[#E6DBD4] hover:bg-[#EDE5E0]"
-        href={`${basePath}/${template.id}/preview`}
+        className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+        href={`${basePath}/${template.id}/edit`}
       >
-        <Eye className="h-3.5 w-3.5" />
-        미리보기
+        <Edit className="h-3.5 w-3.5" />
+        수정
       </Link>
-    ) : (
-      <span
-        className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium cursor-not-allowed bg-gray-50 text-gray-400 border border-gray-100"
-        title="게시된 템플릿만 미리볼 수 있습니다."
-      >
-        <Eye className="h-3.5 w-3.5" />
-        미리보기
-      </span>
-    )}
-    <Link
-      className="inline-flex h-8 w-8 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-      href={`${basePath}/${template.id}/edit`}
-      target="_blank"
-      title="새 탭에서 열기"
-    >
-      <ArrowUpRight className="h-3.5 w-3.5" />
-    </Link>
-    <button
-      className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      disabled={isDeleting}
-      title="템플릿 삭제"
-      type="button"
-      onClick={() => onDelete(template)}
-    >
-      <Trash2 className="h-3.5 w-3.5" />
-      삭제
-    </button>
-  </div>
-);
+      {template.status === "published" ? (
+        <Link
+          className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium transition-colors bg-[#F5F0ED] text-[#2d2d2d] border border-[#E6DBD4] hover:bg-[#EDE5E0]"
+          href={`${basePath}/${template.id}/preview`}
+        >
+          <Eye className="h-3.5 w-3.5" />
+          미리보기
+        </Link>
+      ) : (
+        <span
+          className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium cursor-not-allowed bg-gray-50 text-gray-400 border border-gray-100"
+          title="게시된 템플릿만 미리볼 수 있습니다."
+        >
+          <Eye className="h-3.5 w-3.5" />
+          미리보기
+        </span>
+      )}
+      <div className="relative" ref={menuRef}>
+        <button
+          aria-expanded={isMenuOpen}
+          aria-haspopup="menu"
+          aria-label={`${template.name} 작업 메뉴`}
+          className="inline-flex h-8 w-8 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+          title="작업 메뉴"
+          type="button"
+          onClick={() => setIsMenuOpen((open) => !open)}
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+        {isMenuOpen ? (
+          <div
+            className="absolute right-0 top-full z-20 mt-1 w-44 rounded-md border border-gray-200 bg-white p-1 shadow-lg"
+            role="menu"
+          >
+            <Link
+              className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs font-medium text-gray-700 hover:bg-gray-100"
+              href={`${basePath}/${template.id}/edit`}
+              role="menuitem"
+              target="_blank"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <ArrowUpRight className="h-3.5 w-3.5" />새 탭에서 열기
+            </Link>
+            {showDuplicate ? (
+              <button
+                className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={isDuplicating}
+                role="menuitem"
+                type="button"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  onDuplicate(template);
+                }}
+              >
+                <Copy className="h-3.5 w-3.5" />
+                {isDuplicating ? "복제 중..." : "복제"}
+              </button>
+            ) : null}
+            <div className="my-1 border-t border-gray-100" />
+            <button
+              className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isDeleting || isDuplicating}
+              role="menuitem"
+              type="button"
+              onClick={() => {
+                setIsMenuOpen(false);
+                onDelete(template);
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              삭제
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+};
 
 export function TemplateStudioAdminListClient({
   templateKind = "timetable",
@@ -131,8 +242,10 @@ export function TemplateStudioAdminListClient({
     ? "/admin/thumbnail-studio"
     : "/admin/template-studio";
   const createHref = `${basePath}/create`;
+  const router = useRouter();
   const templatesQuery = useTemplateStudioTemplates(templateKind);
   const deleteTemplateMutation = useDeleteTemplateStudioTemplate();
+  const duplicateTemplateMutation = useDuplicateTemplateStudioTemplate();
   const templates = templatesQuery.data?.templates ?? [];
 
   const handleDelete = (template: TemplateStudioTemplateRecord) => {
@@ -144,7 +257,30 @@ export function TemplateStudioAdminListClient({
       return;
     }
 
-    deleteTemplateMutation.mutate(template.id);
+    deleteTemplateMutation.mutate(template.id, {
+      onError: (error) => {
+        window.alert(
+          error instanceof Error
+            ? error.message
+            : "템플릿 삭제에 실패했습니다.",
+        );
+      },
+    });
+  };
+
+  const handleDuplicate = (template: TemplateStudioTemplateRecord) => {
+    duplicateTemplateMutation.mutate(template.id, {
+      onSuccess: (response) => {
+        router.push(`${basePath}/${response.template.id}/edit`);
+      },
+      onError: (error) => {
+        window.alert(
+          error instanceof Error
+            ? error.message
+            : "템플릿 복제에 실패했습니다.",
+        );
+      },
+    });
   };
 
   return (
@@ -258,6 +394,9 @@ export function TemplateStudioAdminListClient({
                             {template.description}
                           </p>
                         ) : null}
+                        {isThumbnail ? (
+                          <ThumbnailCoverStatus template={template} />
+                        ) : null}
                         <p className="text-xs text-gray-400 truncate mt-1">
                           {template.id}
                         </p>
@@ -273,8 +412,14 @@ export function TemplateStudioAdminListClient({
                           deleteTemplateMutation.isPending &&
                           deleteTemplateMutation.variables === template.id
                         }
+                        isDuplicating={
+                          duplicateTemplateMutation.isPending &&
+                          duplicateTemplateMutation.variables === template.id
+                        }
+                        showDuplicate={isThumbnail}
                         template={template}
                         onDelete={handleDelete}
+                        onDuplicate={handleDuplicate}
                       />
                     </td>
                   </tr>
@@ -330,6 +475,9 @@ export function TemplateStudioAdminListClient({
                       {template.description}
                     </p>
                   ) : null}
+                  {isThumbnail ? (
+                    <ThumbnailCoverStatus template={template} />
+                  ) : null}
                   <p className="text-xs text-gray-400 mt-1">
                     업데이트 {formatDateTime(template.updatedAt)}
                   </p>
@@ -340,8 +488,14 @@ export function TemplateStudioAdminListClient({
                     deleteTemplateMutation.isPending &&
                     deleteTemplateMutation.variables === template.id
                   }
+                  isDuplicating={
+                    duplicateTemplateMutation.isPending &&
+                    duplicateTemplateMutation.variables === template.id
+                  }
+                  showDuplicate={isThumbnail}
                   template={template}
                   onDelete={handleDelete}
+                  onDuplicate={handleDuplicate}
                 />
               </div>
             ))
