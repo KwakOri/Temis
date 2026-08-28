@@ -17,6 +17,7 @@ const operationLabel: Record<StudioPersistenceOperation, string> = {
   save_draft: "초안 저장",
   publish: "템플릿 발행",
   preview: "미리보기 준비",
+  preview_image: "자동 미리보기 저장",
 };
 
 const stageLabel: Record<StudioPersistenceStage, string> = {
@@ -25,7 +26,7 @@ const stageLabel: Record<StudioPersistenceStage, string> = {
   "syncing-assets": "이미지 리소스를 동기화하는 중…",
   saving: "변경사항을 저장하는 중…",
   publishing: "새 revision을 발행하는 중…",
-  previewing: "미리보기를 여는 중…",
+  previewing: "미리보기를 준비하는 중…",
 };
 
 interface StudioOperationFeedbackProps {

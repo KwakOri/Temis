@@ -338,6 +338,7 @@ function ShopPageContent() {
                   engine: templateEngine,
                   kind: templateKind,
                   thumbnailUrl: template.templates.thumbnail_url,
+                  studioPreviewUrl: template.templates.studio_preview_url,
                 });
                 const kindLabel =
                   templateKind === "thumbnail" ? "썸네일" : "시간표";

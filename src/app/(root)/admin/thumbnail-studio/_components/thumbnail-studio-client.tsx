@@ -24,6 +24,7 @@ import {
 } from "@/components/studio/canvas/studio-canvas-viewport";
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
 import { StudioSelectionOverlay } from "@/components/studio/canvas/studio-selection-overlay";
+import { StudioExportRoot } from "@/components/studio/runtime/studio-export-root";
 import { StudioEditorShell } from "@/components/studio/editor-shell/studio-editor-shell";
 import { StudioGuideControl } from "@/components/studio/editor-shell/studio-guide-control";
 import { StudioOperationFeedback } from "@/components/studio/editor-shell/studio-operation-feedback";
@@ -47,6 +48,7 @@ import { useStudioLayerDrag } from "@/hooks/studio/use-studio-layer-drag";
 import { useStudioSelection } from "@/hooks/studio/use-studio-selection";
 import {
   useStudioTemplatePersistence,
+  type StudioPublishedPreviewInput,
   type StudioPersistenceOperationResult,
   type StudioPersistenceOperationState,
 } from "@/hooks/studio/use-studio-template-persistence";
@@ -57,6 +59,7 @@ import {
   useSaveTemplateStudioDraft,
   useSyncTemplateStudioAssets,
   useTemplateStudioTemplate,
+  useUploadTemplateStudioPreview,
 } from "@/hooks/query/useTemplateStudio";
 import {
   captureStudioEditorSnapshot,
@@ -87,6 +90,7 @@ import { resolveStudioGraphNodeGeometry } from "@/utils/template-studio/object-l
 import { isStudioFillParentLayout } from "@/utils/template-studio/object-layout";
 import { resolveStudioTextAppearance } from "@/utils/template-studio/text-appearance";
 import { getStudioTextEffectOutset } from "@/utils/template-studio/text-effect-outset";
+import { renderStudioPng } from "@/utils/template-studio/png-export";
 import {
   getStudioNodeIdsClippedByCanvas,
   getStudioNodeIdsOutsideCanvas,
@@ -203,6 +207,16 @@ interface PendingThumbnailImageCrop {
   initialHeight: number;
 }
 
+interface PendingPublishedPreviewCapture extends StudioPublishedPreviewInput {
+  requestId: number;
+}
+
+interface PublishedPreviewCaptureRequest {
+  requestId: number;
+  resolve: () => void;
+  reject: (error: unknown) => void;
+}
+
 const THUMBNAIL_PANEL_TABS: StudioPanelTab[] = [
   { id: "layers", label: "Layers", icon: <Layers3 size={14} /> },
   { id: "assets", label: "Assets", icon: <ImageIcon size={14} /> },
@@ -244,6 +258,19 @@ const LIGHT_THEME_STYLE = {
 
 const cloneDocument = (document: StudioTemplateDocument) =>
   JSON.parse(JSON.stringify(document)) as StudioTemplateDocument;
+
+const waitForAnimationFrame = (): Promise<void> =>
+  new Promise((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
+
+const waitForPreviewLayout = async (): Promise<void> => {
+  if (window.document.fonts) await window.document.fonts.ready;
+  // StudioText measures after mount. Two frames allow font metrics and the
+  // resulting auto-fit layout to settle before modern-screenshot clones it.
+  await waitForAnimationFrame();
+  await waitForAnimationFrame();
+};
 
 export interface ThumbnailStudioClientProps {
   /**
@@ -302,6 +329,7 @@ export function ThumbnailStudioClient({
   const saveTemplateStudioDraftMutation = useSaveTemplateStudioDraft();
   const publishTemplateStudioDocumentMutation =
     usePublishTemplateStudioDocument();
+  const uploadTemplateStudioPreviewMutation = useUploadTemplateStudioPreview();
   const syncTemplateStudioAssetsMutation = useSyncTemplateStudioAssets();
   const recordTemplateStudioSaveEventMutation =
     useRecordTemplateStudioSaveEvent();
@@ -317,12 +345,23 @@ export function ThumbnailStudioClient({
     useState<StudioPersistenceOperationState | null>(null);
   const [operationToast, setOperationToast] =
     useState<StudioPersistenceOperationResult | null>(null);
+  const [pendingPreviewCapture, setPendingPreviewCapture] =
+    useState<PendingPublishedPreviewCapture | null>(null);
   const [thumbnailGuideUploadError, setThumbnailGuideUploadError] = useState<
     string | null
   >(null);
   const [pendingImageCrop, setPendingImageCrop] =
     useState<PendingThumbnailImageCrop | null>(null);
   const viewportHandleRef = useRef<StudioCanvasViewportHandle | null>(null);
+  const previewExportRootRef = useRef<HTMLDivElement | null>(null);
+  const previewCaptureSequenceRef = useRef(0);
+  const previewCaptureRequestRef =
+    useRef<PublishedPreviewCaptureRequest | null>(null);
+  const uploadPreviewMutationRef = useRef(
+    uploadTemplateStudioPreviewMutation.mutateAsync,
+  );
+  uploadPreviewMutationRef.current =
+    uploadTemplateStudioPreviewMutation.mutateAsync;
   useEffect(() => {
     setRemoteTemplateId(templateId ?? null);
   }, [templateId]);
@@ -416,6 +455,99 @@ export function ThumbnailStudioClient({
     const timeout = window.setTimeout(() => setOperationToast(null), 6000);
     return () => window.clearTimeout(timeout);
   }, [operationToast]);
+
+  const createPublishedPreview = useCallback(
+    (input: StudioPublishedPreviewInput) => {
+      if (previewCaptureRequestRef.current) {
+        return Promise.reject(
+          new Error("이미지 미리보기를 이미 생성하고 있습니다."),
+        );
+      }
+
+      const requestId = previewCaptureSequenceRef.current + 1;
+      previewCaptureSequenceRef.current = requestId;
+
+      return new Promise<void>((resolve, reject) => {
+        previewCaptureRequestRef.current = { requestId, resolve, reject };
+        setPendingPreviewCapture({ ...input, requestId });
+      });
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!pendingPreviewCapture) return;
+
+    const request = previewCaptureRequestRef.current;
+    if (!request || request.requestId !== pendingPreviewCapture.requestId) {
+      return;
+    }
+
+    let cancelled = false;
+    const captureAndUpload = async () => {
+      try {
+        await waitForPreviewLayout();
+        if (cancelled) return;
+
+        const root = previewExportRootRef.current;
+        if (!root) {
+          throw new Error("자동 미리보기 렌더 영역을 준비하지 못했습니다.");
+        }
+
+        const previewDocument = pendingPreviewCapture.document;
+        const blob = await renderStudioPng(root, {
+          width: previewDocument.canvas.width,
+          height: previewDocument.canvas.height,
+          pixelRatio: 1,
+          background:
+            previewDocument.domains?.thumbnail?.export.transparentBackground ===
+            true
+              ? null
+              : previewDocument.canvas.background,
+          fileName: `thumbnail-preview-${pendingPreviewCapture.revisionNo}.png`,
+        });
+        const file = new File(
+          [blob],
+          `thumbnail-preview-${pendingPreviewCapture.revisionNo}.png`,
+          { type: "image/png" },
+        );
+
+        await uploadPreviewMutationRef.current({
+          templateId: pendingPreviewCapture.templateId,
+          revisionNo: pendingPreviewCapture.revisionNo,
+          file,
+        });
+
+        if (!cancelled) request.resolve();
+      } catch (error) {
+        if (!cancelled) request.reject(error);
+      } finally {
+        if (!cancelled) {
+          if (
+            previewCaptureRequestRef.current?.requestId ===
+            pendingPreviewCapture.requestId
+          ) {
+            previewCaptureRequestRef.current = null;
+          }
+          setPendingPreviewCapture(null);
+        }
+      }
+    };
+
+    void captureAndUpload();
+    return () => {
+      cancelled = true;
+      if (
+        previewCaptureRequestRef.current?.requestId ===
+        pendingPreviewCapture.requestId
+      ) {
+        previewCaptureRequestRef.current.reject(
+          new Error("자동 미리보기 생성을 중단했습니다."),
+        );
+        previewCaptureRequestRef.current = null;
+      }
+    };
+  }, [pendingPreviewCapture]);
 
   const setDocumentForPersistence = useCallback(
     (nextDocument: StudioTemplateDocument) => {
@@ -1230,6 +1362,7 @@ export function ThumbnailStudioClient({
     createRemoteTemplate: createTemplateStudioTemplateMutation.mutateAsync,
     saveRemoteDraft: saveTemplateStudioDraftMutation.mutateAsync,
     publishRemoteDocument: publishTemplateStudioDocumentMutation.mutateAsync,
+    createPublishedPreview,
     syncRemoteAssets: syncTemplateStudioAssetsMutation.mutateAsync,
     recordRemoteSaveEvent: recordTemplateStudioSaveEventMutation.mutateAsync,
     onReplaceDocument: replaceEditorDocument,
@@ -1246,6 +1379,7 @@ export function ThumbnailStudioClient({
     createTemplateStudioTemplateMutation.isPending ||
     saveTemplateStudioDraftMutation.isPending ||
     publishTemplateStudioDocumentMutation.isPending ||
+    uploadTemplateStudioPreviewMutation.isPending ||
     syncTemplateStudioAssetsMutation.isPending ||
     recordTemplateStudioSaveEventMutation.isPending ||
     templateStudioTemplateQuery.isFetching;
@@ -1546,6 +1680,25 @@ export function ThumbnailStudioClient({
 
   return (
     <StudioEditorStoreProvider value={studioStore}>
+      {pendingPreviewCapture ? (
+        <div
+          aria-hidden="true"
+          style={{
+            position: "fixed",
+            left: "-100000px",
+            top: 0,
+            pointerEvents: "none",
+          }}
+        >
+          <StudioExportRoot
+            ref={previewExportRootRef}
+            document={pendingPreviewCapture.document}
+            runtimeValues={createThumbnailStudioPreviewValues(
+              pendingPreviewCapture.document,
+            )}
+          />
+        </div>
+      ) : null}
       <StudioEditorShell
         canvas={
           <section className="relative min-w-0 flex-1 overflow-hidden bg-[var(--canvas)]">
@@ -1862,6 +2015,23 @@ export function ThumbnailStudioClient({
               title: "Publish thumbnail template",
               onClick: () => void thumbnailPersistence.publish(),
             }}
+            extraActions={
+              remoteTemplateId &&
+              templateStudioTemplateQuery.data?.template.status ===
+                "published" ? (
+                <button
+                  className="h-[30px] rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2.5 text-[11px] font-semibold text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)] disabled:cursor-not-allowed disabled:opacity-45"
+                  disabled={isRemoteSyncing}
+                  title="발행 문서의 자동 미리보기 이미지를 다시 저장"
+                  type="button"
+                  onClick={() =>
+                    void thumbnailPersistence.retryPublishedPreview()
+                  }
+                >
+                  미리보기 갱신
+                </button>
+              ) : null
+            }
             saveAction={{
               disabled: isRemoteSyncing,
               title: "Save thumbnail draft",

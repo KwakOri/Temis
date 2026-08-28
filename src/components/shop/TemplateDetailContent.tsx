@@ -69,6 +69,7 @@ export default function TemplateDetailContent({
     engine: templateEngine,
     kind: templateKind,
     thumbnailUrl: template.templates.thumbnail_url,
+    studioPreviewUrl: template.templates.studio_preview_url,
   });
   const executionHref = getTemplateUseHref(
     template.templates.id,
