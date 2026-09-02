@@ -4,6 +4,7 @@ import AdminTabHeader from "@/components/admin/AdminTabHeader";
 import {
   useDeleteTemplateStudioTemplate,
   useDuplicateTemplateStudioTemplate,
+  useRenameTemplateStudioTemplate,
   useTemplateStudioTemplates,
 } from "@/hooks/query/useTemplateStudio";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { TemplateStudioTemplateInfoDialog } from "./template-studio-template-info-dialog";
 
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return "-";
@@ -113,6 +115,7 @@ const RowActions = ({
   template,
   onDelete,
   onDuplicate,
+  onEditInfo,
   isDeleting,
   isDuplicating,
   basePath,
@@ -121,6 +124,10 @@ const RowActions = ({
   template: TemplateStudioTemplateRecord;
   onDelete: (template: TemplateStudioTemplateRecord) => void;
   onDuplicate: (template: TemplateStudioTemplateRecord) => void;
+  onEditInfo?: (
+    template: TemplateStudioTemplateRecord,
+    triggerElement: HTMLElement | null,
+  ) => void;
   isDeleting: boolean;
   isDuplicating: boolean;
   basePath: string;
@@ -128,6 +135,7 @@ const RowActions = ({
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -158,7 +166,7 @@ const RowActions = ({
         href={`${basePath}/${template.id}/edit`}
       >
         <Edit className="h-3.5 w-3.5" />
-        수정
+        편집
       </Link>
       {template.status === "published" ? (
         <Link
@@ -179,6 +187,7 @@ const RowActions = ({
       )}
       <div className="relative" ref={menuRef}>
         <button
+          ref={menuButtonRef}
           aria-expanded={isMenuOpen}
           aria-haspopup="menu"
           aria-label={`${template.name} 작업 메뉴`}
@@ -203,6 +212,20 @@ const RowActions = ({
             >
               <ArrowUpRight className="h-3.5 w-3.5" />새 탭에서 열기
             </Link>
+            {onEditInfo ? (
+              <button
+                className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs font-medium text-gray-700 hover:bg-gray-100"
+                role="menuitem"
+                type="button"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  onEditInfo(template, menuButtonRef.current);
+                }}
+              >
+                <Edit className="h-3.5 w-3.5" />
+                정보 수정
+              </button>
+            ) : null}
             {showDuplicate ? (
               <button
                 className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
@@ -253,7 +276,46 @@ export function TemplateStudioAdminListClient({
   const templatesQuery = useTemplateStudioTemplates(templateKind);
   const deleteTemplateMutation = useDeleteTemplateStudioTemplate();
   const duplicateTemplateMutation = useDuplicateTemplateStudioTemplate();
+  const renameTemplateMutation = useRenameTemplateStudioTemplate();
   const templates = templatesQuery.data?.templates ?? [];
+  const [editingTemplate, setEditingTemplate] =
+    useState<TemplateStudioTemplateRecord | null>(null);
+  const [infoReturnFocusElement, setInfoReturnFocusElement] =
+    useState<HTMLElement | null>(null);
+
+  const handleEditInfo = (
+    template: TemplateStudioTemplateRecord,
+    triggerElement: HTMLElement | null,
+  ) => {
+    renameTemplateMutation.reset();
+    setInfoReturnFocusElement(triggerElement);
+    setEditingTemplate(template);
+  };
+
+  const handleCloseInfo = () => {
+    if (renameTemplateMutation.isPending) return;
+    setEditingTemplate(null);
+    setInfoReturnFocusElement(null);
+    renameTemplateMutation.reset();
+  };
+
+  const handleRename = (name: string) => {
+    if (!editingTemplate) return;
+
+    renameTemplateMutation.reset();
+    renameTemplateMutation.mutate(
+      {
+        templateId: editingTemplate.id,
+        payload: { name },
+      },
+      {
+        onSuccess: () => {
+          setEditingTemplate(null);
+          setInfoReturnFocusElement(null);
+        },
+      },
+    );
+  };
 
   const handleDelete = (template: TemplateStudioTemplateRecord) => {
     if (
@@ -427,6 +489,7 @@ export function TemplateStudioAdminListClient({
                         template={template}
                         onDelete={handleDelete}
                         onDuplicate={handleDuplicate}
+                        onEditInfo={isThumbnail ? handleEditInfo : undefined}
                       />
                     </td>
                   </tr>
@@ -503,12 +566,28 @@ export function TemplateStudioAdminListClient({
                   template={template}
                   onDelete={handleDelete}
                   onDuplicate={handleDuplicate}
+                  onEditInfo={isThumbnail ? handleEditInfo : undefined}
                 />
               </div>
             ))
           )}
         </div>
       </div>
+
+      <TemplateStudioTemplateInfoDialog
+        error={
+          renameTemplateMutation.error instanceof Error
+            ? renameTemplateMutation.error.message
+            : renameTemplateMutation.error
+              ? "템플릿 이름 변경에 실패했습니다."
+              : null
+        }
+        isSubmitting={renameTemplateMutation.isPending}
+        restoreFocusElement={infoReturnFocusElement}
+        template={editingTemplate}
+        onClose={handleCloseInfo}
+        onSubmit={handleRename}
+      />
     </div>
   );
 }

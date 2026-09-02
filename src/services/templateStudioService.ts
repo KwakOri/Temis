@@ -33,6 +33,15 @@ export interface TemplateStudioCreateTemplateResponse {
   template: TemplateStudioTemplateRecord;
 }
 
+export interface TemplateStudioRenameTemplatePayload {
+  name: string;
+}
+
+export interface TemplateStudioRenameTemplateResponse {
+  success: boolean;
+  template: TemplateStudioTemplateRecord;
+}
+
 export interface TemplateStudioTemplateDetailResponse {
   success: boolean;
   templateId: string;
@@ -239,6 +248,24 @@ export class TemplateStudioService {
     return parseJsonResponse<TemplateStudioTemplateDetailResponse>(
       response,
       "Template Studio 템플릿을 불러오는데 실패했습니다.",
+    );
+  }
+
+  static async renameTemplate(
+    templateId: string,
+    payload: TemplateStudioRenameTemplatePayload,
+  ): Promise<TemplateStudioRenameTemplateResponse> {
+    const response = await fetch(`${this.baseUrl}/${templateId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    return parseJsonResponse<TemplateStudioRenameTemplateResponse>(
+      response,
+      "Template Studio 템플릿 이름 변경에 실패했습니다.",
     );
   }
 
