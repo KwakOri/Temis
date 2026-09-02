@@ -6,6 +6,7 @@ import {
   TemplateStudioSaveEventPayload,
   TemplateStudioService,
   TemplateStudioAssetSyncContext,
+  TemplateStudioRenameTemplatePayload,
   TemplateStudioUploadAssetPayload,
 } from "@/services/templateStudioService";
 import { TemplateStudioRuntimeService } from "@/services/templateStudioRuntimeService";
@@ -31,6 +32,40 @@ export const useTemplateStudioTemplate = (templateId?: string) =>
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
   });
+
+export const useRenameTemplateStudioTemplate = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      templateId,
+      payload,
+    }: {
+      templateId: string;
+      payload: TemplateStudioRenameTemplatePayload;
+    }) => TemplateStudioService.renameTemplate(templateId, payload),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.templateStudioTemplates(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.templateStudioTemplate(response.template.id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.templates(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.template(response.template.id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.template.detail(response.template.id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.template.shopDetail(response.template.id),
+      });
+    },
+  });
+};
 
 export const useTemplateStudioDraft = (templateId?: string) =>
   useQuery({

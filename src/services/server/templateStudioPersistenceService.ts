@@ -47,6 +47,7 @@ type SupabaseQueryBuilder<T> = PromiseLike<SupabaseResult<T>> & {
   ): SupabaseQueryBuilder<T>;
   select(columns?: string): SupabaseQueryBuilder<T>;
   single(): Promise<SupabaseResult<T>>;
+  update(value: unknown): SupabaseQueryBuilder<T>;
   upsert(
     value: unknown,
     options?: {
@@ -609,6 +610,40 @@ export const getTemplateStudioTemplate = async (
 
   throwOnError("Failed to fetch Template Studio template", error);
   return data ? toTemplateRecord(data) : null;
+};
+
+export const renameTemplateStudioTemplate = async (
+  templateId: string,
+  name: string,
+  client?: TemplateStudioPersistenceClient,
+): Promise<TemplateStudioTemplateRecord> => {
+  const normalizedName = name.trim();
+  if (!normalizedName) {
+    throw new TemplateStudioPersistenceError(
+      "Template Studio template name is required.",
+    );
+  }
+
+  const supabase = getClient(client);
+  const { data, error } = await supabase
+    .from<TemplateStudioTemplateRow>("templates")
+    .update({
+      name: normalizedName,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", templateId)
+    .eq("template_engine", "studio")
+    .select(TEMPLATE_STUDIO_TEMPLATE_COLUMNS)
+    .single();
+
+  throwOnError("Failed to rename Template Studio template", error);
+  if (!data) {
+    throw new TemplateStudioPersistenceError(
+      "Failed to rename Template Studio template: empty response",
+    );
+  }
+
+  return toTemplateRecord(data);
 };
 
 export const listTemplateStudioTemplates = async (
