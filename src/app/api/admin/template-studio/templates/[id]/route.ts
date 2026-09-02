@@ -11,6 +11,7 @@ import {
   getTemplateStudioLatestRevisionNo,
   getTemplateStudioTemplate,
   listTemplateStudioAssetMetadata,
+  renameTemplateStudioTemplate,
 } from "@/services/server/templateStudioPersistenceService";
 import { deleteFilesFromR2Prefix } from "@/lib/r2";
 import { buildTemplateStudioAssetTemplatePrefix } from "@/utils/template-studio/asset-storage";
@@ -120,6 +121,60 @@ export async function DELETE(
     console.error("Template Studio template delete error:", error);
     return NextResponse.json(
       { error: "Template Studio 템플릿 삭제 중 오류가 발생했습니다." },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const actor = await requireTemplateStudioAdminActor(request);
+  if (!actor.ok) {
+    return actor.response;
+  }
+
+  try {
+    const templateId = await parseTemplateStudioTemplateId({ params });
+    if (!templateId) {
+      return templateStudioBadTemplateIdResponse();
+    }
+
+    const template = await getTemplateStudioTemplate(templateId);
+    if (!template) {
+      return templateStudioTemplateNotFoundResponse();
+    }
+
+    const body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json(
+        { error: "요청 본문이 필요합니다." },
+        { status: 400 },
+      );
+    }
+
+    const name = (body as Record<string, unknown>).name;
+    if (typeof name !== "string" || !name.trim()) {
+      return NextResponse.json(
+        { error: "Template Studio 템플릿 이름이 필요합니다." },
+        { status: 400 },
+      );
+    }
+
+    const renamedTemplate = await renameTemplateStudioTemplate(
+      templateId,
+      name,
+    );
+
+    return NextResponse.json({
+      success: true,
+      template: renamedTemplate,
+    });
+  } catch (error) {
+    console.error("Template Studio template rename error:", error);
+    return NextResponse.json(
+      { error: "Template Studio 템플릿 이름 변경 중 오류가 발생했습니다." },
       { status: 500 },
     );
   }
