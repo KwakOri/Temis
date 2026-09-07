@@ -262,6 +262,7 @@ export function TemplateStudioRuntimeShell({
           {timetable ? (
             <StudioTimetablePreview
               document={document}
+              locale={locale}
               runtimeValues={runtimeValues}
             />
           ) : (

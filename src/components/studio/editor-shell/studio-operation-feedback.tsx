@@ -14,6 +14,7 @@ export interface StudioOperationToast {
 }
 
 const operationLabel: Record<StudioPersistenceOperation, string> = {
+  load: "템플릿 불러오기",
   save_draft: "초안 저장",
   publish: "템플릿 발행",
   preview: "미리보기 준비",
@@ -21,6 +22,7 @@ const operationLabel: Record<StudioPersistenceOperation, string> = {
 };
 
 const stageLabel: Record<StudioPersistenceStage, string> = {
+  loading: "저장된 템플릿을 불러오는 중…",
   validating: "문서와 입력값을 확인하는 중…",
   creating: "원격 템플릿을 준비하는 중…",
   "syncing-assets": "이미지 리소스를 동기화하는 중…",

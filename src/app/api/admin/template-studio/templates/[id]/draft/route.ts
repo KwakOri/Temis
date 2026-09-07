@@ -8,6 +8,7 @@ import {
   getTemplateStudioDraft,
   getTemplateStudioTemplate,
   saveTemplateStudioDraft,
+  TemplateStudioPersistenceConflictError,
   validateTemplateStudioDocumentForPersistence,
 } from "@/services/server/templateStudioPersistenceService";
 import {
@@ -203,6 +204,28 @@ export async function PUT(
       (auditTemplateId
         ? resolveTemplateStudioSaveAttempt(null, "save_draft")
         : null);
+    if (error instanceof TemplateStudioPersistenceConflictError) {
+      if (failedAttempt && auditTemplateId) {
+        await recordTemplateStudioSaveEventSafe({
+          ...failedAttempt,
+          templateId: auditTemplateId,
+          userId: actor.userId,
+          stage: auditStage,
+          status: "failed",
+          errorCode: "DRAFT_REVISION_CONFLICT",
+          errorMessage: "Draft save was based on an older published revision.",
+        });
+      }
+      return NextResponse.json(
+        {
+          error:
+            "저장 기준 revision이 최신 상태가 아닙니다. 템플릿을 다시 불러온 뒤 저장하세요.",
+          attemptId: failedAttempt?.attemptId ?? null,
+          conflict: true,
+        },
+        { status: 409 },
+      );
+    }
     if (failedAttempt && auditTemplateId) {
       const auditError = getTemplateStudioAuditError(error);
       await recordTemplateStudioSaveEventSafe({

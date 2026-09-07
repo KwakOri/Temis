@@ -31,7 +31,12 @@ import {
 } from "@/utils/template-studio/runtime-global-input-groups";
 import { isStudioTimetableStatusAvailable } from "@/utils/template-studio/timetable-capabilities";
 import {
+  findStudioArtistProfileTextInput,
+  findStudioWeeklyMemoInput,
+} from "@/utils/template-studio/preset-inputs";
+import {
   getLocalizedStudioAddEntryDisabledReason,
+  getLocalizedStudioPresetDefaultText,
   formatStudioRuntimeWeekStartDate,
   getStudioRuntimeCopy,
   getStudioRuntimeDayLabel,
@@ -246,6 +251,14 @@ export function TemplateStudioRuntimeForm({
     "offlineMemo",
   );
   const copy = getStudioRuntimeCopy(locale);
+  const artistInputId = useMemo(
+    () => findStudioArtistProfileTextInput(document)?.id ?? null,
+    [document],
+  );
+  const weeklyMemoInputId = useMemo(
+    () => findStudioWeeklyMemoInput(document)?.id ?? null,
+    [document],
+  );
   const weekStartDate = getStudioRuntimeWeekStartDate(document, runtimeValues);
   const weekLabel = formatStudioRuntimeWeekStartDate({
     startDate: weekStartDate,
@@ -600,6 +613,18 @@ export function TemplateStudioRuntimeForm({
     ].join(":");
 
     if (input.type === "text") {
+      const isArtistInput = input.id === artistInputId;
+      const isWeeklyMemoInput = input.id === weeklyMemoInputId;
+      const displayValue =
+        isArtistInput || isWeeklyMemoInput
+          ? getLocalizedStudioPresetDefaultText(copy, value)
+          : value;
+      const placeholder = isArtistInput
+        ? copy.artistPlaceholder
+        : isWeeklyMemoInput
+          ? copy.weeklyMemoPlaceholder
+          : input.placeholder;
+
       if (input.multiline) {
         return (
           <StudioRuntimeField
@@ -607,9 +632,9 @@ export function TemplateStudioRuntimeForm({
             hideLabel={options.hideLabel}
             key={key}
             label={input.label}
-            placeholder={input.placeholder}
+            placeholder={placeholder}
             rows={input.minRows ?? 4}
-            value={value}
+            value={displayValue}
             onValueChange={(nextValue) =>
               updateInputValue(input, nextValue, context)
             }
@@ -623,8 +648,8 @@ export function TemplateStudioRuntimeForm({
           hideLabel={options.hideLabel}
           key={key}
           label={input.label}
-          placeholder={input.placeholder}
-          value={value}
+          placeholder={placeholder}
+          value={displayValue}
           onValueChange={(nextValue) =>
             updateInputValue(input, nextValue, context)
           }

@@ -25,6 +25,12 @@ import { resolveStudioWeekDateText } from "@/utils/template-studio/date-template
 import { getStudioRuntimeInputValue } from "@/utils/template-studio/input-values";
 import { getStudioPaintOrder } from "@/utils/template-studio/layer-order";
 import {
+  getLocalizedStudioPresetDefaultText,
+  getStudioRuntimeCopy,
+  type StudioRuntimeCopy,
+  type StudioRuntimeLocale,
+} from "@/utils/template-studio/runtime-i18n";
+import {
   getStudioObjectRenderStyle,
   resolveStudioTimetableObjectGeometry,
 } from "@/utils/template-studio/object-layout";
@@ -693,6 +699,7 @@ const resolveTimetableObjectText = (
   document: StudioTemplateDocument,
   runtimeValues: StudioRuntimeValues,
   object: StudioTimetableCompositionObject,
+  copy: StudioRuntimeCopy,
 ) => {
   if (isWeekDatesObject(object)) {
     return (
@@ -705,7 +712,7 @@ const resolveTimetableObjectText = (
     runtimeValues,
     object.binding,
   );
-  return value || object.label;
+  return getLocalizedStudioPresetDefaultText(copy, value || object.label);
 };
 
 const isArtistProfileTextObject = (object: StudioTimetableCompositionObject) =>
@@ -791,6 +798,7 @@ interface StudioTimetablePreviewProps {
   selectedLayerId?: string | null;
   onSelectLayer?: (layerId: string) => void;
   variantMode?: "authoring" | "runtime";
+  locale?: StudioRuntimeLocale;
 }
 
 export function StudioTimetablePreview({
@@ -799,8 +807,10 @@ export function StudioTimetablePreview({
   selectedLayerId = null,
   onSelectLayer,
   variantMode = "runtime",
+  locale = "en",
 }: StudioTimetablePreviewProps) {
   const timetable = document.domains?.timetable;
+  const copy = getStudioRuntimeCopy(locale);
   // 상태 카드 배경은 지금 상태에 따라 그림 자리가 달라진다. 이 판단은 시간표에서
   // 온 개념이므로 공통 렌더러가 아니라 도메인이 만들어 넘긴다.
   const resolveCardBackgroundAssetSlot = useMemo(
@@ -1026,7 +1036,12 @@ export function StudioTimetablePreview({
       getNumericStyleValue(object.style, "assetGap", 32),
     );
     const shouldShowAsset = Boolean(asset?.src && assetMode !== "hidden");
-    const text = resolveTimetableObjectText(document, runtimeValues, object);
+    const text = resolveTimetableObjectText(
+      document,
+      runtimeValues,
+      object,
+      copy,
+    );
 
     return (
       <div

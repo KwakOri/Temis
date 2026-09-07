@@ -30,6 +30,8 @@ export interface StudioKeyboardShortcutHandlers {
   onStatusMessage: (message: string) => void;
 }
 export interface StudioKeyboardShortcutOptions {
+  /** 저장·불러오기 중에는 캔버스와 저장 단축키를 잠근다. */
+  disabled?: boolean;
   /** 잘라내기 표시가 남아 있는지. Escape가 먼저 그것을 지운다. */
   hasCutNodes: boolean;
   isNodePickerOpen: boolean;
@@ -49,6 +51,7 @@ const isEditingTarget = (target: EventTarget | null): boolean =>
  * Cmd+D로 즐겨찾기가 추가되면 편집이 끊긴다.
  */
 export function useStudioKeyboardShortcuts({
+  disabled = false,
   hasCutNodes,
   isNodePickerOpen,
   handlers,
@@ -134,6 +137,17 @@ export function useStudioKeyboardShortcuts({
       }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (disabled) {
+        const isSaveShortcut =
+          (event.metaKey || event.ctrlKey) &&
+          !event.altKey &&
+          event.key.toLowerCase() === "s";
+        if (isSaveShortcut) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        return;
+      }
       const resolution = resolveStudioShortcut(event, {
         isEditingTarget: isEditingTarget(event.target),
         hasCutNodes,
@@ -147,5 +161,5 @@ export function useStudioKeyboardShortcuts({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handlers, hasCutNodes, isNodePickerOpen]);
+  }, [disabled, handlers, hasCutNodes, isNodePickerOpen]);
 }
