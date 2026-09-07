@@ -1351,6 +1351,8 @@ export function ThumbnailStudioClient({
     templateId: remoteTemplateId,
     onTemplateIdChange: handleTemplateIdChange,
     initialTemplateId: templateId ?? null,
+    isRemoteTemplateLoading: templateStudioTemplateQuery.isPending,
+    hasRemoteTemplateLoadError: templateStudioTemplateQuery.isError,
     getRemoteTemplate: useCallback(
       () => templateStudioTemplateQuery.data,
       [templateStudioTemplateQuery.data],
@@ -1385,6 +1387,7 @@ export function ThumbnailStudioClient({
     templateStudioTemplateQuery.isFetching;
 
   useStudioKeyboardShortcuts({
+    disabled: isRemoteSyncing,
     hasCutNodes: clipboard.cutNodeIds.length > 0,
     isNodePickerOpen: false,
     handlers: useMemo(

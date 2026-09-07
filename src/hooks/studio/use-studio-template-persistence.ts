@@ -15,7 +15,6 @@ import type {
   TemplateStudioUploadedAsset,
 } from "@/services/templateStudioService";
 import {
-  applyStudioSyncedAssets,
   getStudioDataImageMetadata,
   isStudioDataImageSrc,
   planStudioAssetSync,
@@ -36,6 +35,10 @@ import {
   createTemplateStudioDocumentSummary,
   type TemplateStudioSaveOperation,
 } from "@/utils/template-studio/save-audit";
+import {
+  createStudioPersistenceGate,
+  mergeStudioSyncedAssetsIntoLatestDocument,
+} from "@/utils/template-studio/persistence-pipeline";
 /** 원격에 저장해 둔 문서 한 벌. 초안이 있으면 초안을 먼저 본다. */
 export interface StudioRemoteTemplateSnapshot {
   draft?: {
@@ -51,8 +54,9 @@ export interface StudioRemoteTemplateSnapshot {
 }
 
 export type StudioPersistenceOperation =
-  "save_draft" | "publish" | "preview" | "preview_image";
+  "load" | "save_draft" | "publish" | "preview" | "preview_image";
 export type StudioPersistenceStage =
+  | "loading"
   | "validating"
   | "creating"
   | "syncing-assets"
@@ -88,6 +92,10 @@ export interface StudioTemplatePersistenceOptions {
   onTemplateIdChange: (templateId: string) => void;
   /** 주소로 들어온 템플릿. 화면을 처음 열 때 한 번 불러온다. */
   initialTemplateId?: string | null;
+  /** 주소로 들어온 템플릿의 첫 query가 아직 끝나지 않았는지. */
+  isRemoteTemplateLoading?: boolean;
+  /** 주소로 들어온 템플릿 query가 실패했는지. */
+  hasRemoteTemplateLoadError?: boolean;
   /** 편집기 종류에 맞는 관리자 미리보기 경로. */
   previewPathForTemplate?: (templateId: string) => string;
   getRemoteTemplate: () => StudioRemoteTemplateSnapshot | null | undefined;
@@ -191,6 +199,8 @@ export function useStudioTemplatePersistence({
   templateId,
   onTemplateIdChange,
   initialTemplateId,
+  isRemoteTemplateLoading = false,
+  hasRemoteTemplateLoadError = false,
   getRemoteTemplate,
   refetchRemoteTemplate,
   createRemoteTemplate,
@@ -208,6 +218,22 @@ export function useStudioTemplatePersistence({
     `/admin/template-studio/${nextTemplateId}/preview`,
 }: StudioTemplatePersistenceOptions): StudioTemplatePersistence {
   const createAttemptId = useCallback(() => globalThis.crypto.randomUUID(), []);
+  const persistenceGateRef = useRef<ReturnType<
+    typeof createStudioPersistenceGate
+  > | null>(null);
+  if (!persistenceGateRef.current) {
+    persistenceGateRef.current = createStudioPersistenceGate();
+  }
+  const runExclusive = useCallback(
+    async <T>(operation: () => Promise<T>): Promise<T | undefined> => {
+      if (persistenceGateRef.current?.isBusy()) {
+        onStatusMessage("Another template operation is already in progress");
+        return undefined;
+      }
+      return persistenceGateRef.current?.runExclusive(operation);
+    },
+    [onStatusMessage],
+  );
   const lastPublishedPreviewInputRef =
     useRef<StudioPublishedPreviewInput | null>(null);
   const setOperationState = useCallback(
@@ -431,10 +457,7 @@ export function useStudioTemplatePersistence({
         remoteAssets: getRemoteTemplate()?.assets ?? [],
         localMetadataByAssetId,
       });
-      const nextDocument = JSON.parse(
-        JSON.stringify(currentDocument),
-      ) as StudioTemplateDocument;
-      let changed = applyStudioSyncedAssets(nextDocument, plan.patches);
+      const syncedAssets = [...plan.patches];
       if (plan.uploads.length > 0) {
         onStatusMessage(`Syncing ${plan.uploads.length} asset(s)`);
         const synced = await syncRemoteAssets({
@@ -442,17 +465,20 @@ export function useStudioTemplatePersistence({
           assets: plan.uploads,
           context,
         });
-        changed =
-          applyStudioSyncedAssets(nextDocument, synced.assets) || changed;
+        syncedAssets.push(...synced.assets);
       }
+      const merged = mergeStudioSyncedAssetsIntoLatestDocument({
+        latestDocument: getDocument(),
+        patches: syncedAssets,
+      });
       // 바뀐 것이 없으면 문서를 갈아끼우지 않는다. 저장할 때마다 같은 문서로
       // 갈아끼우면 편집 중인 화면이 한 번 더 그려진다.
-      if (!changed) return currentDocument;
-      setDocument(nextDocument);
+      if (!merged.changed) return getDocument();
+      setDocument(merged.document);
       if (plan.uploads.length > 0) {
         onStatusMessage(`Synced ${plan.uploads.length} asset(s)`);
       }
-      return nextDocument;
+      return merged.document;
     },
     [
       getDocument,
@@ -467,79 +493,102 @@ export function useStudioTemplatePersistence({
       onStatusMessage("Select a database template first");
       return;
     }
-    try {
-      const result = await refetchRemoteTemplate();
-      const remoteTemplate = result.data;
-      if (!remoteTemplate) {
-        onStatusMessage("Database template not found");
-        return;
+    await runExclusive(async () => {
+      setOperationState("load", "loading");
+      try {
+        const result = await refetchRemoteTemplate();
+        const remoteTemplate = result.data;
+        if (!remoteTemplate) {
+          const message = "Database template not found";
+          onStatusMessage(message);
+          onOperationResult?.({ operation: "load", ok: false, message });
+          return;
+        }
+        const source = remoteTemplate.draft ?? remoteTemplate.document;
+        if (!source) {
+          const message = "Database template is empty";
+          onStatusMessage(message);
+          onOperationResult?.({ operation: "load", ok: false, message });
+          return;
+        }
+        onReplaceDocument(
+          source.document,
+          source.runtimeValues,
+          remoteTemplate.draft
+            ? "Loaded database draft"
+            : "Loaded published document",
+        );
+      } catch (error) {
+        console.error("Template Studio database load failed:", error);
+        const message = "Database load failed";
+        onStatusMessage(message);
+        onOperationResult?.({ operation: "load", ok: false, message });
+      } finally {
+        clearOperationState();
       }
-      const source = remoteTemplate.draft ?? remoteTemplate.document;
-      if (!source) {
-        onStatusMessage("Database template is empty");
-        return;
-      }
-      onReplaceDocument(
-        source.document,
-        source.runtimeValues,
-        remoteTemplate.draft
-          ? "Loaded database draft"
-          : "Loaded published document",
-      );
-    } catch (error) {
-      console.error("Template Studio database load failed:", error);
-      onStatusMessage("Database load failed");
-    }
-  }, [onReplaceDocument, onStatusMessage, refetchRemoteTemplate, templateId]);
+    });
+  }, [
+    clearOperationState,
+    onOperationResult,
+    onReplaceDocument,
+    onStatusMessage,
+    refetchRemoteTemplate,
+    runExclusive,
+    setOperationState,
+    templateId,
+  ]);
   const saveDraft = useCallback(async () => {
-    const attemptId = createAttemptId();
-    setOperationState("save_draft", "validating");
-    try {
-      const validation = await validateBeforePersistence(
-        attemptId,
-        "save_draft",
-      );
-      if (!validation.ok) {
-        onOperationResult?.({
-          operation: "save_draft",
-          ok: false,
-          message: validation.message,
-        });
-        return false;
-      }
-      setOperationState("save_draft", "creating");
-      const nextTemplateId = await ensureTemplateId();
-      const latestRevisionNo = getRemoteTemplate()?.latestRevisionNo ?? null;
-      setOperationState("save_draft", "syncing-assets");
-      const nextDocument = await ensureAssetsSynced(nextTemplateId, {
-        attemptId,
-        operation: "save_draft",
-      });
-      setOperationState("save_draft", "saving");
-      await saveRemoteDraft({
-        templateId: nextTemplateId,
-        payload: {
-          document: nextDocument,
-          runtimeValues: getRuntimeValues(),
-          baseRevisionNo: latestRevisionNo,
-          isAutosave: false,
+    const result = await runExclusive(async () => {
+      const attemptId = createAttemptId();
+      setOperationState("save_draft", "validating");
+      try {
+        const validation = await validateBeforePersistence(
+          attemptId,
+          "save_draft",
+        );
+        if (!validation.ok) {
+          onOperationResult?.({
+            operation: "save_draft",
+            ok: false,
+            message: validation.message,
+          });
+          return false;
+        }
+        setOperationState("save_draft", "creating");
+        const nextTemplateId = await ensureTemplateId();
+        const latestRevisionNo = getRemoteTemplate()?.latestRevisionNo ?? null;
+        setOperationState("save_draft", "syncing-assets");
+        const nextDocument = await ensureAssetsSynced(nextTemplateId, {
           attemptId,
           operation: "save_draft",
-        },
-      });
-      const message = "Draft saved to database";
-      onStatusMessage(message);
-      onOperationResult?.({ operation: "save_draft", ok: true, message });
-      return true;
-    } catch (error) {
-      console.error("Template Studio database draft save failed:", error);
-      const message = getFailureStatus("Database draft save", error);
-      onStatusMessage(message);
-      onOperationResult?.({ operation: "save_draft", ok: false, message });
-      return false;
-    } finally {
-      clearOperationState();
-    }
+        });
+        setOperationState("save_draft", "saving");
+        await saveRemoteDraft({
+          templateId: nextTemplateId,
+          payload: {
+            document: nextDocument,
+            runtimeValues: getRuntimeValues(),
+            baseRevisionNo: latestRevisionNo,
+            isAutosave: false,
+            attemptId,
+            operation: "save_draft",
+          },
+        });
+        const message = "Draft saved to database";
+        onStatusMessage(message);
+        onOperationResult?.({ operation: "save_draft", ok: true, message });
+        return true;
+      } catch (error) {
+        console.error("Template Studio database draft save failed:", error);
+        const message = getFailureStatus("Database draft save", error);
+        onStatusMessage(message);
+        onOperationResult?.({ operation: "save_draft", ok: false, message });
+        return false;
+      } finally {
+        clearOperationState();
+      }
+    });
+    return result ?? false;
   }, [
     clearOperationState,
     createAttemptId,
@@ -551,63 +600,70 @@ export function useStudioTemplatePersistence({
     onStatusMessage,
     onOperationResult,
     saveRemoteDraft,
+    runExclusive,
     setOperationState,
     validateBeforePersistence,
   ]);
   const publish = useCallback(async () => {
-    const attemptId = createAttemptId();
-    setOperationState("publish", "validating");
-    try {
-      const validation = await validateBeforePersistence(attemptId, "publish");
-      if (!validation.ok) {
-        onOperationResult?.({
-          operation: "publish",
-          ok: false,
-          message: validation.message,
-        });
-        return false;
-      }
-      setOperationState("publish", "creating");
-      const nextTemplateId = await ensureTemplateId();
-      setOperationState("publish", "syncing-assets");
-      const nextDocument = await ensureAssetsSynced(nextTemplateId, {
-        attemptId,
-        operation: "publish",
-      });
-      setOperationState("publish", "publishing");
-      const published = await publishRemoteDocument({
-        templateId: nextTemplateId,
-        payload: {
-          document: nextDocument,
-          runtimeValues: getRuntimeValues(),
+    const result = await runExclusive(async () => {
+      const attemptId = createAttemptId();
+      setOperationState("publish", "validating");
+      try {
+        const validation = await validateBeforePersistence(
+          attemptId,
+          "publish",
+        );
+        if (!validation.ok) {
+          onOperationResult?.({
+            operation: "publish",
+            ok: false,
+            message: validation.message,
+          });
+          return false;
+        }
+        setOperationState("publish", "creating");
+        const nextTemplateId = await ensureTemplateId();
+        setOperationState("publish", "syncing-assets");
+        const nextDocument = await ensureAssetsSynced(nextTemplateId, {
           attemptId,
           operation: "publish",
-        },
-      });
-      const previewInput: StudioPublishedPreviewInput = {
-        templateId: nextTemplateId,
-        revisionNo: published.revisionNo,
-        document: published.document.document,
-      };
-      lastPublishedPreviewInputRef.current = previewInput;
-      const previewResult = createPublishedPreview
-        ? await runPublishedPreview(previewInput)
-        : { ok: true as const };
-      const message = previewResult.ok
-        ? `Published revision ${published.revisionNo}`
-        : `Published revision ${published.revisionNo}; preview image needs retry`;
-      onStatusMessage(message);
-      onOperationResult?.({ operation: "publish", ok: true, message });
-      return true;
-    } catch (error) {
-      console.error("Template Studio publish failed:", error);
-      const message = getFailureStatus("Publish", error);
-      onStatusMessage(message);
-      onOperationResult?.({ operation: "publish", ok: false, message });
-      return false;
-    } finally {
-      clearOperationState();
-    }
+        });
+        setOperationState("publish", "publishing");
+        const published = await publishRemoteDocument({
+          templateId: nextTemplateId,
+          payload: {
+            document: nextDocument,
+            runtimeValues: getRuntimeValues(),
+            attemptId,
+            operation: "publish",
+          },
+        });
+        const previewInput: StudioPublishedPreviewInput = {
+          templateId: nextTemplateId,
+          revisionNo: published.revisionNo,
+          document: published.document.document,
+        };
+        lastPublishedPreviewInputRef.current = previewInput;
+        const previewResult = createPublishedPreview
+          ? await runPublishedPreview(previewInput)
+          : { ok: true as const };
+        const message = previewResult.ok
+          ? `Published revision ${published.revisionNo}`
+          : `Published revision ${published.revisionNo}; preview image needs retry`;
+        onStatusMessage(message);
+        onOperationResult?.({ operation: "publish", ok: true, message });
+        return true;
+      } catch (error) {
+        console.error("Template Studio publish failed:", error);
+        const message = getFailureStatus("Publish", error);
+        onStatusMessage(message);
+        onOperationResult?.({ operation: "publish", ok: false, message });
+        return false;
+      } finally {
+        clearOperationState();
+      }
+    });
+    return result ?? false;
   }, [
     clearOperationState,
     createAttemptId,
@@ -620,6 +676,7 @@ export function useStudioTemplatePersistence({
     onOperationResult,
     publishRemoteDocument,
     runPublishedPreview,
+    runExclusive,
     setOperationState,
     validateBeforePersistence,
   ]);
@@ -633,55 +690,61 @@ export function useStudioTemplatePersistence({
     [previewPathForTemplate],
   );
   const openDraftPreview = useCallback(async () => {
-    const attemptId = createAttemptId();
-    setOperationState("preview", "validating");
-    try {
-      const validation = await validateBeforePersistence(attemptId, "preview");
-      if (!validation.ok) {
-        onOperationResult?.({
-          operation: "preview",
-          ok: false,
-          message: validation.message,
-        });
-        return false;
-      }
-      setOperationState("preview", "creating");
-      const nextTemplateId = await ensureTemplateId();
-      setOperationState("preview", "syncing-assets");
-      const syncedDocument = await ensureAssetsSynced(nextTemplateId, {
-        attemptId,
-        operation: "preview",
-      });
-      const latestRevisionNo = getRemoteTemplate()?.latestRevisionNo ?? null;
-      // 미리보기는 저장해 둔 것을 읽는다. 저장하지 않고 열면 방금 고친 것이
-      // 빠진 화면을 보게 된다.
-      setOperationState("preview", "saving");
-      await saveRemoteDraft({
-        templateId: nextTemplateId,
-        payload: {
-          document: syncedDocument,
-          runtimeValues: getRuntimeValues(),
-          baseRevisionNo: latestRevisionNo,
-          isAutosave: false,
+    const result = await runExclusive(async () => {
+      const attemptId = createAttemptId();
+      setOperationState("preview", "validating");
+      try {
+        const validation = await validateBeforePersistence(
+          attemptId,
+          "preview",
+        );
+        if (!validation.ok) {
+          onOperationResult?.({
+            operation: "preview",
+            ok: false,
+            message: validation.message,
+          });
+          return false;
+        }
+        setOperationState("preview", "creating");
+        const nextTemplateId = await ensureTemplateId();
+        setOperationState("preview", "syncing-assets");
+        const syncedDocument = await ensureAssetsSynced(nextTemplateId, {
           attemptId,
           operation: "preview",
-        },
-      });
-      setOperationState("preview", "previewing");
-      openPreviewWindow(nextTemplateId);
-      const message = "Saved draft preview";
-      onStatusMessage(message);
-      onOperationResult?.({ operation: "preview", ok: true, message });
-      return true;
-    } catch (error) {
-      console.error("Template Studio preview open failed:", error);
-      const message = getFailureStatus("Preview", error);
-      onStatusMessage(message);
-      onOperationResult?.({ operation: "preview", ok: false, message });
-      return false;
-    } finally {
-      clearOperationState();
-    }
+        });
+        const latestRevisionNo = getRemoteTemplate()?.latestRevisionNo ?? null;
+        // 미리보기는 저장해 둔 것을 읽는다. 저장하지 않고 열면 방금 고친 것이
+        // 빠진 화면을 보게 된다.
+        setOperationState("preview", "saving");
+        await saveRemoteDraft({
+          templateId: nextTemplateId,
+          payload: {
+            document: syncedDocument,
+            runtimeValues: getRuntimeValues(),
+            baseRevisionNo: latestRevisionNo,
+            isAutosave: false,
+            attemptId,
+            operation: "preview",
+          },
+        });
+        setOperationState("preview", "previewing");
+        openPreviewWindow(nextTemplateId);
+        const message = "Saved draft preview";
+        onStatusMessage(message);
+        onOperationResult?.({ operation: "preview", ok: true, message });
+        return true;
+      } catch (error) {
+        console.error("Template Studio preview open failed:", error);
+        const message = getFailureStatus("Preview", error);
+        onStatusMessage(message);
+        onOperationResult?.({ operation: "preview", ok: false, message });
+        return false;
+      } finally {
+        clearOperationState();
+      }
+    });
+    return result ?? false;
   }, [
     clearOperationState,
     createAttemptId,
@@ -693,6 +756,7 @@ export function useStudioTemplatePersistence({
     onStatusMessage,
     onOperationResult,
     openPreviewWindow,
+    runExclusive,
     saveRemoteDraft,
     setOperationState,
     validateBeforePersistence,
@@ -721,23 +785,27 @@ export function useStudioTemplatePersistence({
       return false;
     }
 
-    lastPublishedPreviewInputRef.current = input;
-    const result = await runPublishedPreview(input);
-    const message = result.ok
-      ? `Preview image saved for revision ${input.revisionNo}`
-      : `${result.message}; please retry`;
-    onOperationResult?.({
-      operation: "preview_image",
-      ok: result.ok,
-      message,
+    const result = await runExclusive(async () => {
+      lastPublishedPreviewInputRef.current = input;
+      const previewResult = await runPublishedPreview(input);
+      const message = previewResult.ok
+        ? `Preview image saved for revision ${input.revisionNo}`
+        : `${previewResult.message}; please retry`;
+      onOperationResult?.({
+        operation: "preview_image",
+        ok: previewResult.ok,
+        message,
+      });
+      return previewResult.ok;
     });
-    return result.ok;
+    return result ?? false;
   }, [
     createPublishedPreview,
     getRemoteTemplate,
     onOperationResult,
     onStatusMessage,
     runPublishedPreview,
+    runExclusive,
     templateId,
   ]);
   const openSavedPreview = useCallback(() => {
@@ -757,12 +825,27 @@ export function useStudioTemplatePersistence({
     if (!initialTemplateId) return;
     if (templateId !== initialTemplateId) return;
     if (autoLoadedTemplateIdRef.current === initialTemplateId) return;
-    const remoteTemplate = getRemoteTemplate();
-    if (!remoteTemplate) return;
+    if (isRemoteTemplateLoading) {
+      setOperationState("load", "loading");
+      return;
+    }
     autoLoadedTemplateIdRef.current = initialTemplateId;
+    const remoteTemplate = getRemoteTemplate();
+    if (!remoteTemplate || hasRemoteTemplateLoadError) {
+      const message = hasRemoteTemplateLoadError
+        ? "Database load failed"
+        : "Database template not found";
+      clearOperationState();
+      onStatusMessage(message);
+      onOperationResult?.({ operation: "load", ok: false, message });
+      return;
+    }
     const source = remoteTemplate.draft ?? remoteTemplate.document;
     if (!source) {
-      onStatusMessage("Database template is empty");
+      const message = "Database template is empty";
+      clearOperationState();
+      onStatusMessage(message);
+      onOperationResult?.({ operation: "load", ok: false, message });
       return;
     }
     onReplaceDocument(
@@ -772,11 +855,17 @@ export function useStudioTemplatePersistence({
         ? "Loaded database draft"
         : "Loaded published document",
     );
+    clearOperationState();
   }, [
+    clearOperationState,
     getRemoteTemplate,
+    hasRemoteTemplateLoadError,
     initialTemplateId,
+    isRemoteTemplateLoading,
+    onOperationResult,
     onReplaceDocument,
     onStatusMessage,
+    setOperationState,
     templateId,
   ]);
   useEffect(() => {

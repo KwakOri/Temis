@@ -36,7 +36,11 @@ import {
 import { useStudioKeyboardShortcuts } from "@/hooks/studio/use-studio-keyboard-shortcuts";
 import { useStudioLayerDrag } from "@/hooks/studio/use-studio-layer-drag";
 import { useStudioSelection } from "@/hooks/studio/use-studio-selection";
-import { useStudioTemplatePersistence } from "@/hooks/studio/use-studio-template-persistence";
+import {
+  useStudioTemplatePersistence,
+  type StudioPersistenceOperationResult,
+  type StudioPersistenceOperationState,
+} from "@/hooks/studio/use-studio-template-persistence";
 import { useTimetableObjectCommands } from "../_hooks/use-timetable-object-commands";
 import { useStudioTimetableLayerDrag } from "@/hooks/studio/use-studio-timetable-layer-drag";
 import {
@@ -195,6 +199,7 @@ import {
 import { StudioImageCropModal } from "./studio-image-crop-modal";
 import { StudioEditorShell } from "@/components/studio/editor-shell/studio-editor-shell";
 import { StudioGuideControl } from "@/components/studio/editor-shell/studio-guide-control";
+import { StudioOperationFeedback } from "@/components/studio/editor-shell/studio-operation-feedback";
 import {
   StudioLeftSidebar,
   type StudioPanelTab,
@@ -629,6 +634,10 @@ export function TemplateStudioClient({
   const [pendingImageCrop, setPendingImageCrop] =
     useState<PendingStudioImageCrop | null>(null);
   const [shortcutMessage, setShortcutMessage] = useState<string | null>(null);
+  const [persistenceOperation, setPersistenceOperation] =
+    useState<StudioPersistenceOperationState | null>(null);
+  const [operationToast, setOperationToast] =
+    useState<StudioPersistenceOperationResult | null>(null);
   const [remoteTemplateId, setRemoteTemplateId] = useState<string | null>(
     initialRemoteTemplateId,
   );
@@ -702,6 +711,7 @@ export function TemplateStudioClient({
       .sort((a, b) => a.order - b.order);
   }, [document.domains]);
   const isRemoteSyncing =
+    Boolean(persistenceOperation) ||
     createTemplateStudioTemplateMutation.isPending ||
     saveTemplateStudioDraftMutation.isPending ||
     publishTemplateStudioDocumentMutation.isPending ||
@@ -1136,6 +1146,25 @@ export function TemplateStudioClient({
     setShortcutMessage(message);
   }, []);
 
+  const handlePersistenceStateChange = useCallback(
+    (state: StudioPersistenceOperationState | null) => {
+      setPersistenceOperation(state);
+    },
+    [],
+  );
+  const handlePersistenceResult = useCallback(
+    (result: StudioPersistenceOperationResult) => {
+      setOperationToast(result);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!operationToast) return;
+    const timeout = window.setTimeout(() => setOperationToast(null), 6000);
+    return () => window.clearTimeout(timeout);
+  }, [operationToast]);
+
   const jumpToInput = useCallback(
     (inputId: StudioInputId) => {
       const input = studioStore.getState().document.inputs[inputId];
@@ -1369,6 +1398,8 @@ export function TemplateStudioClient({
     templateId: remoteTemplateId,
     onTemplateIdChange: setRemoteTemplateId,
     initialTemplateId: initialRemoteTemplateId,
+    isRemoteTemplateLoading: templateStudioTemplateQuery.isPending,
+    hasRemoteTemplateLoadError: templateStudioTemplateQuery.isError,
     getRemoteTemplate: useCallback(
       () => templateStudioTemplateQuery.data,
       [templateStudioTemplateQuery.data],
@@ -1384,6 +1415,8 @@ export function TemplateStudioClient({
     recordRemoteSaveEvent: recordTemplateStudioSaveEventMutation.mutateAsync,
     onReplaceDocument: replaceEditorDocument,
     onStatusMessage: showShortcutStatus,
+    onOperationStateChange: handlePersistenceStateChange,
+    onOperationResult: handlePersistenceResult,
     // 무엇이 내보내기를 막았는지 보여줘야 고칠 수 있다.
     onExportBlocked: useCallback(
       () =>
@@ -2139,6 +2172,7 @@ export function TemplateStudioClient({
   useStudioKeyboardShortcuts({
     hasCutNodes: cutNodeIds.length > 0,
     isNodePickerOpen: Boolean(nodePicker),
+    disabled: isRemoteSyncing,
     handlers: useMemo(
       () => ({
         undo: undoEditorState,
@@ -3230,6 +3264,18 @@ export function TemplateStudioClient({
         }
         overlays={
           <>
+            <StudioOperationFeedback
+              operation={persistenceOperation}
+              toast={
+                operationToast
+                  ? {
+                      tone: operationToast.ok ? "success" : "error",
+                      message: operationToast.message,
+                    }
+                  : null
+              }
+              onDismissToast={() => setOperationToast(null)}
+            />
             <StudioSettingsModal
               activeWorkspaceMode={activeWorkspaceMode}
               databaseTargetLabel={STUDIO_DATABASE_TARGET_LABEL}
@@ -3424,6 +3470,7 @@ export function TemplateStudioClient({
             }
             previewAction={{
               title: "Open runtime preview",
+              disabled: isRemoteSyncing,
               onClick: () => {
                 void openRuntimeDraftPreview();
               },
@@ -3444,11 +3491,12 @@ export function TemplateStudioClient({
             }}
             settingsAction={{
               title: "Template settings",
+              disabled: isRemoteSyncing,
               onClick: () => setSettingsOpen(true),
             }}
             shareAction={{
               title: "Open saved preview",
-              disabled: !remoteTemplateId,
+              disabled: !remoteTemplateId || isRemoteSyncing,
               onClick: openSavedPreview,
             }}
             zoom={{

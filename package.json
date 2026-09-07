@@ -27,6 +27,8 @@
     "check:user-template-ui:my-page-browser": "node scripts/check-my-page-browser.mjs",
     "check:user-template-ui:browser-e2e": "tsx scripts/check-user-template-ui-browser-e2e.ts",
     "check:template-studio:persistence": "tsx scripts/check-template-studio-persistence.ts",
+    "check:template-studio:persistence-pipeline": "tsx scripts/check-template-studio-persistence-pipeline.ts",
+    "check:template-studio:operation-feedback": "tsx scripts/check-template-studio-operation-feedback.tsx",
     "check:template-studio:api": "tsx scripts/check-template-studio-api.ts",
     "check:template-studio:runtime": "tsx scripts/check-template-studio-runtime.ts",
     "check:template-studio:save-audit": "tsx scripts/check-template-studio-save-audit.ts",
