@@ -1,3 +1,8 @@
+import {
+  STUDIO_ARTIST_PROFILE_TEXT_DEFAULT_VALUE,
+  STUDIO_WEEKLY_MEMO_DEFAULT_VALUE,
+} from "./preset-inputs";
+
 export type StudioRuntimeLocale = "ko" | "en" | "ja";
 
 export const STUDIO_RUNTIME_LOCALE_STORAGE_KEY = "temis.platform.locale";
@@ -85,6 +90,10 @@ export interface StudioRuntimeCopy {
   enableMultiToAdd: string;
   maximumEntriesReached: string;
   selectDayFirst: string;
+  artistDefaultText: string;
+  artistPlaceholder: string;
+  weeklyMemoDefaultText: string;
+  weeklyMemoPlaceholder: string;
 }
 
 const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
@@ -164,6 +173,10 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     enableMultiToAdd: "엔트리를 추가하려면 멀티 상태를 활성화하세요",
     maximumEntriesReached: "추가할 수 있는 최대 엔트리 수입니다",
     selectDayFirst: "먼저 요일을 선택하세요",
+    artistDefaultText: "아티스트",
+    artistPlaceholder: "아티스트 또는 프로필 문구를 입력하세요",
+    weeklyMemoDefaultText: "위클리 메모",
+    weeklyMemoPlaceholder: "위클리 메모를 입력해 주세요",
   },
   en: {
     language: "Language",
@@ -240,6 +253,10 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     enableMultiToAdd: "Enable Multi Status to add entries",
     maximumEntriesReached: "Maximum entries reached",
     selectDayFirst: "Select a day first",
+    artistDefaultText: "Artist",
+    artistPlaceholder: "Write artist or profile text",
+    weeklyMemoDefaultText: "Weekly memo",
+    weeklyMemoPlaceholder: "Write a weekly memo",
   },
   ja: {
     language: "言語",
@@ -317,6 +334,10 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     enableMultiToAdd: "追加するにはマルチ状態を有効にしてください",
     maximumEntriesReached: "追加できる最大エントリー数です",
     selectDayFirst: "先に曜日を選択してください",
+    artistDefaultText: "アーティスト",
+    artistPlaceholder: "アーティストまたはプロフィール文を入力してください",
+    weeklyMemoDefaultText: "ウィークリーメモ",
+    weeklyMemoPlaceholder: "ウィークリーメモを入力してください",
   },
 };
 
@@ -413,6 +434,26 @@ export const formatStudioRuntimeWeekStartDate = ({
   if (!start) return fallback;
 
   return `${start.getUTCMonth() + 1}/${start.getUTCDate()}`;
+};
+
+/**
+ * Artist / weekly memo text starts out as literal English default data
+ * (baked into runtime values at document creation, not a UI copy string),
+ * so there is no locale field to key off. Swap it for the active locale's
+ * default only when it still exactly matches the untouched English
+ * default — anything the author or viewer typed is left alone.
+ */
+export const getLocalizedStudioPresetDefaultText = (
+  copy: StudioRuntimeCopy,
+  value: string,
+): string => {
+  if (value === STUDIO_ARTIST_PROFILE_TEXT_DEFAULT_VALUE) {
+    return copy.artistDefaultText;
+  }
+  if (value === STUDIO_WEEKLY_MEMO_DEFAULT_VALUE) {
+    return copy.weeklyMemoDefaultText;
+  }
+  return value;
 };
 
 export const getLocalizedStudioAddEntryDisabledReason = (

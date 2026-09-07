@@ -70,6 +70,16 @@ assert.deepEqual(
   ["undo", "redo", "redo", null],
   "되돌리기와 다시 실행. 윈도우의 Ctrl+Y도 다시 실행이고, Cmd+Y는 브라우저 자리라 쓰지 않는다.",
 );
+assert.equal(
+  actionOf("s", MOD, { disabled: true }),
+  null,
+  "저장·불러오기 중에는 저장 단축키를 다시 실행하지 않는다.",
+);
+assert.equal(
+  actionOf("Delete", {}, { disabled: true }),
+  null,
+  "저장·불러오기 중에는 캔버스 편집 단축키를 실행하지 않는다.",
+);
 assert.deepEqual(
   [
     actionOf("s", MOD),

@@ -33,6 +33,8 @@ export interface StudioShortcutKeyEvent {
   repeat: boolean;
 }
 export interface StudioShortcutContext {
+  /** 저장·불러오기 중에는 캔버스와 저장 단축키를 모두 잠근다. */
+  disabled?: boolean;
   /** 글자를 입력하는 칸 안인지. 그 안에서는 편집기 단축키가 먹으면 안 된다. */
   isEditingTarget: boolean;
   /** 잘라내기 표시가 남아 있는지. Escape가 먼저 그것을 지운다. */
@@ -73,9 +75,14 @@ const NUDGE_DIRECTION: Record<string, [number, number]> = {
  */
 export const resolveStudioShortcut = (
   event: StudioShortcutKeyEvent,
-  { isEditingTarget, hasCutNodes, isNodePickerOpen }: StudioShortcutContext,
+  {
+    disabled,
+    isEditingTarget,
+    hasCutNodes,
+    isNodePickerOpen,
+  }: StudioShortcutContext,
 ): StudioShortcutResolution | null => {
-  if (isEditingTarget) return null;
+  if (disabled || isEditingTarget) return null;
   const key = event.key.toLowerCase();
   const isModKey = event.metaKey || event.ctrlKey;
   // Escape는 겹쳐 있는 것을 안쪽부터 하나씩 걷어낸다. 한 번에 다 지우면 잘라내기

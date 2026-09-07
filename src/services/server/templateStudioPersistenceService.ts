@@ -278,6 +278,13 @@ export class TemplateStudioPersistenceError extends Error {
   }
 }
 
+export class TemplateStudioPersistenceConflictError extends TemplateStudioPersistenceError {
+  constructor(message: string, error?: SupabaseErrorLike | null) {
+    super(message, error);
+    this.name = "TemplateStudioPersistenceConflictError";
+  }
+}
+
 const TEMPLATE_STUDIO_DOCUMENT_COLUMNS =
   "id, template_id, document_version, document, runtime_values, published_revision_no, created_at, updated_at";
 const TEMPLATE_STUDIO_DRAFT_COLUMNS =
@@ -824,26 +831,31 @@ export const saveTemplateStudioDraft = async (
       supabase,
     );
   }
-  const { data, error } = await supabase
-    .from<TemplateStudioDraftRow>("template_studio_document_drafts")
-    .upsert(
-      {
-        template_id: input.templateId,
-        user_id: input.userId,
-        document_version: STUDIO_TEMPLATE_DOCUMENT_VERSION,
-        document: toJson(prepared.document),
-        runtime_values: toJson(prepared.runtimeValues),
-        base_revision_no: input.baseRevisionNo ?? null,
-        is_autosave: input.isAutosave ?? true,
-      },
-      {
-        onConflict: "template_id,user_id",
-      },
-    )
-    .select(TEMPLATE_STUDIO_DRAFT_COLUMNS)
-    .single();
+  const { data, error } = await supabase.rpc<TemplateStudioDraftRow>(
+    "save_template_studio_draft",
+    {
+      p_template_id: input.templateId,
+      p_user_id: input.userId,
+      p_document_version: STUDIO_TEMPLATE_DOCUMENT_VERSION,
+      p_document: toJson(prepared.document),
+      p_runtime_values: toJson(prepared.runtimeValues),
+      p_base_revision_no: input.baseRevisionNo ?? null,
+      p_is_autosave: input.isAutosave ?? true,
+    },
+  );
 
-  throwOnError("Failed to save Template Studio draft", error);
+  if (error) {
+    if (error.message.toLowerCase().includes("draft revision conflict")) {
+      throw new TemplateStudioPersistenceConflictError(
+        "Template Studio draft is based on an older published revision",
+        error,
+      );
+    }
+    throw new TemplateStudioPersistenceError(
+      "Failed to save Template Studio draft",
+      error,
+    );
+  }
   if (!data) {
     throw new TemplateStudioPersistenceError(
       "Failed to save Template Studio draft: empty response",
