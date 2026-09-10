@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import type { FigmaNormalizedNode } from "../src/types/template-studio-figma";
+import type {
+  FigmaNormalizedNode,
+  StudioFigmaNodeReview,
+} from "../src/types/template-studio-figma";
 import { parseFigmaDesignUrl } from "../src/utils/template-studio/figma-import/figma-url";
 import {
   adjustFigmaRectForCssCenterRotation,
@@ -9,6 +12,7 @@ import {
   classifyFigmaTextNode,
   normalizeFigmaLayerName,
 } from "../src/utils/template-studio/figma-import/figma-text-classifier";
+import { convertFigmaGridCandidate } from "../src/utils/template-studio/figma-import/figma-node-converter";
 import {
   exportFigmaNodeAsDataUrl,
   fetchFigmaGridCandidates,
@@ -746,8 +750,293 @@ const runRouteContractChecks = async () => {
   }
 };
 
+const converterReview = (
+  sourceNodeId: string,
+  suggestedStudioType: StudioFigmaNodeReview["suggestedStudioType"],
+  suggestedRole: StudioFigmaNodeReview["suggestedRole"] = "decoration",
+): StudioFigmaNodeReview => ({
+  sourceNodeId,
+  label: sourceNodeId,
+  sourceType: suggestedStudioType === "text" || suggestedStudioType === "flexibleText"
+    ? "TEXT"
+    : "FRAME",
+  suggestedRole,
+  suggestedStudioType,
+  suggestedBinding: suggestedRole === "main_title"
+    ? { kind: "builtinField", fieldId: "entry.main_title" }
+    : { kind: "staticText", value: "Fallback static value" },
+  confidence: 0.9,
+  source: "rule",
+  reason: "Converter fixture review.",
+});
+
+const runConverterChecks = () => {
+  const root: FigmaNormalizedNode = {
+    id: "figma-card-root",
+    name: "Monday card",
+    type: "FRAME",
+    absoluteBounds: { left: 100, top: 200, width: 300, height: 180 },
+    fills: [{ type: "SOLID", color: { r: 1, g: 1, b: 1 }, opacity: 0.9 }],
+    style: { cornerRadius: 12, clipsContent: true },
+    children: [
+      {
+        id: "figma-entry",
+        name: "Entry",
+        type: "FRAME",
+        absoluteBounds: { left: 110, top: 215, width: 220, height: 120 },
+        children: [
+          {
+            id: "figma-title",
+            name: "Title",
+            type: "TEXT",
+            characters: "Weekly broadcast",
+            absoluteBounds: { left: 120, top: 225, width: 180, height: 24 },
+            opacity: 0.8,
+            fills: [{ type: "SOLID", color: { r: 0.1, g: 0.2, b: 0.3 }, opacity: 0.5 }],
+            style: {
+              fontFamily: "Inter",
+              fontSize: 20,
+              fontWeight: 700,
+              fontStyle: "italic",
+              letterSpacing: 0.4,
+              lineHeightPx: 28,
+              textAlignHorizontal: "CENTER",
+              textAlignVertical: "CENTER",
+              unsupportedFigmaProperty: { nested: true },
+              effects: [{ type: "DROP_SHADOW" }],
+            },
+          },
+          {
+            id: "figma-image",
+            name: "Banner decoration",
+            type: "IMAGE",
+            absoluteBounds: { left: 130, top: 260, width: 80, height: 40 },
+          },
+          {
+            id: "figma-solid-shape",
+            name: "Accent block",
+            type: "RECTANGLE",
+            absoluteBounds: { left: 220, top: 260, width: 40, height: 20 },
+            fills: [{ type: "SOLID", color: { r: 1, g: 0, b: 0.5 }, opacity: 0.25 }],
+          },
+          {
+            id: "figma-rotated-text",
+            name: "Rotated label",
+            type: "TEXT",
+            characters: "NEW",
+            absoluteBounds: { left: 160, top: 240, width: 20, height: 40 },
+            absoluteRenderBounds: { left: 150, top: 250, width: 40, height: 20 },
+            rotation: Math.PI / 2,
+            fills: [{ type: "SOLID", color: { r: 0, g: 0, b: 0 }, opacity: 1 }],
+            style: { fontSize: 12, fontWeight: 600 },
+          },
+          {
+            id: "figma-missing-image",
+            name: "Missing decoration",
+            type: "IMAGE",
+            absoluteBounds: { left: 270, top: 260, width: 20, height: 20 },
+          },
+          {
+            id: "figma-effect-leaf",
+            name: "Effect export",
+            type: "FRAME",
+            absoluteBounds: { left: 300, top: 260, width: 20, height: 20 },
+            style: { effects: [{ type: "LAYER_BLUR" }] },
+          },
+        ],
+      },
+      {
+        id: "figma-background",
+        name: "Card background",
+        type: "RECTANGLE",
+        absoluteBounds: { left: 100, top: 200, width: 300, height: 180 },
+        fills: [{ type: "SOLID", color: { r: 0.9, g: 0.9, b: 0.9 }, opacity: 1 }],
+      },
+    ],
+  };
+  const reviews = [
+    converterReview("figma-entry", "group"),
+    converterReview("figma-title", "flexibleText", "main_title"),
+    converterReview("figma-image", "image"),
+    converterReview("figma-solid-shape", "shape"),
+    converterReview("figma-rotated-text", "text", "unknown"),
+    converterReview("figma-missing-image", "image"),
+    converterReview("figma-effect-leaf", "group"),
+    converterReview("figma-background", "shape"),
+  ];
+  const exportedAssets = [
+    {
+      sourceNodeId: "figma-image",
+      src: "data:image/png;base64,AA==",
+      mimeType: "image/png" as const,
+      byteSize: 1,
+    },
+    {
+      sourceNodeId: "figma-effect-leaf",
+      src: "data:image/svg+xml;base64,AA==",
+      mimeType: "image/svg+xml" as const,
+      byteSize: 1,
+    },
+  ];
+  const before = JSON.stringify({ root, reviews, exportedAssets });
+
+  const candidate = convertFigmaGridCandidate({ root, reviews, exportedAssets });
+
+  assert.equal(JSON.stringify({ root, reviews, exportedAssets }), before);
+  assert.match(candidate.candidateId, /^candidate_/);
+  assert.deepEqual(candidate.frame, { left: 100, top: 200, width: 300, height: 180 });
+  assert.equal(candidate.reviews, reviews, "Reviewed choices remain available to Task 7/8.");
+
+  const nodes = Object.values(candidate.component.nodes);
+  const nodeByLabel = (label: string) => nodes.find((node) => node.label === label);
+  const candidateRoot = candidate.component.nodes[candidate.component.rootNodeId];
+  const entry = nodeByLabel("Entry");
+  const titleNode = nodeByLabel("Title");
+  const imageNode = nodeByLabel("Banner decoration");
+  const shapeNode = nodeByLabel("Accent block");
+  const rotatedText = nodeByLabel("Rotated label");
+  const missingImage = nodeByLabel("Missing decoration");
+  const effectLeaf = nodeByLabel("Effect export");
+  const backgroundNode = nodeByLabel("Card background");
+  assert.ok(candidateRoot);
+  assert.equal(candidateRoot?.parentId, null);
+  assert.equal(candidateRoot?.type, "group");
+  assert.deepEqual(candidateRoot?.childIds.map((id) => candidate.component.nodes[id]?.label), [
+    "Entry",
+    "Card background",
+  ]);
+  assert.equal(entry?.type, "group");
+  assert.deepEqual(entry?.meta?.entrySlot, { index: 0 });
+  assert.equal(nodes.filter((node) => node.meta?.entrySlot?.index === 0).length, 1);
+  assert.deepEqual(entry?.childIds.map((id) => candidate.component.nodes[id]?.label), [
+    "Title",
+    "Banner decoration",
+    "Accent block",
+    "Rotated label",
+    "Missing decoration",
+    "Effect export",
+  ]);
+  assert.equal(titleNode?.type, "flexibleText");
+  assert.deepEqual(titleNode?.binding, { kind: "builtinField", fieldId: "entry.main_title" });
+  assert.equal(imageNode?.type, "image");
+  assert.equal(imageNode?.fit, "cover");
+  assert.equal(imageNode?.binding?.kind, "staticAsset");
+  assert.equal(missingImage?.type, "image");
+  assert.equal(missingImage?.binding, undefined);
+  assert.equal(effectLeaf?.type, "image");
+  assert.equal(effectLeaf?.binding?.kind, "staticAsset");
+  assert.equal(shapeNode?.type, "shape");
+  assert.deepEqual(shapeNode?.shapeFill, { type: "solid", color: "rgba(255, 0, 128, 0.25)" });
+  assert.equal(backgroundNode?.type, "shape");
+
+  const rootStyle = candidateRoot?.styleId
+    ? candidate.component.styles[candidateRoot.styleId]
+    : undefined;
+  const entryStyle = entry?.styleId ? candidate.component.styles[entry.styleId] : undefined;
+  const titleStyle = titleNode?.styleId ? candidate.component.styles[titleNode.styleId] : undefined;
+  const rotatedTextStyle = rotatedText?.styleId
+    ? candidate.component.styles[rotatedText.styleId]
+    : undefined;
+  assert.deepEqual(
+    [rootStyle?.left, rootStyle?.top, rootStyle?.width, rootStyle?.height],
+    [0, 0, 300, 180],
+  );
+  assert.deepEqual(
+    [entryStyle?.left, entryStyle?.top, entryStyle?.width, entryStyle?.height],
+    [10, 15, 220, 120],
+  );
+  assert.deepEqual([titleStyle?.left, titleStyle?.top], [10, 10]);
+  assert.deepEqual(
+    [rotatedTextStyle?.left, rotatedTextStyle?.top, rotatedTextStyle?.rotateDeg],
+    [60, 15, 90],
+  );
+  assert.deepEqual(Object.keys(titleStyle ?? {}).sort(), [
+    "alignItems",
+    "color",
+    "display",
+    "fontFamily",
+    "fontSize",
+    "fontStyle",
+    "fontWeight",
+    "height",
+    "justifyContent",
+    "left",
+    "letterSpacing",
+    "lineHeight",
+    "opacity",
+    "position",
+    "textAlign",
+    "top",
+    "width",
+  ]);
+  assert.equal(titleStyle?.color, "rgba(26, 51, 77, 0.5)");
+  assert.deepEqual(titleNode?.textAppearance, {
+    fill: { type: "solid", color: "rgba(26, 51, 77, 0.5)", opacity: 1 },
+    strokes: [],
+  });
+  assert.ok(candidate.warnings.some((warning) => /shadow|stroke|effect/i.test(warning)));
+  assert.ok(candidate.warnings.some((warning) => /missing decoration.*unbound/i.test(warning)));
+  assert.equal(candidate.component.assets.length, 2);
+  assert.match(candidate.component.assets[0]?.id ?? "", /^asset_/);
+  assert.match(candidate.component.assets[0]?.src ?? "", /^data:image\/png;base64,/);
+  assert.ok(candidate.component.assets.every((asset) => /^data:image\/(?:png|svg\+xml);base64,/.test(asset.src)));
+  assert.ok(candidate.component.assets.every((asset) => !/figma|temporary|https?:/i.test(asset.src)));
+
+  const ids = [
+    ...nodes.map((node) => node.id),
+    ...Object.keys(candidate.component.styles),
+    ...candidate.component.assets.map((asset) => asset.id),
+  ];
+  const sourceIds = new Set([
+    "figma-card-root",
+    "figma-entry",
+    "figma-title",
+    "figma-image",
+    "figma-solid-shape",
+    "figma-rotated-text",
+    "figma-missing-image",
+    "figma-effect-leaf",
+    "figma-background",
+  ]);
+  const allowedStyleKeys = new Set([
+    "position", "left", "top", "width", "height", "opacity", "rotateDeg",
+    "backgroundColor", "borderRadius", "overflow", "fontFamily", "fontSize",
+    "fontWeight", "fontStyle", "letterSpacing", "lineHeight", "textAlign",
+    "display", "alignItems", "justifyContent", "color",
+  ]);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.ok(ids.every((id) => !sourceIds.has(id)));
+  assert.ok(Object.values(candidate.component.styles).every((style) =>
+    Object.keys(style).every((key) => allowedStyleKeys.has(key)),
+  ));
+  assert.equal(JSON.stringify(candidate.component).includes("unsupportedFigmaProperty"), false);
+
+  const generatedEntrySource = structuredClone(root);
+  generatedEntrySource.children![0]!.name = "Content";
+  const generatedEntryCandidate = convertFigmaGridCandidate({
+    root: generatedEntrySource,
+    reviews,
+    exportedAssets,
+  });
+  const generatedEntries = Object.values(generatedEntryCandidate.component.nodes)
+    .filter((node) => node.meta?.entrySlot?.index === 0);
+  assert.equal(generatedEntries.length, 1);
+  assert.deepEqual(
+    generatedEntryCandidate.component.nodes[generatedEntryCandidate.component.rootNodeId]?.childIds,
+    [generatedEntries[0]?.id],
+  );
+  assert.ok(
+    generatedEntries[0]?.childIds.some((childId) =>
+      Object.values(generatedEntryCandidate.component.nodes).some(
+        (node) => node.id === childId && node.label === "Content",
+      ),
+    ),
+  );
+};
+
 void runReviewServiceChecks()
   .then(runRouteContractChecks)
+  .then(runConverterChecks)
   .then(() => console.log("Figma import contract checks passed"))
   .catch((error: unknown) => {
     console.error(error);
