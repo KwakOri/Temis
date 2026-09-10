@@ -66,6 +66,8 @@ assert.deepEqual(
     height: 100,
     rotateDeg: -13.5,
   }),
+  // Controller ruling: 20.29 is intentional. Absolute sine/cosine bounds
+  // are the project contract; the brief's literal 19.52 is inconsistent.
   { left: 40.46, top: 20.29, width: 160, height: 100 },
 );
 assert.deepEqual(
