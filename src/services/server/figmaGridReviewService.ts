@@ -193,6 +193,7 @@ const parseAiReviews = (value: unknown, nodes: FigmaReviewInput[]): AiReview[] =
       !REVIEW_ROLES.has(suggestedRole) ||
       !suggestedStudioType ||
       !REVIEW_STUDIO_TYPES.has(suggestedStudioType) ||
+      (node.type !== "TEXT" && suggestedRole !== "decoration") ||
       (node.type === "TEXT" && !["text", "flexibleText"].includes(suggestedStudioType)) ||
       (node.type !== "TEXT" && suggestedStudioType !== ruleReview(node).suggestedStudioType) ||
       typeof confidence !== "number" ||

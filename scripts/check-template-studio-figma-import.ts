@@ -243,6 +243,45 @@ const gridReviewNodes: FigmaReviewInput[] = [
   },
 ];
 
+const nonTextGridReviewNodes: FigmaReviewInput[] = [
+  {
+    id: "grid-decoration-image-1",
+    name: "Image decoration one",
+    type: "IMAGE",
+    styleFlags: { hasSolidFill: false, hasImageFill: true, hasChildren: false },
+  },
+  {
+    id: "grid-decoration-shape-1",
+    name: "Shape decoration one",
+    type: "RECTANGLE",
+    styleFlags: { hasSolidFill: true, hasImageFill: false, hasChildren: false },
+  },
+  {
+    id: "grid-decoration-group-1",
+    name: "Group decoration one",
+    type: "FRAME",
+    styleFlags: { hasSolidFill: false, hasImageFill: false, hasChildren: true },
+  },
+  {
+    id: "grid-decoration-image-2",
+    name: "Image decoration two",
+    type: "IMAGE",
+    styleFlags: { hasSolidFill: false, hasImageFill: true, hasChildren: false },
+  },
+  {
+    id: "grid-decoration-shape-2",
+    name: "Shape decoration two",
+    type: "RECTANGLE",
+    styleFlags: { hasSolidFill: true, hasImageFill: false, hasChildren: false },
+  },
+  {
+    id: "grid-decoration-group-2",
+    name: "Group decoration two",
+    type: "FRAME",
+    styleFlags: { hasSolidFill: false, hasImageFill: false, hasChildren: true },
+  },
+];
+
 const runReviewServiceChecks = async () => {
   const originalFetch = globalThis.fetch;
   const originalToken = process.env.OPENAI_ACCESS_TOKEN;
@@ -314,6 +353,41 @@ const runReviewServiceChecks = async () => {
     assert.equal(capturedOpenAiBody.includes(temporaryAssetUrl), false);
     assert.equal(capturedOpenAiBody.includes(openAiSecret), false);
     assert.doesNotMatch(capturedOpenAiBody, /data:image\/png;base64/i);
+
+    aiResponse = {
+      reviews: nonTextGridReviewNodes.map((node, index) => ({
+        sourceNodeId: node.id,
+        suggestedRole: [
+          "main_title",
+          "sub_title",
+          "time",
+          "day_label",
+          "date",
+          "status_label",
+        ][index],
+        suggestedStudioType: node.type === "IMAGE"
+          ? "image"
+          : node.type === "FRAME"
+            ? "group"
+            : "shape",
+        confidence: 0.99,
+        reason: "The model incorrectly assigned a text-field role to decoration.",
+      })),
+    };
+    const nonTextRejected = await reviewFigmaGridNodesWithWarnings(nonTextGridReviewNodes);
+    assert.equal(nonTextRejected.reviews.length, nonTextGridReviewNodes.length);
+    assert.ok(nonTextRejected.reviews.every((review) => review.source === "rule"));
+    assert.ok(nonTextRejected.reviews.every((review) => review.suggestedRole === "decoration"));
+    assert.ok(nonTextRejected.reviews.every((review) => review.suggestedBinding.kind === "staticText"));
+    assert.deepEqual(nonTextRejected.reviews.map((review) => review.suggestedStudioType), [
+      "image",
+      "shape",
+      "group",
+      "image",
+      "shape",
+      "group",
+    ]);
+    assert.match(nonTextRejected.warnings[0] ?? "", /automated review/i);
 
     for (const invalidReview of [
       {
