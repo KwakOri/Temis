@@ -8,6 +8,7 @@ import { normalizeFigmaRotation } from "@/utils/template-studio/figma-import/fig
 
 const FIGMA_API_BASE_URL = "https://api.figma.com/v1";
 const MAX_FIGMA_ASSET_SIZE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_GRID_ROOT_TYPES = new Set(["FRAME", "COMPONENT", "INSTANCE"]);
 const EXCLUDED_GRID_ROOTS = new Set([
   "profile",
   "topobject",
@@ -18,6 +19,12 @@ const EXCLUDED_GRID_ROOTS = new Set([
 ]);
 
 type FigmaRawNode = Record<string, unknown>;
+
+export class FigmaGridScopeError extends Error {
+  constructor() {
+    super("The selected node is not a supported GRID component.");
+  }
+}
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === "object" && !Array.isArray(value)
@@ -115,6 +122,54 @@ const isGridCardRoot = (node: FigmaNormalizedNode): boolean =>
   node.id.length > 0 &&
   !EXCLUDED_GRID_ROOTS.has(normalizeLayerName(node.name));
 
+const isSupportedGridRoot = (node: FigmaNormalizedNode): boolean =>
+  normalizeLayerName(node.name) === "grid" &&
+  ALLOWED_GRID_ROOT_TYPES.has(node.type);
+
+const readFigmaAssetBytes = async (response: Response): Promise<Uint8Array> => {
+  const declaredSize = Number(response.headers.get("content-length"));
+  if (
+    Number.isFinite(declaredSize) &&
+    declaredSize > MAX_FIGMA_ASSET_SIZE_BYTES
+  ) {
+    throw new Error("Figma asset exceeds the maximum size.");
+  }
+
+  if (!response.body) {
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength > MAX_FIGMA_ASSET_SIZE_BYTES) {
+      throw new Error("Figma asset exceeds the maximum size.");
+    }
+    return bytes;
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let byteSize = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      byteSize += value.byteLength;
+      if (byteSize > MAX_FIGMA_ASSET_SIZE_BYTES) {
+        await reader.cancel();
+        throw new Error("Figma asset exceeds the maximum size.");
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(byteSize);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+};
+
 export const fetchFigmaGridNode = async (source: {
   fileKey: string;
   nodeId: string;
@@ -149,18 +204,7 @@ export const exportFigmaNodeAsDataUrl = async (
   const assetResponse = await fetch(temporaryUrl);
   if (!assetResponse.ok) throw new Error("Figma asset download failed.");
 
-  const declaredSize = Number(assetResponse.headers.get("content-length"));
-  if (
-    Number.isFinite(declaredSize) &&
-    declaredSize > MAX_FIGMA_ASSET_SIZE_BYTES
-  ) {
-    throw new Error("Figma asset exceeds the maximum size.");
-  }
-
-  const bytes = new Uint8Array(await assetResponse.arrayBuffer());
-  if (bytes.byteLength > MAX_FIGMA_ASSET_SIZE_BYTES) {
-    throw new Error("Figma asset exceeds the maximum size.");
-  }
+  const bytes = await readFigmaAssetBytes(assetResponse);
 
   const mimeType = format === "png" ? "image/png" : "image/svg+xml";
   return {
@@ -175,6 +219,7 @@ export const fetchFigmaGridCandidates = async (source: {
   nodeId: string;
 }): Promise<{ candidates: FigmaGridCandidateSource[]; warnings: string[] }> => {
   const { node } = await fetchFigmaGridNode(source);
+  if (!isSupportedGridRoot(node)) throw new FigmaGridScopeError();
   const warnings: string[] = [];
   const candidates = await Promise.all(
     (node.children ?? [])

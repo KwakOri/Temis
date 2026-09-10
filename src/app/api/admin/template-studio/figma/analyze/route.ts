@@ -1,4 +1,7 @@
-import { fetchFigmaGridCandidates } from "@/services/server/figmaTemplateStudioService";
+import {
+  fetchFigmaGridCandidates,
+  FigmaGridScopeError,
+} from "@/services/server/figmaTemplateStudioService";
 import type {
   FigmaGridCandidateSource,
   StudioFigmaAnalyzeResponse,
@@ -66,19 +69,29 @@ export const createFigmaGridAnalyzeHandler = (dependencies: {
     try {
       const normalized = await fetchFigmaGridCandidates(source);
       const candidates = await toCandidates(normalized);
+      const warnings = [
+        ...normalized.warnings,
+        ...normalized.candidates.flatMap((candidate) => candidate.warnings),
+      ];
       const response: StudioFigmaAnalyzeResponse = {
         success: true,
         candidates,
         warnings:
           graphConversionPending && normalized.candidates.length > 0
             ? [
-                ...normalized.warnings,
+                ...warnings,
                 "GRID sources were fetched; graph conversion is not connected yet.",
               ]
-            : normalized.warnings,
+            : warnings,
       };
       return NextResponse.json(response);
-    } catch {
+    } catch (error) {
+      if (error instanceof FigmaGridScopeError) {
+        return NextResponse.json(
+          { error: "The selected node must be a supported GRID component." },
+          { status: 422 },
+        );
+      }
       return NextResponse.json(
         { error: "Figma component analysis failed." },
         { status: 502 },

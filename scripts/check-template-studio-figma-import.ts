@@ -221,8 +221,13 @@ const runRouteContractChecks = async () => {
   const secretToken = "figma-secret-token";
   const privateFigmaUrl =
     "https://www.figma.com/design/T2VDXkMPVFa6yEl9FnVvYo/Private-Grid?node-id=1412-5814";
+  const invalidFigmaUrl = "https://example.test/private?token=" + secretToken;
   const originalFetch = globalThis.fetch;
   const originalToken = process.env.FIGMA_ACCESS_TOKEN;
+  let selectedRootName = "GRID";
+  let selectedRootType = "FRAME";
+  let figmaFetchCount = 0;
+  let streamingAssetPulls = 0;
 
   const responseJson = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), {
@@ -261,25 +266,27 @@ const runRouteContractChecks = async () => {
       new Request("http://localhost/api/admin/template-studio/figma/analyze", {
         method: "POST",
         body: JSON.stringify({
-          figmaUrl: "https://example.test/private?token=" + secretToken,
+          figmaUrl: invalidFigmaUrl,
         }),
       }),
     );
     const invalidUrlBody = await invalidUrlResponse.text();
     assert.equal(invalidUrlResponse.status, 400);
     assert.doesNotMatch(invalidUrlBody, new RegExp(secretToken));
+    assert.doesNotMatch(invalidUrlBody, new RegExp(invalidFigmaUrl));
 
     process.env.FIGMA_ACCESS_TOKEN = secretToken;
     globalThis.fetch = (async (input: string | URL | Request) => {
       const url = String(input);
+      figmaFetchCount += 1;
       if (url.includes("/v1/files/")) {
         return responseJson({
           nodes: {
             "1412:5814": {
               document: {
                 id: "1412:5814",
-                name: "GRID",
-                type: "FRAME",
+                name: selectedRootName,
+                type: selectedRootType,
                 absoluteBoundingBox: { x: 0, y: 0, width: 1000, height: 400 },
                 children: [
                   {
@@ -323,6 +330,18 @@ const runRouteContractChecks = async () => {
                       },
                     ],
                   },
+                  {
+                    id: "card-2",
+                    name: "Tuesday card",
+                    type: "FRAME",
+                    absoluteBoundingBox: {
+                      x: 160,
+                      y: 20,
+                      width: 140,
+                      height: 180,
+                    },
+                    children: [],
+                  },
                   { id: "board", name: "board", type: "FRAME", children: [] },
                 ],
               },
@@ -334,7 +353,9 @@ const runRouteContractChecks = async () => {
         return responseJson({
           images: url.includes("large-asset")
             ? { "large-asset": "https://temporary.example/large.png" }
-            : { "asset-1": "https://temporary.example/asset.png" },
+            : url.includes("stream-asset")
+              ? { "stream-asset": "https://temporary.example/stream.png" }
+              : { "asset-1": "https://temporary.example/asset.png" },
         });
       }
       if (url === "https://temporary.example/asset.png") {
@@ -350,14 +371,77 @@ const runRouteContractChecks = async () => {
           },
         });
       }
+      if (url === "https://temporary.example/stream.png") {
+        const chunks = [
+          new Uint8Array(10 * 1024 * 1024),
+          new Uint8Array([1]),
+          new Uint8Array([2]),
+        ];
+        return new Response(
+          new ReadableStream<Uint8Array>(
+            {
+              pull(controller) {
+                const chunk = chunks[streamingAssetPulls++];
+                if (chunk) controller.enqueue(chunk);
+                else controller.close();
+              },
+            },
+            { highWaterMark: 0 },
+          ),
+          { headers: { "content-type": "image/png" } },
+        );
+      }
       throw new Error("Unexpected mocked request");
     }) as typeof fetch;
+
+    const fetchesBeforeDeniedAuth = figmaFetchCount;
+    const deniedAuthResponse = await createFigmaGridAnalyzeHandler({
+      requireActor: async () => ({
+        ok: false as const,
+        response: new Response("denied", { status: 401 }),
+      }),
+    })(
+      new Request("http://localhost/api/admin/template-studio/figma/analyze", {
+        method: "POST",
+        body: JSON.stringify({ figmaUrl: privateFigmaUrl }),
+      }),
+    );
+    assert.equal(deniedAuthResponse.status, 401);
+    assert.equal(figmaFetchCount, fetchesBeforeDeniedAuth);
+
+    selectedRootName = "PROFILE";
+    const nonGridRouteResponse = await createFigmaGridAnalyzeHandler({
+      requireActor: async () => ({ ok: true, userId: 1 }),
+    })(
+      new Request("http://localhost/api/admin/template-studio/figma/analyze", {
+        method: "POST",
+        body: JSON.stringify({ figmaUrl: privateFigmaUrl }),
+      }),
+    );
+    const nonGridRouteBody = await nonGridRouteResponse.text();
+    assert.equal(nonGridRouteResponse.status, 422);
+    assert.doesNotMatch(nonGridRouteBody, new RegExp(secretToken));
+    assert.doesNotMatch(nonGridRouteBody, new RegExp(privateFigmaUrl));
+
+    selectedRootName = "GRID";
+    selectedRootType = "GROUP";
+    const unsupportedRootTypeResponse = await createFigmaGridAnalyzeHandler({
+      requireActor: async () => ({ ok: true, userId: 1 }),
+    })(
+      new Request("http://localhost/api/admin/template-studio/figma/analyze", {
+        method: "POST",
+        body: JSON.stringify({ figmaUrl: privateFigmaUrl }),
+      }),
+    );
+    assert.equal(unsupportedRootTypeResponse.status, 422);
+
+    selectedRootType = "FRAME";
 
     const discovered = await fetchFigmaGridCandidates({
       fileKey: "T2VDXkMPVFa6yEl9FnVvYo",
       nodeId: "1412:5814",
     });
-    assert.equal(discovered.candidates.length, 1);
+    assert.equal(discovered.candidates.length, 2);
     assert.equal(discovered.candidates[0]?.root.id, "card-1");
     assert.equal(
       discovered.candidates[0]?.root.children?.[0]?.textAutoResize,
@@ -384,6 +468,12 @@ const runRouteContractChecks = async () => {
     assert.equal(asset.byteSize, 4);
     assert.match(asset.src, /^data:image\/png;base64,/);
 
+    await assert.rejects(
+      exportFigmaNodeAsDataUrl("T2VDXkMPVFa6yEl9FnVvYo", "stream-asset", "png"),
+      /maximum size/,
+    );
+    assert.equal(streamingAssetPulls, 2);
+
     const routeHandler = createFigmaGridAnalyzeHandler({
       requireActor: async () => ({ ok: true, userId: 1 }),
       toCandidates: async ({ candidates }) =>
@@ -391,7 +481,20 @@ const runRouteContractChecks = async () => {
           candidateId: candidate.candidateId,
           label: candidate.label,
           frame: { left: 10, top: 20, width: 140, height: 180 },
-          component: { nodes: {}, styles: {}, rootNodeId: "", assets: [] },
+          component: {
+            nodes: {
+              "fixture-root": {
+                id: "fixture-root",
+                type: "group",
+                label: "Fixture root",
+                parentId: null,
+                childIds: [],
+              },
+            },
+            styles: {},
+            rootNodeId: "fixture-root",
+            assets: [],
+          },
           reviews: [],
           warnings: candidate.warnings,
         })),
@@ -408,6 +511,7 @@ const runRouteContractChecks = async () => {
     assert.doesNotMatch(routeBody, new RegExp(privateFigmaUrl));
     assert.doesNotMatch(routeBody, /temporary\.example/);
     assert.match(routeBody, /Monday card/);
+    assert.match(routeBody, /10 MiB/);
   } finally {
     globalThis.fetch = originalFetch;
     if (originalToken === undefined) delete process.env.FIGMA_ACCESS_TOKEN;
