@@ -5,6 +5,10 @@ import {
   adjustFigmaRectForCssCenterRotation,
   normalizeFigmaRotation,
 } from "../src/utils/template-studio/figma-import/figma-rotation";
+import {
+  classifyFigmaTextNode,
+  normalizeFigmaLayerName,
+} from "../src/utils/template-studio/figma-import/figma-text-classifier";
 
 const validUrl =
   "https://www.figma.com/design/T2VDXkMPVFa6yEl9FnVvYo/Weekly-Grid?node-id=1412-5814";
@@ -92,5 +96,61 @@ assert.deepEqual(
   }),
   { left: 5.61, top: 12.61, width: 20, height: 10 },
 );
+
+assert.equal(normalizeFigmaLayerName("mainTitle"), "maintitle");
+assert.equal(normalizeFigmaLayerName("main_title"), "maintitle");
+assert.equal(normalizeFigmaLayerName("main-title"), "maintitle");
+assert.equal(normalizeFigmaLayerName("MAIN TITLE"), "maintitle");
+
+const title = classifyFigmaTextNode({ name: "main_title", characters: "A title" });
+assert.equal(title.role, "main_title");
+assert.equal(title.binding.kind, "builtinField");
+if (title.binding.kind === "builtinField") assert.equal(title.binding.fieldId, "entry.main_title");
+
+const camelTitle = classifyFigmaTextNode({ name: "mainTitle", characters: "A title" });
+assert.equal(camelTitle.role, "main_title");
+assert.equal(camelTitle.studioType, "text");
+
+const subTitle = classifyFigmaTextNode({ name: "sub_title", characters: "Subtitle" });
+assert.equal(subTitle.role, "sub_title");
+if (subTitle.binding.kind === "builtinField") assert.equal(subTitle.binding.fieldId, "entry.sub_title");
+
+const time = classifyFigmaTextNode({ name: "PM 8:00", characters: "PM 8:00", layoutSizingHorizontal: "FILL" });
+assert.equal(time.role, "time");
+assert.equal(time.studioType, "text");
+if (time.binding.kind === "builtinField") assert.equal(time.binding.fieldId, "entry.time");
+
+const day = classifyFigmaTextNode({ name: "MON", characters: "MON", textAutoResize: "WIDTH_AND_HEIGHT" });
+assert.equal(day.role, "day_label");
+assert.equal(day.studioType, "text");
+if (day.binding.kind === "builtinField") assert.equal(day.binding.fieldId, "day.short_label");
+
+const date = classifyFigmaTextNode({ name: "07", characters: "07", layoutSizingHorizontal: "FILL" });
+assert.equal(date.role, "date");
+assert.equal(date.studioType, "text");
+assert.deepEqual(date.binding, {
+  kind: "builtinField",
+  fieldId: "day.date",
+  dateRangeFormat: "day",
+});
+
+const status = classifyFigmaTextNode({ name: "ONLINE", characters: "ONLINE", layoutSizingHorizontal: "FILL" });
+assert.equal(status.role, "status_label");
+assert.equal(status.studioType, "text");
+if (status.binding.kind === "builtinField") assert.equal(status.binding.fieldId, "entry.status_label");
+
+const dynamicTitle = classifyFigmaTextNode({
+  name: "title",
+  characters: "A long dynamic title",
+  textAutoResize: "HEIGHT",
+  layoutSizingHorizontal: "FILL",
+});
+assert.equal(dynamicTitle.role, "main_title");
+assert.equal(dynamicTitle.studioType, "flexibleText");
+
+const unknown = classifyFigmaTextNode({ name: "mystery", characters: "Keep me" });
+assert.equal(unknown.role, "unknown");
+assert.deepEqual(unknown.binding, { kind: "staticText", value: "Keep me" });
+assert.match(unknown.reason, /review/i);
 
 console.log("Figma import contract checks passed");
