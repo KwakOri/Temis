@@ -15,12 +15,17 @@ type KnownRole = "main_title" | "sub_title" | "time" | "day_label" | "date" | "s
 
 const classifyRole = (name: string, characters: string): Classification["role"] => {
   const normalized = normalizeFigmaLayerName(name);
+  const content = characters.trim();
+  if (/^(am|pm)\s*\d{1,2}:\d{2}$/i.test(content)) return "time";
+  if (/^(mon|tue|wed|thu|fri|sat|sun)$/i.test(content)) return "day_label";
+  if (/^\d{1,2}$/.test(content)) return "date";
+  if (/^(online|offline)$/i.test(content)) return "status_label";
   if (["maintitle", "title", "heading"].includes(normalized)) return "main_title";
   if (["subtitle", "subheading"].includes(normalized)) return "sub_title";
-  if (["time", "entrytime"].includes(normalized) || /^(am|pm)\s*\d{1,2}:\d{2}$/i.test(characters)) return "time";
-  if (["mon", "day", "daylabel", "shortday"].includes(normalized) || /^(mon|tue|wed|thu|fri|sat|sun)$/i.test(characters)) return "day_label";
-  if (["date", "daydate"].includes(normalized) || /^\d{1,2}$/.test(characters.trim())) return "date";
-  if (["online", "offline", "status", "statuslabel"].includes(normalized) || /^(online|offline)$/i.test(characters.trim())) return "status_label";
+  if (["time", "entrytime"].includes(normalized)) return "time";
+  if (["mon", "day", "daylabel", "shortday"].includes(normalized)) return "day_label";
+  if (["date", "daydate"].includes(normalized)) return "date";
+  if (["online", "offline", "status", "statuslabel"].includes(normalized)) return "status_label";
   return "unknown";
 };
 

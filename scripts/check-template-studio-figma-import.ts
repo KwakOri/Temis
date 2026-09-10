@@ -104,6 +104,8 @@ assert.equal(normalizeFigmaLayerName("MAIN TITLE"), "maintitle");
 
 const title = classifyFigmaTextNode({ name: "main_title", characters: "A title" });
 assert.equal(title.role, "main_title");
+assert.ok(title.confidence > 0);
+assert.match(title.reason, /semantic/i);
 assert.equal(title.binding.kind, "builtinField");
 if (title.binding.kind === "builtinField") assert.equal(title.binding.fieldId, "entry.main_title");
 
@@ -152,5 +154,24 @@ const unknown = classifyFigmaTextNode({ name: "mystery", characters: "Keep me" }
 assert.equal(unknown.role, "unknown");
 assert.deepEqual(unknown.binding, { kind: "staticText", value: "Keep me" });
 assert.match(unknown.reason, /review/i);
+
+for (const [characters, role, fieldId] of [
+  ["PM 8:00", "time", "entry.time"],
+  ["MON", "day_label", "day.short_label"],
+  ["07", "date", "day.date"],
+  ["ONLINE", "status_label", "entry.status_label"],
+] as const) {
+  const protectedRole = classifyFigmaTextNode({
+    name: "title",
+    characters,
+    layoutSizingHorizontal: "FILL",
+  });
+  assert.equal(protectedRole.role, role);
+  assert.equal(protectedRole.studioType, "text");
+  assert.equal(protectedRole.binding.kind, "builtinField");
+  if (protectedRole.binding.kind === "builtinField") assert.equal(protectedRole.binding.fieldId, fieldId);
+  assert.ok(protectedRole.confidence > 0);
+  assert.match(protectedRole.reason, /semantic/i);
+}
 
 console.log("Figma import contract checks passed");
