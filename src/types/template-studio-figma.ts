@@ -84,6 +84,8 @@ export interface FigmaGridCandidateSource {
   label: string;
   root: FigmaNormalizedNode;
   assets: FigmaTransientAsset[];
+  /** Filled by the analyze route after server-side review and before conversion. */
+  reviews?: StudioFigmaNodeReview[];
   warnings: string[];
 }
 

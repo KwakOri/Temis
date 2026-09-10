@@ -13,6 +13,11 @@ import {
   exportFigmaNodeAsDataUrl,
   fetchFigmaGridCandidates,
 } from "../src/services/server/figmaTemplateStudioService";
+import {
+  reviewFigmaGridNodes,
+  reviewFigmaGridNodesWithWarnings,
+  type FigmaReviewInput,
+} from "../src/services/server/figmaGridReviewService";
 import { createFigmaGridAnalyzeHandler } from "../src/app/api/admin/template-studio/figma/analyze/route";
 
 const validUrl =
@@ -216,6 +221,136 @@ for (const [characters, role, fieldId] of [
   assert.ok(protectedRole.confidence > 0);
   assert.match(protectedRole.reason, /semantic/i);
 }
+
+const gridReviewNodes: FigmaReviewInput[] = [
+  {
+    id: "grid-card-title",
+    name: "Title",
+    type: "TEXT",
+    characters: "Weekly broadcast",
+    textAutoResize: "HEIGHT",
+    layoutSizingHorizontal: "FILL",
+    absoluteBounds: { left: 20, top: 30, width: 120, height: 36 },
+    styleFlags: { hasSolidFill: true, hasImageFill: false, hasChildren: false },
+  },
+  {
+    id: "grid-card-day",
+    name: "MON",
+    type: "TEXT",
+    characters: "MON",
+    absoluteBounds: { left: 20, top: 10, width: 32, height: 18 },
+    styleFlags: { hasSolidFill: true, hasImageFill: false, hasChildren: false },
+  },
+];
+
+const runReviewServiceChecks = async () => {
+  const originalFetch = globalThis.fetch;
+  const originalToken = process.env.OPENAI_ACCESS_TOKEN;
+  const originalModel = process.env.OPENAI_FIGMA_REVIEW_MODEL;
+  const privateFigmaUrl =
+    "https://www.figma.com/design/T2VDXkMPVFa6yEl9FnVvYo/Private-Grid?node-id=1412-5814";
+  const temporaryAssetUrl = "https://temporary.example/export.png";
+  const openAiSecret = "openai-secret-token";
+
+  const responseJson = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { "content-type": "application/json" },
+    });
+
+  try {
+    delete process.env.OPENAI_ACCESS_TOKEN;
+    delete process.env.OPENAI_FIGMA_REVIEW_MODEL;
+    const rulesOnly = await reviewFigmaGridNodes(gridReviewNodes);
+    assert.equal(rulesOnly.length, 2);
+    assert.equal(rulesOnly[0]?.source, "rule");
+    assert.equal(rulesOnly[0]?.suggestedRole, "main_title");
+    assert.equal(rulesOnly[0]?.suggestedStudioType, "flexibleText");
+    assert.equal(rulesOnly[1]?.suggestedRole, "day_label");
+
+    const unavailable = await reviewFigmaGridNodesWithWarnings(gridReviewNodes);
+    assert.equal(unavailable.reviews[0]?.source, "rule");
+    assert.match(unavailable.warnings[0] ?? "", /automated review/i);
+
+    process.env.OPENAI_ACCESS_TOKEN = openAiSecret;
+    process.env.OPENAI_FIGMA_REVIEW_MODEL = "fixed-grid-review-model";
+    let aiResponse: unknown = {
+      reviews: [
+        {
+          sourceNodeId: "grid-card-title",
+          suggestedRole: "main_title",
+          suggestedStudioType: "flexibleText",
+          confidence: 0.88,
+          reason: "The GRID card title is dynamic.",
+        },
+      ],
+    };
+    let capturedOpenAiBody = "";
+    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      assert.equal(String(input), "https://api.openai.com/v1/chat/completions");
+      capturedOpenAiBody = String(init?.body ?? "");
+      return responseJson({
+        choices: [{ message: { content: JSON.stringify(aiResponse) } }],
+      });
+    }) as typeof fetch;
+
+    const redactionInput: FigmaReviewInput[] = [
+      {
+        ...gridReviewNodes[0]!,
+        name: `Title ${privateFigmaUrl} ${temporaryAssetUrl}`,
+        characters: `data:image/png;base64,AAAA ${openAiSecret}`,
+      },
+    ];
+    const aiReview = await reviewFigmaGridNodesWithWarnings(redactionInput);
+    assert.equal(aiReview.warnings.length, 0);
+    assert.equal(aiReview.reviews[0]?.source, "ai");
+    assert.equal(aiReview.reviews[0]?.suggestedStudioType, "flexibleText");
+    assert.deepEqual(aiReview.reviews[0]?.suggestedBinding, {
+      kind: "builtinField",
+      fieldId: "entry.main_title",
+    });
+    assert.equal(JSON.parse(capturedOpenAiBody).model, "fixed-grid-review-model");
+    assert.equal(capturedOpenAiBody.includes(privateFigmaUrl), false);
+    assert.equal(capturedOpenAiBody.includes(temporaryAssetUrl), false);
+    assert.equal(capturedOpenAiBody.includes(openAiSecret), false);
+    assert.doesNotMatch(capturedOpenAiBody, /data:image\/png;base64/i);
+
+    for (const invalidReview of [
+      {
+        sourceNodeId: "grid-card-title",
+        suggestedRole: "administrator",
+        suggestedStudioType: "text",
+        confidence: 0.9,
+        reason: "Unknown role.",
+      },
+      {
+        sourceNodeId: "not-a-grid-node",
+        suggestedRole: "main_title",
+        suggestedStudioType: "text",
+        confidence: 0.9,
+        reason: "Unknown node.",
+      },
+      {
+        sourceNodeId: "grid-card-title",
+        suggestedRole: "main_title",
+        suggestedStudioType: "autoText",
+        confidence: 0.9,
+        reason: "Invalid Studio type.",
+      },
+    ]) {
+      aiResponse = { reviews: [invalidReview] };
+      const rejected = await reviewFigmaGridNodesWithWarnings(gridReviewNodes);
+      assert.ok(rejected.reviews.every((review) => review.source === "rule"));
+      assert.match(rejected.warnings[0] ?? "", /automated review/i);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalToken === undefined) delete process.env.OPENAI_ACCESS_TOKEN;
+    else process.env.OPENAI_ACCESS_TOKEN = originalToken;
+    if (originalModel === undefined) delete process.env.OPENAI_FIGMA_REVIEW_MODEL;
+    else process.env.OPENAI_FIGMA_REVIEW_MODEL = originalModel;
+  }
+};
 
 const runRouteContractChecks = async () => {
   const secretToken = "figma-secret-token";
@@ -476,8 +611,23 @@ const runRouteContractChecks = async () => {
 
     const routeHandler = createFigmaGridAnalyzeHandler({
       requireActor: async () => ({ ok: true, userId: 1 }),
-      toCandidates: async ({ candidates }) =>
-        candidates.map((candidate) => ({
+      reviewNodes: async (nodes) => ({
+        reviews: nodes.map((node) => ({
+          sourceNodeId: node.id,
+          label: node.name,
+          sourceType: node.type,
+          suggestedRole: "unknown",
+          suggestedStudioType: "text",
+          suggestedBinding: { kind: "staticText", value: node.characters ?? "" },
+          confidence: 0.2,
+          source: "rule",
+          reason: "Route propagation fixture.",
+        })),
+        warnings: ["Automated review was unavailable; deterministic suggestions are shown."],
+      }),
+      toCandidates: async ({ candidates }) => {
+        assert.match(candidates[0]?.reviews?.[0]?.reason ?? "", /Route propagation fixture/);
+        return candidates.map((candidate) => ({
           candidateId: candidate.candidateId,
           label: candidate.label,
           frame: { left: 10, top: 20, width: 140, height: 180 },
@@ -495,9 +645,10 @@ const runRouteContractChecks = async () => {
             rootNodeId: "fixture-root",
             assets: [],
           },
-          reviews: [],
+          reviews: candidate.reviews ?? [],
           warnings: candidate.warnings,
-        })),
+        }));
+      },
     });
     const routeResponse = await routeHandler(
       new Request("http://localhost/api/admin/template-studio/figma/analyze", {
@@ -512,6 +663,8 @@ const runRouteContractChecks = async () => {
     assert.doesNotMatch(routeBody, /temporary\.example/);
     assert.match(routeBody, /Monday card/);
     assert.match(routeBody, /10 MiB/);
+    assert.match(routeBody, /Automated review was unavailable/);
+    assert.match(routeBody, /Route propagation fixture/);
   } finally {
     globalThis.fetch = originalFetch;
     if (originalToken === undefined) delete process.env.FIGMA_ACCESS_TOKEN;
@@ -519,7 +672,8 @@ const runRouteContractChecks = async () => {
   }
 };
 
-void runRouteContractChecks()
+void runReviewServiceChecks()
+  .then(runRouteContractChecks)
   .then(() => console.log("Figma import contract checks passed"))
   .catch((error: unknown) => {
     console.error(error);

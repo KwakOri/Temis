@@ -2,6 +2,11 @@ import {
   fetchFigmaGridCandidates,
   FigmaGridScopeError,
 } from "@/services/server/figmaTemplateStudioService";
+import {
+  reviewFigmaGridNodesWithWarnings,
+  type FigmaGridReviewResult,
+  type FigmaReviewInput,
+} from "@/services/server/figmaGridReviewService";
 import type {
   FigmaGridCandidateSource,
   StudioFigmaAnalyzeResponse,
@@ -18,14 +23,55 @@ type CandidateAdapter = (input: {
   warnings: string[];
 }) => Promise<StudioFigmaGridCandidate[]> | StudioFigmaGridCandidate[];
 
+type ReviewNodes = (nodes: FigmaReviewInput[]) => Promise<FigmaGridReviewResult>;
+
 const noGraphCandidatesYet: CandidateAdapter = async () => [];
+
+const toReviewInputs = (node: FigmaGridCandidateSource["root"]): FigmaReviewInput[] => {
+  const fills = node.fills ?? [];
+  return [
+    {
+      id: node.id,
+      name: node.name,
+      type: node.type,
+      characters: node.characters,
+      textAutoResize: node.textAutoResize,
+      layoutSizingHorizontal: node.layoutSizingHorizontal,
+      layoutSizingVertical: node.layoutSizingVertical,
+      layoutMode: node.layoutMode,
+      visible: node.visible,
+      opacity: node.opacity,
+      absoluteBounds: node.absoluteBounds,
+      styleFlags: {
+        hasSolidFill: fills.some(
+          (fill) =>
+            fill &&
+            typeof fill === "object" &&
+            "type" in fill &&
+            (fill as { type?: unknown }).type === "SOLID",
+        ),
+        hasImageFill: fills.some(
+          (fill) =>
+            fill &&
+            typeof fill === "object" &&
+            "type" in fill &&
+            (fill as { type?: unknown }).type === "IMAGE",
+        ),
+        hasChildren: (node.children?.length ?? 0) > 0,
+      },
+    },
+    ...(node.children?.flatMap(toReviewInputs) ?? []),
+  ];
+};
 
 export const createFigmaGridAnalyzeHandler = (dependencies: {
   requireActor: (request: NextRequest) => Promise<AdminActorResult>;
   toCandidates?: CandidateAdapter;
+  reviewNodes?: ReviewNodes;
 }) => {
   const graphConversionPending = !dependencies.toCandidates;
   const toCandidates = dependencies.toCandidates ?? noGraphCandidatesYet;
+  const reviewNodes = dependencies.reviewNodes ?? reviewFigmaGridNodesWithWarnings;
 
   return async (request: Pick<Request, "json">): Promise<Response> => {
     const actor = await dependencies.requireActor(request as NextRequest);
@@ -68,11 +114,24 @@ export const createFigmaGridAnalyzeHandler = (dependencies: {
 
     try {
       const normalized = await fetchFigmaGridCandidates(source);
-      const candidates = await toCandidates(normalized);
+      const reviewedCandidates = await Promise.all(
+        normalized.candidates.map(async (candidate) => {
+          const reviewResult = await reviewNodes(toReviewInputs(candidate.root));
+          return {
+            ...candidate,
+            reviews: reviewResult.reviews,
+            warnings: [...candidate.warnings, ...reviewResult.warnings],
+          };
+        }),
+      );
       const warnings = [
         ...normalized.warnings,
-        ...normalized.candidates.flatMap((candidate) => candidate.warnings),
+        ...reviewedCandidates.flatMap((candidate) => candidate.warnings),
       ];
+      const candidates = await toCandidates({
+        candidates: reviewedCandidates,
+        warnings,
+      });
       const response: StudioFigmaAnalyzeResponse = {
         success: true,
         candidates,
