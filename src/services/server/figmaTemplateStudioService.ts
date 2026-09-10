@@ -60,6 +60,7 @@ const normalizeBounds = (value: unknown) => {
 const normalizeFigmaNode = (raw: FigmaRawNode): FigmaNormalizedNode => {
   const absoluteBounds = normalizeBounds(raw.absoluteBoundingBox);
   const absoluteRenderBounds = normalizeBounds(raw.absoluteRenderBounds);
+  const style = asRecord(raw.style);
   const rotation = normalizeFigmaRotation(asNumber(raw.rotation));
   const children = Array.isArray(raw.children)
     ? raw.children
@@ -77,12 +78,18 @@ const normalizeFigmaNode = (raw: FigmaRawNode): FigmaNormalizedNode => {
     layoutSizingHorizontal: asString(raw.layoutSizingHorizontal),
     layoutSizingVertical: asString(raw.layoutSizingVertical),
     layoutMode: asString(raw.layoutMode),
+    textAlignHorizontal: asString(style?.textAlignHorizontal),
+    textAlignVertical: asString(style?.textAlignVertical),
     visible: typeof raw.visible === "boolean" ? raw.visible : undefined,
     opacity: asNumber(raw.opacity),
     fills: Array.isArray(raw.fills) ? raw.fills : undefined,
+    effects: Array.isArray(raw.effects) ? raw.effects : undefined,
+    strokes: Array.isArray(raw.strokes) ? raw.strokes : undefined,
+    cornerRadius: asNumber(raw.cornerRadius),
+    clipsContent: typeof raw.clipsContent === "boolean" ? raw.clipsContent : undefined,
     absoluteBounds,
     absoluteRenderBounds,
-    style: asRecord(raw.style) ?? undefined,
+    style: style ?? undefined,
     rotation,
     rotatedWidth: absoluteRenderBounds?.width,
     rotatedHeight: absoluteRenderBounds?.height,
@@ -108,7 +115,9 @@ const figmaFetch = async (path: string): Promise<Response> => {
 const isDecorativeAssetNode = (node: FigmaNormalizedNode): boolean =>
   node.type === "IMAGE" ||
   node.type === "SLICE" ||
-  node.fills?.some((fill) => asRecord(fill)?.type === "IMAGE") === true;
+  node.fills?.some((fill) => asRecord(fill)?.type === "IMAGE") === true ||
+  (node.type !== "TEXT" &&
+    ((node.effects?.length ?? 0) > 0 || (node.strokes?.length ?? 0) > 0));
 
 const collectDecorativeAssetNodes = (
   node: FigmaNormalizedNode,

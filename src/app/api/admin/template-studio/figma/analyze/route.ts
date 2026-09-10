@@ -12,6 +12,7 @@ import type {
   StudioFigmaAnalyzeResponse,
   StudioFigmaGridCandidate,
 } from "@/types/template-studio-figma";
+import { convertFigmaGridCandidate } from "@/utils/template-studio/figma-import/figma-node-converter";
 import { parseFigmaDesignUrl } from "@/utils/template-studio/figma-import/figma-url";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -25,7 +26,18 @@ type CandidateAdapter = (input: {
 
 type ReviewNodes = (nodes: FigmaReviewInput[]) => Promise<FigmaGridReviewResult>;
 
-const noGraphCandidatesYet: CandidateAdapter = async () => [];
+const convertCandidates: CandidateAdapter = ({ candidates }) =>
+  candidates.map((candidate) => {
+    const converted = convertFigmaGridCandidate({
+      root: candidate.root,
+      reviews: candidate.reviews ?? [],
+      exportedAssets: candidate.assets,
+    });
+    return {
+      ...converted,
+      warnings: [...candidate.warnings, ...converted.warnings],
+    };
+  });
 
 const toReviewInputs = (node: FigmaGridCandidateSource["root"]): FigmaReviewInput[] => {
   const fills = node.fills ?? [];
@@ -69,8 +81,7 @@ export const createFigmaGridAnalyzeHandler = (dependencies: {
   toCandidates?: CandidateAdapter;
   reviewNodes?: ReviewNodes;
 }) => {
-  const graphConversionPending = !dependencies.toCandidates;
-  const toCandidates = dependencies.toCandidates ?? noGraphCandidatesYet;
+  const toCandidates = dependencies.toCandidates ?? convertCandidates;
   const reviewNodes = dependencies.reviewNodes ?? reviewFigmaGridNodesWithWarnings;
 
   return async (request: Pick<Request, "json">): Promise<Response> => {
@@ -132,16 +143,14 @@ export const createFigmaGridAnalyzeHandler = (dependencies: {
         candidates: reviewedCandidates,
         warnings,
       });
+      const responseWarnings = [...new Set([
+        ...warnings,
+        ...candidates.flatMap((candidate) => candidate.warnings),
+      ])];
       const response: StudioFigmaAnalyzeResponse = {
         success: true,
         candidates,
-        warnings:
-          graphConversionPending && normalized.candidates.length > 0
-            ? [
-                ...warnings,
-                "GRID sources were fetched; graph conversion is not connected yet.",
-              ]
-            : warnings,
+        warnings: responseWarnings,
       };
       return NextResponse.json(response);
     } catch (error) {

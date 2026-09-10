@@ -54,9 +54,15 @@ export interface FigmaNormalizedNode {
   layoutSizingHorizontal?: string;
   layoutSizingVertical?: string;
   layoutMode?: string;
+  textAlignHorizontal?: string;
+  textAlignVertical?: string;
   visible?: boolean;
   opacity?: number;
   fills?: unknown[];
+  effects?: unknown[];
+  strokes?: unknown[];
+  cornerRadius?: number;
+  clipsContent?: boolean;
   absoluteBounds?: { left: number; top: number; width: number; height: number };
   absoluteRenderBounds?: {
     left: number;

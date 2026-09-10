@@ -70,7 +70,7 @@ const solidPaintColor = (fills: unknown[] | undefined): string | undefined => {
   if (red === undefined || green === undefined || blue === undefined) return undefined;
 
   const channel = (value: number) => Math.round(Math.min(1, Math.max(0, value)) * 255);
-  const opacity = clampOpacity(paint?.opacity) ?? 1;
+  const opacity = (clampOpacity(paint?.opacity) ?? 1) * (clampOpacity(color?.a) ?? 1);
   const rgb = [channel(red), channel(green), channel(blue)];
   if (opacity === 1) {
     return `#${rgb.map((value) => value.toString(16).padStart(2, "0")).join("")}`;
@@ -83,17 +83,19 @@ const hasImagePaint = (fills: unknown[] | undefined): boolean =>
 
 const hasUnsupportedEffects = (node: FigmaNormalizedNode): boolean => {
   const style = getStyle(node);
-  return ["effects", "strokes", "strokeWeight", "dropShadow", "textShadow"]
-    .some((key) => style[key] !== undefined && style[key] !== null);
+  return (node.effects?.length ?? 0) > 0 ||
+    (node.strokes?.length ?? 0) > 0 ||
+    ["effects", "strokes", "strokeWeight", "dropShadow", "textShadow"]
+      .some((key) => style[key] !== undefined && style[key] !== null);
 };
 
 const getBorderRadius = (node: FigmaNormalizedNode): number | undefined => {
-  const value = asFiniteNumber(getStyle(node).cornerRadius);
+  const value = asFiniteNumber(node.cornerRadius) ?? asFiniteNumber(getStyle(node).cornerRadius);
   return value === undefined ? undefined : Math.max(0, value);
 };
 
 const getOverflow = (node: FigmaNormalizedNode): "hidden" | "visible" | undefined => {
-  const value = getStyle(node).clipsContent;
+  const value = node.clipsContent ?? getStyle(node).clipsContent;
   return value === true ? "hidden" : value === false ? "visible" : undefined;
 };
 
@@ -136,22 +138,33 @@ const getTextStyle = (node: FigmaNormalizedNode, style: StudioStyleRecord): void
   }
   const letterSpacing = asFiniteNumber(figmaStyle.letterSpacing);
   if (letterSpacing !== undefined) style.letterSpacing = letterSpacing;
-  const lineHeight = asFiniteNumber(figmaStyle.lineHeightPx) ?? asFiniteNumber(figmaStyle.lineHeight);
-  if (lineHeight !== undefined && lineHeight > 0) style.lineHeight = lineHeight;
+  const lineHeightPx = asFiniteNumber(figmaStyle.lineHeightPx);
+  if (lineHeightPx !== undefined && lineHeightPx > 0) {
+    style.lineHeight = `${lineHeightPx}px`;
+  } else {
+    const lineHeightPercent = asFiniteNumber(figmaStyle.lineHeightPercentFontSize);
+    if (lineHeightPercent !== undefined && lineHeightPercent > 0) {
+      style.lineHeight = lineHeightPercent / 100;
+    } else {
+      const lineHeight = asFiniteNumber(figmaStyle.lineHeight);
+      if (lineHeight !== undefined && lineHeight > 0) style.lineHeight = lineHeight;
+    }
+  }
 
-  const horizontal = figmaStyle.textAlignHorizontal;
+  const horizontal = node.textAlignHorizontal ?? figmaStyle.textAlignHorizontal;
   if (horizontal === "LEFT" || horizontal === "CENTER" || horizontal === "RIGHT" || horizontal === "JUSTIFIED") {
     style.textAlign = horizontal === "JUSTIFIED" ? "justify" : horizontal.toLowerCase();
-  }
-  const vertical = figmaStyle.textAlignVertical;
-  if (vertical === "TOP" || vertical === "CENTER" || vertical === "BOTTOM") {
     style.display = "flex";
-    style.alignItems = horizontal === "LEFT"
+    style.justifyContent = horizontal === "LEFT"
       ? "flex-start"
       : horizontal === "RIGHT"
         ? "flex-end"
         : "center";
-    style.justifyContent = vertical === "TOP"
+  }
+  const vertical = node.textAlignVertical ?? figmaStyle.textAlignVertical;
+  if (vertical === "TOP" || vertical === "CENTER" || vertical === "BOTTOM") {
+    style.display = "flex";
+    style.alignItems = vertical === "TOP"
       ? "flex-start"
       : vertical === "BOTTOM"
         ? "flex-end"
@@ -167,15 +180,6 @@ const normalizedLayerName = (value: string): string =>
 
 const isExplicitEntryGroup = (node: FigmaNormalizedNode): boolean =>
   GROUP_TYPES.has(node.type) && /^(?:entry|entrygroup|entryslot|cardentry)$/.test(normalizedLayerName(node.name));
-
-const findExplicitEntryNodeId = (node: FigmaNormalizedNode): string | undefined => {
-  if (isExplicitEntryGroup(node)) return node.id;
-  for (const child of node.children ?? []) {
-    const entryId = findExplicitEntryNodeId(child);
-    if (entryId) return entryId;
-  }
-  return undefined;
-};
 
 const makeAsset = (
   source: FigmaTransientAsset,
@@ -206,7 +210,11 @@ export const convertFigmaGridCandidate = (input: {
   const nodes: Record<string, StudioGraphNode> = {};
   const styles: Record<string, StudioStyleRecord> = {};
   const assets: StudioAsset[] = [];
-  const explicitEntrySourceId = findExplicitEntryNodeId(input.root);
+  const directEntryChildren = (input.root.children ?? []).filter(isExplicitEntryGroup);
+  const explicitEntrySourceId = directEntryChildren[0]?.id;
+  if (directEntryChildren.length > 1) {
+    warnings.push("Multiple direct Entry groups were found; only the first receives entry slot index 0.");
+  }
 
   const convertNode = (
     source: FigmaNormalizedNode,
@@ -248,7 +256,7 @@ export const convertFigmaGridCandidate = (input: {
     const sourceAsset = assetsBySourceId.get(source.id);
     const unsupportedEffects = hasUnsupportedEffects(source);
     if (unsupportedEffects) {
-      warnings.push(`Unsupported visual effects on "${safeLabel(source.name, "Figma layer")}" were not serialized.`);
+      warnings.push(`Unsupported Figma effects/strokes on "${safeLabel(source.name, "Figma layer")}" were not serialized.`);
     }
 
     let type: StudioGraphNodeType;

@@ -527,6 +527,12 @@ const runRouteContractChecks = async () => {
                         textAutoResize: "HEIGHT",
                         rotation: 0.25,
                         visible: true,
+                        effects: [{ type: "DROP_SHADOW", radius: 8 }],
+                        strokes: [{ type: "SOLID", opacity: 1 }],
+                        style: {
+                          textAlignHorizontal: "RIGHT",
+                          textAlignVertical: "TOP",
+                        },
                         fills: [
                           {
                             type: "SOLID",
@@ -540,6 +546,18 @@ const runRouteContractChecks = async () => {
                         id: "large-asset",
                         name: "Large decoration",
                         type: "IMAGE",
+                      },
+                      {
+                        id: "effect-leaf",
+                        name: "Effect export",
+                        type: "FRAME",
+                        absoluteBoundingBox: {
+                          x: 40,
+                          y: 60,
+                          width: 20,
+                          height: 20,
+                        },
+                        effects: [{ type: "DROP_SHADOW", radius: 4 }],
                       },
                     ],
                   },
@@ -563,6 +581,11 @@ const runRouteContractChecks = async () => {
         });
       }
       if (url.includes("/v1/images/")) {
+        if (url.includes("effect-leaf")) {
+          return responseJson({
+            images: { "effect-leaf": "https://temporary.example/effect.png" },
+          });
+        }
         return responseJson({
           images: url.includes("large-asset")
             ? { "large-asset": "https://temporary.example/large.png" }
@@ -574,6 +597,11 @@ const runRouteContractChecks = async () => {
       if (url === "https://temporary.example/asset.png") {
         return new Response(new Uint8Array([137, 80, 78, 71]), {
           headers: { "content-type": "image/png", "content-length": "4" },
+        });
+      }
+      if (url === "https://temporary.example/effect.png") {
+        return new Response(new Uint8Array([137, 80, 78, 71, 1]), {
+          headers: { "content-type": "image/png", "content-length": "5" },
         });
       }
       if (url === "https://temporary.example/large.png") {
@@ -664,12 +692,32 @@ const runRouteContractChecks = async () => {
     assert.deepEqual(discovered.candidates[0]?.root.children?.[0]?.fills, [
       { type: "SOLID", color: { r: 1, g: 0, b: 0 }, opacity: 0.5 },
     ]);
+    assert.deepEqual(
+      (discovered.candidates[0]?.root.children?.[0] as FigmaNormalizedNode & {
+        effects?: unknown[];
+        strokes?: unknown[];
+      })?.effects,
+      [{ type: "DROP_SHADOW", radius: 8 }],
+    );
+    assert.deepEqual(
+      (discovered.candidates[0]?.root.children?.[0] as FigmaNormalizedNode & {
+        effects?: unknown[];
+        strokes?: unknown[];
+      })?.strokes,
+      [{ type: "SOLID", opacity: 1 }],
+    );
+    assert.equal(discovered.candidates[0]?.root.children?.[0]?.textAlignHorizontal, "RIGHT");
+    assert.equal(discovered.candidates[0]?.root.children?.[0]?.textAlignVertical, "TOP");
     assert.match(
       discovered.candidates[0]?.assets[0]?.src ?? "",
       /^data:image\/png;base64,/,
     );
     assert.equal(discovered.candidates[0]?.assets[0]?.sourceNodeId, "asset-1");
-    assert.equal(discovered.candidates[0]?.assets.length, 1);
+    assert.equal(discovered.candidates[0]?.assets.length, 2);
+    assert.match(
+      discovered.candidates[0]?.assets.find((asset) => asset.sourceNodeId === "effect-leaf")?.src ?? "",
+      /^data:image\/png;base64,/,
+    );
     assert.match(discovered.candidates[0]?.warnings[0] ?? "", /10 MiB/);
 
     const asset = await exportFigmaNodeAsDataUrl(
@@ -743,6 +791,68 @@ const runRouteContractChecks = async () => {
     assert.match(routeBody, /10 MiB/);
     assert.match(routeBody, /Automated review was unavailable/);
     assert.match(routeBody, /Route propagation fixture/);
+
+    const defaultRouteHandler = createFigmaGridAnalyzeHandler({
+      requireActor: async () => ({ ok: true, userId: 1 }),
+      reviewNodes: async (nodes) => ({
+        reviews: nodes.map((node) => ({
+          sourceNodeId: node.id,
+          label: node.name,
+          sourceType: node.type,
+          suggestedRole: node.type === "TEXT" ? "unknown" : "decoration",
+          suggestedStudioType: node.type === "TEXT"
+            ? "text"
+            : node.styleFlags.hasImageFill || node.type === "IMAGE"
+              ? "image"
+              : node.styleFlags.hasChildren
+                ? "group"
+                : "shape",
+          suggestedBinding: {
+            kind: "staticText",
+            value: node.characters ?? "",
+          },
+          confidence: 0.8,
+          source: "rule",
+          reason: "Default converter route fixture.",
+        })),
+        warnings: [],
+      }),
+    });
+    const defaultRouteResponse = await defaultRouteHandler(
+      new Request("http://localhost/api/admin/template-studio/figma/analyze", {
+        method: "POST",
+        body: JSON.stringify({ figmaUrl: privateFigmaUrl }),
+      }),
+    );
+    const defaultRouteBody = await defaultRouteResponse.json() as {
+      candidates: Array<{
+        component: {
+          nodes: Record<string, { label: string; type: string }>;
+          rootNodeId: string;
+          assets: Array<{ src: string }>;
+        };
+        warnings: string[];
+      }>;
+      warnings: string[];
+    };
+    assert.equal(defaultRouteResponse.status, 200);
+    assert.equal(defaultRouteBody.candidates.length, 2);
+    const defaultCandidate = defaultRouteBody.candidates[0];
+    assert.ok(defaultCandidate?.component.rootNodeId);
+    assert.equal(
+      defaultCandidate?.component.nodes[defaultCandidate.component.rootNodeId]?.type,
+      "group",
+    );
+    assert.ok(Object.keys(defaultCandidate?.component.nodes ?? {}).length > 0);
+    assert.equal(
+      Object.values(defaultCandidate?.component.nodes ?? {})
+        .find((node) => node.label === "Effect export")?.type,
+      "image",
+    );
+    assert.ok(defaultCandidate?.component.assets.every((asset) => asset.src.startsWith("data:image/")));
+    assert.equal(defaultRouteBody.warnings.some((warning) => /graph conversion is not connected/i.test(warning)), false);
+    assert.doesNotMatch(JSON.stringify(defaultRouteBody), new RegExp(privateFigmaUrl));
+    assert.doesNotMatch(JSON.stringify(defaultRouteBody), new RegExp(secretToken));
   } finally {
     globalThis.fetch = originalFetch;
     if (originalToken === undefined) delete process.env.FIGMA_ACCESS_TOKEN;
@@ -770,8 +880,14 @@ const converterReview = (
   reason: "Converter fixture review.",
 });
 
+type FigmaVisualMetadataFixtureNode = FigmaNormalizedNode & {
+  effects?: unknown[];
+  strokes?: unknown[];
+  children?: FigmaVisualMetadataFixtureNode[];
+};
+
 const runConverterChecks = () => {
-  const root: FigmaNormalizedNode = {
+  const root = {
     id: "figma-card-root",
     name: "Monday card",
     type: "FRAME",
@@ -792,6 +908,10 @@ const runConverterChecks = () => {
             characters: "Weekly broadcast",
             absoluteBounds: { left: 120, top: 225, width: 180, height: 24 },
             opacity: 0.8,
+            effects: [{ type: "DROP_SHADOW", radius: 8 }],
+            strokes: [{ type: "SOLID", opacity: 1 }],
+            textAlignHorizontal: "RIGHT",
+            textAlignVertical: "TOP",
             fills: [{ type: "SOLID", color: { r: 0.1, g: 0.2, b: 0.3 }, opacity: 0.5 }],
             style: {
               fontFamily: "Inter",
@@ -800,10 +920,10 @@ const runConverterChecks = () => {
               fontStyle: "italic",
               letterSpacing: 0.4,
               lineHeightPx: 28,
-              textAlignHorizontal: "CENTER",
-              textAlignVertical: "CENTER",
+              lineHeightPercentFontSize: 125,
+              textAlignHorizontal: "RIGHT",
+              textAlignVertical: "TOP",
               unsupportedFigmaProperty: { nested: true },
-              effects: [{ type: "DROP_SHADOW" }],
             },
           },
           {
@@ -841,7 +961,7 @@ const runConverterChecks = () => {
             name: "Effect export",
             type: "FRAME",
             absoluteBounds: { left: 300, top: 260, width: 20, height: 20 },
-            style: { effects: [{ type: "LAYER_BLUR" }] },
+            effects: [{ type: "LAYER_BLUR" }],
           },
         ],
       },
@@ -853,7 +973,7 @@ const runConverterChecks = () => {
         fills: [{ type: "SOLID", color: { r: 0.9, g: 0.9, b: 0.9 }, opacity: 1 }],
       },
     ],
-  };
+  } as FigmaVisualMetadataFixtureNode;
   const reviews = [
     converterReview("figma-entry", "group"),
     converterReview("figma-title", "flexibleText", "main_title"),
@@ -970,6 +1090,19 @@ const runConverterChecks = () => {
     "width",
   ]);
   assert.equal(titleStyle?.color, "rgba(26, 51, 77, 0.5)");
+  assert.equal(titleStyle?.lineHeight, "28px");
+  assert.deepEqual(
+    {
+      textAlign: titleStyle?.textAlign,
+      justifyContent: titleStyle?.justifyContent,
+      alignItems: titleStyle?.alignItems,
+    },
+    {
+      textAlign: "right",
+      justifyContent: "flex-end",
+      alignItems: "flex-start",
+    },
+  );
   assert.deepEqual(titleNode?.textAppearance, {
     fill: { type: "solid", color: "rgba(26, 51, 77, 0.5)", opacity: 1 },
     strokes: [],
@@ -1013,6 +1146,12 @@ const runConverterChecks = () => {
 
   const generatedEntrySource = structuredClone(root);
   generatedEntrySource.children![0]!.name = "Content";
+  generatedEntrySource.children![0]!.children!.push({
+    id: "figma-nested-entry",
+    name: "entry-slot",
+    type: "FRAME",
+    absoluteBounds: { left: 115, top: 220, width: 100, height: 40 },
+  });
   const generatedEntryCandidate = convertFigmaGridCandidate({
     root: generatedEntrySource,
     reviews,
@@ -1020,7 +1159,11 @@ const runConverterChecks = () => {
   });
   const generatedEntries = Object.values(generatedEntryCandidate.component.nodes)
     .filter((node) => node.meta?.entrySlot?.index === 0);
+  const nestedEntry = Object.values(generatedEntryCandidate.component.nodes)
+    .find((node) => node.label === "entry-slot");
   assert.equal(generatedEntries.length, 1);
+  assert.equal(nestedEntry?.type, "group");
+  assert.equal(nestedEntry?.meta, undefined);
   assert.deepEqual(
     generatedEntryCandidate.component.nodes[generatedEntryCandidate.component.rootNodeId]?.childIds,
     [generatedEntries[0]?.id],
