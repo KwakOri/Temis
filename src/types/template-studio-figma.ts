@@ -52,11 +52,39 @@ export interface FigmaNormalizedNode {
   characters?: string;
   textAutoResize?: string;
   layoutSizingHorizontal?: string;
+  layoutSizingVertical?: string;
+  layoutMode?: string;
+  visible?: boolean;
+  opacity?: number;
+  fills?: unknown[];
+  absoluteBounds?: { left: number; top: number; width: number; height: number };
+  absoluteRenderBounds?: {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  };
+  style?: Record<string, unknown>;
   rotation?: number;
   rotatedWidth?: number;
   rotatedHeight?: number;
   children?: FigmaNormalizedNode[];
   frame?: { left: number; top: number; width: number; height: number };
+}
+
+export interface FigmaTransientAsset {
+  sourceNodeId: string;
+  src: string;
+  mimeType: "image/png" | "image/svg+xml";
+  byteSize: number;
+}
+
+export interface FigmaGridCandidateSource {
+  candidateId: string;
+  label: string;
+  root: FigmaNormalizedNode;
+  assets: FigmaTransientAsset[];
+  warnings: string[];
 }
 
 export interface StudioFigmaAnalyzeResponse {
