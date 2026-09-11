@@ -221,6 +221,22 @@ const timetableSettingsMarkup = renderToStaticMarkup(
     onTimetableGuideRemove={noop}
     onTimetableGuideUpload={noop}
     onWebFontsChange={noop}
+    figmaImport={{
+      candidates: [],
+      errorMessage: null,
+      figmaUrl: "",
+      isAnalyzing: false,
+      isImporting: false,
+      isRemoteSyncing: false,
+      selectedCandidateId: null,
+      statusMessage: null,
+      onAnalyze: noop,
+      onCancel: noop,
+      onCandidateSelect: noop,
+      onReviewChange: noop,
+      onUrlChange: noop,
+      onConfirm: noop,
+    }}
   />,
 );
 
@@ -311,6 +327,22 @@ const renderCapabilitySettings = (
       onTimetableGuideRemove={noop}
       onTimetableGuideUpload={noop}
       onWebFontsChange={noop}
+      figmaImport={{
+        candidates: [],
+        errorMessage: null,
+        figmaUrl: "",
+        isAnalyzing: false,
+        isImporting: false,
+        isRemoteSyncing: false,
+        selectedCandidateId: null,
+        statusMessage: null,
+        onAnalyze: noop,
+        onCancel: noop,
+        onCandidateSelect: noop,
+        onReviewChange: noop,
+        onUrlChange: noop,
+        onConfirm: noop,
+      }}
     />,
   );
 };
@@ -359,6 +391,10 @@ assert.ok(
     '<span class="ml-auto rounded bg-[var(--sel)] px-1.5 py-0.5 text-[9px] font-bold uppercase text-[var(--accent)]">cards</span>',
   ),
   "캔버스 탭은 현재 작업 모드를 배지로 보여준다.",
+);
+assert.ok(
+  timetableSettingsMarkup.includes("컴포넌트 카드 링크"),
+  "Timetable settings includes the transient Figma component import panel.",
 );
 
 // --- 가이드 레이어 설정 기준선 ---

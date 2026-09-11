@@ -11,6 +11,7 @@ import type {
   StudioTemplateDocument,
   StudioTemplateKind,
 } from "@/types/template-studio";
+import type { StudioFigmaAnalyzeResponse } from "@/types/template-studio-figma";
 import type {
   TemplateStudioDocumentSummary,
   TemplateStudioSaveOperation,
@@ -212,6 +213,26 @@ const parseJsonResponse = async <T>(
 
 export class TemplateStudioService {
   private static baseUrl = "/api/admin/template-studio/templates";
+
+  static async analyzeFigmaGridComponent(
+    figmaUrl: string,
+  ): Promise<StudioFigmaAnalyzeResponse> {
+    const response = await fetch("/api/admin/template-studio/figma/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ figmaUrl }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Figma 컴포넌트를 분석하지 못했습니다. 링크와 권한을 확인해 주세요.");
+    }
+
+    const result = await response.json().catch(() => null);
+    if (!result || result.success !== true || !Array.isArray(result.candidates)) {
+      throw new Error("Figma 컴포넌트 분석 결과를 확인하지 못했습니다.");
+    }
+    return result as StudioFigmaAnalyzeResponse;
+  }
 
   static async listTemplates(
     templateKind?: StudioTemplateKind,

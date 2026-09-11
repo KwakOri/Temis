@@ -51,6 +51,7 @@ import {
   useSyncTemplateStudioAssets,
   useTemplateStudioTemplate,
 } from "@/hooks/query/useTemplateStudio";
+import { TemplateStudioService } from "@/services/templateStudioService";
 import { cn } from "@/lib/utils";
 import {
   StudioBuiltinFieldId,
@@ -186,6 +187,10 @@ import {
 } from "@/utils/template-studio/variant-style-propagation";
 import {} from "@/utils/template-studio/text-wrap";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
+import { applyStudioFigmaGridCandidate } from "@/utils/template-studio/figma-import/figma-component-import";
+import type {
+  StudioFigmaGridCandidate,
+} from "@/types/template-studio-figma";
 import { getStudioCustomFontFamilies } from "@/utils/template-studio/web-fonts";
 
 import {
@@ -240,6 +245,7 @@ import { StudioTimetableDayPanel } from "./studio-timetable-day-panel";
 import { StudioTimetableLayerPanel } from "./studio-timetable-layer-panel";
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
 import { StudioSettingsModal } from "./studio-settings-modal";
+import type { ReviewPatch } from "@/components/studio/settings/studio-figma-component-import";
 import {
   getStudioTimetableDayCardGeometry,
   getStudioTimetableDayCardGeometries,
@@ -253,6 +259,22 @@ import {
 type PanelMode = "layers" | "inputs" | "presets" | "timetable";
 type WorkspaceMode = "cards" | "timetable";
 type StudioTheme = "dark" | "light";
+
+const applyFigmaReviewEditsToCandidate = (
+  candidate: StudioFigmaGridCandidate,
+): StudioFigmaGridCandidate => {
+  const nextCandidate = structuredClone(candidate);
+  const graphNodes = Object.values(nextCandidate.component.nodes);
+  nextCandidate.reviews.forEach((review) => {
+    // The converter deliberately keeps source labels on transient graph nodes;
+    // resolve this narrow review seam before the importer strips all source data.
+    const graphNode = graphNodes.find((node) => node.label === review.label);
+    if (!graphNode) return;
+    graphNode.type = review.suggestedStudioType;
+    graphNode.binding = structuredClone(review.suggestedBinding);
+  });
+  return nextCandidate;
+};
 
 type InspectorSectionKey =
   | "componentSet"
@@ -636,6 +658,13 @@ export function TemplateStudioClient({
   const [shortcutMessage, setShortcutMessage] = useState<string | null>(null);
   const [persistenceOperation, setPersistenceOperation] =
     useState<StudioPersistenceOperationState | null>(null);
+  const [figmaUrl, setFigmaUrl] = useState("");
+  const [figmaCandidates, setFigmaCandidates] = useState<StudioFigmaGridCandidate[]>([]);
+  const [selectedFigmaCandidateId, setSelectedFigmaCandidateId] = useState<string | null>(null);
+  const [figmaAnalysisPending, setFigmaAnalysisPending] = useState(false);
+  const [figmaImportPending, setFigmaImportPending] = useState(false);
+  const [figmaErrorMessage, setFigmaErrorMessage] = useState<string | null>(null);
+  const [figmaStatusMessage, setFigmaStatusMessage] = useState<string | null>(null);
   const [operationToast, setOperationToast] =
     useState<StudioPersistenceOperationResult | null>(null);
   const [remoteTemplateId, setRemoteTemplateId] = useState<string | null>(
@@ -1444,6 +1473,89 @@ export function TemplateStudioClient({
     },
     [captureHistory, setDocument, studioStore],
   );
+
+  const analyzeFigmaGrid = useCallback(async () => {
+    if (isRemoteSyncing || !figmaUrl.trim()) return;
+    setFigmaAnalysisPending(true);
+    setFigmaErrorMessage(null);
+    setFigmaStatusMessage(null);
+    try {
+      const response = await TemplateStudioService.analyzeFigmaGridComponent(figmaUrl.trim());
+      setFigmaCandidates(response.candidates);
+      setSelectedFigmaCandidateId(response.candidates.length === 1 ? response.candidates[0]!.candidateId : null);
+      setFigmaStatusMessage(response.warnings[0] ?? `${response.candidates.length}개 후보를 분석했습니다.`);
+    } catch {
+      setFigmaCandidates([]);
+      setSelectedFigmaCandidateId(null);
+      setFigmaErrorMessage("Figma 컴포넌트를 분석하지 못했습니다. 링크와 권한을 확인해 주세요.");
+    } finally {
+      setFigmaAnalysisPending(false);
+    }
+  }, [figmaUrl, isRemoteSyncing]);
+
+  const clearFigmaImportState = useCallback(() => {
+    setFigmaUrl("");
+    setFigmaCandidates([]);
+    setSelectedFigmaCandidateId(null);
+    setFigmaErrorMessage(null);
+    setFigmaStatusMessage(null);
+    setFigmaAnalysisPending(false);
+    setFigmaImportPending(false);
+  }, []);
+
+  const updateFigmaReview = useCallback(
+    (sourceNodeId: string, patch: ReviewPatch) => {
+      setFigmaCandidates((currentCandidates) =>
+        currentCandidates.map((candidate) => ({
+          ...candidate,
+          reviews: candidate.reviews.map((review) =>
+            review.sourceNodeId === sourceNodeId ? { ...review, ...patch } : review,
+          ),
+        })),
+      );
+    },
+    [],
+  );
+
+  const importFigmaCandidate = useCallback(() => {
+    if (isRemoteSyncing || figmaAnalysisPending || figmaImportPending) return;
+    const selectedCandidate = figmaCandidates.find(
+      (candidate) => candidate.candidateId === selectedFigmaCandidateId,
+    );
+    if (!selectedCandidate) {
+      setFigmaErrorMessage("추가할 후보를 먼저 선택해 주세요.");
+      return;
+    }
+
+    setFigmaImportPending(true);
+    setFigmaErrorMessage(null);
+    const candidateWithEdits = applyFigmaReviewEditsToCandidate(selectedCandidate);
+    const importResult = {
+      current: null as ReturnType<typeof applyStudioFigmaGridCandidate> | null,
+    };
+    updateDocument((nextDocument) => {
+      importResult.current = applyStudioFigmaGridCandidate(nextDocument, candidateWithEdits);
+    });
+    if (importResult.current?.ok) {
+      setSelectedCardComponentId(importResult.current.componentId);
+      clearFigmaImportState();
+      setFigmaStatusMessage("새 컴포넌트 세트를 추가했습니다. 요일에는 아직 할당되지 않았습니다.");
+      showShortcutStatus("Imported new component set");
+    } else {
+      setFigmaErrorMessage(importResult.current?.reason ?? "Figma 컴포넌트를 추가하지 못했습니다.");
+      setFigmaImportPending(false);
+    }
+  }, [
+    clearFigmaImportState,
+    figmaAnalysisPending,
+    figmaCandidates,
+    figmaImportPending,
+    isRemoteSyncing,
+    selectedFigmaCandidateId,
+    setSelectedCardComponentId,
+    showShortcutStatus,
+    updateDocument,
+  ]);
 
   const updateNode = useCallback(
     (
@@ -3288,7 +3400,10 @@ export function TemplateStudioClient({
               onCardsCanvasChange={updateCardCanvasSize}
               onCardsGuideRemove={removeCardsGuide}
               onCardsGuideUpload={uploadCardsGuide}
-              onClose={() => setSettingsOpen(false)}
+              onClose={() => {
+                clearFigmaImportState();
+                setSettingsOpen(false);
+              }}
               onExportJson={exportStudioJson}
               onImportJson={() => jsonImportInputRef.current?.click()}
               onReloadTemplate={() => {
@@ -3300,6 +3415,22 @@ export function TemplateStudioClient({
               onTimetableGuideRemove={removeTimetableGuide}
               onTimetableGuideUpload={uploadTimetableGuide}
               onWebFontsChange={updateWebFonts}
+              figmaImport={{
+                candidates: figmaCandidates,
+                errorMessage: figmaErrorMessage,
+                figmaUrl,
+                isAnalyzing: figmaAnalysisPending,
+                isImporting: figmaImportPending,
+                isRemoteSyncing,
+                selectedCandidateId: selectedFigmaCandidateId,
+                statusMessage: figmaStatusMessage,
+                onAnalyze: () => void analyzeFigmaGrid(),
+                onCancel: clearFigmaImportState,
+                onCandidateSelect: setSelectedFigmaCandidateId,
+                onReviewChange: updateFigmaReview,
+                onUrlChange: setFigmaUrl,
+                onConfirm: importFigmaCandidate,
+              }}
             />
             {stylePropagationOpen ? (
               <StudioApplyStyleDialog

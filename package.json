@@ -47,6 +47,7 @@
     "check:template-studio:template-kind": "tsx scripts/check-template-studio-template-kind.ts",
     "check:studio:editor-shell": "tsx scripts/check-studio-editor-shell.tsx",
     "check:studio:settings": "tsx scripts/check-studio-settings.tsx",
+    "check:studio:figma-component-import": "node --import tsx scripts/check-studio-figma-component-import.tsx",
     "check:studio:layers": "tsx scripts/check-studio-layers.tsx",
     "check:studio:layer-drag": "tsx scripts/check-studio-layer-drag.ts",
     "check:studio:asset-sync": "tsx scripts/check-studio-asset-sync.ts",

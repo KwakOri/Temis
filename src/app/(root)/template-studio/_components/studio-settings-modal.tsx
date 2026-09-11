@@ -25,6 +25,11 @@ import {
 import { getStudioWebFontSources } from "@/utils/template-studio/web-fonts";
 
 import { StudioHexColorPicker } from "@/components/studio/inspector/studio-hex-color-picker";
+import {
+  StudioFigmaComponentImport,
+  type ReviewPatch,
+} from "@/components/studio/settings/studio-figma-component-import";
+import type { StudioFigmaGridCandidate } from "@/types/template-studio-figma";
 
 type WorkspaceMode = "cards" | "timetable";
 type StudioTheme = "dark" | "light";
@@ -62,6 +67,22 @@ interface StudioSettingsModalProps {
   onTimetableGuideRemove: () => void;
   onTimetableGuideUpload: (file: File) => void;
   onWebFontsChange: (sources: StudioWebFontSource[]) => void;
+  figmaImport: {
+    candidates: StudioFigmaGridCandidate[];
+    errorMessage: string | null;
+    figmaUrl: string;
+    isAnalyzing: boolean;
+    isImporting: boolean;
+    isRemoteSyncing: boolean;
+    selectedCandidateId: string | null;
+    statusMessage: string | null;
+    onAnalyze: () => void;
+    onCancel: () => void;
+    onCandidateSelect: (candidateId: string) => void;
+    onReviewChange: (sourceNodeId: string, patch: ReviewPatch) => void;
+    onUrlChange: (value: string) => void;
+    onConfirm: () => void;
+  };
 }
 
 const TIMETABLE_CAPABILITY_OPTIONS = [
@@ -109,6 +130,7 @@ export function StudioSettingsModal({
   onTimetableGuideRemove,
   onTimetableGuideUpload,
   onWebFontsChange,
+  figmaImport,
 }: StudioSettingsModalProps) {
   const timetableCanvas = document.domains?.timetable?.canvas;
   const timetableCapabilities = getStudioTimetableCapabilities(
@@ -303,6 +325,9 @@ export function StudioSettingsModal({
               This document has no Timetable domain.
             </p>
           )}
+          {document.domains?.timetable ? (
+            <StudioFigmaComponentImport {...figmaImport} />
+          ) : null}
         </>
       ),
     },
