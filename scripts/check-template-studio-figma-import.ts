@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import type {
   FigmaNormalizedNode,
+  StudioFigmaGridCandidate,
   StudioFigmaNodeReview,
 } from "../src/types/template-studio-figma";
+import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
+import { applyStudioFigmaGridCandidate } from "../src/utils/template-studio/figma-import/figma-component-import";
 import { parseFigmaDesignUrl } from "../src/utils/template-studio/figma-import/figma-url";
 import {
   adjustFigmaRectForCssCenterRotation,
@@ -1177,9 +1180,187 @@ const runConverterChecks = () => {
   );
 };
 
+const createComponentImportCandidate = (): StudioFigmaGridCandidate => ({
+  candidateId: "figma-source-card-1412:5814",
+  label: "Monday card https://www.figma.com/design/private-grid?node-id=1412-5814",
+  frame: { left: 10, top: 20, width: 240, height: 140 },
+  component: {
+    rootNodeId: "figma-root",
+    nodes: {
+      "figma-root": {
+        id: "figma-root",
+        type: "group",
+        label: "Monday card",
+        parentId: null,
+        childIds: ["figma-entry"],
+        styleId: "figma-root-style",
+      },
+      "figma-entry": {
+        id: "figma-entry",
+        type: "group",
+        label: "Entry",
+        parentId: "figma-root",
+        childIds: ["figma-title", "figma-image"],
+        styleId: "figma-entry-style",
+        meta: { entrySlot: { index: 0 } },
+      },
+      "figma-title": {
+        id: "figma-title",
+        type: "flexibleText",
+        label: "Title",
+        parentId: "figma-entry",
+        childIds: [],
+        styleId: "figma-title-style",
+        binding: { kind: "builtinField", fieldId: "entry.main_title" },
+      },
+      "figma-image": {
+        id: "figma-image",
+        type: "image",
+        label: "Decoration",
+        parentId: "figma-entry",
+        childIds: [],
+        styleId: "figma-image-style",
+        binding: { kind: "staticAsset", assetId: "figma-asset" },
+        fit: "cover",
+      },
+    },
+    styles: {
+      "figma-root-style": { position: "absolute", left: 0, top: 0, width: 240, height: 140 },
+      "figma-entry-style": { position: "absolute", left: 0, top: 0, width: 240, height: 140 },
+      "figma-title-style": { position: "absolute", left: 18, top: 20, width: 180, height: 36, fontSize: 24, color: "#111827" },
+      "figma-image-style": { position: "absolute", left: 12, top: 76, width: 80, height: 42 },
+    },
+    assets: [
+      {
+        id: "figma-asset",
+        label: "Decoration",
+        src: "data:image/png;base64,AA==",
+        mimeType: "image/png",
+        byteSize: 1,
+      },
+    ],
+  },
+  reviews: [],
+  warnings: ["Unsupported Figma shadow was omitted."],
+});
+
+const runComponentImportChecks = () => {
+  const document = createSampleStudioDocument();
+  const timetable = document.domains?.timetable;
+  assert.ok(timetable);
+  if (!timetable) return;
+  timetable.days.mon!.componentId = timetable.entryComponentId;
+  const originalEntryComponentId = timetable.entryComponentId;
+  const originalDayComponentIds = JSON.stringify(
+    Object.fromEntries(timetable.dayIds.map((dayId) => [dayId, timetable.days[dayId]?.componentId])),
+  );
+  const candidate = createComponentImportCandidate();
+  const result = applyStudioFigmaGridCandidate(document, candidate);
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+
+  assert.notEqual(result.componentId, originalEntryComponentId);
+  assert.equal(timetable.entryComponentId, originalEntryComponentId);
+  assert.equal(
+    JSON.stringify(Object.fromEntries(timetable.dayIds.map((dayId) => [dayId, timetable.days[dayId]?.componentId]))),
+    originalDayComponentIds,
+  );
+  const component = timetable.components[result.componentId];
+  assert.ok(component);
+  assert.deepEqual(Object.keys(component?.variants ?? {}).sort(), ["offline", "online"]);
+  const onlineRootId = component?.variants.online?.rootNodeId;
+  const offlineRootId = component?.variants.offline?.rootNodeId;
+  assert.ok(onlineRootId && offlineRootId && onlineRootId !== offlineRootId);
+  const collectSubtreeStyleIds = (rootId: string) => {
+    const styleIds = new Set<string>();
+    const visit = (nodeId: string) => {
+      const node = document.graph.nodes[nodeId];
+      if (!node) return;
+      if (node.styleId) styleIds.add(node.styleId);
+      node.childIds.forEach(visit);
+    };
+    visit(rootId);
+    return styleIds;
+  };
+  const onlineStyleIds = collectSubtreeStyleIds(onlineRootId!);
+  const offlineStyleIds = collectSubtreeStyleIds(offlineRootId!);
+  assert.equal([...onlineStyleIds].some((styleId) => offlineStyleIds.has(styleId)), false);
+  for (const rootId of [onlineRootId!, offlineRootId!]) {
+    const directEntryGroups = document.graph.nodes[rootId]?.childIds
+      .map((nodeId) => document.graph.nodes[nodeId])
+      .filter((node) => node?.meta?.entrySlot?.index === 0);
+    assert.equal(directEntryGroups?.length, 1);
+  }
+  assert.equal(JSON.stringify(document).includes("https://www.figma.com/design/private-grid"), false);
+  assert.ok(result.warnings.some((warning) => /Unsupported Figma shadow/i.test(warning)));
+  assert.ok(result.warnings.some((warning) => /multi/i.test(warning)));
+  assert.ok(result.warnings.some((warning) => /offline memo/i.test(warning)));
+
+  const duplicate = applyStudioFigmaGridCandidate(document, candidate);
+  assert.equal(duplicate.ok, true);
+  if (!duplicate.ok) return;
+  assert.notEqual(duplicate.componentId, result.componentId);
+  assert.notEqual(
+    timetable.components[duplicate.componentId]?.label,
+    timetable.components[result.componentId]?.label,
+  );
+
+  const rejectedDocument = createSampleStudioDocument();
+  const rejectedBefore = JSON.stringify(rejectedDocument);
+  const remoteAssetCandidate = createComponentImportCandidate();
+  remoteAssetCandidate.component.assets[0]!.src = "https://www.figma.com/api/temporary-export.png";
+  const rejected = applyStudioFigmaGridCandidate(rejectedDocument, remoteAssetCandidate);
+  assert.deepEqual(rejected, { ok: false, reason: "Candidate asset source must be a supported data URL" });
+  assert.equal(JSON.stringify(rejectedDocument), rejectedBefore);
+
+  const malformedDocument = createSampleStudioDocument();
+  const malformedBefore = JSON.stringify(malformedDocument);
+  const malformedCandidate = createComponentImportCandidate();
+  malformedCandidate.component.nodes["figma-entry"]!.childIds.push("figma-root");
+  const malformed = applyStudioFigmaGridCandidate(malformedDocument, malformedCandidate);
+  assert.equal(malformed.ok, false);
+  assert.equal(JSON.stringify(malformedDocument), malformedBefore);
+
+  const orphanDocument = createSampleStudioDocument();
+  const orphanBefore = JSON.stringify(orphanDocument);
+  const orphanCandidate = createComponentImportCandidate();
+  delete orphanCandidate.component.nodes["figma-title"];
+  const orphan = applyStudioFigmaGridCandidate(orphanDocument, orphanCandidate);
+  assert.equal(orphan.ok, false);
+  assert.equal(JSON.stringify(orphanDocument), orphanBefore);
+
+  const multiParentDocument = createSampleStudioDocument();
+  const multiParentBefore = JSON.stringify(multiParentDocument);
+  const multiParentCandidate = createComponentImportCandidate();
+  multiParentCandidate.component.nodes["figma-root"]!.childIds.push("figma-title");
+  const multiParent = applyStudioFigmaGridCandidate(multiParentDocument, multiParentCandidate);
+  assert.equal(multiParent.ok, false);
+  assert.equal(JSON.stringify(multiParentDocument), multiParentBefore);
+
+  const unsafeBindingDocument = createSampleStudioDocument();
+  const unsafeBindingBefore = JSON.stringify(unsafeBindingDocument);
+  const unsafeBindingCandidate = createComponentImportCandidate();
+  unsafeBindingCandidate.component.nodes["figma-title"]!.binding = {
+    kind: "staticText",
+    value: "https://www.figma.com/design/private-grid?node-id=1412-5814",
+  };
+  const unsafeBinding = applyStudioFigmaGridCandidate(unsafeBindingDocument, unsafeBindingCandidate);
+  assert.equal(unsafeBinding.ok, false);
+  assert.equal(JSON.stringify(unsafeBindingDocument), unsafeBindingBefore);
+
+  const nonDataAssetDocument = createSampleStudioDocument();
+  const nonDataAssetBefore = JSON.stringify(nonDataAssetDocument);
+  const nonDataAssetCandidate = createComponentImportCandidate();
+  nonDataAssetCandidate.component.assets[0]!.src = "data:text/html;base64,PGh0bWw+";
+  const nonDataAsset = applyStudioFigmaGridCandidate(nonDataAssetDocument, nonDataAssetCandidate);
+  assert.equal(nonDataAsset.ok, false);
+  assert.equal(JSON.stringify(nonDataAssetDocument), nonDataAssetBefore);
+};
+
 void runReviewServiceChecks()
   .then(runRouteContractChecks)
   .then(runConverterChecks)
+  .then(runComponentImportChecks)
   .then(() => console.log("Figma import contract checks passed"))
   .catch((error: unknown) => {
     console.error(error);
