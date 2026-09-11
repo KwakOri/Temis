@@ -6,6 +6,7 @@ import type {
 } from "../src/types/template-studio-figma";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
 import { applyStudioFigmaGridCandidate } from "../src/utils/template-studio/figma-import/figma-component-import";
+import { ensureStudioIndependentStatusVariants } from "../src/utils/template-studio/status-variants";
 import { parseFigmaDesignUrl } from "../src/utils/template-studio/figma-import/figma-url";
 import {
   adjustFigmaRectForCssCenterRotation,
@@ -1304,6 +1305,72 @@ const runComponentImportChecks = () => {
     timetable.components[duplicate.componentId]?.label,
     timetable.components[result.componentId]?.label,
   );
+
+  const capabilityDocument = createSampleStudioDocument();
+  const capabilityTimetable = capabilityDocument.domains?.timetable;
+  assert.ok(capabilityTimetable);
+  if (!capabilityTimetable) return;
+  capabilityTimetable.capabilities!.multi.enabled = true;
+  capabilityTimetable.capabilities!.offlineMemo.enabled = true;
+  ensureStudioIndependentStatusVariants(capabilityDocument);
+  const existingCapabilityComponents = structuredClone(capabilityTimetable.components);
+  const capabilityDayAssignments = JSON.stringify(
+    Object.fromEntries(
+      capabilityTimetable.dayIds.map((dayId) => [dayId, capabilityTimetable.days[dayId]?.componentId]),
+    ),
+  );
+  const capabilityImport = applyStudioFigmaGridCandidate(
+    capabilityDocument,
+    createComponentImportCandidate(),
+  );
+  assert.equal(capabilityImport.ok, true);
+  if (!capabilityImport.ok) return;
+  const capabilityComponent = capabilityTimetable.components[capabilityImport.componentId];
+  assert.ok(capabilityComponent);
+  assert.deepEqual(Object.keys(capabilityComponent?.variants ?? {}).sort(), [
+    "multi",
+    "offline",
+    "offlineMemo",
+    "online",
+  ]);
+  assert.notEqual(
+    capabilityComponent?.variants.multi?.rootNodeId,
+    capabilityComponent?.variants.online?.rootNodeId,
+  );
+  assert.notEqual(
+    capabilityComponent?.variants.offlineMemo?.rootNodeId,
+    capabilityComponent?.variants.offline?.rootNodeId,
+  );
+  assert.ok(
+    Object.values(capabilityComponent?.variants ?? {}).every(
+      (variant) => capabilityDocument.graph.rootNodeIds.includes(variant.rootNodeId),
+    ),
+  );
+  assert.ok(
+    Object.values(capabilityComponent?.variants.offlineMemo
+      ? capabilityDocument.graph.nodes[capabilityComponent.variants.offlineMemo.rootNodeId]?.childIds.map(
+          (nodeId) => capabilityDocument.graph.nodes[nodeId],
+        ) ?? []
+      : [],
+    ).some(
+      (node) =>
+        node?.binding?.kind === "builtinField" &&
+        node.binding.fieldId === "day.offline_memo",
+    ),
+  );
+  Object.entries(existingCapabilityComponents).forEach(([componentId, componentBeforeImport]) => {
+    assert.deepEqual(capabilityTimetable.components[componentId], componentBeforeImport);
+  });
+  assert.equal(
+    JSON.stringify(
+      Object.fromEntries(
+        capabilityTimetable.dayIds.map((dayId) => [dayId, capabilityTimetable.days[dayId]?.componentId]),
+      ),
+    ),
+    capabilityDayAssignments,
+  );
+  assert.ok(capabilityImport.warnings.some((warning) => /synthesized.*multi/i.test(warning)));
+  assert.ok(capabilityImport.warnings.some((warning) => /synthesized.*offline memo/i.test(warning)));
 
   const rejectedDocument = createSampleStudioDocument();
   const rejectedBefore = JSON.stringify(rejectedDocument);

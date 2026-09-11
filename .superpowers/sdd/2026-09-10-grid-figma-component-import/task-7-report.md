@@ -53,3 +53,42 @@ Figma import contract checks passed
 - `npm run lint` — passed with existing repository warnings only; no new
   warnings remain in the Task 7 importer.
 - `git diff --check` — passed.
+
+## Fix round: enabled capability fallbacks
+
+### Root cause
+
+When `multi` or `offlineMemo` was enabled, the draft validator correctly
+required a direct derived variant on every component. The importer created the
+new component with only `online` and `offline`, so the final atomic validation
+rejected the otherwise valid import.
+
+### TDD RED/GREEN evidence
+
+The focused check was extended with a document whose existing component set
+already has both enabled capability variants. Before the fix:
+
+```text
+$ node --import tsx scripts/check-template-studio-figma-import.ts
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+false !== true
+```
+
+The failing assertion was the expected successful import of the capability-
+enabled document.
+
+The importer now ensures enabled capability status definitions in the draft,
+clones `multi` from the new component's Online root and `offlineMemo` from its
+Offline root with fresh IDs, adds the required Offline Memo text binding, and
+leaves disabled capabilities untouched.
+
+After the fix:
+
+```text
+$ node --import tsx scripts/check-template-studio-figma-import.ts
+Figma import contract checks passed
+```
+
+The focused check also verifies unique derived roots, the Offline Memo binding,
+compliance warnings, unchanged existing components, and unchanged day
+assignments.
