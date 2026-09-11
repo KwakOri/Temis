@@ -77,7 +77,7 @@ interface StudioSettingsModalProps {
     selectedCandidateId: string | null;
     statusMessage: string | null;
     onAnalyze: () => void;
-    onBindingTouch: (sourceNodeId: string) => void;
+    onBindingChange: (sourceNodeId: string) => void;
     onCancel: () => void;
     onCandidateSelect: (candidateId: string) => void;
     onReviewChange: (sourceNodeId: string, patch: ReviewPatch) => void;

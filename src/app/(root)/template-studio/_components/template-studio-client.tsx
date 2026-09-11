@@ -1511,7 +1511,7 @@ export function TemplateStudioClient({
     setFigmaAnalysisPending(false);
   }, []);
 
-  const markFigmaBindingTouched = useCallback((sourceNodeId: string) => {
+  const recordFigmaBindingChange = useCallback((sourceNodeId: string) => {
     setFigmaBindingTouchedSourceNodeIds((current) =>
       current[sourceNodeId]
         ? current
@@ -1521,9 +1521,6 @@ export function TemplateStudioClient({
 
   const updateFigmaReview = useCallback(
     (sourceNodeId: string, patch: ReviewPatch) => {
-      if (patch.suggestedBinding !== undefined) {
-        markFigmaBindingTouched(sourceNodeId);
-      }
       setFigmaCandidates((currentCandidates) =>
         currentCandidates.map((candidate) => ({
           ...candidate,
@@ -1533,7 +1530,7 @@ export function TemplateStudioClient({
         })),
       );
     },
-    [markFigmaBindingTouched],
+    [],
   );
 
   const importFigmaCandidate = useCallback(() => {
@@ -3451,7 +3448,7 @@ export function TemplateStudioClient({
                 onAnalyze: () => void analyzeFigmaGrid(),
                 onCancel: clearFigmaImportState,
                 onCandidateSelect: setSelectedFigmaCandidateId,
-                onBindingTouch: markFigmaBindingTouched,
+                onBindingChange: recordFigmaBindingChange,
                 onReviewChange: updateFigmaReview,
                 onUrlChange: handleFigmaUrlChange,
                 onConfirm: importFigmaCandidate,

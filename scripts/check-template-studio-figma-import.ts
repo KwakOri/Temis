@@ -1139,6 +1139,16 @@ const runConverterChecks = () => {
     "A role edit derives the matching builtin binding on the mapped graph node.",
   );
 
+  const untouchedImageGraphCandidate = applyStudioFigmaReviewEdits(candidate);
+  const untouchedImageNodeId = untouchedImageGraphCandidate.reviewNodeIds?.["figma-image"];
+  assert.deepEqual(
+    untouchedImageNodeId
+      ? untouchedImageGraphCandidate.component.nodes[untouchedImageNodeId]?.binding
+      : undefined,
+    imageNode?.binding,
+    "An untouched decoration image keeps its staticAsset binding without a touched map.",
+  );
+
   const bindingEditedCandidate = structuredClone(candidate);
   bindingEditedCandidate.reviews = bindingEditedCandidate.reviews.map((review) =>
     review.sourceNodeId === "figma-title"
