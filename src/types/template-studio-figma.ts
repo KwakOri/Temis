@@ -38,6 +38,8 @@ export interface StudioFigmaGridCandidate {
     assets: StudioAsset[];
   };
   reviews: StudioFigmaNodeReview[];
+  /** Transient source-node to converted graph-node map for the review UI only. */
+  reviewNodeIds?: Record<string, string>;
   warnings: string[];
 }
 

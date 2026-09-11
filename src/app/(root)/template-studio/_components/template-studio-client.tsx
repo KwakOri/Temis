@@ -188,6 +188,7 @@ import {
 import {} from "@/utils/template-studio/text-wrap";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
 import { applyStudioFigmaGridCandidate } from "@/utils/template-studio/figma-import/figma-component-import";
+import { applyStudioFigmaReviewEdits } from "@/utils/template-studio/figma-import/figma-review-edits";
 import type {
   StudioFigmaGridCandidate,
 } from "@/types/template-studio-figma";
@@ -259,22 +260,6 @@ import {
 type PanelMode = "layers" | "inputs" | "presets" | "timetable";
 type WorkspaceMode = "cards" | "timetable";
 type StudioTheme = "dark" | "light";
-
-const applyFigmaReviewEditsToCandidate = (
-  candidate: StudioFigmaGridCandidate,
-): StudioFigmaGridCandidate => {
-  const nextCandidate = structuredClone(candidate);
-  const graphNodes = Object.values(nextCandidate.component.nodes);
-  nextCandidate.reviews.forEach((review) => {
-    // The converter deliberately keeps source labels on transient graph nodes;
-    // resolve this narrow review seam before the importer strips all source data.
-    const graphNode = graphNodes.find((node) => node.label === review.label);
-    if (!graphNode) return;
-    graphNode.type = review.suggestedStudioType;
-    graphNode.binding = structuredClone(review.suggestedBinding);
-  });
-  return nextCandidate;
-};
 
 type InspectorSectionKey =
   | "componentSet"
@@ -665,6 +650,7 @@ export function TemplateStudioClient({
   const [figmaImportPending, setFigmaImportPending] = useState(false);
   const [figmaErrorMessage, setFigmaErrorMessage] = useState<string | null>(null);
   const [figmaStatusMessage, setFigmaStatusMessage] = useState<string | null>(null);
+  const figmaAnalysisSequenceRef = useRef(0);
   const [operationToast, setOperationToast] =
     useState<StudioPersistenceOperationResult | null>(null);
   const [remoteTemplateId, setRemoteTemplateId] = useState<string | null>(
@@ -1476,24 +1462,31 @@ export function TemplateStudioClient({
 
   const analyzeFigmaGrid = useCallback(async () => {
     if (isRemoteSyncing || !figmaUrl.trim()) return;
+    const requestSequence = ++figmaAnalysisSequenceRef.current;
+    const requestedUrl = figmaUrl.trim();
     setFigmaAnalysisPending(true);
     setFigmaErrorMessage(null);
     setFigmaStatusMessage(null);
     try {
-      const response = await TemplateStudioService.analyzeFigmaGridComponent(figmaUrl.trim());
+      const response = await TemplateStudioService.analyzeFigmaGridComponent(requestedUrl);
+      if (figmaAnalysisSequenceRef.current !== requestSequence) return;
       setFigmaCandidates(response.candidates);
       setSelectedFigmaCandidateId(response.candidates.length === 1 ? response.candidates[0]!.candidateId : null);
       setFigmaStatusMessage(response.warnings[0] ?? `${response.candidates.length}개 후보를 분석했습니다.`);
     } catch {
+      if (figmaAnalysisSequenceRef.current !== requestSequence) return;
       setFigmaCandidates([]);
       setSelectedFigmaCandidateId(null);
       setFigmaErrorMessage("Figma 컴포넌트를 분석하지 못했습니다. 링크와 권한을 확인해 주세요.");
     } finally {
-      setFigmaAnalysisPending(false);
+      if (figmaAnalysisSequenceRef.current === requestSequence) {
+        setFigmaAnalysisPending(false);
+      }
     }
   }, [figmaUrl, isRemoteSyncing]);
 
   const clearFigmaImportState = useCallback(() => {
+    figmaAnalysisSequenceRef.current += 1;
     setFigmaUrl("");
     setFigmaCandidates([]);
     setSelectedFigmaCandidateId(null);
@@ -1501,6 +1494,16 @@ export function TemplateStudioClient({
     setFigmaStatusMessage(null);
     setFigmaAnalysisPending(false);
     setFigmaImportPending(false);
+  }, []);
+
+  const handleFigmaUrlChange = useCallback((nextUrl: string) => {
+    figmaAnalysisSequenceRef.current += 1;
+    setFigmaUrl(nextUrl);
+    setFigmaCandidates([]);
+    setSelectedFigmaCandidateId(null);
+    setFigmaErrorMessage(null);
+    setFigmaStatusMessage(null);
+    setFigmaAnalysisPending(false);
   }, []);
 
   const updateFigmaReview = useCallback(
@@ -1529,20 +1532,19 @@ export function TemplateStudioClient({
 
     setFigmaImportPending(true);
     setFigmaErrorMessage(null);
-    const candidateWithEdits = applyFigmaReviewEditsToCandidate(selectedCandidate);
-    const importResult = {
-      current: null as ReturnType<typeof applyStudioFigmaGridCandidate> | null,
-    };
-    updateDocument((nextDocument) => {
-      importResult.current = applyStudioFigmaGridCandidate(nextDocument, candidateWithEdits);
-    });
-    if (importResult.current?.ok) {
-      setSelectedCardComponentId(importResult.current.componentId);
+    const candidateWithEdits = applyStudioFigmaReviewEdits(selectedCandidate);
+    const nextDocument = cloneDocument(studioStore.getState().document);
+    const importResult = applyStudioFigmaGridCandidate(nextDocument, candidateWithEdits);
+    if (importResult.ok) {
+      applyStudioTimetableComponentFrames(nextDocument);
+      captureHistory();
+      setDocument(nextDocument);
+      setSelectedCardComponentId(importResult.componentId);
       clearFigmaImportState();
       setFigmaStatusMessage("새 컴포넌트 세트를 추가했습니다. 요일에는 아직 할당되지 않았습니다.");
       showShortcutStatus("Imported new component set");
     } else {
-      setFigmaErrorMessage(importResult.current?.reason ?? "Figma 컴포넌트를 추가하지 못했습니다.");
+      setFigmaErrorMessage(importResult.reason ?? "Figma 컴포넌트를 추가하지 못했습니다.");
       setFigmaImportPending(false);
     }
   }, [
@@ -1551,10 +1553,12 @@ export function TemplateStudioClient({
     figmaCandidates,
     figmaImportPending,
     isRemoteSyncing,
+    captureHistory,
     selectedFigmaCandidateId,
+    setDocument,
     setSelectedCardComponentId,
     showShortcutStatus,
-    updateDocument,
+    studioStore,
   ]);
 
   const updateNode = useCallback(
@@ -3428,7 +3432,7 @@ export function TemplateStudioClient({
                 onCancel: clearFigmaImportState,
                 onCandidateSelect: setSelectedFigmaCandidateId,
                 onReviewChange: updateFigmaReview,
-                onUrlChange: setFigmaUrl,
+                onUrlChange: handleFigmaUrlChange,
                 onConfirm: importFigmaCandidate,
               }}
             />

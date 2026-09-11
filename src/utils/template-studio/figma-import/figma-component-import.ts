@@ -390,6 +390,8 @@ export const applyStudioFigmaGridCandidate = (
   document: StudioTemplateDocument,
   candidate: StudioFigmaGridCandidate,
 ): StudioFigmaGridCandidateImportResult => {
+  // `reviewNodeIds` is transient UI metadata. Only candidate.component is merged;
+  // source-node mappings and all other review metadata are intentionally ignored.
   const timetable = document.domains?.timetable;
   if (!timetable) return { ok: false, reason: "Document timetable domain is missing" };
   const validationError = validateCandidate(candidate, document);

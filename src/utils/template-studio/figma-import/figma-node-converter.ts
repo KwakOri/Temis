@@ -210,6 +210,7 @@ export const convertFigmaGridCandidate = (input: {
   const nodes: Record<string, StudioGraphNode> = {};
   const styles: Record<string, StudioStyleRecord> = {};
   const assets: StudioAsset[] = [];
+  const reviewNodeIds: Record<string, string> = {};
   const directEntryChildren = (input.root.children ?? []).filter(isExplicitEntryGroup);
   const explicitEntrySourceId = directEntryChildren[0]?.id;
   if (directEntryChildren.length > 1) {
@@ -290,6 +291,7 @@ export const convertFigmaGridCandidate = (input: {
       childIds: [],
       styleId,
     };
+    if (reviewsBySourceId.has(source.id)) reviewNodeIds[source.id] = nodeId;
     if (source.visible === false) node.hidden = true;
     if (source.id === explicitEntrySourceId) node.meta = { entrySlot: { index: 0 } };
     if (type === "shape" && color) {
@@ -359,6 +361,7 @@ export const convertFigmaGridCandidate = (input: {
     frame: rootFrame,
     component: { nodes, styles, rootNodeId, assets },
     reviews: input.reviews,
+    reviewNodeIds,
     warnings,
   };
 };

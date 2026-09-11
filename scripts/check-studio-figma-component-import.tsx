@@ -60,14 +60,42 @@ const clientSource = fs.readFileSync(
   "utf8",
 );
 const serviceSource = fs.readFileSync("src/services/templateStudioService.ts", "utf8");
+const reviewEditSource = fs.readFileSync(
+  "src/utils/template-studio/figma-import/figma-review-edits.ts",
+  "utf8",
+);
 const modalSource = fs.readFileSync(
   "src/app/(root)/template-studio/_components/studio-settings-modal.tsx",
   "utf8",
 );
 assert.match(clientSource, /candidateWithEdits/);
 assert.match(clientSource, /applyStudioFigmaGridCandidate\(nextDocument, candidateWithEdits\)/);
+assert.match(clientSource, /applyStudioFigmaReviewEdits/);
+assert.match(reviewEditSource, /reviewNodeIds/);
+assert.match(reviewEditSource, /component\.nodes\[graphNodeId\]/);
+assert.doesNotMatch(reviewEditSource, /node\.label === review\.label/);
+assert.doesNotMatch(clientSource, /graphNodes\.find\(\(node\) => node\.label === review\.label\)/);
 assert.match(clientSource, /clearFigmaImportState/);
-assert.match(clientSource, /setSelectedCardComponentId\(importResult\.current\.componentId\)/);
+assert.match(clientSource, /figmaAnalysisSequenceRef/);
+assert.match(clientSource, /requestSequence/);
+assert.match(clientSource, /handleFigmaUrlChange/);
+assert.match(clientSource, /onUrlChange: handleFigmaUrlChange/);
+assert.match(clientSource, /captureHistory\(\)/);
+assert.match(clientSource, /const importResult = applyStudioFigmaGridCandidate/);
+assert.match(clientSource, /figmaAnalysisSequenceRef\.current \+= 1/);
+assert.match(clientSource, /figmaAnalysisSequenceRef\.current !== requestSequence/);
+assert.match(clientSource, /onClose=\{\(\) => \{/);
+const importFunctionSource = clientSource.slice(
+  clientSource.indexOf("const importFigmaCandidate"),
+  clientSource.indexOf("const updateNode"),
+);
+assert.ok(
+  importFunctionSource.indexOf("const importResult = applyStudioFigmaGridCandidate") <
+    importFunctionSource.indexOf("captureHistory();"),
+  "Failed candidate validation must happen before the history snapshot.",
+);
+assert.doesNotMatch(importFunctionSource, /updateDocument\(/);
+assert.match(clientSource, /setSelectedCardComponentId\(importResult\.componentId\)/);
 assert.match(serviceSource, /fetch\("\/api\/admin\/template-studio\/figma\/analyze"/);
 assert.match(serviceSource, /body: JSON\.stringify\(\{ figmaUrl \}\)/);
 assert.ok(!serviceSource.includes("console.log(figmaUrl)"));

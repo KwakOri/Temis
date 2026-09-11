@@ -17,6 +17,7 @@ import {
   normalizeFigmaLayerName,
 } from "../src/utils/template-studio/figma-import/figma-text-classifier";
 import { convertFigmaGridCandidate } from "../src/utils/template-studio/figma-import/figma-node-converter";
+import { applyStudioFigmaReviewEdits } from "../src/utils/template-studio/figma-import/figma-review-edits";
 import {
   exportFigmaNodeAsDataUrl,
   fetchFigmaGridCandidates,
@@ -1010,6 +1011,11 @@ const runConverterChecks = () => {
   assert.match(candidate.candidateId, /^candidate_/);
   assert.deepEqual(candidate.frame, { left: 100, top: 200, width: 300, height: 180 });
   assert.equal(candidate.reviews, reviews, "Reviewed choices remain available to Task 7/8.");
+  assert.equal(
+    candidate.reviewNodeIds?.["figma-title"],
+    Object.values(candidate.component.nodes).find((node) => node.label === "Title")?.id,
+    "Figma source review IDs map to converted graph IDs exactly.",
+  );
 
   const nodes = Object.values(candidate.component.nodes);
   const nodeByLabel = (label: string) => nodes.find((node) => node.label === label);
@@ -1118,6 +1124,63 @@ const runConverterChecks = () => {
   assert.match(candidate.component.assets[0]?.src ?? "", /^data:image\/png;base64,/);
   assert.ok(candidate.component.assets.every((asset) => /^data:image\/(?:png|svg\+xml);base64,/.test(asset.src)));
   assert.ok(candidate.component.assets.every((asset) => !/figma|temporary|https?:/i.test(asset.src)));
+
+  const roleEditedCandidate = structuredClone(candidate);
+  roleEditedCandidate.reviews = roleEditedCandidate.reviews.map((review) =>
+    review.sourceNodeId === "figma-title"
+      ? { ...review, suggestedRole: "time" as const, suggestedStudioType: "text" as const }
+      : review,
+  );
+  const roleEditedGraphCandidate = applyStudioFigmaReviewEdits(roleEditedCandidate);
+  const roleEditedNodeId = roleEditedGraphCandidate.reviewNodeIds?.["figma-title"];
+  assert.deepEqual(
+    roleEditedNodeId ? roleEditedGraphCandidate.component.nodes[roleEditedNodeId]?.binding : undefined,
+    { kind: "builtinField", fieldId: "entry.time" },
+    "A role edit derives the matching builtin binding on the mapped graph node.",
+  );
+
+  const editedCandidate = structuredClone(candidate);
+  editedCandidate.reviews = editedCandidate.reviews.map((review) =>
+    review.sourceNodeId === "figma-title"
+      ? {
+          ...review,
+          suggestedRole: "decoration" as const,
+          suggestedStudioType: "shape" as const,
+          suggestedBinding: { kind: "staticText" as const, value: "ignored for shape" },
+        }
+      : review,
+  );
+  const editedGraphCandidate = applyStudioFigmaReviewEdits(editedCandidate);
+  const editedTitleNodeId = editedGraphCandidate.reviewNodeIds?.["figma-title"];
+  assert.ok(editedTitleNodeId);
+  const editedTitleNode = editedGraphCandidate.component.nodes[editedTitleNodeId!];
+  assert.equal(editedTitleNode?.type, "shape");
+  assert.equal(editedTitleNode?.binding, undefined);
+  assert.equal(editedTitleNode?.textAppearance, undefined);
+
+  const duplicateLabelRoot: FigmaNormalizedNode = {
+    id: "duplicate-label-root",
+    name: "Grid",
+    type: "FRAME",
+    absoluteBounds: { left: 0, top: 0, width: 100, height: 100 },
+    children: [
+      { id: "duplicate-a", name: "Duplicate", type: "TEXT", characters: "A", absoluteBounds: { left: 0, top: 0, width: 40, height: 20 } },
+      { id: "duplicate-b", name: "Duplicate", type: "TEXT", characters: "B", absoluteBounds: { left: 0, top: 20, width: 40, height: 20 } },
+    ],
+  };
+  const duplicateLabelCandidate = convertFigmaGridCandidate({
+    root: duplicateLabelRoot,
+    reviews: [
+      converterReview("duplicate-a", "text", "main_title"),
+      converterReview("duplicate-b", "text", "sub_title"),
+    ],
+    exportedAssets: [],
+  });
+  assert.notEqual(
+    duplicateLabelCandidate.reviewNodeIds?.["duplicate-a"],
+    duplicateLabelCandidate.reviewNodeIds?.["duplicate-b"],
+    "Duplicate Figma labels keep distinct exact review mappings.",
+  );
 
   const ids = [
     ...nodes.map((node) => node.id),
@@ -1241,6 +1304,10 @@ const createComponentImportCandidate = (): StudioFigmaGridCandidate => ({
       },
     ],
   },
+  reviewNodeIds: {
+    "figma-title": "figma-title",
+    "figma-image": "figma-image",
+  },
   reviews: [],
   warnings: ["Unsupported Figma shadow was omitted."],
 });
@@ -1293,6 +1360,7 @@ const runComponentImportChecks = () => {
     assert.equal(directEntryGroups?.length, 1);
   }
   assert.equal(JSON.stringify(document).includes("https://www.figma.com/design/private-grid"), false);
+  assert.equal(JSON.stringify(document).includes("reviewNodeIds"), false);
   assert.ok(result.warnings.some((warning) => /Unsupported Figma shadow/i.test(warning)));
   assert.ok(result.warnings.some((warning) => /multi/i.test(warning)));
   assert.ok(result.warnings.some((warning) => /offline memo/i.test(warning)));
