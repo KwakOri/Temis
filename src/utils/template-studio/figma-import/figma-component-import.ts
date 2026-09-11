@@ -227,6 +227,10 @@ const validateCandidate = (
     assetIds.add(asset.id);
   }
 
+  if (/(?:https?|mcp):\/\//i.test(JSON.stringify(candidate))) {
+    return "Candidate contains an unsafe source URL";
+  }
+
   const childParentIds = new Map<string, string>();
   const nodeIds = new Set<string>();
   for (const [nodeId, nodeValue] of Object.entries(component.nodes)) {

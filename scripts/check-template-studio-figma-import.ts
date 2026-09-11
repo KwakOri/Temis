@@ -4,6 +4,7 @@ import type {
   StudioFigmaGridCandidate,
   StudioFigmaNodeReview,
 } from "../src/types/template-studio-figma";
+import type { StudioAsset } from "../src/types/template-studio";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
 import { applyStudioFigmaGridCandidate } from "../src/utils/template-studio/figma-import/figma-component-import";
 import { ensureStudioIndependentStatusVariants } from "../src/utils/template-studio/status-variants";
@@ -22,6 +23,7 @@ import {
   exportFigmaNodeAsDataUrl,
   fetchFigmaGridCandidates,
 } from "../src/services/server/figmaTemplateStudioService";
+import { planStudioAssetSync } from "../src/utils/template-studio/asset-sync";
 import {
   reviewFigmaGridNodes,
   reviewFigmaGridNodesWithWarnings,
@@ -31,6 +33,38 @@ import { createFigmaGridAnalyzeHandler } from "../src/app/api/admin/template-stu
 
 const validUrl =
   "https://www.figma.com/design/T2VDXkMPVFa6yEl9FnVvYo/Weekly-Grid?node-id=1412-5814";
+
+const runTask9AssetSyncChecks = () => {
+  const dataUrls = [
+    ["image/png", "iVBORw0KGgo="],
+    ["image/jpeg", "/9j/4AAQ"],
+    ["image/svg+xml", "PHN2Zz48L3N2Zz4="],
+    ["image/webp", "UklGRg=="],
+  ] as const;
+
+  for (const [mimeType, payload] of dataUrls) {
+    const src = `data:${mimeType};base64,${payload}`;
+    const asset: StudioAsset = {
+      id: `task9-${mimeType}`,
+      label: `Task 9 ${mimeType}`,
+      src,
+    };
+    const plan = planStudioAssetSync({
+      assets: [asset],
+      remoteAssets: [],
+      localMetadataByAssetId: {},
+    });
+    assert.equal(
+      plan.uploads.length,
+      1,
+      `${mimeType} data URL is planned for upload`,
+    );
+    assert.equal(plan.uploads[0]?.src, src);
+    assert.equal(plan.patches.length, 0);
+  }
+};
+
+runTask9AssetSyncChecks();
 
 assert.deepEqual(parseFigmaDesignUrl(validUrl), {
   fileKey: "T2VDXkMPVFa6yEl9FnVvYo",
@@ -1344,7 +1378,7 @@ const runConverterChecks = () => {
 
 const createComponentImportCandidate = (): StudioFigmaGridCandidate => ({
   candidateId: "figma-source-card-1412:5814",
-  label: "Monday card https://www.figma.com/design/private-grid?node-id=1412-5814",
+  label: "Monday card",
   frame: { left: 10, top: 20, width: 240, height: 140 },
   component: {
     rootNodeId: "figma-root",
@@ -1411,6 +1445,22 @@ const createComponentImportCandidate = (): StudioFigmaGridCandidate => ({
 });
 
 const runComponentImportChecks = () => {
+  const unsafeCandidateDocument = createSampleStudioDocument();
+  const unsafeCandidateBefore = JSON.stringify(unsafeCandidateDocument);
+  const unsafeCandidate = createComponentImportCandidate();
+  unsafeCandidate.label =
+    "Monday card https://www.figma.com/design/private-grid?node-id=1412-5814";
+  const unsafeCandidateResult = applyStudioFigmaGridCandidate(
+    unsafeCandidateDocument,
+    unsafeCandidate,
+  );
+  assert.equal(
+    unsafeCandidateResult.ok,
+    false,
+    "A candidate containing a remote Figma URL is rejected before persistence.",
+  );
+  assert.equal(JSON.stringify(unsafeCandidateDocument), unsafeCandidateBefore);
+
   const document = createSampleStudioDocument();
   const timetable = document.domains?.timetable;
   assert.ok(timetable);
@@ -1539,13 +1589,18 @@ const runComponentImportChecks = () => {
   assert.ok(capabilityImport.warnings.some((warning) => /synthesized.*multi/i.test(warning)));
   assert.ok(capabilityImport.warnings.some((warning) => /synthesized.*offline memo/i.test(warning)));
 
-  const rejectedDocument = createSampleStudioDocument();
-  const rejectedBefore = JSON.stringify(rejectedDocument);
-  const remoteAssetCandidate = createComponentImportCandidate();
-  remoteAssetCandidate.component.assets[0]!.src = "https://www.figma.com/api/temporary-export.png";
-  const rejected = applyStudioFigmaGridCandidate(rejectedDocument, remoteAssetCandidate);
-  assert.deepEqual(rejected, { ok: false, reason: "Candidate asset source must be a supported data URL" });
-  assert.equal(JSON.stringify(rejectedDocument), rejectedBefore);
+  for (const unsafeSource of [
+    "https://www.figma.com/api/temporary-export.png",
+    "https://temporary.figma.com/export.png",
+  ]) {
+    const rejectedDocument = createSampleStudioDocument();
+    const rejectedBefore = JSON.stringify(rejectedDocument);
+    const remoteAssetCandidate = createComponentImportCandidate();
+    remoteAssetCandidate.component.assets[0]!.src = unsafeSource;
+    const rejected = applyStudioFigmaGridCandidate(rejectedDocument, remoteAssetCandidate);
+    assert.deepEqual(rejected, { ok: false, reason: "Candidate asset source must be a supported data URL" });
+    assert.equal(JSON.stringify(rejectedDocument), rejectedBefore);
+  }
 
   const malformedDocument = createSampleStudioDocument();
   const malformedBefore = JSON.stringify(malformedDocument);
