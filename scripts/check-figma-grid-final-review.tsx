@@ -99,6 +99,36 @@ test("local geometry stays unrotated and absolute geometry supplies center corre
   });
 });
 
+test("nested rotated parents use parent-relative child coordinates", async () => {
+  await withFigma({
+    id: "parent",
+    name: "Rotated group",
+    type: "FRAME",
+    rotation: Math.PI / 2,
+    relativeTransform: [[1, 0, 0], [0, 1, 0]],
+    absoluteBoundingBox: { x: 100, y: 200, width: 100, height: 100 },
+    size: { x: 100, y: 100 },
+    children: [{
+      id: "nested",
+      name: "main_title",
+      type: "TEXT",
+      characters: "Nested",
+      relativeTransform: [[1, 0, 20], [0, 1, 10]],
+      absoluteBoundingBox: { x: 130, y: 220, width: 20, height: 10 },
+      size: { x: 20, y: 10 },
+    }],
+  }, async () => {
+    const { node } = await fetchFigmaGridNode(source);
+    const candidate = convertFigmaGridCandidate({
+      root: card([node]),
+      reviews: [review(node, "group"), review(node.children![0]!, "flexibleText")],
+      exportedAssets: [],
+    });
+    assert.equal(styleOf(candidate, "parent").rotateDeg, 90);
+    assert.deepEqual([styleOf(candidate, "nested").left, styleOf(candidate, "nested").top], [20, 10]);
+  });
+});
+
 test("full-node raster exports use rendered bounds without applying opacity/rotation twice", () => {
   const node: FigmaNormalizedNode = { id: "raster", name: "Glow", type: "RECTANGLE", fills: solid,
     effects: [{ type: "DROP_SHADOW" }], rotateDeg: 30, opacity: 0.4,
@@ -257,6 +287,14 @@ test("static text whitespace survives import and unsafe source URLs cannot persi
   const before = JSON.stringify(document);
   assert.equal(applyStudioFigmaGridCandidate(document, unsafe).ok, false);
   assert.equal(JSON.stringify(document), before);
+
+  const dynamicSourceUrlNode = { ...textNode, id: "dynamic-url", characters: "https://example.com/live" };
+  const dynamicSourceUrlCandidate = convert([dynamicSourceUrlNode]);
+  assert.equal(
+    applyStudioFigmaGridCandidate(createSampleStudioDocument(), dynamicSourceUrlCandidate).ok,
+    true,
+    "Transient source text URLs do not block dynamic bindings.",
+  );
 });
 
 test("day classifier remains compatible with the existing user-owned single-date preset", () => {

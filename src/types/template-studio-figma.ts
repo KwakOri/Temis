@@ -81,6 +81,8 @@ export interface FigmaNormalizedNode {
   rotateDeg?: number;
   /** Unrotated Figma size, separate from page-space bounding boxes. */
   localSize?: { width: number; height: number };
+  /** Figma's parent-relative transform, used for local positioning under rotated parents. */
+  relativeTransform?: [[number, number, number], [number, number, number]];
   children?: FigmaNormalizedNode[];
   frame?: { left: number; top: number; width: number; height: number };
 }

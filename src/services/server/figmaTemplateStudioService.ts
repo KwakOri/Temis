@@ -60,6 +60,26 @@ const normalizeBounds = (value: unknown) => {
     : { left, top, width, height };
 };
 
+const normalizeRelativeTransform = (
+  value: unknown,
+): [[number, number, number], [number, number, number]] | undefined => {
+  if (!Array.isArray(value) || value.length !== 2) return undefined;
+  const rows = value.map((row) =>
+    Array.isArray(row) && row.length === 3 ? row.map(asNumber) : null,
+  );
+  if (
+    !rows[0] || !rows[1] ||
+    rows[0].some((entry) => entry === undefined) ||
+    rows[1].some((entry) => entry === undefined)
+  ) {
+    return undefined;
+  }
+  return [
+    rows[0] as [number, number, number],
+    rows[1] as [number, number, number],
+  ];
+};
+
 const normalizeFigmaNode = (raw: FigmaRawNode): FigmaNormalizedNode => {
   const absoluteBounds = normalizeBounds(raw.absoluteBoundingBox);
   const absoluteRenderBounds = normalizeBounds(raw.absoluteRenderBounds);
@@ -98,6 +118,7 @@ const normalizeFigmaNode = (raw: FigmaRawNode): FigmaNormalizedNode => {
     style: style ?? undefined,
     rotateDeg,
     localSize: width !== undefined && height !== undefined ? { width, height } : undefined,
+    relativeTransform: normalizeRelativeTransform(raw.relativeTransform),
     children,
     frame: absoluteBounds,
   };

@@ -50,6 +50,23 @@ const getNodeFrame = (node: FigmaNormalizedNode): Frame => {
   return { ...bounds, width: node.localSize?.width ?? bounds.width, height: node.localSize?.height ?? bounds.height };
 };
 
+const getNodeLocalPosition = (
+  node: FigmaNormalizedNode,
+  parentFrame: Frame,
+): { left: number; top: number } => {
+  const relativeTransform = node.relativeTransform;
+  const relativeLeft = relativeTransform?.[0]?.[2];
+  const relativeTop = relativeTransform?.[1]?.[2];
+  if (asFiniteNumber(relativeLeft) !== undefined && asFiniteNumber(relativeTop) !== undefined) {
+    return { left: relativeLeft!, top: relativeTop! };
+  }
+  const frame = getNodeFrame(node);
+  return {
+    left: frame.left - parentFrame.left,
+    top: frame.top - parentFrame.top,
+  };
+};
+
 const safeLabel = (value: string, fallback: string): string => {
   const label = value
     .replace(/https?:\/\/\S+/gi, "")
@@ -232,9 +249,10 @@ export const convertFigmaGridCandidate = (input: {
     const styleId = createStudioId("style");
     const frame = getNodeFrame(source);
     const rotateDeg = source.rotateDeg;
+    const localPosition = getNodeLocalPosition(source, parentFrame);
     const correctedFrame = adjustFigmaRectForCssCenterRotation({
-      left: frame.left - parentFrame.left,
-      top: frame.top - parentFrame.top,
+      left: localPosition.left,
+      top: localPosition.top,
       width: frame.width,
       height: frame.height,
       rotateDeg,
@@ -321,7 +339,10 @@ export const convertFigmaGridCandidate = (input: {
         if (sourceAsset?.kind !== "imageFill") {
           // Figma's full-node pixels already contain opacity, rotation and effects.
           const rendered = safeFrame(source.absoluteRenderBounds ?? source.absoluteBounds ?? source.frame);
-          Object.assign(style, { left: rendered.left - parentFrame.left, top: rendered.top - parentFrame.top, width: rendered.width, height: rendered.height });
+          const renderedPosition = source.relativeTransform
+            ? localPosition
+            : { left: rendered.left - parentFrame.left, top: rendered.top - parentFrame.top };
+          Object.assign(style, { left: renderedPosition.left, top: renderedPosition.top, width: rendered.width, height: rendered.height });
           delete style.rotateDeg;
           delete style.opacity;
           delete style.borderRadius;

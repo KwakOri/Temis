@@ -230,7 +230,7 @@ const validateCandidate = (
     assetIds.add(asset.id);
   }
 
-  if (/(?:https?|mcp):\/\//i.test(JSON.stringify(candidate))) {
+  if (/(?:https?|mcp):\/\//i.test(JSON.stringify(candidate.component))) {
     return "Candidate contains an unsafe source URL";
   }
 

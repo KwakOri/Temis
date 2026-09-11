@@ -1458,8 +1458,10 @@ const runComponentImportChecks = () => {
   const unsafeCandidateDocument = createSampleStudioDocument();
   const unsafeCandidateBefore = JSON.stringify(unsafeCandidateDocument);
   const unsafeCandidate = createComponentImportCandidate();
-  unsafeCandidate.label =
-    "Monday card https://www.figma.com/design/private-grid?node-id=1412-5814";
+  unsafeCandidate.component.nodes["figma-title"]!.binding = {
+    kind: "staticText",
+    value: "https://www.figma.com/design/private-grid?node-id=1412-5814",
+  };
   const unsafeCandidateResult = applyStudioFigmaGridCandidate(
     unsafeCandidateDocument,
     unsafeCandidate,
@@ -1470,6 +1472,29 @@ const runComponentImportChecks = () => {
     "A candidate containing a remote Figma URL is rejected before persistence.",
   );
   assert.equal(JSON.stringify(unsafeCandidateDocument), unsafeCandidateBefore);
+
+  const transientSourceUrlCandidate = createComponentImportCandidate();
+  const transientSourceUrlReview: StudioFigmaNodeReview = {
+    sourceNodeId: "figma-title",
+    label: "Title",
+    sourceType: "TEXT",
+    suggestedRole: "main_title",
+    suggestedStudioType: "flexibleText",
+    suggestedBinding: { kind: "builtinField", fieldId: "entry.main_title" },
+    sourceCharacters: "https://example.com/live",
+    confidence: 0.9,
+    source: "rule",
+    reason: "Fixture",
+  };
+  transientSourceUrlCandidate.reviews = [transientSourceUrlReview];
+  transientSourceUrlCandidate.reviewDefaults = {
+    "figma-title": structuredClone(transientSourceUrlReview),
+  };
+  assert.equal(
+    applyStudioFigmaGridCandidate(createSampleStudioDocument(), transientSourceUrlCandidate).ok,
+    true,
+    "Transient source text URLs do not block a dynamic binding from being imported.",
+  );
 
   const document = createSampleStudioDocument();
   const timetable = document.domains?.timetable;
