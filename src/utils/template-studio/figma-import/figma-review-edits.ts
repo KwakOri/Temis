@@ -25,11 +25,6 @@ const roleBindings: Partial<Record<StudioFigmaNodeReviewRole, StudioBinding>> = 
 const cloneBinding = (binding: StudioBinding): StudioBinding =>
   structuredClone(binding);
 
-const bindingsEqual = (
-  left: StudioBinding | undefined,
-  right: StudioBinding | undefined,
-): boolean => JSON.stringify(left) === JSON.stringify(right);
-
 const isTextBinding = (binding: StudioBinding): boolean =>
   ["staticText", "inputText", "selectText", "builtinField"].includes(binding.kind);
 
@@ -38,9 +33,9 @@ const isImageBinding = (binding: StudioBinding): boolean =>
 
 const getReviewBinding = (
   review: StudioFigmaNodeReview,
-  originalBinding: StudioBinding | undefined,
+  bindingTouched: boolean,
 ): StudioBinding | undefined => {
-  if (!bindingsEqual(review.suggestedBinding, originalBinding)) {
+  if (bindingTouched) {
     return cloneBinding(review.suggestedBinding);
   }
   if (review.suggestedRole === "decoration") return undefined;
@@ -63,9 +58,9 @@ const applyReviewToNode = (
   candidate: StudioFigmaGridCandidate,
   node: StudioGraphNode,
   review: StudioFigmaNodeReview,
+  bindingTouched: boolean,
 ) => {
   const nextType = review.suggestedStudioType;
-  const originalBinding = node.binding;
   node.type = nextType;
 
   if (TEXT_TYPES.has(nextType)) {
@@ -74,7 +69,7 @@ const applyReviewToNode = (
     node.textAppearance ??= fallbackTextAppearance(
       node.styleId ? String(candidate.component.styles[node.styleId]?.color ?? "") : undefined,
     );
-    const binding = getReviewBinding(review, originalBinding);
+    const binding = getReviewBinding(review, bindingTouched);
     node.binding = binding && isTextBinding(binding) ? binding : { kind: "staticText", value: "" };
     return;
   }
@@ -83,9 +78,9 @@ const applyReviewToNode = (
   if (nextType !== "shape") delete node.shapeFill;
   if (!IMAGE_TYPES.has(nextType)) delete node.fit;
 
-  const binding = review.suggestedRole === "decoration" && node.binding && isImageBinding(node.binding)
+  const binding = !bindingTouched && review.suggestedRole === "decoration" && node.binding && isImageBinding(node.binding)
     ? cloneBinding(node.binding)
-    : getReviewBinding(review, originalBinding);
+    : getReviewBinding(review, bindingTouched);
   if (IMAGE_TYPES.has(nextType)) {
     node.binding = binding && isImageBinding(binding) ? binding : undefined;
   } else {
@@ -95,10 +90,12 @@ const applyReviewToNode = (
 
 /**
  * Applies transient review edits through the converter's exact source-node map.
- * `reviewNodeIds` is intentionally not consumed by the document merger.
+ * `reviewNodeIds` and `bindingTouchedSourceNodeIds` are transient UI metadata;
+ * neither is consumed by the document merger.
  */
 export const applyStudioFigmaReviewEdits = (
   candidate: StudioFigmaGridCandidate,
+  bindingTouchedSourceNodeIds: Readonly<Record<string, boolean>> = {},
 ): StudioFigmaGridCandidate => {
   const nextCandidate = structuredClone(candidate);
   nextCandidate.reviews.forEach((review) => {
@@ -107,7 +104,12 @@ export const applyStudioFigmaReviewEdits = (
       ? nextCandidate.component.nodes[graphNodeId]
       : undefined;
     if (!graphNode) return;
-    applyReviewToNode(nextCandidate, graphNode, review);
+    applyReviewToNode(
+      nextCandidate,
+      graphNode,
+      review,
+      bindingTouchedSourceNodeIds[review.sourceNodeId] === true,
+    );
   });
   return nextCandidate;
 };

@@ -36,6 +36,7 @@ const markup = renderToStaticMarkup(
     selectedCandidateId={candidate.candidateId}
     statusMessage={null}
     onAnalyze={() => {}}
+    onBindingTouch={() => {}}
     onCancel={() => {}}
     onCandidateSelect={() => {}}
     onReviewChange={() => {}}
@@ -64,6 +65,10 @@ const reviewEditSource = fs.readFileSync(
   "src/utils/template-studio/figma-import/figma-review-edits.ts",
   "utf8",
 );
+const panelSource = fs.readFileSync(
+  "src/components/studio/settings/studio-figma-component-import.tsx",
+  "utf8",
+);
 const modalSource = fs.readFileSync(
   "src/app/(root)/template-studio/_components/studio-settings-modal.tsx",
   "utf8",
@@ -71,9 +76,15 @@ const modalSource = fs.readFileSync(
 assert.match(clientSource, /candidateWithEdits/);
 assert.match(clientSource, /applyStudioFigmaGridCandidate\(nextDocument, candidateWithEdits\)/);
 assert.match(clientSource, /applyStudioFigmaReviewEdits/);
+assert.match(clientSource, /figmaBindingTouchedSourceNodeIds/);
+assert.match(clientSource, /markFigmaBindingTouched/);
+assert.match(clientSource, /onBindingTouch: markFigmaBindingTouched/);
 assert.match(reviewEditSource, /reviewNodeIds/);
+assert.match(reviewEditSource, /bindingTouchedSourceNodeIds/);
+assert.match(reviewEditSource, /bindingTouchedSourceNodeIds\[review\.sourceNodeId\] === true/);
 assert.match(reviewEditSource, /component\.nodes\[graphNodeId\]/);
 assert.doesNotMatch(reviewEditSource, /node\.label === review\.label/);
+assert.match(panelSource, /onFocus=\{\(\) => onBindingTouch\(review\.sourceNodeId\)\}/);
 assert.doesNotMatch(clientSource, /graphNodes\.find\(\(node\) => node\.label === review\.label\)/);
 assert.match(clientSource, /clearFigmaImportState/);
 assert.match(clientSource, /figmaAnalysisSequenceRef/);

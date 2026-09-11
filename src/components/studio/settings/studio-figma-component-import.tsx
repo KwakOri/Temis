@@ -32,6 +32,7 @@ interface StudioFigmaComponentImportProps {
   selectedCandidateId: string | null;
   statusMessage: string | null;
   onAnalyze: () => void;
+  onBindingTouch: (sourceNodeId: string) => void;
   onCancel: () => void;
   onCandidateSelect: (candidateId: string) => void;
   onReviewChange: (sourceNodeId: string, patch: ReviewPatch) => void;
@@ -64,6 +65,7 @@ export function StudioFigmaComponentImport({
   onReviewChange,
   onUrlChange,
   onConfirm,
+  onBindingTouch,
 }: StudioFigmaComponentImportProps) {
   const selectedCandidate = candidates.find(
     (candidate) => candidate.candidateId === selectedCandidateId,
@@ -194,6 +196,7 @@ export function StudioFigmaComponentImport({
                   className="h-7 rounded border border-[var(--field-border)] bg-[var(--field)] px-1 text-[10px] text-[var(--fg)]"
                   disabled={isBusy}
                   value={bindingOption(review.suggestedBinding)}
+                  onFocus={() => onBindingTouch(review.sourceNodeId)}
                   onChange={(event) => onReviewChange(review.sourceNodeId, { suggestedBinding: bindingFromOption(event.currentTarget.value, review.suggestedBinding) })}
                 >
                   <option value="staticText">staticText</option>

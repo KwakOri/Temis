@@ -1150,7 +1150,10 @@ const runConverterChecks = () => {
         }
       : review,
   );
-  const bindingEditedGraphCandidate = applyStudioFigmaReviewEdits(bindingEditedCandidate);
+  const bindingEditedGraphCandidate = applyStudioFigmaReviewEdits(
+    bindingEditedCandidate,
+    { "figma-title": true },
+  );
   const bindingEditedNodeId = bindingEditedGraphCandidate.reviewNodeIds?.["figma-title"];
   assert.deepEqual(
     bindingEditedNodeId
@@ -1158,6 +1161,54 @@ const runConverterChecks = () => {
       : undefined,
     { kind: "builtinField", fieldId: "entry.time" },
     "An explicitly edited binding wins over the review role.",
+  );
+
+  const roleThenReselectedBindingCandidate = structuredClone(candidate);
+  roleThenReselectedBindingCandidate.reviews = roleThenReselectedBindingCandidate.reviews.map((review) =>
+    review.sourceNodeId === "figma-title"
+      ? {
+          ...review,
+          suggestedRole: "time" as const,
+          suggestedStudioType: "text" as const,
+          suggestedBinding: { kind: "builtinField" as const, fieldId: "entry.main_title" },
+        }
+      : review,
+  );
+  const roleThenReselectedGraphCandidate = applyStudioFigmaReviewEdits(
+    roleThenReselectedBindingCandidate,
+    { "figma-title": true },
+  );
+  const roleThenReselectedNodeId = roleThenReselectedGraphCandidate.reviewNodeIds?.["figma-title"];
+  assert.deepEqual(
+    roleThenReselectedNodeId
+      ? roleThenReselectedGraphCandidate.component.nodes[roleThenReselectedNodeId]?.binding
+      : undefined,
+    { kind: "builtinField", fieldId: "entry.main_title" },
+    "A touched binding preserves the explicitly re-selected original binding.",
+  );
+
+  const imageBindingEditedCandidate = structuredClone(candidate);
+  imageBindingEditedCandidate.reviews = imageBindingEditedCandidate.reviews.map((review) =>
+    review.sourceNodeId === "figma-image"
+      ? {
+          ...review,
+          suggestedRole: "decoration" as const,
+          suggestedStudioType: "image" as const,
+          suggestedBinding: { kind: "inputImage" as const, inputId: "image-source" },
+        }
+      : review,
+  );
+  const imageBindingEditedGraphCandidate = applyStudioFigmaReviewEdits(
+    imageBindingEditedCandidate,
+    { "figma-image": true },
+  );
+  const imageBindingEditedNodeId = imageBindingEditedGraphCandidate.reviewNodeIds?.["figma-image"];
+  assert.deepEqual(
+    imageBindingEditedNodeId
+      ? imageBindingEditedGraphCandidate.component.nodes[imageBindingEditedNodeId]?.binding
+      : undefined,
+    { kind: "inputImage", inputId: "image-source" },
+    "A touched decoration image preserves its explicitly selected image binding.",
   );
 
   const unknownRoleCandidate = structuredClone(candidate);
@@ -1398,6 +1449,7 @@ const runComponentImportChecks = () => {
   }
   assert.equal(JSON.stringify(document).includes("https://www.figma.com/design/private-grid"), false);
   assert.equal(JSON.stringify(document).includes("reviewNodeIds"), false);
+  assert.equal(JSON.stringify(document).includes("bindingTouchedSourceNodeIds"), false);
   assert.ok(result.warnings.some((warning) => /Unsupported Figma shadow/i.test(warning)));
   assert.ok(result.warnings.some((warning) => /multi/i.test(warning)));
   assert.ok(result.warnings.some((warning) => /offline memo/i.test(warning)));

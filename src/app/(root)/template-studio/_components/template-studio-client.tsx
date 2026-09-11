@@ -650,6 +650,8 @@ export function TemplateStudioClient({
   const [figmaImportPending, setFigmaImportPending] = useState(false);
   const [figmaErrorMessage, setFigmaErrorMessage] = useState<string | null>(null);
   const [figmaStatusMessage, setFigmaStatusMessage] = useState<string | null>(null);
+  const [figmaBindingTouchedSourceNodeIds, setFigmaBindingTouchedSourceNodeIds] =
+    useState<Record<string, boolean>>({});
   const figmaAnalysisSequenceRef = useRef(0);
   const [operationToast, setOperationToast] =
     useState<StudioPersistenceOperationResult | null>(null);
@@ -1464,6 +1466,7 @@ export function TemplateStudioClient({
     if (isRemoteSyncing || !figmaUrl.trim()) return;
     const requestSequence = ++figmaAnalysisSequenceRef.current;
     const requestedUrl = figmaUrl.trim();
+    setFigmaBindingTouchedSourceNodeIds({});
     setFigmaAnalysisPending(true);
     setFigmaErrorMessage(null);
     setFigmaStatusMessage(null);
@@ -1492,6 +1495,7 @@ export function TemplateStudioClient({
     setSelectedFigmaCandidateId(null);
     setFigmaErrorMessage(null);
     setFigmaStatusMessage(null);
+    setFigmaBindingTouchedSourceNodeIds({});
     setFigmaAnalysisPending(false);
     setFigmaImportPending(false);
   }, []);
@@ -1503,11 +1507,23 @@ export function TemplateStudioClient({
     setSelectedFigmaCandidateId(null);
     setFigmaErrorMessage(null);
     setFigmaStatusMessage(null);
+    setFigmaBindingTouchedSourceNodeIds({});
     setFigmaAnalysisPending(false);
+  }, []);
+
+  const markFigmaBindingTouched = useCallback((sourceNodeId: string) => {
+    setFigmaBindingTouchedSourceNodeIds((current) =>
+      current[sourceNodeId]
+        ? current
+        : { ...current, [sourceNodeId]: true },
+    );
   }, []);
 
   const updateFigmaReview = useCallback(
     (sourceNodeId: string, patch: ReviewPatch) => {
+      if (patch.suggestedBinding !== undefined) {
+        markFigmaBindingTouched(sourceNodeId);
+      }
       setFigmaCandidates((currentCandidates) =>
         currentCandidates.map((candidate) => ({
           ...candidate,
@@ -1517,7 +1533,7 @@ export function TemplateStudioClient({
         })),
       );
     },
-    [],
+    [markFigmaBindingTouched],
   );
 
   const importFigmaCandidate = useCallback(() => {
@@ -1532,7 +1548,10 @@ export function TemplateStudioClient({
 
     setFigmaImportPending(true);
     setFigmaErrorMessage(null);
-    const candidateWithEdits = applyStudioFigmaReviewEdits(selectedCandidate);
+    const candidateWithEdits = applyStudioFigmaReviewEdits(
+      selectedCandidate,
+      figmaBindingTouchedSourceNodeIds,
+    );
     const nextDocument = cloneDocument(studioStore.getState().document);
     const importResult = applyStudioFigmaGridCandidate(nextDocument, candidateWithEdits);
     if (importResult.ok) {
@@ -1551,6 +1570,7 @@ export function TemplateStudioClient({
     clearFigmaImportState,
     figmaAnalysisPending,
     figmaCandidates,
+    figmaBindingTouchedSourceNodeIds,
     figmaImportPending,
     isRemoteSyncing,
     captureHistory,
@@ -3431,6 +3451,7 @@ export function TemplateStudioClient({
                 onAnalyze: () => void analyzeFigmaGrid(),
                 onCancel: clearFigmaImportState,
                 onCandidateSelect: setSelectedFigmaCandidateId,
+                onBindingTouch: markFigmaBindingTouched,
                 onReviewChange: updateFigmaReview,
                 onUrlChange: handleFigmaUrlChange,
                 onConfirm: importFigmaCandidate,
