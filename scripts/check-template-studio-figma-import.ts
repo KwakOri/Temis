@@ -29,7 +29,7 @@ import {
   reviewFigmaGridNodesWithWarnings,
   type FigmaReviewInput,
 } from "../src/services/server/figmaGridReviewService";
-import { createFigmaGridAnalyzeHandler } from "../src/app/api/admin/template-studio/figma/analyze/route";
+import { createFigmaGridAnalyzeHandler } from "../src/services/server/figmaGridAnalyzeHandler";
 
 const validUrl =
   "https://www.figma.com/design/T2VDXkMPVFa6yEl9FnVvYo/Weekly-Grid?node-id=1412-5814";
@@ -99,11 +99,10 @@ const metadataContract: FigmaNormalizedNode = {
   type: "TEXT",
   textAutoResize: "WIDTH_AND_HEIGHT",
   layoutSizingHorizontal: "HUG",
-  rotation: -13.5,
-  rotatedWidth: 160,
-  rotatedHeight: 100,
+  rotateDeg: -13.5,
+  localSize: { width: 160, height: 100 },
 };
-assert.equal(metadataContract.rotation, -13.5);
+assert.equal(metadataContract.rotateDeg, -13.5);
 assert.equal(metadataContract.textAutoResize, "WIDTH_AND_HEIGHT");
 
 assert.equal(normalizeFigmaRotation(undefined), undefined);
@@ -175,7 +174,7 @@ const camelTitle = classifyFigmaTextNode({
   characters: "A title",
 });
 assert.equal(camelTitle.role, "main_title");
-assert.equal(camelTitle.studioType, "text");
+assert.equal(camelTitle.studioType, "flexibleText");
 
 const subTitle = classifyFigmaTextNode({
   name: "sub_title",
@@ -610,7 +609,14 @@ const runRouteContractChecks = async () => {
                       width: 140,
                       height: 180,
                     },
-                    children: [],
+                    children: [
+                      {
+                        id: "day-2",
+                        name: "weekday",
+                        type: "TEXT",
+                        characters: "TUE",
+                      },
+                    ],
                   },
                   { id: "board", name: "board", type: "FRAME", children: [] },
                 ],
@@ -727,7 +733,7 @@ const runRouteContractChecks = async () => {
       discovered.candidates[0]?.root.children?.[0]?.textAutoResize,
       "HEIGHT",
     );
-    assert.equal(discovered.candidates[0]?.root.children?.[0]?.rotation, 14.32);
+    assert.equal(discovered.candidates[0]?.root.children?.[0]?.rotateDeg, 14.32);
     assert.deepEqual(discovered.candidates[0]?.root.children?.[0]?.fills, [
       { type: "SOLID", color: { r: 1, g: 0, b: 0 }, opacity: 0.5 },
     ]);
@@ -985,7 +991,7 @@ const runConverterChecks = () => {
             characters: "NEW",
             absoluteBounds: { left: 160, top: 240, width: 20, height: 40 },
             absoluteRenderBounds: { left: 150, top: 250, width: 40, height: 20 },
-            rotation: Math.PI / 2,
+            rotateDeg: 90,
             fills: [{ type: "SOLID", color: { r: 0, g: 0, b: 0 }, opacity: 1 }],
             style: { fontSize: 12, fontWeight: 600 },
           },
@@ -1043,8 +1049,12 @@ const runConverterChecks = () => {
 
   assert.equal(JSON.stringify({ root, reviews, exportedAssets }), before);
   assert.match(candidate.candidateId, /^candidate_/);
-  assert.deepEqual(candidate.frame, { left: 100, top: 200, width: 300, height: 180 });
-  assert.equal(candidate.reviews, reviews, "Reviewed choices remain available to Task 7/8.");
+  assert.deepEqual(candidate.frame, { left: 0, top: 0, width: 300, height: 180 });
+  assert.deepEqual(
+    candidate.reviews.map((review) => review.sourceNodeId),
+    reviews.map((review) => review.sourceNodeId),
+    "Reviewed choices remain available to Task 7/8.",
+  );
   assert.equal(
     candidate.reviewNodeIds?.["figma-title"],
     Object.values(candidate.component.nodes).find((node) => node.label === "Title")?.id,
@@ -1112,7 +1122,7 @@ const runConverterChecks = () => {
   assert.deepEqual([titleStyle?.left, titleStyle?.top], [10, 10]);
   assert.deepEqual(
     [rotatedTextStyle?.left, rotatedTextStyle?.top, rotatedTextStyle?.rotateDeg],
-    [60, 15, 90],
+    [50, 25, 90],
   );
   assert.deepEqual(Object.keys(titleStyle ?? {}).sort(), [
     "alignItems",
@@ -1267,8 +1277,8 @@ const runConverterChecks = () => {
     unknownRoleNodeId
       ? unknownRoleGraphCandidate.component.nodes[unknownRoleNodeId]?.binding
       : undefined,
-    { kind: "staticText", value: "" },
-    "An unknown role clears an unchanged builtin binding to safe static text.",
+    { kind: "staticText", value: "Weekly broadcast" },
+    "An unknown role falls back to the source characters as safe static text.",
   );
 
   const editedCandidate = structuredClone(candidate);

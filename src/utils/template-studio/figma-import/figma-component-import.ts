@@ -111,13 +111,16 @@ const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
 const removeUrl = (value: string): string =>
-  value.replace(/(?:https?|mcp):\/\/\S+/gi, "").replace(/\s+/g, " ").trim();
+  value.replace(/(?:https?|mcp):\/\/\S+/gi, "");
+
+const normalizeLabel = (value: string): string =>
+  removeUrl(value).replace(/\s+/g, " ").trim();
 
 const safeLabel = (value: string, fallback: string): string =>
-  removeUrl(value).slice(0, 160) || fallback;
+  normalizeLabel(value).slice(0, 160) || fallback;
 
 const safeWarning = (value: string): string =>
-  removeUrl(value).slice(0, 500) || "Imported candidate warning was redacted.";
+  normalizeLabel(value).slice(0, 500) || "Imported candidate warning was redacted.";
 
 const hasUnsafeStyleValue = (value: string | number | undefined): boolean =>
   (typeof value !== "string" && typeof value !== "number" && value !== undefined) ||
@@ -500,7 +503,7 @@ export const applyStudioFigmaGridCandidate = (
       while (labels.has(`${base} ${suffix}`)) suffix += 1;
       return `${base} ${suffix}`;
     })(),
-    frame: cloneData(candidate.frame),
+    frame: { left: 0, top: 0, width: candidate.frame.width, height: candidate.frame.height },
     defaultStatusId: "online",
     variants: {
       online: { statusId: "online", rootNodeId: onlineRootNodeId },

@@ -15,14 +15,14 @@ import type {
 } from "@/types/template-studio-figma";
 import {
   adjustFigmaRectForCssCenterRotation,
-  normalizeFigmaRotation,
 } from "@/utils/template-studio/figma-import/figma-rotation";
+import { isFigmaVectorType } from "@/utils/template-studio/figma-import/figma-visual";
 import { createStudioId } from "@/utils/template-studio/id";
 
 type Frame = { left: number; top: number; width: number; height: number };
 type FigmaStyle = Record<string, unknown>;
 
-const DATA_IMAGE_SOURCE = /^data:image\/(?:png|svg\+xml);base64,[a-z0-9+/=\s]+$/i;
+const DATA_IMAGE_SOURCE = /^data:image\/(?:png|jpeg|webp|gif|svg\+xml);base64,[a-z0-9+/=\s]+$/i;
 const GROUP_TYPES = new Set(["FRAME", "GROUP", "COMPONENT", "INSTANCE", "SECTION"]);
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
@@ -45,8 +45,10 @@ const safeFrame = (value: FigmaNormalizedNode["absoluteBounds"] | undefined): Fr
   height: Math.max(0, asFiniteNumber(value?.height) ?? 0),
 });
 
-const getNodeFrame = (node: FigmaNormalizedNode): Frame =>
-  safeFrame(node.absoluteBounds ?? node.frame);
+const getNodeFrame = (node: FigmaNormalizedNode): Frame => {
+  const bounds = safeFrame(node.absoluteBounds ?? node.frame);
+  return { ...bounds, width: node.localSize?.width ?? bounds.width, height: node.localSize?.height ?? bounds.height };
+};
 
 const safeLabel = (value: string, fallback: string): string => {
   const label = value
@@ -186,7 +188,9 @@ const makeAsset = (
   node: FigmaNormalizedNode,
 ): StudioAsset | null => {
   if (!DATA_IMAGE_SOURCE.test(source.src)) return null;
-  const frame = getNodeFrame(node);
+  const frame = source.kind === "imageFill"
+    ? getNodeFrame(node)
+    : safeFrame(node.absoluteRenderBounds ?? node.absoluteBounds ?? node.frame);
   return {
     id: createStudioId("asset"),
     label: safeLabel(node.name, "Imported Figma asset"),
@@ -211,6 +215,7 @@ export const convertFigmaGridCandidate = (input: {
   const styles: Record<string, StudioStyleRecord> = {};
   const assets: StudioAsset[] = [];
   const reviewNodeIds: Record<string, string> = {};
+  const sourceCharacters: Record<string, string> = {};
   const directEntryChildren = (input.root.children ?? []).filter(isExplicitEntryGroup);
   const explicitEntrySourceId = directEntryChildren[0]?.id;
   if (directEntryChildren.length > 1) {
@@ -226,15 +231,15 @@ export const convertFigmaGridCandidate = (input: {
     const nodeId = createStudioId("node");
     const styleId = createStudioId("style");
     const frame = getNodeFrame(source);
-    const rotateDeg = normalizeFigmaRotation(source.rotation);
+    const rotateDeg = source.rotateDeg;
     const correctedFrame = adjustFigmaRectForCssCenterRotation({
       left: frame.left - parentFrame.left,
       top: frame.top - parentFrame.top,
       width: frame.width,
       height: frame.height,
       rotateDeg,
-      rotatedWidth: source.absoluteRenderBounds?.width ?? source.rotatedWidth,
-      rotatedHeight: source.absoluteRenderBounds?.height ?? source.rotatedHeight,
+      rotatedWidth: source.absoluteBounds?.width ?? source.absoluteRenderBounds?.width,
+      rotatedHeight: source.absoluteBounds?.height ?? source.absoluteRenderBounds?.height,
     });
     const style: StudioStyleRecord = {
       position: "absolute",
@@ -261,9 +266,11 @@ export const convertFigmaGridCandidate = (input: {
     }
 
     let type: StudioGraphNodeType;
-    if (isRoot || sourceHasChildren || source.id === explicitEntrySourceId) {
+    if (isRoot || (sourceHasChildren && !isFigmaVectorType(source.type)) || source.id === explicitEntrySourceId) {
       type = "group";
-    } else if (unsupportedEffects && sourceAsset) {
+    } else if ((unsupportedEffects && sourceAsset) || isFigmaVectorType(source.type) || source.type === "SLICE") {
+      type = "image";
+    } else if (source.type !== "TEXT" && (source.type === "IMAGE" || hasImagePaint(source.fills))) {
       type = "image";
     } else if (GROUP_TYPES.has(source.type)) {
       type = "group";
@@ -271,8 +278,6 @@ export const convertFigmaGridCandidate = (input: {
       type = review?.suggestedStudioType === "flexibleText" ? "flexibleText" : "text";
       getTextStyle(source, style);
       if (color) style.color = color;
-    } else if (source.type === "IMAGE" || hasImagePaint(source.fills)) {
-      type = "image";
     } else if (color) {
       type = "shape";
     } else {
@@ -292,6 +297,7 @@ export const convertFigmaGridCandidate = (input: {
       styleId,
     };
     if (reviewsBySourceId.has(source.id)) reviewNodeIds[source.id] = nodeId;
+    if (source.characters !== undefined) sourceCharacters[source.id] = source.characters;
     if (source.visible === false) node.hidden = true;
     if (source.id === explicitEntrySourceId) node.meta = { entrySlot: { index: 0 } };
     if (type === "shape" && color) {
@@ -312,6 +318,15 @@ export const convertFigmaGridCandidate = (input: {
         assets.push(sourceAssetRecord);
         node.binding = { kind: "staticAsset", assetId: sourceAssetRecord.id };
         node.fit = "cover";
+        if (sourceAsset?.kind !== "imageFill") {
+          // Figma's full-node pixels already contain opacity, rotation and effects.
+          const rendered = safeFrame(source.absoluteRenderBounds ?? source.absoluteBounds ?? source.frame);
+          Object.assign(style, { left: rendered.left - parentFrame.left, top: rendered.top - parentFrame.top, width: rendered.width, height: rendered.height });
+          delete style.rotateDeg;
+          delete style.opacity;
+          delete style.borderRadius;
+          delete style.overflow;
+        }
       } else {
         warnings.push(`Image "${node.label}" has no downloaded data-url asset and was left unbound.`);
       }
@@ -319,9 +334,36 @@ export const convertFigmaGridCandidate = (input: {
 
     styles[styleId] = style;
     nodes[nodeId] = node;
-    node.childIds = (source.children ?? []).map((child) =>
+    node.childIds = (type === "image" ? [] : source.children ?? []).map((child) =>
       convertNode(child, nodeId, frame),
     );
+    if (type === "group" && hasImagePaint(source.fills)) {
+      const backgroundAsset = sourceAsset?.kind === "imageFill" ? makeAsset(sourceAsset, source) : null;
+      if (backgroundAsset) {
+        assets.push(backgroundAsset);
+        const backgroundId = createStudioId("node");
+        const backgroundStyleId = createStudioId("style");
+        const paints = source.fills?.map(asRecord).filter((fill) => fill?.type === "IMAGE" && fill.visible !== false) ?? [];
+        const paint = paints[0];
+        styles[backgroundStyleId] = {
+          position: "absolute", left: 0, top: 0, width: frame.width, height: frame.height,
+          ...(borderRadius !== undefined ? { borderRadius } : {}),
+          ...(clampOpacity(paint?.opacity) !== undefined ? { opacity: clampOpacity(paint?.opacity) } : {}),
+        };
+        nodes[backgroundId] = {
+          id: backgroundId, type: "image", label: `${node.label} background`, parentId: nodeId,
+          childIds: [], styleId: backgroundStyleId,
+          binding: { kind: "staticAsset", assetId: backgroundAsset.id },
+          fit: paint?.scaleMode === "FIT" ? "contain" : "cover",
+        };
+        node.childIds.unshift(backgroundId);
+        if (paints.length > 1 || (paint?.scaleMode && !["FILL", "FIT"].includes(String(paint.scaleMode))) || paint?.imageTransform || paint?.filters || paint?.rotation) {
+          warnings.push(`Image fill on "${node.label}" uses unsupported cropping, tiling or paint adjustments; its first source image was retained with approximate fit.`);
+        }
+      } else {
+        warnings.push(`Image background on "${node.label}" has no downloaded fill asset; semantic children were retained.`);
+      }
+    }
     return nodeId;
   };
 
@@ -355,13 +397,25 @@ export const convertFigmaGridCandidate = (input: {
     rootNode.childIds = [entryGroupId];
   }
 
+  const effectiveReviews = input.reviews.map((review): StudioFigmaNodeReview => {
+    const node = nodes[reviewNodeIds[review.sourceNodeId] ?? ""];
+    return {
+      ...review,
+      sourceCharacters: sourceCharacters[review.sourceNodeId] ?? review.sourceCharacters,
+      ...(node ? {
+        suggestedStudioType: node.type as StudioFigmaNodeReview["suggestedStudioType"],
+        suggestedBinding: node.binding ? cloneBinding(node.binding) : cloneBinding(review.suggestedBinding),
+      } : {}),
+    };
+  });
   return {
     candidateId: createStudioId("candidate"),
     label: safeLabel(input.root.name, "Imported Figma card"),
-    frame: rootFrame,
+    frame: { ...rootFrame, left: 0, top: 0 },
     component: { nodes, styles, rootNodeId, assets },
-    reviews: input.reviews,
+    reviews: effectiveReviews,
     reviewNodeIds,
+    reviewDefaults: Object.fromEntries(effectiveReviews.map((review) => [review.sourceNodeId, structuredClone(review)])),
     warnings,
   };
 };

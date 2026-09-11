@@ -5,10 +5,13 @@ import type {
   FigmaTransientAsset,
 } from "@/types/template-studio-figma";
 import { normalizeFigmaRotation } from "@/utils/template-studio/figma-import/figma-rotation";
+import { classifyFigmaTextNode } from "@/utils/template-studio/figma-import/figma-text-classifier";
+import { isFigmaVectorType } from "@/utils/template-studio/figma-import/figma-visual";
 
 const FIGMA_API_BASE_URL = "https://api.figma.com/v1";
 const MAX_FIGMA_ASSET_SIZE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_GRID_ROOT_TYPES = new Set(["FRAME", "COMPONENT", "INSTANCE"]);
+const ALLOWED_CARD_TYPES = new Set([...ALLOWED_GRID_ROOT_TYPES, "GROUP"]);
 const EXCLUDED_GRID_ROOTS = new Set([
   "profile",
   "topobject",
@@ -61,7 +64,10 @@ const normalizeFigmaNode = (raw: FigmaRawNode): FigmaNormalizedNode => {
   const absoluteBounds = normalizeBounds(raw.absoluteBoundingBox);
   const absoluteRenderBounds = normalizeBounds(raw.absoluteRenderBounds);
   const style = asRecord(raw.style);
-  const rotation = normalizeFigmaRotation(asNumber(raw.rotation));
+  const rotateDeg = normalizeFigmaRotation(asNumber(raw.rotation));
+  const size = asRecord(raw.size);
+  const width = asNumber(size?.x);
+  const height = asNumber(size?.y);
   const children = Array.isArray(raw.children)
     ? raw.children
         .map(asRecord)
@@ -74,7 +80,7 @@ const normalizeFigmaNode = (raw: FigmaRawNode): FigmaNormalizedNode => {
     name: asString(raw.name) ?? "Untitled layer",
     type: asString(raw.type) ?? "UNKNOWN",
     characters: asString(raw.characters),
-    textAutoResize: asString(raw.textAutoResize),
+    textAutoResize: asString(style?.textAutoResize) ?? asString(raw.textAutoResize),
     layoutSizingHorizontal: asString(raw.layoutSizingHorizontal),
     layoutSizingVertical: asString(raw.layoutSizingVertical),
     layoutMode: asString(raw.layoutMode),
@@ -90,9 +96,8 @@ const normalizeFigmaNode = (raw: FigmaRawNode): FigmaNormalizedNode => {
     absoluteBounds,
     absoluteRenderBounds,
     style: style ?? undefined,
-    rotation,
-    rotatedWidth: absoluteRenderBounds?.width,
-    rotatedHeight: absoluteRenderBounds?.height,
+    rotateDeg,
+    localSize: width !== undefined && height !== undefined ? { width, height } : undefined,
     children,
     frame: absoluteBounds,
   };
@@ -115,21 +120,30 @@ const figmaFetch = async (path: string): Promise<Response> => {
 const isDecorativeAssetNode = (node: FigmaNormalizedNode): boolean =>
   node.type === "IMAGE" ||
   node.type === "SLICE" ||
+  isFigmaVectorType(node.type) ||
   node.fills?.some((fill) => asRecord(fill)?.type === "IMAGE") === true ||
   (node.type !== "TEXT" &&
     ((node.effects?.length ?? 0) > 0 || (node.strokes?.length ?? 0) > 0));
 
 const collectDecorativeAssetNodes = (
   node: FigmaNormalizedNode,
-): FigmaNormalizedNode[] => [
+): FigmaNormalizedNode[] => node.visible === false ? [] : [
   ...(isDecorativeAssetNode(node) ? [node] : []),
-  ...(node.children?.flatMap(collectDecorativeAssetNodes) ?? []),
+  ...(isFigmaVectorType(node.type) ? [] : node.children?.flatMap(collectDecorativeAssetNodes) ?? []),
 ];
+
+const hasCardSemantics = (node: FigmaNormalizedNode): boolean => {
+  if (node.visible === false) return false;
+  if (node.type === "TEXT" && classifyFigmaTextNode({ name: node.name, characters: node.characters ?? "" }).role !== "unknown") return true;
+  return node.children?.some(hasCardSemantics) === true;
+};
 
 const isGridCardRoot = (node: FigmaNormalizedNode): boolean =>
   node.visible !== false &&
   node.id.length > 0 &&
-  !EXCLUDED_GRID_ROOTS.has(normalizeLayerName(node.name));
+  ALLOWED_CARD_TYPES.has(node.type) &&
+  !EXCLUDED_GRID_ROOTS.has(normalizeLayerName(node.name)) &&
+  hasCardSemantics(node);
 
 const isSupportedGridRoot = (node: FigmaNormalizedNode): boolean =>
   normalizeLayerName(node.name) === "grid" &&
@@ -183,7 +197,7 @@ export const fetchFigmaGridNode = async (source: {
   fileKey: string;
   nodeId: string;
 }): Promise<FigmaNodeResponse> => {
-  const path = `/files/${encodeURIComponent(source.fileKey)}/nodes?ids=${encodeURIComponent(source.nodeId)}`;
+  const path = `/files/${encodeURIComponent(source.fileKey)}/nodes?ids=${encodeURIComponent(source.nodeId)}&geometry=paths`;
   const payload = asRecord(await (await figmaFetch(path)).json());
   const nodes = asRecord(payload?.nodes);
   const selected = asRecord(nodes?.[source.nodeId]);
@@ -223,6 +237,31 @@ export const exportFigmaNodeAsDataUrl = async (
   };
 };
 
+/** Download the original image fill, so editable descendants are never baked in. */
+const downloadFigmaImageFill = async (
+  node: FigmaNormalizedNode,
+  getImageUrls: () => Promise<Record<string, unknown>>,
+): Promise<FigmaTransientAsset> => {
+  const paint = node.fills?.map(asRecord).find((fill) => fill?.type === "IMAGE" && fill.visible !== false);
+  const imageRef = asString(paint?.imageRef);
+  const url = imageRef ? asString((await getImageUrls())[imageRef]) : undefined;
+  if (!url) throw new Error("Figma image fill was unavailable.");
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("Figma image fill download failed.");
+  const mimeType = response.headers.get("content-type")?.split(";")[0]?.trim();
+  if (!mimeType || !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(mimeType)) {
+    throw new Error("Unsupported Figma image fill format.");
+  }
+  const bytes = await readFigmaAssetBytes(response);
+  return {
+    sourceNodeId: node.id,
+    kind: "imageFill",
+    src: `data:${mimeType};base64,${Buffer.from(bytes).toString("base64")}`,
+    mimeType: mimeType as FigmaTransientAsset["mimeType"],
+    byteSize: bytes.byteLength,
+  };
+};
+
 export const fetchFigmaGridCandidates = async (source: {
   fileKey: string;
   nodeId: string;
@@ -230,6 +269,11 @@ export const fetchFigmaGridCandidates = async (source: {
   const { node } = await fetchFigmaGridNode(source);
   if (!isSupportedGridRoot(node)) throw new FigmaGridScopeError();
   const warnings: string[] = [];
+  let imageUrls: Promise<Record<string, unknown>> | undefined;
+  const getImageUrls = () => imageUrls ??= (async () => {
+    const payload = asRecord(await (await figmaFetch(`/files/${encodeURIComponent(source.fileKey)}/images`)).json());
+    return asRecord(asRecord(payload?.meta)?.images) ?? {};
+  })();
   const candidates = await Promise.all(
     (node.children ?? [])
       .filter(isGridCardRoot)
@@ -238,8 +282,16 @@ export const fetchFigmaGridCandidates = async (source: {
         const assets: FigmaTransientAsset[] = [];
         for (const assetNode of collectDecorativeAssetNodes(root)) {
           try {
+            if ((assetNode.children?.length ?? 0) > 0 && !isFigmaVectorType(assetNode.type)) {
+              if (assetNode.fills?.some((fill) => asRecord(fill)?.type === "IMAGE")) {
+                assets.push(await downloadFigmaImageFill(assetNode, getImageUrls));
+              }
+              // Container effects are warned by the converter; a full export would duplicate children.
+              continue;
+            }
             assets.push({
               sourceNodeId: assetNode.id,
+              kind: "fullNode",
               ...(await exportFigmaNodeAsDataUrl(
                 source.fileKey,
                 assetNode.id,

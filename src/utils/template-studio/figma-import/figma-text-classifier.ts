@@ -20,13 +20,30 @@ const classifyRole = (name: string, characters: string): Classification["role"] 
   if (/^(mon|tue|wed|thu|fri|sat|sun)$/i.test(content)) return "day_label";
   if (/^\d{1,2}$/.test(content)) return "date";
   if (/^(online|offline)$/i.test(content)) return "status_label";
-  if (["maintitle", "title", "heading"].includes(normalized)) return "main_title";
-  if (["subtitle", "subheading"].includes(normalized)) return "sub_title";
-  if (["time", "entrytime"].includes(normalized)) return "time";
-  if (["mon", "day", "daylabel", "shortday"].includes(normalized)) return "day_label";
-  if (["date", "daydate"].includes(normalized)) return "date";
-  if (["online", "offline", "status", "statuslabel"].includes(normalized)) return "status_label";
+  if (["main", "maintitle", "title", "heading"].includes(normalized)) return "main_title";
+  if (["sub", "subtitle", "subheading"].includes(normalized)) return "sub_title";
+  if (["time", "entrytime", "streamingtime", "clock"].includes(normalized)) return "time";
+  if (["mon", "day", "daylabel", "shortday", "streamingday", "weekday"].includes(normalized)) return "day_label";
+  if (["date", "daydate", "streamingdate"].includes(normalized)) return "date";
+  if (["online", "offline", "status", "state", "statuslabel"].includes(normalized)) return "status_label";
   return "unknown";
+};
+
+export const bindingForFigmaRole = (
+  role: StudioFigmaNodeReview["suggestedRole"],
+  characters: string,
+): StudioBinding => {
+  const bindings: Record<KnownRole, StudioBinding> = {
+    main_title: { kind: "builtinField", fieldId: "entry.main_title" },
+    sub_title: { kind: "builtinField", fieldId: "entry.sub_title" },
+    time: { kind: "builtinField", fieldId: "entry.time" },
+    day_label: { kind: "builtinField", fieldId: "day.short_label", dayLabelFormat: "shortUpper" },
+    date: { kind: "builtinField", fieldId: "day.date", dateRangeFormat: "day" },
+    status_label: { kind: "builtinField", fieldId: "entry.status_label" },
+  };
+  return role === "unknown" || role === "decoration"
+    ? { kind: "staticText", value: characters }
+    : bindings[role];
 };
 
 export const classifyFigmaTextNode = (input: {
@@ -48,23 +65,14 @@ export const classifyFigmaTextNode = (input: {
     };
   }
 
-  const bindings: Record<KnownRole, StudioBinding> = {
-    main_title: { kind: "builtinField", fieldId: "entry.main_title" },
-    sub_title: { kind: "builtinField", fieldId: "entry.sub_title" },
-    time: { kind: "builtinField", fieldId: "entry.time" },
-    day_label: { kind: "builtinField", fieldId: "day.short_label" },
-    date: { kind: "builtinField", fieldId: "day.date", dateRangeFormat: "day" },
-    status_label: { kind: "builtinField", fieldId: "entry.status_label" },
-  };
-  const isDynamicTitle = role === "main_title" &&
-    (input.textAutoResize === "HEIGHT" || input.layoutSizingHorizontal === "FILL" || input.characters.length > 32);
+  const isDynamicTitle = role === "main_title" || role === "sub_title";
   return {
     role,
     studioType: isDynamicTitle ? "flexibleText" : "text",
-    binding: bindings[role as KnownRole],
+    binding: bindingForFigmaRole(role, input.characters),
     confidence: input.textAutoResize || input.layoutSizingHorizontal ? 0.95 : 0.9,
     reason: isDynamicTitle
-      ? "Semantic title role matched; flexible sizing metadata supports Auto Text."
+      ? "Semantic title role matched; titles default to Auto Text."
       : "Semantic role matched from the layer name or text content.",
   };
 };

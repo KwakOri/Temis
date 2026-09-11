@@ -22,6 +22,8 @@ export interface StudioFigmaNodeReview {
   suggestedRole: StudioFigmaNodeReviewRole;
   suggestedStudioType: "text" | "flexibleText" | "image" | "shape" | "group";
   suggestedBinding: StudioBinding;
+  /** Original source text for switching back from a dynamic binding. UI-only. */
+  sourceCharacters?: string;
   confidence: number;
   source: "rule" | "ai";
   reason: string;
@@ -40,6 +42,8 @@ export interface StudioFigmaGridCandidate {
   reviews: StudioFigmaNodeReview[];
   /** Transient source-node to converted graph-node map for the review UI only. */
   reviewNodeIds?: Record<string, string>;
+  /** Converter-effective choices before any user edits. Never merged into documents. */
+  reviewDefaults?: Record<string, StudioFigmaNodeReview>;
   warnings: string[];
 }
 
@@ -73,9 +77,10 @@ export interface FigmaNormalizedNode {
     height: number;
   };
   style?: Record<string, unknown>;
-  rotation?: number;
-  rotatedWidth?: number;
-  rotatedHeight?: number;
+  /** Already normalized to CSS degrees at the server boundary. */
+  rotateDeg?: number;
+  /** Unrotated Figma size, separate from page-space bounding boxes. */
+  localSize?: { width: number; height: number };
   children?: FigmaNormalizedNode[];
   frame?: { left: number; top: number; width: number; height: number };
 }
@@ -83,8 +88,10 @@ export interface FigmaNormalizedNode {
 export interface FigmaTransientAsset {
   sourceNodeId: string;
   src: string;
-  mimeType: "image/png" | "image/svg+xml";
+  mimeType: "image/png" | "image/svg+xml" | "image/jpeg" | "image/webp" | "image/gif";
   byteSize: number;
+  /** Full-node exports bake transforms; fill images are applied in local space. */
+  kind?: "fullNode" | "imageFill";
 }
 
 export interface FigmaGridCandidateSource {

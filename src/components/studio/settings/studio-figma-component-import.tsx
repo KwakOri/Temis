@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { bindingForFigmaRole } from "@/utils/template-studio/figma-import/figma-text-classifier";
 
 import type { StudioBinding } from "@/types/template-studio";
 import type {
@@ -43,10 +44,13 @@ interface StudioFigmaComponentImportProps {
 const bindingOption = (binding: StudioBinding) =>
   binding.kind === "builtinField" ? binding.fieldId : binding.kind;
 
-const bindingFromOption = (value: string, current: StudioBinding): StudioBinding => {
+const bindingFromOption = (value: string, review: StudioFigmaNodeReview): StudioBinding => {
+  const current = review.suggestedBinding;
   if (value === "staticText") {
-    return current.kind === "staticText" ? current : { kind: "staticText", value: "" };
+    return current.kind === "staticText" ? current : { kind: "staticText", value: review.sourceCharacters ?? "" };
   }
+  if (value === "day.date") return bindingForFigmaRole("date", "");
+  if (value === "day.short_label") return bindingForFigmaRole("day_label", "");
   return { kind: "builtinField", fieldId: value as Extract<StudioBinding, { kind: "builtinField" }>['fieldId'] };
 };
 
@@ -168,7 +172,14 @@ export function StudioFigmaComponentImport({
                     className="h-7 rounded border border-[var(--field-border)] bg-[var(--field)] px-1 text-[10px] text-[var(--fg)]"
                     disabled={isBusy}
                     value={review.suggestedRole}
-                    onChange={(event) => onReviewChange(review.sourceNodeId, { suggestedRole: event.currentTarget.value as StudioFigmaNodeReviewRole })}
+                    onChange={(event) => {
+                      const suggestedRole = event.currentTarget.value as StudioFigmaNodeReviewRole;
+                      onReviewChange(review.sourceNodeId, {
+                        suggestedRole,
+                        suggestedBinding: bindingForFigmaRole(suggestedRole, review.sourceCharacters ??
+                          (review.suggestedBinding.kind === "staticText" ? review.suggestedBinding.value : "")),
+                      });
+                    }}
                   >
                     {ROLE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
@@ -198,9 +209,10 @@ export function StudioFigmaComponentImport({
                   value={bindingOption(review.suggestedBinding)}
                   onChange={(event) => {
                     onBindingChange(review.sourceNodeId);
-                    onReviewChange(review.sourceNodeId, { suggestedBinding: bindingFromOption(event.currentTarget.value, review.suggestedBinding) });
+                    onReviewChange(review.sourceNodeId, { suggestedBinding: bindingFromOption(event.currentTarget.value, review) });
                   }}
                 >
+                  {review.suggestedBinding.kind === "staticAsset" ? <option value="staticAsset">staticAsset</option> : null}
                   <option value="staticText">staticText</option>
                   <option value="entry.main_title">entry.main_title</option>
                   <option value="entry.sub_title">entry.sub_title</option>

@@ -7,20 +7,11 @@ import type {
 import type {
   StudioFigmaGridCandidate,
   StudioFigmaNodeReview,
-  StudioFigmaNodeReviewRole,
 } from "@/types/template-studio-figma";
+import { bindingForFigmaRole } from "./figma-text-classifier";
 
 const TEXT_TYPES = new Set<StudioGraphNodeType>(["text", "flexibleText"]);
 const IMAGE_TYPES = new Set<StudioGraphNodeType>(["image"]);
-
-const roleBindings: Partial<Record<StudioFigmaNodeReviewRole, StudioBinding>> = {
-  main_title: { kind: "builtinField", fieldId: "entry.main_title" },
-  sub_title: { kind: "builtinField", fieldId: "entry.sub_title" },
-  time: { kind: "builtinField", fieldId: "entry.time" },
-  day_label: { kind: "builtinField", fieldId: "day.short_label" },
-  date: { kind: "builtinField", fieldId: "day.date", dateRangeFormat: "day" },
-  status_label: { kind: "builtinField", fieldId: "entry.status_label" },
-};
 
 const cloneBinding = (binding: StudioBinding): StudioBinding =>
   structuredClone(binding);
@@ -32,21 +23,17 @@ const isImageBinding = (binding: StudioBinding): boolean =>
   ["staticAsset", "inputImage", "selectAsset"].includes(binding.kind);
 
 const getReviewBinding = (
+  node: StudioGraphNode,
   review: StudioFigmaNodeReview,
   bindingTouched: boolean,
+  roleTouched: boolean,
 ): StudioBinding | undefined => {
   if (bindingTouched) {
     return cloneBinding(review.suggestedBinding);
   }
-  if (review.suggestedRole === "decoration") return undefined;
-  const roleBinding = roleBindings[review.suggestedRole];
-  if (roleBinding) {
-    return cloneBinding(roleBinding);
-  }
-  if (review.suggestedRole === "unknown" && review.suggestedBinding.kind === "builtinField") {
-    return { kind: "staticText", value: "" };
-  }
-  return cloneBinding(review.suggestedBinding);
+  if (roleTouched) return bindingForFigmaRole(review.suggestedRole, review.sourceCharacters ??
+    (review.suggestedBinding.kind === "staticText" ? review.suggestedBinding.value : ""));
+  return node.binding ? cloneBinding(node.binding) : undefined;
 };
 
 const fallbackTextAppearance = (color?: string): StudioTextAppearance => ({
@@ -59,9 +46,12 @@ const applyReviewToNode = (
   node: StudioGraphNode,
   review: StudioFigmaNodeReview,
   bindingTouched: boolean,
+  roleTouched: boolean,
+  typeTouched: boolean,
 ) => {
-  const nextType = review.suggestedStudioType;
+  const nextType = typeTouched ? review.suggestedStudioType : node.type;
   node.type = nextType;
+  const binding = getReviewBinding(node, review, bindingTouched, roleTouched);
 
   if (TEXT_TYPES.has(nextType)) {
     delete node.shapeFill;
@@ -69,8 +59,7 @@ const applyReviewToNode = (
     node.textAppearance ??= fallbackTextAppearance(
       node.styleId ? String(candidate.component.styles[node.styleId]?.color ?? "") : undefined,
     );
-    const binding = getReviewBinding(review, bindingTouched);
-    node.binding = binding && isTextBinding(binding) ? binding : { kind: "staticText", value: "" };
+    node.binding = binding && isTextBinding(binding) ? binding : { kind: "staticText", value: review.sourceCharacters ?? "" };
     return;
   }
 
@@ -78,9 +67,6 @@ const applyReviewToNode = (
   if (nextType !== "shape") delete node.shapeFill;
   if (!IMAGE_TYPES.has(nextType)) delete node.fit;
 
-  const binding = !bindingTouched && review.suggestedRole === "decoration" && node.binding && isImageBinding(node.binding)
-    ? cloneBinding(node.binding)
-    : getReviewBinding(review, bindingTouched);
   if (IMAGE_TYPES.has(nextType)) {
     node.binding = binding && isImageBinding(binding) ? binding : undefined;
   } else {
@@ -104,11 +90,19 @@ export const applyStudioFigmaReviewEdits = (
       ? nextCandidate.component.nodes[graphNodeId]
       : undefined;
     if (!graphNode) return;
+    const initial = candidate.reviewDefaults?.[review.sourceNodeId];
+    const roleTouched = initial ? review.suggestedRole !== initial.suggestedRole : true;
+    const typeTouched = initial ? review.suggestedStudioType !== initial.suggestedStudioType : true;
+    const bindingTouched = bindingTouchedSourceNodeIds[review.sourceNodeId] === true ||
+      (initial !== undefined && JSON.stringify(review.suggestedBinding) !== JSON.stringify(initial.suggestedBinding));
+    if (!roleTouched && !typeTouched && !bindingTouched) return;
     applyReviewToNode(
       nextCandidate,
       graphNode,
       review,
-      bindingTouchedSourceNodeIds[review.sourceNodeId] === true,
+      bindingTouched,
+      roleTouched,
+      typeTouched,
     );
   });
   return nextCandidate;

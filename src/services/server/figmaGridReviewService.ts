@@ -1,9 +1,9 @@
-import type { StudioBinding } from "@/types/template-studio";
 import type {
   StudioFigmaNodeReview,
   StudioFigmaNodeReviewRole,
 } from "@/types/template-studio-figma";
-import { classifyFigmaTextNode } from "@/utils/template-studio/figma-import/figma-text-classifier";
+import { bindingForFigmaRole, classifyFigmaTextNode } from "@/utils/template-studio/figma-import/figma-text-classifier";
+import { isFigmaVectorType } from "@/utils/template-studio/figma-import/figma-visual";
 
 const OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
 const REVIEW_ROLES = new Set<StudioFigmaNodeReviewRole>([
@@ -44,6 +44,7 @@ export interface FigmaReviewInput {
     hasSolidFill: boolean;
     hasImageFill: boolean;
     hasChildren: boolean;
+    hasEffectsOrStrokes?: boolean;
   };
 }
 
@@ -74,29 +75,6 @@ const stripSensitiveText = (value: string, token: string): string =>
 const cleanReviewReason = (value: string, token: string): string =>
   stripSensitiveText(value, token).trim().slice(0, 500);
 
-const bindingForRole = (
-  role: StudioFigmaNodeReviewRole,
-  characters: string,
-): StudioBinding => {
-  switch (role) {
-    case "main_title":
-      return { kind: "builtinField", fieldId: "entry.main_title" };
-    case "sub_title":
-      return { kind: "builtinField", fieldId: "entry.sub_title" };
-    case "time":
-      return { kind: "builtinField", fieldId: "entry.time" };
-    case "day_label":
-      return { kind: "builtinField", fieldId: "day.short_label" };
-    case "date":
-      return { kind: "builtinField", fieldId: "day.date", dateRangeFormat: "day" };
-    case "status_label":
-      return { kind: "builtinField", fieldId: "entry.status_label" };
-    case "decoration":
-    case "unknown":
-      return { kind: "staticText", value: characters };
-  }
-};
-
 const ruleReview = (node: FigmaReviewInput): StudioFigmaNodeReview => {
   if (node.type === "TEXT") {
     const classification = classifyFigmaTextNode({
@@ -114,17 +92,20 @@ const ruleReview = (node: FigmaReviewInput): StudioFigmaNodeReview => {
       suggestedRole: classification.role,
       suggestedStudioType: classification.studioType,
       suggestedBinding: classification.binding,
+      sourceCharacters: node.characters,
       confidence: classification.confidence,
       source: "rule",
       reason: classification.reason,
     };
   }
 
-  const suggestedStudioType = node.styleFlags.hasImageFill || node.type === "IMAGE"
+  const suggestedStudioType = isFigmaVectorType(node.type)
     ? "image"
     : node.styleFlags.hasChildren
       ? "group"
-      : "shape";
+      : node.styleFlags.hasImageFill || node.styleFlags.hasEffectsOrStrokes || node.type === "IMAGE" || node.type === "SLICE"
+        ? "image"
+        : ["FRAME", "GROUP", "COMPONENT", "INSTANCE"].includes(node.type) ? "group" : "shape";
   return {
     sourceNodeId: node.id,
     label: node.name,
@@ -267,7 +248,7 @@ export const reviewFigmaGridNodesWithWarnings = async (
           ...review,
           suggestedRole: aiReview.suggestedRole,
           suggestedStudioType: aiReview.suggestedStudioType,
-          suggestedBinding: bindingForRole(
+          suggestedBinding: bindingForFigmaRole(
             aiReview.suggestedRole,
             nodes.find((node) => node.id === review.sourceNodeId)?.characters ?? "",
           ),
