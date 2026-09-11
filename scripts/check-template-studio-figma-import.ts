@@ -1139,6 +1139,43 @@ const runConverterChecks = () => {
     "A role edit derives the matching builtin binding on the mapped graph node.",
   );
 
+  const bindingEditedCandidate = structuredClone(candidate);
+  bindingEditedCandidate.reviews = bindingEditedCandidate.reviews.map((review) =>
+    review.sourceNodeId === "figma-title"
+      ? {
+          ...review,
+          suggestedRole: "main_title" as const,
+          suggestedStudioType: "text" as const,
+          suggestedBinding: { kind: "builtinField" as const, fieldId: "entry.time" },
+        }
+      : review,
+  );
+  const bindingEditedGraphCandidate = applyStudioFigmaReviewEdits(bindingEditedCandidate);
+  const bindingEditedNodeId = bindingEditedGraphCandidate.reviewNodeIds?.["figma-title"];
+  assert.deepEqual(
+    bindingEditedNodeId
+      ? bindingEditedGraphCandidate.component.nodes[bindingEditedNodeId]?.binding
+      : undefined,
+    { kind: "builtinField", fieldId: "entry.time" },
+    "An explicitly edited binding wins over the review role.",
+  );
+
+  const unknownRoleCandidate = structuredClone(candidate);
+  unknownRoleCandidate.reviews = unknownRoleCandidate.reviews.map((review) =>
+    review.sourceNodeId === "figma-title"
+      ? { ...review, suggestedRole: "unknown" as const }
+      : review,
+  );
+  const unknownRoleGraphCandidate = applyStudioFigmaReviewEdits(unknownRoleCandidate);
+  const unknownRoleNodeId = unknownRoleGraphCandidate.reviewNodeIds?.["figma-title"];
+  assert.deepEqual(
+    unknownRoleNodeId
+      ? unknownRoleGraphCandidate.component.nodes[unknownRoleNodeId]?.binding
+      : undefined,
+    { kind: "staticText", value: "" },
+    "An unknown role clears an unchanged builtin binding to safe static text.",
+  );
+
   const editedCandidate = structuredClone(candidate);
   editedCandidate.reviews = editedCandidate.reviews.map((review) =>
     review.sourceNodeId === "figma-title"
