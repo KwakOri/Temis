@@ -194,3 +194,33 @@ FIGMA_ACCESS_TOKEN=absent
 ```
 
 No authenticated real-link or admin-session verification was possible. `npm test` was not attempted. The exact npm alias `check:studio:component-sets` remains unavailable in this checkout; its repository fallback passed above.
+
+## Follow-up verification — document token redaction
+
+Added the remaining literal assertion that serialized `routeDocumentJson` does not contain the synthetic `secretToken`, alongside the existing URL, temporary-asset, placement, and transient-evidence checks.
+
+Exact follow-up outputs:
+
+```text
+$ npm run check:template-studio:figma-import
+
+> temis@0.1.0 check:template-studio:figma-import
+> node --import tsx scripts/check-template-studio-figma-import.ts
+
+Figma import contract checks passed
+EXIT_CODE=0
+
+$ npx tsc --noEmit
+EXIT_CODE=0
+
+$ git diff --check
+EXIT_CODE=0
+```
+
+Authenticated-link limitation remains unchanged:
+
+```text
+FIGMA_ACCESS_TOKEN=absent
+```
+
+No real-link verification was performed or claimed.

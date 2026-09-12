@@ -1551,6 +1551,7 @@ const runRouteContractChecks = async () => {
       existingRouteDayAssignments,
     );
     const routeDocumentJson = JSON.stringify(routeDocument);
+    assert.equal(routeDocumentJson.includes(secretToken), false);
     assert.equal(routeDocumentJson.includes(originRouteFigmaUrl), false);
     assert.equal(routeDocumentJson.includes(privateFigmaUrl), false);
     assert.equal(routeDocumentJson.includes(temporaryAssetUrl), false);
