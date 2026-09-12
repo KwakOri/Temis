@@ -105,9 +105,9 @@ test("compatibility review edits survive JSON round-trip into the online origin 
   const compatibilityCandidate = structuredClone({
     ...candidate,
     component: candidate.variants.online.component,
-    reviews: candidate.variants.online.reviews,
+    reviews: structuredClone(candidate.variants.online.reviews),
     reviewNodeIds: candidate.variants.online.reviewNodeIds,
-    reviewDefaults: candidate.variants.online.reviewDefaults,
+    reviewDefaults: structuredClone(candidate.variants.online.reviewDefaults),
   });
   const serialized = JSON.parse(JSON.stringify(compatibilityCandidate)) as typeof compatibilityCandidate;
   serialized.reviews[0]!.suggestedBinding = { kind: "builtinField", fieldId: "entry.time" };
@@ -118,6 +118,44 @@ test("compatibility review edits survive JSON round-trip into the online origin 
   assert.equal(result.variants.online.reviews[0]!.decision, "manual");
   assert.deepEqual(result.variants.offline.component.nodes[offlineId]!.binding, { kind: "builtinField", fieldId: "entry.main_title" });
   assert.equal(result.variants.offline.reviews[0]!.decision, "auto");
+
+});
+
+test("variant-local review edits win when the compatibility projection is unchanged", () => {
+  const makeReview = (id: string): StudioFigmaNodeReview => ({
+    sourceNodeId: id, label: id, sourceType: "TEXT", suggestedRole: "main_title", suggestedStudioType: "flexibleText",
+    suggestedBinding: { kind: "builtinField", fieldId: "entry.main_title" }, confidence: 0.9, source: "hybrid",
+    decision: "auto", agreement: "agree", reason: "Fixture",
+  });
+  const candidate = convertFigmaGridOriginCandidate({
+    label: "GRID", frame: { left: 0, top: 0, width: 100, height: 60 }, placementInstanceIds: [],
+    variants: {
+      online: { status: "online", origin: { componentId: "on", componentNodeId: "on", componentSetNodeId: "set", componentName: "Online" }, root: { id: "on", name: "Online", type: "COMPONENT", children: [{ id: "on-title", name: "title", type: "TEXT", characters: "Online" }] }, reviews: [makeReview("on-title")], exportedAssets: [] },
+      offline: { status: "offline", origin: { componentId: "off", componentNodeId: "off", componentSetNodeId: "set", componentName: "Offline" }, root: { id: "off", name: "Offline", type: "COMPONENT", children: [{ id: "off-title", name: "title", type: "TEXT", characters: "Offline" }] }, reviews: [makeReview("off-title")], exportedAssets: [] },
+    },
+  });
+  const compatibilityCandidate = structuredClone({
+    ...candidate,
+    component: candidate.variants.online.component,
+    reviews: structuredClone(candidate.variants.online.reviews),
+    reviewNodeIds: candidate.variants.online.reviewNodeIds,
+    reviewDefaults: structuredClone(candidate.variants.online.reviewDefaults),
+  });
+  compatibilityCandidate.variants.online.reviews[0]!.suggestedBinding = { kind: "builtinField", fieldId: "entry.time" };
+  assert.equal(compatibilityCandidate.reviews[0]!.suggestedBinding.kind, "builtinField");
+  assert.equal((compatibilityCandidate.reviews[0]!.suggestedBinding as { fieldId?: string }).fieldId, "entry.main_title");
+  const result = applyStudioFigmaReviewEdits(compatibilityCandidate, { "on-title": true }) as unknown as StudioFigmaGridOriginCandidate;
+  const onlineId = result.variants.online.reviewNodeIds!["on-title"]!;
+  const offlineId = result.variants.offline.reviewNodeIds!["off-title"]!;
+  assert.deepEqual(result.variants.online.component.nodes[onlineId]!.binding, { kind: "builtinField", fieldId: "entry.time" });
+  assert.equal(result.variants.online.reviews[0]!.decision, "manual");
+  assert.deepEqual(result.variants.offline.component.nodes[offlineId]!.binding, { kind: "builtinField", fieldId: "entry.main_title" });
+  assert.equal(result.variants.offline.reviews[0]!.decision, "auto");
+
+  compatibilityCandidate.reviews[0]!.suggestedBinding = { kind: "builtinField", fieldId: "entry.sub_title" };
+  const bothChanged = applyStudioFigmaReviewEdits(compatibilityCandidate, { "on-title": true }) as unknown as StudioFigmaGridOriginCandidate;
+  const bothChangedOnlineId = bothChanged.variants.online.reviewNodeIds!["on-title"]!;
+  assert.deepEqual(bothChanged.variants.online.component.nodes[bothChangedOnlineId]!.binding, { kind: "builtinField", fieldId: "entry.time" });
 });
 
 test("the Next route exports only POST and extraction preserves review inputs", async () => {

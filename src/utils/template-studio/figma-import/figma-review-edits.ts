@@ -17,6 +17,14 @@ import { bindingForFigmaRole } from "./figma-text-classifier";
 const TEXT_TYPES = new Set<StudioGraphNodeType>(["text", "flexibleText"]);
 const IMAGE_TYPES = new Set<StudioGraphNodeType>(["image"]);
 
+const reviewsEqual = (left: StudioFigmaNodeReview, right: StudioFigmaNodeReview): boolean =>
+  JSON.stringify(left) === JSON.stringify(right);
+
+const reviewChangedFrom = (
+  review: StudioFigmaNodeReview | undefined,
+  reviewDefault: StudioFigmaNodeReview | undefined,
+): boolean => review !== undefined && reviewDefault !== undefined && !reviewsEqual(review, reviewDefault);
+
 const cloneBinding = (binding: StudioBinding): StudioBinding =>
   structuredClone(binding);
 
@@ -102,6 +110,9 @@ export function applyStudioFigmaReviewEdits(
   const compatibilityReviewBySourceId = compatibilityReviews
     ? new Map(compatibilityReviews.map((review) => [review.sourceNodeId, review]))
     : undefined;
+  const compatibilityReviewDefaults = "reviewDefaults" in nextCandidate
+    ? nextCandidate.reviewDefaults
+    : undefined;
   const variants: StudioFigmaGridVariantCandidate[] = "variants" in nextCandidate
     ? Object.values(nextCandidate.variants)
     : [{
@@ -112,12 +123,22 @@ export function applyStudioFigmaReviewEdits(
       reviewNodeIds: nextCandidate.reviewNodeIds,
       reviewDefaults: nextCandidate.reviewDefaults,
       warnings: nextCandidate.warnings,
-    }];
+  }];
   variants.forEach((variant) => {
     if (variant.status === "online" && compatibilityReviewBySourceId) {
-      variant.reviews = variant.reviews.map((review) =>
-        compatibilityReviewBySourceId.get(review.sourceNodeId) ?? review,
-      );
+      variant.reviews = variant.reviews.map((review) => {
+        const compatibilityReview = compatibilityReviewBySourceId.get(review.sourceNodeId);
+        if (!compatibilityReview) return review;
+        const compatibilityChanged = reviewChangedFrom(
+          compatibilityReview,
+          compatibilityReviewDefaults?.[review.sourceNodeId],
+        );
+        const variantChanged = reviewChangedFrom(
+          review,
+          variant.reviewDefaults?.[review.sourceNodeId],
+        );
+        return compatibilityChanged && !variantChanged ? compatibilityReview : review;
+      });
     }
     variant.reviews.forEach((review) => {
       const graphNodeId = variant.reviewNodeIds?.[review.sourceNodeId];
@@ -126,7 +147,8 @@ export function applyStudioFigmaReviewEdits(
       const initial = variant.reviewDefaults?.[review.sourceNodeId];
       const roleTouched = initial ? review.suggestedRole !== initial.suggestedRole : true;
       const typeTouched = initial ? review.suggestedStudioType !== initial.suggestedStudioType : true;
-      const bindingTouched = bindingTouchedSourceNodeIds[review.sourceNodeId] === true ||
+      const bindingTouched = bindingTouchedSourceNodeIds[`${variant.status}:${review.sourceNodeId}`] === true ||
+        bindingTouchedSourceNodeIds[review.sourceNodeId] === true ||
         (initial !== undefined && JSON.stringify(review.suggestedBinding) !== JSON.stringify(initial.suggestedBinding));
       if (!roleTouched && !typeTouched && !bindingTouched) return;
       applyReviewToNode(variant.component, graphNode, review, bindingTouched, roleTouched, typeTouched);

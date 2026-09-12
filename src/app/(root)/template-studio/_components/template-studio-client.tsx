@@ -247,8 +247,10 @@ import { StudioTimetableDayPanel } from "./studio-timetable-day-panel";
 import { StudioTimetableLayerPanel } from "./studio-timetable-layer-panel";
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
 import { StudioSettingsModal } from "./studio-settings-modal";
+import {
+  applyStudioFigmaReviewPatch,
+} from "@/components/studio/settings/studio-figma-component-import";
 import type {
-  ImportCandidate,
   ReviewPatch,
 } from "@/components/studio/settings/studio-figma-component-import";
 import {
@@ -1536,33 +1538,9 @@ export function TemplateStudioClient({
         : statusOrSourceNodeId;
       const patch = typeof sourceNodeIdOrPatch === "string" ? maybePatch ?? {} : sourceNodeIdOrPatch;
       setFigmaCandidates((currentCandidates) =>
-        currentCandidates.map((candidate) => {
-          if ("variants" in candidate) {
-            const variants = candidate.variants;
-            return {
-              ...candidate,
-              variants: {
-                ...variants,
-                [status]: {
-                  ...variants[status],
-                  reviews: variants[status].reviews.map((review) =>
-                    review.sourceNodeId === sourceNodeId
-                      ? { ...review, ...patch, decision: "manual" as const }
-                      : review,
-                  ),
-                },
-              },
-            };
-          }
-          return {
-            ...candidate,
-            reviews: candidate.reviews.map((review) =>
-              review.sourceNodeId === sourceNodeId
-                ? { ...review, ...patch, decision: "manual" as const }
-                : review,
-            ),
-          };
-        }),
+        currentCandidates.map((candidate) =>
+          applyStudioFigmaReviewPatch(candidate, status, sourceNodeId, patch),
+        ),
       );
     },
     [],
@@ -3471,7 +3449,7 @@ export function TemplateStudioClient({
               onTimetableGuideUpload={uploadTimetableGuide}
               onWebFontsChange={updateWebFonts}
               figmaImport={{
-                candidates: figmaCandidates as ImportCandidate[],
+                candidates: figmaCandidates as StudioFigmaGridCandidate[],
                 errorMessage: figmaErrorMessage,
                 figmaUrl,
                 isAnalyzing: figmaAnalysisPending,

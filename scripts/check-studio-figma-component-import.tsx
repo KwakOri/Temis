@@ -3,7 +3,11 @@ import fs from "node:fs";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { StudioFigmaComponentImport } from "../src/components/studio/settings/studio-figma-component-import";
+import {
+  applyStudioFigmaReviewPatch,
+  StudioFigmaComponentImport,
+  type ImportCandidate,
+} from "../src/components/studio/settings/studio-figma-component-import";
 import type { StudioFigmaGridCandidate } from "../src/types/template-studio-figma";
 
 const onlineReview = {
@@ -101,6 +105,22 @@ assert.match(markup, /needs_review/);
 assert.match(markup, /새 컴포넌트 세트로 추가/);
 assert.match(markup, /Review this candidate/);
 
+const interactedCandidate = applyStudioFigmaReviewPatch(
+  candidate as unknown as ImportCandidate,
+  "online",
+  "title",
+  { suggestedBinding: { kind: "builtinField", fieldId: "entry.time" } },
+);
+if (!("variants" in interactedCandidate)) throw new Error("expected nested variants");
+const interactedVariants = interactedCandidate.variants;
+assert.deepEqual(interactedVariants.online.reviews[0]?.suggestedBinding, {
+  kind: "builtinField",
+  fieldId: "entry.time",
+});
+assert.equal(interactedVariants.online.reviews[0]?.decision, "manual");
+assert.deepEqual(interactedVariants.offline.reviews[0]?.suggestedBinding, offlineReview.suggestedBinding);
+assert.equal(interactedVariants.offline.reviews[0]?.decision, offlineReview.decision);
+
 const clientSource = fs.readFileSync(
   "src/app/(root)/template-studio/_components/template-studio-client.tsx",
   "utf8",
@@ -125,8 +145,7 @@ assert.match(clientSource, /figmaBindingTouchedSourceNodeIds/);
 assert.match(clientSource, /recordFigmaBindingChange/);
 assert.match(clientSource, /onBindingChange: recordFigmaBindingChange/);
 assert.match(clientSource, /recordFigmaBindingChange = useCallback\(\(statusOrSourceNodeId/);
-assert.match(clientSource, /decision: "manual"/);
-assert.match(clientSource, /variants\[status\]/);
+assert.match(clientSource, /applyStudioFigmaReviewPatch/);
 assert.match(clientSource, /\$\{status\}:\$\{touchedSourceNodeId\}/);
 assert.match(reviewEditSource, /reviewNodeIds/);
 assert.match(reviewEditSource, /bindingTouchedSourceNodeIds/);
@@ -138,6 +157,8 @@ assert.match(panelSource, /onBindingChange/);
 assert.match(panelSource, /onChange=\{\(event\) => \{[\s\S]*emitBindingChange\([^)]*review\.sourceNodeId/);
 assert.match(panelSource, /review\.evidence/);
 assert.match(panelSource, /candidate\.variants/);
+assert.match(panelSource, /decision: "manual"/);
+assert.match(panelSource, /variants\[status\]/);
 assert.doesNotMatch(clientSource, /graphNodes\.find\(\(node\) => node\.label === review\.label\)/);
 assert.match(clientSource, /clearFigmaImportState/);
 assert.match(clientSource, /figmaAnalysisSequenceRef/);

@@ -14,10 +14,7 @@ import type {
   StudioFigmaGridOriginCandidate,
 } from "@/utils/template-studio/figma-import/figma-node-converter";
 
-export type ImportCandidate = StudioFigmaGridCandidate & {
-  placementInstanceIds?: string[];
-  variants?: StudioFigmaGridOriginCandidate["variants"];
-};
+export type ImportCandidate = StudioFigmaGridCandidate | StudioFigmaGridOriginCandidate;
 
 const ROLE_OPTIONS: Array<{ value: StudioFigmaNodeReviewRole; label: string }> = [
   { value: "main_title", label: "Main title" },
@@ -30,7 +27,7 @@ const ROLE_OPTIONS: Array<{ value: StudioFigmaNodeReviewRole; label: string }> =
   { value: "decoration", label: "Decoration" },
 ];
 
-type ReviewPatch = Partial<Pick<StudioFigmaNodeReview, "suggestedRole" | "suggestedStudioType" | "suggestedBinding">>;
+export type ReviewPatch = Partial<Pick<StudioFigmaNodeReview, "suggestedRole" | "suggestedStudioType" | "suggestedBinding">>;
 
 interface StudioFigmaComponentImportProps {
   candidates: ImportCandidate[];
@@ -57,9 +54,46 @@ type ReviewSection = {
   warnings: string[];
 };
 
+/**
+ * Applies one transient review edit without crossing the online/offline
+ * origin boundary. The client uses this same pure transformation for UI
+ * state, while the converter consumes the resulting nested reviews.
+ */
+export const applyStudioFigmaReviewPatch = (
+  candidate: ImportCandidate,
+  status: StudioFigmaGridVariantStatus,
+  sourceNodeId: string,
+  patch: ReviewPatch,
+): ImportCandidate => {
+  if ("variants" in candidate) {
+    return {
+      ...candidate,
+      variants: {
+        ...candidate.variants,
+        [status]: {
+          ...candidate.variants[status],
+          reviews: candidate.variants[status].reviews.map((review) =>
+            review.sourceNodeId === sourceNodeId
+              ? { ...review, ...patch, decision: "manual" as const }
+              : review,
+          ),
+        },
+      },
+    };
+  }
+  return {
+    ...candidate,
+    reviews: candidate.reviews.map((review) =>
+      review.sourceNodeId === sourceNodeId
+        ? { ...review, ...patch, decision: "manual" as const }
+        : review,
+    ),
+  };
+};
+
 const reviewSectionsFor = (candidate: ImportCandidate): ReviewSection[] => {
-  const variants = candidate.variants;
-  if (variants) {
+  if ("variants" in candidate) {
+    const variants = candidate.variants;
     return (["online", "offline"] as const).map((status) => ({
       status,
       label: status === "online" ? "Online" : "Offline",
@@ -209,7 +243,7 @@ export function StudioFigmaComponentImport({
             </p>
           ))}
           <div className="rounded-lg border border-sky-400/20 bg-sky-400/5 px-2 py-1.5 text-[10px] font-semibold text-sky-100">
-            {selectedCandidate.placementInstanceIds?.length ?? 0} placement instances were used as discovery evidence only; the origin Component Set supplies the imported graph.
+            {"placementInstanceIds" in selectedCandidate ? selectedCandidate.placementInstanceIds.length : 0} placement instances were used as discovery evidence only; the origin Component Set supplies the imported graph.
           </div>
           <div className="text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--fg3)]">텍스트 매핑 검토</div>
           {reviewSectionsFor(selectedCandidate).map((section) => (
@@ -302,5 +336,3 @@ export function StudioFigmaComponentImport({
     </section>
   );
 }
-
-export type { ReviewPatch };
