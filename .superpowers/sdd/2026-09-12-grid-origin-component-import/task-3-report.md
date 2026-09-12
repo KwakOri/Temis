@@ -47,4 +47,4 @@
 
 ### Round 1 commit
 
-`b5c99491` — `fix: complete GRID placement evidence handoff`
+`5e15a3f7acabcaefd7b27aa243096e0065768918` — `fix: complete GRID placement evidence handoff`
