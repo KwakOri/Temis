@@ -715,6 +715,34 @@ const runReviewServiceChecks = async () => {
       });
     }) as typeof fetch;
 
+    aiResponse = {
+      reviews: [{
+        sourceNodeId: "grid-card-day",
+        suggestedRole: "day_label",
+        suggestedStudioType: "text",
+        confidence: 0.9,
+        reason: "The node contains a weekday label.",
+      }],
+    };
+    const compatibilityReview = await reviewFigmaGridNodes([{
+      ...gridReviewNodes[1]!,
+      evidence: stableDayEvidence,
+      componentSetEvidence: stableDayEvidence,
+    }]);
+    assert.equal(compatibilityReview[0]?.decision, "needs_review");
+    assert.equal(compatibilityReview[0]?.evidence, undefined);
+    assert.doesNotMatch(capturedOpenAiBody, /p-mon|known_weekday_set/);
+
+    aiResponse = {
+      reviews: [{
+        sourceNodeId: "grid-card-title",
+        suggestedRole: "main_title",
+        suggestedStudioType: "flexibleText",
+        confidence: 0.88,
+        reason: "The GRID card title is dynamic.",
+      }],
+    };
+
     const redactionInput: FigmaReviewInput[] = [
       {
         ...gridReviewNodes[0]!,

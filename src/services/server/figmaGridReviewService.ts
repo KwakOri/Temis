@@ -135,7 +135,11 @@ const normalizeReviewInput = (input: ReviewInput): FigmaGridReviewRequest => Arr
 
 export const reviewFigmaGridNodesWithWarnings = async (input: ReviewInput): Promise<FigmaGridReviewResult> => {
   const request = normalizeReviewInput(input);
-  const nodes = request.nodes.map((node) => ({ ...node, evidence: request.evidenceBySourceNodeId[node.id] ?? node.evidence, componentSetEvidence: request.componentSetContext?.[node.id] ?? node.componentSetEvidence }));
+  const nodes = request.nodes.map(({ evidence: _nodeEvidence, componentSetEvidence: _nodeComponentSetEvidence, ...node }) => ({
+    ...node,
+    evidence: request.evidenceBySourceNodeId[node.id],
+    componentSetEvidence: request.componentSetContext?.[node.id],
+  }));
   const rules = nodes.map(ruleReview);
   const token = process.env.OPENAI_ACCESS_TOKEN?.trim();
   const model = process.env.OPENAI_FIGMA_REVIEW_MODEL?.trim();
@@ -155,4 +159,8 @@ export const reviewFigmaGridNodesWithWarnings = async (input: ReviewInput): Prom
   }
 };
 
-export const reviewFigmaGridNodes = async (nodes: FigmaReviewInput[]): Promise<StudioFigmaNodeReview[]> => (await reviewFigmaGridNodesWithWarnings(nodes)).reviews;
+export const reviewFigmaGridNodes = async (nodes: FigmaReviewInput[]): Promise<StudioFigmaNodeReview[]> => (await reviewFigmaGridNodesWithWarnings({
+  nodes,
+  evidenceBySourceNodeId: {},
+  componentSetContext: {},
+})).reviews;
