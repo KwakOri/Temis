@@ -192,6 +192,7 @@ import { applyStudioFigmaReviewEdits } from "@/utils/template-studio/figma-impor
 import type {
   StudioFigmaGridCandidate,
 } from "@/types/template-studio-figma";
+import type { StudioFigmaGridOriginCandidate } from "@/utils/template-studio/figma-import/figma-node-converter";
 import { getStudioCustomFontFamilies } from "@/utils/template-studio/web-fonts";
 
 import {
@@ -246,7 +247,10 @@ import { StudioTimetableDayPanel } from "./studio-timetable-day-panel";
 import { StudioTimetableLayerPanel } from "./studio-timetable-layer-panel";
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
 import { StudioSettingsModal } from "./studio-settings-modal";
-import type { ReviewPatch } from "@/components/studio/settings/studio-figma-component-import";
+import type {
+  ImportCandidate,
+  ReviewPatch,
+} from "@/components/studio/settings/studio-figma-component-import";
 import {
   getStudioTimetableDayCardGeometry,
   getStudioTimetableDayCardGeometries,
@@ -644,7 +648,7 @@ export function TemplateStudioClient({
   const [persistenceOperation, setPersistenceOperation] =
     useState<StudioPersistenceOperationState | null>(null);
   const [figmaUrl, setFigmaUrl] = useState("");
-  const [figmaCandidates, setFigmaCandidates] = useState<StudioFigmaGridCandidate[]>([]);
+  const [figmaCandidates, setFigmaCandidates] = useState<Array<StudioFigmaGridCandidate | StudioFigmaGridOriginCandidate>>([]);
   const [selectedFigmaCandidateId, setSelectedFigmaCandidateId] = useState<string | null>(null);
   const [figmaAnalysisPending, setFigmaAnalysisPending] = useState(false);
   const [figmaImportPending, setFigmaImportPending] = useState(false);
@@ -1473,7 +1477,7 @@ export function TemplateStudioClient({
     try {
       const response = await TemplateStudioService.analyzeFigmaGridComponent(requestedUrl);
       if (figmaAnalysisSequenceRef.current !== requestSequence) return;
-      setFigmaCandidates(response.candidates);
+      setFigmaCandidates(response.candidates as Array<StudioFigmaGridCandidate | StudioFigmaGridOriginCandidate>);
       setSelectedFigmaCandidateId(response.candidates.length === 1 ? response.candidates[0]!.candidateId : null);
       setFigmaStatusMessage(response.warnings[0] ?? `${response.candidates.length}개 후보를 분석했습니다.`);
     } catch {
@@ -1511,23 +1515,54 @@ export function TemplateStudioClient({
     setFigmaAnalysisPending(false);
   }, []);
 
-  const recordFigmaBindingChange = useCallback((sourceNodeId: string) => {
+  const recordFigmaBindingChange = useCallback((statusOrSourceNodeId: string, sourceNodeId?: string) => {
+    const status = sourceNodeId ? statusOrSourceNodeId as "online" | "offline" : "online";
+    const touchedSourceNodeId = sourceNodeId ?? statusOrSourceNodeId;
+    const touchedKey = `${status}:${touchedSourceNodeId}`;
     setFigmaBindingTouchedSourceNodeIds((current) =>
-      current[sourceNodeId]
+      current[touchedKey]
         ? current
-        : { ...current, [sourceNodeId]: true },
+        : { ...current, [touchedKey]: true },
     );
   }, []);
 
   const updateFigmaReview = useCallback(
-    (sourceNodeId: string, patch: ReviewPatch) => {
+    (statusOrSourceNodeId: string, sourceNodeIdOrPatch: string | ReviewPatch, maybePatch?: ReviewPatch) => {
+      const status = typeof sourceNodeIdOrPatch === "string"
+        ? statusOrSourceNodeId as "online" | "offline"
+        : "online";
+      const sourceNodeId = typeof sourceNodeIdOrPatch === "string"
+        ? sourceNodeIdOrPatch
+        : statusOrSourceNodeId;
+      const patch = typeof sourceNodeIdOrPatch === "string" ? maybePatch ?? {} : sourceNodeIdOrPatch;
       setFigmaCandidates((currentCandidates) =>
-        currentCandidates.map((candidate) => ({
-          ...candidate,
-          reviews: candidate.reviews.map((review) =>
-            review.sourceNodeId === sourceNodeId ? { ...review, ...patch } : review,
-          ),
-        })),
+        currentCandidates.map((candidate) => {
+          if ("variants" in candidate) {
+            const variants = candidate.variants;
+            return {
+              ...candidate,
+              variants: {
+                ...variants,
+                [status]: {
+                  ...variants[status],
+                  reviews: variants[status].reviews.map((review) =>
+                    review.sourceNodeId === sourceNodeId
+                      ? { ...review, ...patch, decision: "manual" as const }
+                      : review,
+                  ),
+                },
+              },
+            };
+          }
+          return {
+            ...candidate,
+            reviews: candidate.reviews.map((review) =>
+              review.sourceNodeId === sourceNodeId
+                ? { ...review, ...patch, decision: "manual" as const }
+                : review,
+            ),
+          };
+        }),
       );
     },
     [],
@@ -1545,10 +1580,9 @@ export function TemplateStudioClient({
 
     setFigmaImportPending(true);
     setFigmaErrorMessage(null);
-    const candidateWithEdits = applyStudioFigmaReviewEdits(
-      selectedCandidate,
-      figmaBindingTouchedSourceNodeIds,
-    );
+    const candidateWithEdits = ("variants" in selectedCandidate
+      ? applyStudioFigmaReviewEdits(selectedCandidate, figmaBindingTouchedSourceNodeIds)
+      : applyStudioFigmaReviewEdits(selectedCandidate, figmaBindingTouchedSourceNodeIds)) as unknown as StudioFigmaGridCandidate;
     const nextDocument = cloneDocument(studioStore.getState().document);
     const importResult = applyStudioFigmaGridCandidate(nextDocument, candidateWithEdits);
     if (importResult.ok) {
@@ -3437,7 +3471,7 @@ export function TemplateStudioClient({
               onTimetableGuideUpload={uploadTimetableGuide}
               onWebFontsChange={updateWebFonts}
               figmaImport={{
-                candidates: figmaCandidates,
+                candidates: figmaCandidates as ImportCandidate[],
                 errorMessage: figmaErrorMessage,
                 figmaUrl,
                 isAnalyzing: figmaAnalysisPending,

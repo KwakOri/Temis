@@ -6,25 +6,61 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { StudioFigmaComponentImport } from "../src/components/studio/settings/studio-figma-component-import";
 import type { StudioFigmaGridCandidate } from "../src/types/template-studio-figma";
 
-const candidate: StudioFigmaGridCandidate = {
+const onlineReview = {
+  sourceNodeId: "title",
+  label: "Title",
+  sourceType: "TEXT",
+  suggestedRole: "main_title" as const,
+  suggestedStudioType: "flexibleText" as const,
+  suggestedBinding: { kind: "builtinField" as const, fieldId: "entry.main_title" as const },
+  confidence: 0.92,
+  source: "hybrid" as const,
+  decision: "needs_review" as const,
+  agreement: "disagree" as const,
+  evidence: {
+    samples: [],
+    sampleValues: ["MON", "TUE", "WED", "THU"],
+    matchedPlacementCount: 7,
+    distinctValueCount: 4,
+    signals: ["stable_origin_mapping", "known_weekday_set"] as const,
+    mapping: "stable_path" as const,
+  },
+  reason: "Rule and AI disagree about the semantic role",
+};
+
+const offlineReview = {
+  ...onlineReview,
+  sourceNodeId: "title",
+  decision: "auto" as const,
+  agreement: "agree" as const,
+  reason: "Offline origin evidence is stable",
+};
+
+const candidate = {
   candidateId: "candidate-mon",
   label: "Monday card",
   frame: { left: 0, top: 0, width: 320, height: 180 },
   component: { nodes: {}, styles: {}, rootNodeId: "root", assets: [] },
-  reviews: [{
-    sourceNodeId: "title",
-    label: "Title",
-    sourceType: "TEXT",
-    suggestedRole: "main_title",
-    suggestedStudioType: "flexibleText",
-    suggestedBinding: { kind: "builtinField", fieldId: "entry.main_title" },
-    confidence: 0.92,
-    source: "rule",
-    decision: "needs_review",
-    reason: "Semantic title mapping",
-  }],
+  reviews: [onlineReview],
+  variants: {
+    online: {
+      status: "online" as const,
+      origin: { componentId: "online", componentNodeId: "online", componentSetNodeId: "set", componentName: "Online" },
+      component: { nodes: {}, styles: {}, rootNodeId: "online-root", assets: [] },
+      reviews: [onlineReview],
+      warnings: [],
+    },
+    offline: {
+      status: "offline" as const,
+      origin: { componentId: "offline", componentNodeId: "offline", componentSetNodeId: "set", componentName: "Offline" },
+      component: { nodes: {}, styles: {}, rootNodeId: "offline-root", assets: [] },
+      reviews: [offlineReview],
+      warnings: [],
+    },
+  },
+  placementInstanceIds: ["placement-1", "placement-2", "placement-3", "placement-4", "placement-5", "placement-6", "placement-7"],
   warnings: ["Review this candidate"],
-};
+} as unknown as StudioFigmaGridCandidate;
 
 const markup = renderToStaticMarkup(
   <StudioFigmaComponentImport
@@ -50,10 +86,18 @@ assert.match(markup, /컴포넌트 카드 링크/);
 assert.match(markup, /type="url"/);
 assert.match(markup, />분석</);
 assert.match(markup, /candidate-mon/);
+assert.equal((markup.match(/data-component-set-candidate=/g) ?? []).length, 1, "one component-set candidate row is rendered");
+assert.match(markup, /Component Set|컴포넌트 세트/);
+assert.match(markup, /Online/);
+assert.match(markup, /Offline/);
+assert.match(markup, /7.*discovery evidence only|7.*발견 증거/);
 assert.match(markup, /Title/);
 assert.match(markup, /Auto Text/);
 assert.match(markup, /entry\.main_title/);
 assert.match(markup, /confidence|신뢰도/);
+assert.match(markup, /MON.*TUE.*WED/);
+assert.match(markup, /disagree|불일치/);
+assert.match(markup, /needs_review/);
 assert.match(markup, /새 컴포넌트 세트로 추가/);
 assert.match(markup, /Review this candidate/);
 
@@ -80,6 +124,10 @@ assert.match(clientSource, /applyStudioFigmaReviewEdits/);
 assert.match(clientSource, /figmaBindingTouchedSourceNodeIds/);
 assert.match(clientSource, /recordFigmaBindingChange/);
 assert.match(clientSource, /onBindingChange: recordFigmaBindingChange/);
+assert.match(clientSource, /recordFigmaBindingChange = useCallback\(\(statusOrSourceNodeId/);
+assert.match(clientSource, /decision: "manual"/);
+assert.match(clientSource, /variants\[status\]/);
+assert.match(clientSource, /\$\{status\}:\$\{touchedSourceNodeId\}/);
 assert.match(reviewEditSource, /reviewNodeIds/);
 assert.match(reviewEditSource, /bindingTouchedSourceNodeIds/);
 assert.match(reviewEditSource, /bindingTouchedSourceNodeIds\[review\.sourceNodeId\] === true/);
@@ -87,7 +135,9 @@ assert.match(reviewEditSource, /component\.nodes\[graphNodeId\]/);
 assert.doesNotMatch(reviewEditSource, /node\.label === review\.label/);
 assert.doesNotMatch(panelSource, /onFocus=/);
 assert.match(panelSource, /onBindingChange/);
-assert.match(panelSource, /onChange=\{\(event\) => \{[\s\S]*onBindingChange\(review\.sourceNodeId\)/);
+assert.match(panelSource, /onChange=\{\(event\) => \{[\s\S]*emitBindingChange\([^)]*review\.sourceNodeId/);
+assert.match(panelSource, /review\.evidence/);
+assert.match(panelSource, /candidate\.variants/);
 assert.doesNotMatch(clientSource, /graphNodes\.find\(\(node\) => node\.label === review\.label\)/);
 assert.match(clientSource, /clearFigmaImportState/);
 assert.match(clientSource, /figmaAnalysisSequenceRef/);

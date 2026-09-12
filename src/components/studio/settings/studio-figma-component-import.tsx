@@ -8,7 +8,16 @@ import type {
   StudioFigmaGridCandidate,
   StudioFigmaNodeReview,
   StudioFigmaNodeReviewRole,
+  StudioFigmaGridVariantStatus,
 } from "@/types/template-studio-figma";
+import type {
+  StudioFigmaGridOriginCandidate,
+} from "@/utils/template-studio/figma-import/figma-node-converter";
+
+export type ImportCandidate = StudioFigmaGridCandidate & {
+  placementInstanceIds?: string[];
+  variants?: StudioFigmaGridOriginCandidate["variants"];
+};
 
 const ROLE_OPTIONS: Array<{ value: StudioFigmaNodeReviewRole; label: string }> = [
   { value: "main_title", label: "Main title" },
@@ -24,7 +33,7 @@ const ROLE_OPTIONS: Array<{ value: StudioFigmaNodeReviewRole; label: string }> =
 type ReviewPatch = Partial<Pick<StudioFigmaNodeReview, "suggestedRole" | "suggestedStudioType" | "suggestedBinding">>;
 
 interface StudioFigmaComponentImportProps {
-  candidates: StudioFigmaGridCandidate[];
+  candidates: ImportCandidate[];
   errorMessage: string | null;
   figmaUrl: string;
   isAnalyzing: boolean;
@@ -33,13 +42,42 @@ interface StudioFigmaComponentImportProps {
   selectedCandidateId: string | null;
   statusMessage: string | null;
   onAnalyze: () => void;
-  onBindingChange: (sourceNodeId: string) => void;
+  onBindingChange: (...args: never[]) => void;
   onCancel: () => void;
   onCandidateSelect: (candidateId: string) => void;
-  onReviewChange: (sourceNodeId: string, patch: ReviewPatch) => void;
+  onReviewChange: (...args: never[]) => void;
   onUrlChange: (value: string) => void;
   onConfirm: () => void;
 }
+
+type ReviewSection = {
+  status: StudioFigmaGridVariantStatus;
+  label: string;
+  reviews: StudioFigmaNodeReview[];
+  warnings: string[];
+};
+
+const reviewSectionsFor = (candidate: ImportCandidate): ReviewSection[] => {
+  const variants = candidate.variants;
+  if (variants) {
+    return (["online", "offline"] as const).map((status) => ({
+      status,
+      label: status === "online" ? "Online" : "Offline",
+      reviews: variants[status].reviews,
+      warnings: variants[status].warnings,
+    }));
+  }
+  return [{ status: "online", label: "Online", reviews: candidate.reviews, warnings: [] }];
+};
+
+const bindingLabel = (binding: StudioBinding): string => {
+  if (binding.kind === "builtinField") return binding.fieldId;
+  if (binding.kind === "staticText") return "staticText";
+  return binding.kind;
+};
+
+const decisionLabel = (review: StudioFigmaNodeReview): string =>
+  review.decision === "needs_review" ? "needs_review · manual confirmation required" : review.decision;
 
 const bindingOption = (binding: StudioBinding) =>
   binding.kind === "builtinField" ? binding.fieldId : binding.kind;
@@ -75,6 +113,20 @@ export function StudioFigmaComponentImport({
     (candidate) => candidate.candidateId === selectedCandidateId,
   );
   const isBusy = isAnalyzing || isImporting || isRemoteSyncing;
+  const emitBindingChange = (status: StudioFigmaGridVariantStatus, sourceNodeId: string) => {
+    if (onBindingChange.length >= 2) {
+      (onBindingChange as unknown as (status: string, sourceNodeId: string) => void)(status, sourceNodeId);
+    } else {
+      (onBindingChange as unknown as (sourceNodeId: string) => void)(sourceNodeId);
+    }
+  };
+  const emitReviewChange = (status: StudioFigmaGridVariantStatus, sourceNodeId: string, patch: ReviewPatch) => {
+    if (onReviewChange.length >= 3) {
+      (onReviewChange as unknown as (status: string, sourceNodeId: string, patch: ReviewPatch) => void)(status, sourceNodeId, patch);
+    } else {
+      (onReviewChange as unknown as (sourceNodeId: string, patch: ReviewPatch) => void)(sourceNodeId, patch);
+    }
+  };
 
   return (
     <section className="grid gap-3 rounded-xl border border-[var(--field-border)] bg-[var(--field)]/40 p-3" data-studio-figma-component-import>
@@ -128,11 +180,9 @@ export function StudioFigmaComponentImport({
 
       {candidates.length > 0 ? (
         <div className="grid gap-2" data-candidate-selection>
-          <div className="text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--fg3)]">
-            후보 선택
-          </div>
+          <div className="text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--fg3)]">Component Set candidates</div>
           {candidates.map((candidate) => (
-            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--field-border)] px-2 py-2" key={candidate.candidateId}>
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--field-border)] px-2 py-2" data-component-set-candidate={candidate.candidateId} key={candidate.candidateId}>
               <input
                 aria-label={`후보 ${candidate.label}`}
                 checked={candidate.candidateId === selectedCandidateId}
@@ -158,13 +208,25 @@ export function StudioFigmaComponentImport({
               {warning}
             </p>
           ))}
+          <div className="rounded-lg border border-sky-400/20 bg-sky-400/5 px-2 py-1.5 text-[10px] font-semibold text-sky-100">
+            {selectedCandidate.placementInstanceIds?.length ?? 0} placement instances were used as discovery evidence only; the origin Component Set supplies the imported graph.
+          </div>
           <div className="text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--fg3)]">텍스트 매핑 검토</div>
-          {selectedCandidate.reviews.map((review) => (
-            <div className="grid gap-2 rounded-lg border border-[var(--field-border)] p-2" key={review.sourceNodeId}>
+          {reviewSectionsFor(selectedCandidate).map((section) => (
+            <section className="grid gap-2 rounded-lg border border-[var(--field-border)] p-2" data-review-section={section.status} key={section.status}>
+              <div className="flex items-center justify-between gap-2">
+                <h5 className="text-[11px] font-bold text-[var(--fg)]">{section.label}</h5>
+                {section.warnings.length > 0 ? <span className="text-[9px] text-amber-100">{section.warnings[0]}</span> : null}
+              </div>
+              {section.reviews.map((review) => (
+            <div className="grid gap-2 rounded-lg border border-[var(--field-border)] p-2" key={`${section.status}:${review.sourceNodeId}`}>
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate text-[11px] font-bold text-[var(--fg)]">{review.label}</span>
-                <span className="text-[9px] font-semibold text-[var(--fg3)]">confidence {Math.round(review.confidence * 100)}% · source {review.source}</span>
+                <span className="text-[9px] font-semibold text-[var(--fg3)]">confidence {Math.round(review.confidence * 100)}% · source {review.source} · {decisionLabel(review)}</span>
               </div>
+              <div className="text-[9px] text-[var(--fg3)]">effective role {review.suggestedRole} · binding {bindingLabel(review.suggestedBinding)}</div>
+              {review.agreement === "disagree" ? <div className="rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-1 text-[9px] font-semibold text-amber-100">Rule/AI disagreement — review before import.</div> : null}
+              {review.evidence ? <div className="text-[9px] text-[var(--fg3)]">rule/AI agreement: {review.agreement ?? "unknown"} · samples: {review.evidence.sampleValues.slice(0, 3).join(" / ") || "none"} · matched {review.evidence.matchedPlacementCount}</div> : null}
               <div className="grid grid-cols-2 gap-2">
                 <label className="grid gap-1 text-[9px] font-semibold text-[var(--fg3)]">
                   역할
@@ -174,7 +236,7 @@ export function StudioFigmaComponentImport({
                     value={review.suggestedRole}
                     onChange={(event) => {
                       const suggestedRole = event.currentTarget.value as StudioFigmaNodeReviewRole;
-                      onReviewChange(review.sourceNodeId, {
+                      emitReviewChange(section.status, review.sourceNodeId, {
                         suggestedRole,
                         suggestedBinding: bindingForFigmaRole(suggestedRole, review.sourceCharacters ??
                           (review.suggestedBinding.kind === "staticText" ? review.suggestedBinding.value : "")),
@@ -191,7 +253,7 @@ export function StudioFigmaComponentImport({
                     className="h-7 rounded border border-[var(--field-border)] bg-[var(--field)] px-1 text-[10px] text-[var(--fg)]"
                     disabled={isBusy}
                     value={review.suggestedStudioType}
-                    onChange={(event) => onReviewChange(review.sourceNodeId, { suggestedStudioType: event.currentTarget.value as StudioFigmaNodeReview["suggestedStudioType"] })}
+                    onChange={(event) => emitReviewChange(section.status, review.sourceNodeId, { suggestedStudioType: event.currentTarget.value as StudioFigmaNodeReview["suggestedStudioType"] })}
                   >
                     <option value="text">Text</option>
                     <option value="flexibleText">Auto Text</option>
@@ -208,8 +270,8 @@ export function StudioFigmaComponentImport({
                   disabled={isBusy}
                   value={bindingOption(review.suggestedBinding)}
                   onChange={(event) => {
-                    onBindingChange(review.sourceNodeId);
-                    onReviewChange(review.sourceNodeId, { suggestedBinding: bindingFromOption(event.currentTarget.value, review) });
+                    emitBindingChange(section.status, review.sourceNodeId);
+                    emitReviewChange(section.status, review.sourceNodeId, { suggestedBinding: bindingFromOption(event.currentTarget.value, review) });
                   }}
                 >
                   {review.suggestedBinding.kind === "staticAsset" ? <option value="staticAsset">staticAsset</option> : null}
@@ -224,6 +286,8 @@ export function StudioFigmaComponentImport({
                 <span className="text-[9px] font-normal">{review.reason}</span>
               </label>
             </div>
+              ))}
+            </section>
           ))}
           <button
             className="h-9 rounded-lg bg-[var(--accent)] px-3 text-[11px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
