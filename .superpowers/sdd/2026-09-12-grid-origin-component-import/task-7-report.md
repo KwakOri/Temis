@@ -90,7 +90,7 @@ exit 0
 ### Commits
 
 - `046bbd88` — `fix: preserve nested GRID review edits`
-- Documentation follow-up commit: pending until this report append is committed.
+- `e4a2fb4b` — `docs: record Task 7 review fixes` (the report append commit)
 
 ### Remaining concerns
 
