@@ -250,7 +250,7 @@ const aiOnlyReview = fuseFigmaReview({
     suggestedRole: "unknown",
     suggestedBinding: { kind: "staticText", value: "Original" },
     source: "rule",
-    decision: "manual",
+    decision: "needs_review",
     agreement: undefined,
     ruleCandidate: undefined,
     aiCandidate: undefined,
@@ -667,6 +667,28 @@ const runReviewServiceChecks = async () => {
     assert.equal(rulesOnly[0]?.suggestedStudioType, "flexibleText");
     assert.equal(rulesOnly[1]?.suggestedRole, "day_label");
 
+    const stableDayEvidence: FigmaSemanticEvidence = {
+      samples: [
+        { placementInstanceId: "p-mon", variantStatus: "online", originNodeId: "grid-card-day", value: "MON" },
+        { placementInstanceId: "p-tue", variantStatus: "online", originNodeId: "grid-card-day", value: "TUE" },
+      ],
+      sampleValues: ["MON", "TUE"],
+      matchedPlacementCount: 2,
+      distinctValueCount: 2,
+      signals: ["stable_origin_mapping", "known_weekday_set"],
+      mapping: "stable_path",
+    };
+    const evidenceRulesOnly = await reviewFigmaGridNodesWithWarnings({
+      nodes: [{ ...gridReviewNodes[1]!, evidence: stableDayEvidence }],
+      evidenceBySourceNodeId: { "grid-card-day": stableDayEvidence },
+    });
+    assert.equal(evidenceRulesOnly.reviews[0]?.decision, "auto");
+    assert.equal(evidenceRulesOnly.reviews[0]?.source, "rule");
+    assert.equal((await reviewFigmaGridNodesWithWarnings({
+      nodes: [gridReviewNodes[0]!],
+      evidenceBySourceNodeId: {},
+    })).reviews[0]?.decision, "needs_review");
+
     const unavailable = await reviewFigmaGridNodesWithWarnings(gridReviewNodes);
     assert.equal(unavailable.reviews[0]?.source, "rule");
     assert.match(unavailable.warnings[0] ?? "", /automated review/i);
@@ -700,9 +722,14 @@ const runReviewServiceChecks = async () => {
         characters: `data:image/png;base64,AAAA ${openAiSecret}`,
       },
     ];
-    const aiReview = await reviewFigmaGridNodesWithWarnings(redactionInput);
+    const redactionEvidence = { ...stableDayEvidence, signals: ["stable_origin_mapping"] as FigmaSemanticEvidence["signals"] };
+    const aiReview = await reviewFigmaGridNodesWithWarnings({
+      nodes: [{ ...redactionInput[0]!, evidence: redactionEvidence }],
+      evidenceBySourceNodeId: { "grid-card-title": redactionEvidence },
+      componentSetContext: { "grid-card-title": redactionEvidence },
+    });
     assert.equal(aiReview.warnings.length, 0);
-    assert.equal(aiReview.reviews[0]?.source, "ai");
+    assert.equal(aiReview.reviews[0]?.source, "hybrid");
     assert.equal(aiReview.reviews[0]?.suggestedStudioType, "flexibleText");
     assert.deepEqual(aiReview.reviews[0]?.suggestedBinding, {
       kind: "builtinField",
@@ -713,6 +740,55 @@ const runReviewServiceChecks = async () => {
     assert.equal(capturedOpenAiBody.includes(temporaryAssetUrl), false);
     assert.equal(capturedOpenAiBody.includes(openAiSecret), false);
     assert.doesNotMatch(capturedOpenAiBody, /data:image\/png;base64/i);
+    assert.match(capturedOpenAiBody, /placementInstanceId/);
+    assert.match(capturedOpenAiBody, /variantStatus/);
+    assert.match(capturedOpenAiBody, /originNodeId/);
+    assert.match(capturedOpenAiBody, /stable_origin_mapping/);
+
+    aiResponse = {
+      reviews: [{
+        sourceNodeId: "grid-card-day",
+        suggestedRole: "unknown",
+        suggestedStudioType: "text",
+        confidence: 0.7,
+        reason: "The samples are ambiguous.",
+      }],
+    };
+    const disagreement = await reviewFigmaGridNodesWithWarnings({
+      nodes: [{ ...gridReviewNodes[1]!, evidence: stableDayEvidence }],
+      evidenceBySourceNodeId: { "grid-card-day": stableDayEvidence },
+    });
+    assert.equal(disagreement.reviews[0]?.suggestedRole, "day_label");
+    assert.equal(disagreement.reviews[0]?.source, "hybrid");
+    assert.equal(disagreement.reviews[0]?.agreement, "disagree");
+    assert.equal(disagreement.reviews[0]?.decision, "needs_review");
+
+    aiResponse = {
+      reviews: [{
+        sourceNodeId: "grid-card-title",
+        suggestedRole: "main_title",
+        suggestedStudioType: "flexibleText",
+        confidence: 0.75,
+        reason: "Title-like content.",
+      }],
+    };
+    const aiOnlyTitle = await reviewFigmaGridNodesWithWarnings({
+      nodes: [{ ...gridReviewNodes[0]!, name: "arbitrary layer", characters: "Some changing title" }],
+      evidenceBySourceNodeId: {},
+    });
+    assert.equal(aiOnlyTitle.reviews[0]?.aiCandidate?.suggestedRole, "main_title");
+    assert.equal(aiOnlyTitle.reviews[0]?.agreement, "ai_only");
+    assert.equal(aiOnlyTitle.reviews[0]?.decision, "needs_review");
+
+    for (const invalidReview of [
+      { sourceNodeId: "grid-card-title", suggestedRole: "main_title", suggestedStudioType: "flexibleText", confidence: 1.1, reason: "Too confident." },
+      { sourceNodeId: "grid-card-title", suggestedRole: "main_title", suggestedStudioType: "flexibleText", confidence: 0.9, reason: "Duplicate." },
+    ]) {
+      aiResponse = { reviews: [invalidReview, invalidReview] };
+      const invalid = await reviewFigmaGridNodesWithWarnings({ nodes: [gridReviewNodes[0]!], evidenceBySourceNodeId: {} });
+      assert.equal(invalid.reviews[0]?.source, "rule");
+      assert.match(invalid.warnings[0] ?? "", /invalid|unavailable/i);
+    }
 
     aiResponse = {
       reviews: nonTextGridReviewNodes.map((node, index) => ({

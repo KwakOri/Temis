@@ -4,6 +4,7 @@ import {
 } from "@/services/server/figmaTemplateStudioService";
 import {
   reviewFigmaGridNodesWithWarnings,
+  type FigmaGridReviewRequest,
   type FigmaGridReviewResult,
   type FigmaReviewInput,
 } from "@/services/server/figmaGridReviewService";
@@ -25,6 +26,7 @@ type CandidateAdapter = (input: {
 }) => Promise<StudioFigmaGridCandidate[]> | StudioFigmaGridCandidate[];
 
 type ReviewNodes = (nodes: FigmaReviewInput[]) => Promise<FigmaGridReviewResult>;
+type ReviewNodesWithContext = (input: FigmaGridReviewRequest) => Promise<FigmaGridReviewResult>;
 
 const convertCandidates: CandidateAdapter = ({ candidates }) =>
   candidates.map((candidate) => {
@@ -88,9 +90,9 @@ export const createFigmaGridAnalyzeHandler = (dependencies: {
   requireActor: (request: NextRequest) => Promise<AdminActorResult>;
   toCandidates?: CandidateAdapter;
   reviewNodes?: ReviewNodes;
+  reviewNodesWithContext?: ReviewNodesWithContext;
 }) => {
   const toCandidates = dependencies.toCandidates ?? convertCandidates;
-  const reviewNodes = dependencies.reviewNodes ?? reviewFigmaGridNodesWithWarnings;
 
   return async (request: Pick<Request, "json">): Promise<Response> => {
     const actor = await dependencies.requireActor(request as NextRequest);
@@ -136,11 +138,24 @@ export const createFigmaGridAnalyzeHandler = (dependencies: {
       const reviewedCandidates = await Promise.all(
         normalized.candidates.map(async (candidate) => {
           const onlineVariant = candidate.variants.online;
-          const reviewResult = await reviewNodes(toReviewInputs(
+          const reviewInputs = toReviewInputs(
             candidate.root,
             onlineVariant.placementEvidence,
             onlineVariant.componentSetEvidence,
-          ));
+          );
+          const reviewResult = dependencies.reviewNodesWithContext
+            ? await dependencies.reviewNodesWithContext({
+              nodes: reviewInputs,
+              evidenceBySourceNodeId: onlineVariant.placementEvidence,
+              componentSetContext: onlineVariant.componentSetEvidence,
+            })
+            : dependencies.reviewNodes
+              ? await dependencies.reviewNodes(reviewInputs)
+              : await reviewFigmaGridNodesWithWarnings({
+                nodes: reviewInputs,
+                evidenceBySourceNodeId: onlineVariant.placementEvidence,
+                componentSetContext: onlineVariant.componentSetEvidence,
+              });
           return {
             ...candidate,
             reviews: reviewResult.reviews,
