@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import type {
   FigmaNormalizedNode,
+  FigmaSemanticEvidence,
   StudioFigmaGridCandidate,
   StudioFigmaNodeReview,
 } from "../src/types/template-studio-figma";
@@ -434,6 +435,7 @@ const semanticPlacements = semanticValues.map((value, index) => ({
 }));
 const semanticMapping = mapFigmaPlacementNodesToOrigin({ origin: semanticOrigin, placements: semanticPlacements });
 assert.equal(normalizeFigmaSemanticValue(" Tue "), "tue");
+assert.equal(normalizeFigmaSemanticValue("Monday"), "mon");
 assert.equal(normalizeFigmaSemanticValue("07"), "7");
 assert.equal(Object.values(semanticMapping.evidenceByOriginNodeId).length, 5);
 const semanticReviews = inferFigmaSemanticEvidence({
@@ -456,6 +458,39 @@ const aggregatedDay = inferFigmaSemanticEvidence({
 }).find((entry) => entry.sourceNodeId === "origin-day");
 assert.equal(aggregatedDay?.candidate.suggestedRole, "day_label");
 assert.equal(aggregatedDay?.evidence.samples.length, 7);
+const dateOnlyEvidence = {
+  "origin-date": onlineEvidence.evidenceByOriginNodeId["origin-date"]!,
+};
+const dateWithAggregatedDay = inferFigmaSemanticEvidence({
+  origin: semanticOrigin,
+  evidenceByOriginNodeId: dateOnlyEvidence,
+  componentSetEvidence: {
+    "origin-day": onlineEvidence.evidenceByOriginNodeId["origin-day"]!,
+  },
+}).find((entry) => entry.sourceNodeId === "origin-date");
+assert.equal(dateWithAggregatedDay?.candidate.suggestedRole, "date");
+
+const reversedOrigin: FigmaNormalizedNode = {
+  id: "reversed-origin",
+  name: "Card",
+  type: "COMPONENT",
+  children: [
+    { id: "reversed-day", name: "weekday", type: "TEXT", characters: "MON", localSize: { width: 30, height: 12 } },
+    { id: "reversed-date", name: "date", type: "TEXT", characters: "01", localSize: { width: 20, height: 12 } },
+  ],
+};
+const reversedMapping = mapFigmaPlacementNodesToOrigin({
+  origin: reversedOrigin,
+  placements: [{ instanceId: "reversed-placement", status: "online", root: {
+    id: "reversed-placement", name: "Placement", type: "INSTANCE",
+    children: [
+      { id: "reversed-date-value", name: "date", type: "TEXT", characters: "07", localSize: { width: 20, height: 12 } },
+      { id: "reversed-day-value", name: "weekday", type: "TEXT", characters: "MON", localSize: { width: 30, height: 12 } },
+    ],
+  } }],
+});
+assert.equal(reversedMapping.evidenceByOriginNodeId["reversed-day"]?.samples[0]?.value, "MON");
+assert.equal(reversedMapping.evidenceByOriginNodeId["reversed-date"]?.samples[0]?.value, "07");
 
 const randomNumberOrigin: FigmaNormalizedNode = {
   id: "random-origin",
@@ -502,6 +537,19 @@ const coordinateOnlyMapping = mapFigmaPlacementNodesToOrigin({
 });
 assert.ok(coordinateOnlyMapping.warnings.some((warning) => /no origin descendant/i.test(warning)));
 assert.equal(Object.keys(coordinateOnlyMapping.evidenceByOriginNodeId).length, 0);
+const sensitiveMapping = mapFigmaPlacementNodesToOrigin({
+  origin: { id: "safe-origin", name: "Card", type: "COMPONENT", children: [
+    { id: "safe-text", name: "safe", type: "TEXT", characters: "safe", localSize: { width: 30, height: 12 } },
+  ] },
+  placements: [{ instanceId: "unsafe-placement", status: "online", root: {
+    id: "unsafe-placement", name: "https://figma.example/file?token=secret", type: "INSTANCE",
+    children: [{ id: "unsafe-text", name: "https://figma.example/file?token=secret", type: "TEXT", characters: "https://figma.example/export.png", localSize: { width: 30, height: 12 } }],
+  } }],
+});
+assert.doesNotMatch(JSON.stringify(sensitiveMapping), /https:\/\/figma\.example|token=secret|export\.png/);
+assert.match(JSON.stringify(sensitiveMapping), /redacted/i);
+
+const handoffEvidence: FigmaSemanticEvidence = semanticMapping.evidenceByOriginNodeId["origin-day"]!;
 
 for (const [characters, role, fieldId] of [
   ["PM 8:00", "time", "entry.time"],
@@ -599,6 +647,17 @@ const runReviewServiceChecks = async () => {
     });
 
   try {
+    const handoffReview = await reviewFigmaGridNodesWithWarnings([{
+      id: "origin-day",
+      name: "weekday",
+      type: "TEXT",
+      characters: "MON",
+      evidence: handoffEvidence,
+      componentSetEvidence: aggregatedDay?.evidence,
+      styleFlags: { hasSolidFill: true, hasImageFill: false, hasChildren: false },
+    }]);
+    assert.deepEqual(handoffReview.reviews[0]?.evidence, handoffEvidence);
+
     delete process.env.OPENAI_ACCESS_TOKEN;
     delete process.env.OPENAI_FIGMA_REVIEW_MODEL;
     const rulesOnly = await reviewFigmaGridNodes(gridReviewNodes);

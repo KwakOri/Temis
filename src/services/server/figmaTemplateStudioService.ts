@@ -348,8 +348,8 @@ export const fetchFigmaGridCandidates = async (source: {
             candidateWarnings.push(
               error instanceof Error &&
                 error.message === "Figma asset exceeds the maximum size."
-                ? `Decorative asset \"${assetNode.name}\" exceeded 10 MiB and was omitted.`
-                : `Decorative asset \"${assetNode.name}\" could not be exported and was omitted.`,
+                ? "A decorative asset exceeded 10 MiB and was omitted."
+                : "A decorative asset could not be exported and was omitted.",
             );
           }
         }
@@ -414,8 +414,8 @@ const createOriginAssets = async (input: {
     } catch (error) {
       warnings.push(
         error instanceof Error && error.message === "Figma asset exceeds the maximum size."
-          ? `Decorative asset "${assetNode.name}" exceeded 10 MiB and was omitted.`
-          : `Decorative asset "${assetNode.name}" could not be exported and was omitted.`,
+          ? "A decorative asset exceeded 10 MiB and was omitted."
+          : "A decorative asset could not be exported and was omitted.",
       );
     }
   }

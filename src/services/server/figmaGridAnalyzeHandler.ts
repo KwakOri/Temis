@@ -40,7 +40,11 @@ const convertCandidates: CandidateAdapter = ({ candidates }) =>
     };
   });
 
-const toReviewInputs = (node: FigmaGridCandidateSource["root"]): FigmaReviewInput[] => {
+const toReviewInputs = (
+  node: FigmaGridCandidateSource["root"],
+  evidenceBySourceNodeId: FigmaGridCandidateSource["variants"]["online"]["placementEvidence"] = {},
+  componentSetEvidence: FigmaGridCandidateSource["variants"]["online"]["placementEvidence"] = {},
+): FigmaReviewInput[] => {
   const fills = node.fills ?? [];
   return [
     {
@@ -55,6 +59,8 @@ const toReviewInputs = (node: FigmaGridCandidateSource["root"]): FigmaReviewInpu
       visible: node.visible,
       opacity: node.opacity,
       absoluteBounds: node.absoluteBounds,
+      evidence: evidenceBySourceNodeId[node.id],
+      componentSetEvidence: componentSetEvidence[node.id],
       styleFlags: {
         hasSolidFill: fills.some(
           (fill) =>
@@ -74,7 +80,7 @@ const toReviewInputs = (node: FigmaGridCandidateSource["root"]): FigmaReviewInpu
         hasChildren: (node.children?.length ?? 0) > 0,
       },
     },
-    ...(node.children?.flatMap(toReviewInputs) ?? []),
+    ...(node.children?.flatMap((child) => toReviewInputs(child, evidenceBySourceNodeId, componentSetEvidence)) ?? []),
   ];
 };
 
@@ -129,7 +135,12 @@ export const createFigmaGridAnalyzeHandler = (dependencies: {
       const normalized = await fetchFigmaGridOriginCandidates(source);
       const reviewedCandidates = await Promise.all(
         normalized.candidates.map(async (candidate) => {
-          const reviewResult = await reviewNodes(toReviewInputs(candidate.root));
+          const onlineVariant = candidate.variants.online;
+          const reviewResult = await reviewNodes(toReviewInputs(
+            candidate.root,
+            onlineVariant.placementEvidence,
+            onlineVariant.componentSetEvidence,
+          ));
           return {
             ...candidate,
             reviews: reviewResult.reviews,

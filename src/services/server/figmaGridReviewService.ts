@@ -1,4 +1,5 @@
 import type {
+  FigmaSemanticEvidence,
   StudioFigmaNodeReview,
   StudioFigmaNodeReviewRole,
 } from "@/types/template-studio-figma";
@@ -40,6 +41,10 @@ export interface FigmaReviewInput {
   visible?: boolean;
   opacity?: number;
   absoluteBounds?: { left: number; top: number; width: number; height: number };
+  /** Transient placement evidence; never persisted in the converted graph. */
+  evidence?: FigmaSemanticEvidence;
+  /** Transient component-set aggregation; never persisted in the converted graph. */
+  componentSetEvidence?: FigmaSemanticEvidence;
   styleFlags: {
     hasSolidFill: boolean;
     hasImageFill: boolean;
@@ -96,6 +101,7 @@ const ruleReview = (node: FigmaReviewInput): StudioFigmaNodeReview => {
       confidence: classification.confidence,
       source: "rule",
       decision: "needs_review",
+      evidence: node.evidence ?? node.componentSetEvidence,
       reason: classification.reason,
     };
   }
@@ -117,6 +123,7 @@ const ruleReview = (node: FigmaReviewInput): StudioFigmaNodeReview => {
     confidence: 0.8,
     source: "rule",
     decision: "needs_review",
+    evidence: node.evidence ?? node.componentSetEvidence,
     reason: "Non-text GRID layer was classified from its structure and style flags.",
   };
 };

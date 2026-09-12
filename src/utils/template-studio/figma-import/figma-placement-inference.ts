@@ -24,7 +24,18 @@ const WEEKDAYS: Record<string, string> = {
 };
 
 export const normalizeFigmaSemanticValue = (value: string): string =>
-  value.trim().replace(/\s+/g, " ").toLowerCase().replace(/^0+(?=\d)/, "");
+  (() => {
+    const normalized = value.trim().replace(/\s+/g, " ").toLowerCase().replace(/^0+(?=\d)/, "");
+    return WEEKDAYS[normalized.replace(/\s+/g, "")] ?? normalized;
+  })();
+
+export const redactFigmaSemanticValue = (value: string): string => {
+  if (/(?:https?:\/\/|data:)/i.test(value)) return "[redacted URL or data]";
+  if (/(?:bearer\s+|(?:access|api|figma|openai)?[-_ ]?token\b|secret\b|api[-_ ]?key\b)/i.test(value)) {
+    return "[redacted token]";
+  }
+  return value;
+};
 
 const canonicalWeekday = (value: string): string | undefined =>
   WEEKDAYS[normalizeFigmaSemanticValue(value).replace(/\s+/g, "")];
@@ -35,13 +46,20 @@ const isMemoText = (node: FigmaNormalizedNode): boolean => {
   return node.visible === false || name.includes("memo") || value.includes("memo") || value === "restday";
 };
 
-const walk = (root: FigmaNormalizedNode): Array<{ node: FigmaNormalizedNode; path: string }> => {
-  const result: Array<{ node: FigmaNormalizedNode; path: string }> = [];
-  const visit = (node: FigmaNormalizedNode, path: string) => {
-    result.push({ node, path });
-    node.children?.forEach((child, index) => visit(child, `${path}/${index}`));
+const stableShape = (node: FigmaNormalizedNode): string => [
+  node.type,
+  node.localSize?.width ?? "",
+  node.localSize?.height ?? "",
+  node.localSize ? "" : normalizeFigmaLayerName(node.name),
+].join("|");
+
+const walk = (root: FigmaNormalizedNode): Array<{ node: FigmaNormalizedNode; path: string; stablePath: string }> => {
+  const result: Array<{ node: FigmaNormalizedNode; path: string; stablePath: string }> = [];
+  const visit = (node: FigmaNormalizedNode, path: string, stablePath: string) => {
+    result.push({ node, path, stablePath });
+    node.children?.forEach((child, index) => visit(child, `${path}/${index}`, `${stablePath}/${stableShape(child)}`));
   };
-  visit(root, "");
+  visit(root, "", "");
   return result;
 };
 
@@ -67,6 +85,9 @@ const localSignature = (node: FigmaNormalizedNode): string => [
   node.localSize?.height ?? "",
 ].join("|");
 
+const relaxedSignature = (node: FigmaNormalizedNode): string | undefined =>
+  node.localSize ? [node.type, node.localSize.width, node.localSize.height].join("|") : undefined;
+
 const mappingRank = (mapping: FigmaSemanticEvidence["mapping"]): number =>
   ({ override: 4, stable_path: 3, structural: 2, ambiguous: 0 }[mapping]);
 
@@ -74,7 +95,7 @@ const mergeMapping = (
   current: FigmaSemanticEvidence["mapping"] | undefined,
   next: FigmaSemanticEvidence["mapping"],
 ): FigmaSemanticEvidence["mapping"] =>
-  !current || mappingRank(next) < mappingRank(current) ? next : current;
+  !current || current === "ambiguous" || mappingRank(next) < mappingRank(current) ? next : current;
 
 const createEvidence = (sample: FigmaPlacementTextSample, mapping: FigmaSemanticEvidence["mapping"]): FigmaSemanticEvidence => ({
   samples: [sample],
@@ -103,8 +124,8 @@ const addSample = (
 };
 
 const findOriginMatch = (
-  originEntries: Array<{ node: FigmaNormalizedNode; path: string }>,
-  placementEntry: { node: FigmaNormalizedNode; path: string },
+  originEntries: Array<{ node: FigmaNormalizedNode; path: string; stablePath: string }>,
+  placementEntry: { node: FigmaNormalizedNode; path: string; stablePath: string },
 ): { node: FigmaNormalizedNode; mapping: FigmaSemanticEvidence["mapping"] } | { warning: string } | null => {
   const placementIds = identityTokens(placementEntry.node);
   const identityMatches = originEntries.filter(({ node }) => {
@@ -112,14 +133,20 @@ const findOriginMatch = (
     return [...placementIds].some((token) => token && originIds.has(token) && token !== placementEntry.node.id);
   });
   if (identityMatches.length === 1) return { node: identityMatches[0]!.node, mapping: "override" };
-  if (identityMatches.length > 1) return { warning: `Ambiguous override mapping for placement node "${placementEntry.node.name}".` };
+  if (identityMatches.length > 1) return { warning: "Ambiguous override mapping for a placement TEXT node." };
 
-  const pathMatch = originEntries.find((entry) => entry.path === placementEntry.path && entry.node.type === placementEntry.node.type);
-  if (pathMatch) return { node: pathMatch.node, mapping: "stable_path" };
+  const stablePathMatches = originEntries.filter((entry) => entry.stablePath === placementEntry.stablePath && entry.node.type === placementEntry.node.type);
+  if (stablePathMatches.length === 1) return { node: stablePathMatches[0]!.node, mapping: "stable_path" };
 
   const structuralMatches = originEntries.filter(({ node }) => localSignature(node) === localSignature(placementEntry.node));
   if (structuralMatches.length === 1) return { node: structuralMatches[0]!.node, mapping: "structural" };
-  if (structuralMatches.length > 1) return { warning: `Ambiguous structural mapping for placement node "${placementEntry.node.name}".` };
+  if (structuralMatches.length > 1) return { warning: "Ambiguous structural mapping for a placement TEXT node." };
+  const relaxed = relaxedSignature(placementEntry.node);
+  if (relaxed) {
+    const relaxedMatches = originEntries.filter(({ node }) => relaxedSignature(node) === relaxed);
+    if (relaxedMatches.length === 1) return { node: relaxedMatches[0]!.node, mapping: "structural" };
+    if (relaxedMatches.length > 1) return { warning: "Ambiguous structural mapping for a placement TEXT node." };
+  }
   return null;
 };
 
@@ -134,7 +161,7 @@ export const mapFigmaPlacementNodesToOrigin = (input: {
     for (const placementEntry of walk(placement.root).filter(({ node }) => node.type === "TEXT" && !isMemoText(node))) {
       const match = findOriginMatch(originEntries, placementEntry);
       if (!match) {
-        warnings.push(`No origin descendant matched placement node "${placementEntry.node.name}".`);
+        warnings.push("No origin descendant matched a placement TEXT node.");
         continue;
       }
       if ("warning" in match) {
@@ -145,7 +172,7 @@ export const mapFigmaPlacementNodesToOrigin = (input: {
         placementInstanceId: placement.instanceId,
         variantStatus: placement.status,
         originNodeId: match.node.id,
-        value: placementEntry.node.characters ?? "",
+        value: redactFigmaSemanticValue(placementEntry.node.characters ?? ""),
       };
       const existing = evidenceByOriginNodeId[match.node.id];
       if (existing) addSample(existing, sample, match.mapping);
@@ -156,8 +183,8 @@ export const mapFigmaPlacementNodesToOrigin = (input: {
 };
 
 const mergeEvidence = (left: FigmaSemanticEvidence, right?: FigmaSemanticEvidence): FigmaSemanticEvidence => {
-  if (!right) return left;
   const merged = { ...left, samples: [...left.samples], sampleValues: [...left.sampleValues], signals: [...left.signals] };
+  if (!right) return merged;
   for (const sample of right.samples) addSample(merged, sample, right.mapping);
   return merged;
 };
@@ -179,12 +206,15 @@ export const inferFigmaSemanticEvidence = (input: {
   componentSetEvidence?: Record<string, FigmaSemanticEvidence>;
 }): Array<{ sourceNodeId: string; candidate: FigmaReviewCandidate; evidence: FigmaSemanticEvidence }> => {
   const originText = walk(input.origin).filter(({ node }) => node.type === "TEXT" && !isMemoText(node));
+  const evidenceByNodeId = Object.fromEntries(originText.map(({ node }) => [
+    node.id,
+    mergeEvidence(input.evidenceByOriginNodeId[node.id] ?? {
+      samples: [], sampleValues: [], matchedPlacementCount: 0, distinctValueCount: 0, signals: [], mapping: "ambiguous",
+    }, input.componentSetEvidence?.[node.id]),
+  ]));
   const entries: Array<{ sourceNodeId: string; candidate: FigmaReviewCandidate; evidence: FigmaSemanticEvidence }> = [];
   for (const { node } of originText) {
-    const local = input.evidenceByOriginNodeId[node.id];
-    const evidence = mergeEvidence(local ?? {
-      samples: [], sampleValues: [], matchedPlacementCount: 0, distinctValueCount: 0, signals: [], mapping: "ambiguous",
-    }, input.componentSetEvidence?.[node.id]);
+    const evidence = evidenceByNodeId[node.id]!;
     if (evidence.mapping === "ambiguous" || evidence.samples.length === 0) continue;
     const values = evidence.samples.map((sample) => normalizeFigmaSemanticValue(sample.value));
     const layerClassification = classifyFigmaTextNode({ name: node.name, characters: node.characters ?? "" });
@@ -192,8 +222,7 @@ export const inferFigmaSemanticEvidence = (input: {
       evidence.signals.push("layer_name_alias");
     }
     const weekdays = new Set(values.map(canonicalWeekday).filter(Boolean));
-    const dayEvidence = originText.find(({ node: child }) => child.id !== node.id && input.evidenceByOriginNodeId[child.id] &&
-      input.evidenceByOriginNodeId[child.id]!.samples.some((sample) => sample.placementInstanceId &&
+    const dayEvidence = originText.find(({ node: child }) => child.id !== node.id && evidenceByNodeId[child.id]!.samples.some((sample) => sample.placementInstanceId &&
         evidence.samples.some((candidateSample) => candidateSample.placementInstanceId === sample.placementInstanceId) &&
         canonicalWeekday(sample.value) !== undefined));
     if (weekdays.size >= 2) {
