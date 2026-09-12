@@ -96,6 +96,12 @@ export function applyStudioFigmaReviewEdits(
   bindingTouchedSourceNodeIds: Readonly<Record<string, boolean>> = {},
 ): StudioFigmaGridCandidate | StudioFigmaGridOriginCandidate {
   const nextCandidate = structuredClone(candidate);
+  const compatibilityReviews = "reviews" in nextCandidate && Array.isArray(nextCandidate.reviews)
+    ? nextCandidate.reviews as StudioFigmaNodeReview[]
+    : undefined;
+  const compatibilityReviewBySourceId = compatibilityReviews
+    ? new Map(compatibilityReviews.map((review) => [review.sourceNodeId, review]))
+    : undefined;
   const variants: StudioFigmaGridVariantCandidate[] = "variants" in nextCandidate
     ? Object.values(nextCandidate.variants)
     : [{
@@ -108,6 +114,11 @@ export function applyStudioFigmaReviewEdits(
       warnings: nextCandidate.warnings,
     }];
   variants.forEach((variant) => {
+    if (variant.status === "online" && compatibilityReviewBySourceId) {
+      variant.reviews = variant.reviews.map((review) =>
+        compatibilityReviewBySourceId.get(review.sourceNodeId) ?? review,
+      );
+    }
     variant.reviews.forEach((review) => {
       const graphNodeId = variant.reviewNodeIds?.[review.sourceNodeId];
       const graphNode = graphNodeId ? variant.component.nodes[graphNodeId] : undefined;
