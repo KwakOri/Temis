@@ -57,9 +57,12 @@ export const resolveFigmaOriginComponent = (input: {
   if (!componentSetReference || !component.name) return null;
   const componentSet = resolveComponentSet(input.componentSets, componentSetReference);
   if (!componentSet) return null;
+  const componentNodeId = [component.id, component.node_id, component.nodeId].find(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  ) ?? componentId;
   return {
     componentId,
-    componentNodeId: metadataReferences(component, componentId)[0]!,
+    componentNodeId,
     componentSetNodeId: componentSet.nodeId,
     componentName: component.name,
     componentSetName: componentSet.metadata.name,

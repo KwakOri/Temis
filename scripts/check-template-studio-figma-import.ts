@@ -196,6 +196,31 @@ assert.deepEqual(
   },
   "Official containing_frame metadata resolves through the component-set response key.",
 );
+const realFigmaComponentNodeId = "1390:11415";
+const realFigmaComponentSetNodeId = "1390:10823";
+assert.deepEqual(
+  resolveFigmaOriginComponent({
+    instance: { componentId: realFigmaComponentNodeId },
+    components: {
+      [realFigmaComponentNodeId]: {
+        key: "library-component-hash",
+        name: "Online Origin",
+        componentSetId: realFigmaComponentSetNodeId,
+      },
+    },
+    componentSets: {
+      [realFigmaComponentSetNodeId]: { name: "Grid Origins" },
+    },
+  }),
+  {
+    componentId: realFigmaComponentNodeId,
+    componentNodeId: realFigmaComponentNodeId,
+    componentSetNodeId: realFigmaComponentSetNodeId,
+    componentName: "Online Origin",
+    componentSetName: "Grid Origins",
+  },
+  "Real Figma component map keys are node IDs, not library hashes.",
+);
 const placementGroups = groupFigmaGridPlacements({
   placements: normalizedPlacementFixture.map((instance) => ({
     instance,
