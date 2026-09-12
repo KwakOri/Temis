@@ -818,7 +818,9 @@ const validateBinding = (
       node.binding.fieldId === "week.date_range";
     const isTimetableSingleDateBinding =
       document.metadata.kind !== "thumbnail" &&
-      node.binding.fieldId === "day.date";
+      (node.binding.fieldId === "day.date" ||
+        node.binding.fieldId === "week.start_date" ||
+        node.binding.fieldId === "week.end_date");
     const isTimetableDateRangeBinding =
       document.metadata.kind !== "thumbnail" &&
       node.binding.fieldId === "week.date_range";

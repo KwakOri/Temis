@@ -7,7 +7,6 @@ import {
   StudioTemplateDocument,
 } from "@/types/template-studio";
 import {
-  formatStudioDateParts,
   getStudioDatePartsWithDayOffset,
   getStudioWeekEndParts,
   getStudioWeekStartParts,
@@ -345,6 +344,11 @@ const getDayDateParts = (
   return getStudioDatePartsWithDayOffset(timetable.week.startDate, day.order);
 };
 
+const toStudioIsoDate = (
+  parts: ReturnType<typeof parseStudioIsoDateParts>,
+): string | undefined =>
+  parts ? `${parts.year}-${parts.month}-${parts.day}` : undefined;
+
 export const resolveStudioBuiltinFieldValue = (
   document: StudioTemplateDocument,
   values: StudioRuntimeValues,
@@ -406,12 +410,13 @@ export const resolveStudioBuiltinFieldValue = (
         locale: thumbnailSource.locale,
       });
     }
-    return formatStudioDateParts(
-      getStudioWeekStartParts(document, values.timetable.weekStartDate),
-      {
-        includeYear: true,
-      },
-    );
+    return resolveStudioSingleDateText({
+      date: toStudioIsoDate(
+        getStudioWeekStartParts(document, values.timetable.weekStartDate),
+      ),
+      format: options.dateRangeFormat,
+      template: options.dateRangeTemplate,
+    });
   }
 
   if (fieldId === "week.end_date") {
@@ -424,12 +429,13 @@ export const resolveStudioBuiltinFieldValue = (
         locale: thumbnailSource.locale,
       });
     }
-    return formatStudioDateParts(
-      getStudioWeekEndParts(document, values.timetable.weekStartDate),
-      {
-        includeYear: true,
-      },
-    );
+    return resolveStudioSingleDateText({
+      date: toStudioIsoDate(
+        getStudioWeekEndParts(document, values.timetable.weekStartDate),
+      ),
+      format: options.dateRangeFormat,
+      template: options.dateRangeTemplate,
+    });
   }
 
   if (fieldId === "week.date_range") {
