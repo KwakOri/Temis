@@ -99,6 +99,20 @@ export interface StudioFigmaGridCandidate {
 
 export interface FigmaNodeResponse {
   node: FigmaNormalizedNode;
+  components: Record<string, {
+    id?: string;
+    node_id?: string;
+    nodeId?: string;
+    name?: string;
+    componentSetId?: string;
+    component_set_id?: string;
+  }>;
+  componentSets: Record<string, {
+    id?: string;
+    node_id?: string;
+    nodeId?: string;
+    name?: string;
+  }>;
 }
 
 export interface FigmaNormalizedNode {
@@ -149,9 +163,22 @@ export interface FigmaTransientAsset {
   kind?: "fullNode" | "imageFill";
 }
 
+export interface FigmaGridOriginVariantSource {
+  status: StudioFigmaGridVariantStatus;
+  origin: FigmaOriginComponentRef;
+  root: FigmaNormalizedNode;
+  assets: FigmaTransientAsset[];
+  placementEvidence: Record<string, FigmaSemanticEvidence>;
+  warnings: string[];
+}
+
 export interface FigmaGridCandidateSource {
   candidateId: string;
   label: string;
+  frame: { left: number; top: number; width: number; height: number };
+  placementInstanceIds: string[];
+  variants: Record<StudioFigmaGridVariantStatus, FigmaGridOriginVariantSource>;
+  /** Compatibility projection for the pre-variant converter; always fetched origin data. */
   root: FigmaNormalizedNode;
   assets: FigmaTransientAsset[];
   /** Filled by the analyze route after server-side review and before conversion. */

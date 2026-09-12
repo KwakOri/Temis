@@ -4,6 +4,11 @@ import type {
   FigmaNodeResponse,
   FigmaTransientAsset,
 } from "@/types/template-studio-figma";
+import {
+  groupFigmaGridPlacements,
+  inferFigmaGridVariantStatus,
+  resolveFigmaOriginComponent,
+} from "@/utils/template-studio/figma-import/figma-origin";
 import { normalizeFigmaRotation } from "@/utils/template-studio/figma-import/figma-rotation";
 import { classifyFigmaTextNode } from "@/utils/template-studio/figma-import/figma-text-classifier";
 import { isFigmaVectorType } from "@/utils/template-studio/figma-import/figma-visual";
@@ -230,7 +235,13 @@ export const fetchFigmaGridNode = async (source: {
   const document = asRecord(selected?.document);
   if (!document) throw new Error("Figma node was not found.");
 
-  return { node: normalizeFigmaNode(document) };
+  const components = asRecord(payload?.components) ?? {};
+  const componentSets = asRecord(payload?.componentSets) ?? asRecord(payload?.component_sets) ?? {};
+  return {
+    node: normalizeFigmaNode(document),
+    components: components as FigmaNodeResponse["components"],
+    componentSets: componentSets as FigmaNodeResponse["componentSets"],
+  };
 };
 
 export const exportFigmaNodeAsDataUrl = async (
@@ -291,7 +302,10 @@ const downloadFigmaImageFill = async (
 export const fetchFigmaGridCandidates = async (source: {
   fileKey: string;
   nodeId: string;
-}): Promise<{ candidates: FigmaGridCandidateSource[]; warnings: string[] }> => {
+}): Promise<{
+  candidates: Array<Omit<FigmaGridCandidateSource, "frame" | "placementInstanceIds" | "variants">>;
+  warnings: string[];
+}> => {
   const { node } = await fetchFigmaGridNode(source);
   if (!isSupportedGridRoot(node)) throw new FigmaGridScopeError();
   const warnings: string[] = [];
@@ -303,7 +317,7 @@ export const fetchFigmaGridCandidates = async (source: {
   const candidates = await Promise.all(
     (node.children ?? [])
       .filter(isGridCardRoot)
-      .map(async (root): Promise<FigmaGridCandidateSource> => {
+      .map(async (root): Promise<Omit<FigmaGridCandidateSource, "frame" | "placementInstanceIds" | "variants">> => {
         const candidateWarnings: string[] = [];
         const assets: FigmaTransientAsset[] = [];
         for (const assetNode of collectDecorativeAssetNodes(root)) {
@@ -347,6 +361,142 @@ export const fetchFigmaGridCandidates = async (source: {
     warnings.push(
       "No visible GRID day-card children were found in the selected node.",
     );
+  }
+  return { candidates, warnings };
+};
+
+const isVisibleGridPlacement = (node: FigmaNormalizedNode): boolean =>
+  node.visible !== false &&
+  node.type === "INSTANCE" &&
+  node.id.length > 0 &&
+  !EXCLUDED_GRID_ROOTS.has(normalizeLayerName(node.name));
+
+const fetchFigmaOriginNodes = async (source: { fileKey: string; nodeIds: string[] }) => {
+  const ids = [...new Set(source.nodeIds)];
+  if (ids.length === 0) return new Map<string, FigmaNormalizedNode>();
+  const path = `/files/${encodeURIComponent(source.fileKey)}/nodes?ids=${encodeURIComponent(ids.join(","))}&geometry=paths`;
+  const payload = asRecord(await (await figmaFetch(path)).json());
+  const nodes = asRecord(payload?.nodes);
+  const result = new Map<string, FigmaNormalizedNode>();
+  for (const id of ids) {
+    const document = asRecord(asRecord(nodes?.[id])?.document);
+    if (document) result.set(id, normalizeFigmaNode(document));
+  }
+  return result;
+};
+
+const createOriginAssets = async (input: {
+  fileKey: string;
+  root: FigmaNormalizedNode;
+  getImageUrls: () => Promise<Record<string, unknown>>;
+}) => {
+  const assets: FigmaTransientAsset[] = [];
+  const warnings: string[] = [];
+  for (const assetNode of collectDecorativeAssetNodes(input.root)) {
+    try {
+      if ((assetNode.children?.length ?? 0) > 0 && !isFigmaVectorType(assetNode.type)) {
+        if (assetNode.fills?.some((fill) => asRecord(fill)?.type === "IMAGE")) {
+          assets.push(await downloadFigmaImageFill(assetNode, input.getImageUrls));
+        }
+        continue;
+      }
+      assets.push({
+        sourceNodeId: assetNode.id,
+        kind: "fullNode",
+        ...(await exportFigmaNodeAsDataUrl(input.fileKey, assetNode.id, "png")),
+      });
+    } catch (error) {
+      warnings.push(
+        error instanceof Error && error.message === "Figma asset exceeds the maximum size."
+          ? `Decorative asset "${assetNode.name}" exceeded 10 MiB and was omitted.`
+          : `Decorative asset "${assetNode.name}" could not be exported and was omitted.`,
+      );
+    }
+  }
+  return { assets, warnings };
+};
+
+export const fetchFigmaGridOriginCandidates = async (source: {
+  fileKey: string;
+  nodeId: string;
+}): Promise<{ candidates: FigmaGridCandidateSource[]; warnings: string[] }> => {
+  const { node, components, componentSets } = await fetchFigmaGridNode(source);
+  if (!isSupportedGridRoot(node)) throw new FigmaGridScopeError();
+
+  const warnings: string[] = [];
+  const placements = (node.children ?? [])
+    .filter(isVisibleGridPlacement)
+    .flatMap((instance) => {
+      const origin = resolveFigmaOriginComponent({ instance, components, componentSets });
+      const status = inferFigmaGridVariantStatus(instance.componentProperties);
+      return origin && status ? [{ instance, origin, status }] : [];
+    });
+  const groups = groupFigmaGridPlacements({
+    placements: placements.map(({ instance, origin }) => ({ instance, origin })),
+  });
+  const originNodeIds = Object.values(groups).flatMap((group) =>
+    group.origins.map((origin) => origin.componentNodeId),
+  );
+  const originNodes = await fetchFigmaOriginNodes({ fileKey: source.fileKey, nodeIds: originNodeIds });
+
+  let imageUrls: Promise<Record<string, unknown>> | undefined;
+  const getImageUrls = () => imageUrls ??= (async () => {
+    const payload = asRecord(await (await figmaFetch(`/files/${encodeURIComponent(source.fileKey)}/images`)).json());
+    return asRecord(asRecord(payload?.meta)?.images) ?? {};
+  })();
+  const candidates: FigmaGridCandidateSource[] = [];
+
+  for (const group of Object.values(groups)) {
+    const groupPlacements = placements.filter(({ origin }) => origin.componentSetNodeId === group.componentSetNodeId);
+    const byStatus = new Map<string, typeof groupPlacements>();
+    for (const placement of groupPlacements) {
+      const bucket = byStatus.get(placement.status) ?? [];
+      bucket.push(placement);
+      byStatus.set(placement.status, bucket);
+    }
+    const variants = {} as FigmaGridCandidateSource["variants"];
+    let complete = true;
+    for (const status of ["online", "offline"] as const) {
+      const statusPlacements = byStatus.get(status) ?? [];
+      const originIds = [...new Set(statusPlacements.map(({ origin }) => origin.componentId))];
+      if (originIds.length !== 1) {
+        complete = false;
+        continue;
+      }
+      const origin = statusPlacements[0]?.origin;
+      const root = origin ? originNodes.get(origin.componentNodeId) : undefined;
+      if (!origin || !root) {
+        complete = false;
+        continue;
+      }
+      const exported = await createOriginAssets({ fileKey: source.fileKey, root, getImageUrls });
+      variants[status] = {
+        status,
+        origin,
+        root,
+        assets: exported.assets,
+        placementEvidence: {},
+        warnings: exported.warnings,
+      };
+    }
+    if (!complete) {
+      warnings.push("A GRID component set was excluded because it did not resolve to exactly one online and one offline origin.");
+      continue;
+    }
+    const online = variants.online;
+    candidates.push({
+      candidateId: group.componentSetNodeId,
+      label: online.origin.componentSetName ?? online.origin.componentName,
+      frame: online.root.frame ?? online.root.absoluteBounds ?? { left: 0, top: 0, width: 0, height: 0 },
+      placementInstanceIds: group.placementInstanceIds,
+      variants,
+      root: online.root,
+      assets: online.assets,
+      warnings: [...online.warnings, ...variants.offline.warnings],
+    });
+  }
+  if (candidates.length === 0 && warnings.length === 0) {
+    warnings.push("No complete GRID origin component sets were found.");
   }
   return { candidates, warnings };
 };

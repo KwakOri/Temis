@@ -1,5 +1,5 @@
 import {
-  fetchFigmaGridCandidates,
+  fetchFigmaGridOriginCandidates,
   FigmaGridScopeError,
 } from "@/services/server/figmaTemplateStudioService";
 import {
@@ -125,7 +125,7 @@ export const createFigmaGridAnalyzeHandler = (dependencies: {
     }
 
     try {
-      const normalized = await fetchFigmaGridCandidates(source);
+      const normalized = await fetchFigmaGridOriginCandidates(source);
       const reviewedCandidates = await Promise.all(
         normalized.candidates.map(async (candidate) => {
           const reviewResult = await reviewNodes(toReviewInputs(candidate.root));

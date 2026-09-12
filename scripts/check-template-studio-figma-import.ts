@@ -22,6 +22,7 @@ import { applyStudioFigmaReviewEdits } from "../src/utils/template-studio/figma-
 import {
   exportFigmaNodeAsDataUrl,
   fetchFigmaGridCandidates,
+  fetchFigmaGridOriginCandidates,
   normalizeFigmaNode,
 } from "../src/services/server/figmaTemplateStudioService";
 import {
@@ -629,6 +630,9 @@ const runRouteContractChecks = async () => {
   let selectedRootType = "FRAME";
   let figmaFetchCount = 0;
   let streamingAssetPulls = 0;
+  const originNodesRequests: string[][] = [];
+  let mutateOriginPlacements = false;
+  let originFixtureMode: "complete" | "missing-component-id" | "unknown-component" | "missing-component-set" | "only-online" | "ambiguous-online" = "complete";
 
   const responseJson = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), {
@@ -680,7 +684,117 @@ const runRouteContractChecks = async () => {
     globalThis.fetch = (async (input: string | URL | Request) => {
       const url = String(input);
       figmaFetchCount += 1;
+      if (url.includes("/v1/files/origin-fixture/nodes")) {
+        const ids = new URL(url).searchParams.get("ids")?.split(",") ?? [];
+        originNodesRequests.push(ids);
+        if (ids.length === 1 && ids[0] === "1412:5814") {
+          return responseJson({
+            nodes: {
+              "1412:5814": {
+                document: {
+                  id: "1412:5814",
+                  name: "GRID",
+                  type: "FRAME",
+                  children: [
+                    ...["sun", "mon", "wed", "tue", "thu"].map((id, index) => ({
+                      id: `placement-${id}`,
+                      name: `Component ${130 + index}`,
+                      type: "INSTANCE",
+                      componentId: originFixtureMode === "missing-component-id" && id === "sun"
+                        ? undefined
+                        : originFixtureMode === "unknown-component" && id === "sun"
+                          ? "unknown-component"
+                          : originFixtureMode === "ambiguous-online" && id === "sun"
+                            ? "origin-online-ambiguous"
+                            : "origin-online",
+                      componentProperties: { status: { value: "ONLINE" } },
+                      overrides: [{ id: `${id}-text`, characters: mutateOriginPlacements ? "CHANGED" : id.toUpperCase() }],
+                      absoluteBoundingBox: { x: mutateOriginPlacements ? 9000 + index : index * 140, y: mutateOriginPlacements ? 8000 : index * 3, width: 140, height: 180 },
+                      rotation: mutateOriginPlacements ? 77 + index : index,
+                    })),
+                    ...["offline-1", "offline-2"].map((id, index) => ({
+                      id: `placement-${id}`,
+                      name: `Component ${140 + index}`,
+                      type: "INSTANCE",
+                      componentId: originFixtureMode === "only-online" ? "origin-online" : "origin-offline",
+                      componentProperties: { status: { value: originFixtureMode === "only-online" ? "ONLINE" : "OFFLINE" } },
+                      overrides: [{ id: `${id}-text`, characters: mutateOriginPlacements ? "CHANGED" : "07" }],
+                      absoluteBoundingBox: { x: mutateOriginPlacements ? 9000 + index : 700 + index * 140, y: mutateOriginPlacements ? 8000 : 100, width: 140, height: 180 },
+                      rotation: mutateOriginPlacements ? 77 + index : 20 + index,
+                    })),
+                    { id: "hidden-placement", name: "Hidden", type: "INSTANCE", visible: false, componentId: "origin-online" },
+                    { id: "profile", name: "PROFILE", type: "FRAME", children: [] },
+                  ],
+                },
+              },
+            },
+            components: {
+              "origin-online": { key: "origin-online", node_id: "origin-online", name: "Online Origin", component_set_id: "origin-set" },
+              "origin-offline": { key: "origin-offline", node_id: "origin-offline", name: "Offline Origin", component_set_id: "origin-set" },
+              ...(originFixtureMode === "ambiguous-online"
+                ? { "origin-online-ambiguous": { key: "origin-online-ambiguous", node_id: "origin-online-ambiguous", name: "Ambiguous Online", component_set_id: "origin-set" } }
+                : {}),
+            },
+            componentSets: originFixtureMode === "missing-component-set" ? {} : {
+              "origin-set": { key: "origin-set", node_id: "origin-set", name: "Grid Day Card" },
+            },
+          });
+        }
+        return responseJson({
+          nodes: {
+            "origin-online": {
+              document: {
+                id: "origin-online",
+                name: "Online Origin Root",
+                type: "COMPONENT",
+                absoluteBoundingBox: { x: 10, y: 20, width: 140, height: 180 },
+                relativeTransform: [[1, 0, 10], [0, 1, 20]],
+                children: [{ id: "origin-online-text", name: "weekday", type: "TEXT", characters: "MON" }],
+              },
+            },
+            "origin-offline": {
+              document: {
+                id: "origin-offline",
+                name: "Offline Origin Root",
+                type: "COMPONENT",
+                absoluteBoundingBox: { x: 10, y: 20, width: 140, height: 180 },
+                relativeTransform: [[1, 0, 10], [0, 1, 20]],
+                children: [{ id: "origin-offline-text", name: "weekday", type: "TEXT", characters: "MON" }],
+              },
+            },
+          },
+        });
+      }
       if (url.includes("/v1/files/")) {
+        if (new URL(url).searchParams.get("ids")?.includes("origin-online")) {
+          return responseJson({
+            nodes: {
+              "origin-online": {
+                document: {
+                  id: "origin-online",
+                  name: "Monday card",
+                  type: "COMPONENT",
+                  absoluteBoundingBox: { x: 10, y: 20, width: 140, height: 180 },
+                  children: [
+                    { id: "title-1", name: "Title", type: "TEXT", characters: "Hello" },
+                    { id: "asset-1", name: "Decoration", type: "IMAGE" },
+                    { id: "large-asset", name: "Large decoration", type: "IMAGE" },
+                    { id: "effect-leaf", name: "Effect export", type: "FRAME", absoluteBoundingBox: { x: 40, y: 60, width: 20, height: 20 }, effects: [{ type: "DROP_SHADOW", radius: 4 }] },
+                  ],
+                },
+              },
+              "origin-offline": {
+                document: {
+                  id: "origin-offline",
+                  name: "Tuesday card",
+                  type: "COMPONENT",
+                  absoluteBoundingBox: { x: 160, y: 20, width: 140, height: 180 },
+                  children: [{ id: "day-2", name: "weekday", type: "TEXT", characters: "TUE" }],
+                },
+              },
+            },
+          });
+        }
         return responseJson({
           nodes: {
             "1412:5814": {
@@ -699,7 +813,9 @@ const runRouteContractChecks = async () => {
                   {
                     id: "card-1",
                     name: "Monday card",
-                    type: "FRAME",
+                    type: "INSTANCE",
+                    componentId: "origin-online",
+                    componentProperties: { status: { value: "ONLINE" } },
                     absoluteBoundingBox: {
                       x: 10,
                       y: 20,
@@ -752,7 +868,9 @@ const runRouteContractChecks = async () => {
                   {
                     id: "card-2",
                     name: "Tuesday card",
-                    type: "FRAME",
+                    type: "INSTANCE",
+                    componentId: "origin-offline",
+                    componentProperties: { status: { value: "OFFLINE" } },
                     absoluteBoundingBox: {
                       x: 160,
                       y: 20,
@@ -772,6 +890,13 @@ const runRouteContractChecks = async () => {
                 ],
               },
             },
+          },
+          components: {
+            "origin-online": { node_id: "origin-online", name: "Monday origin", component_set_id: "origin-set" },
+            "origin-offline": { node_id: "origin-offline", name: "Tuesday origin", component_set_id: "origin-set" },
+          },
+          componentSets: {
+            "origin-set": { node_id: "origin-set", name: "GRID cards" },
           },
         });
       }
@@ -930,6 +1055,53 @@ const runRouteContractChecks = async () => {
     );
     assert.equal(streamingAssetPulls, 2);
 
+    const originDiscovered = await fetchFigmaGridOriginCandidates({
+      fileKey: "origin-fixture",
+      nodeId: "1412:5814",
+    });
+    assert.deepEqual(originNodesRequests, [
+      ["1412:5814"],
+      ["origin-online", "origin-offline"],
+    ]);
+    assert.equal(originDiscovered.candidates.length, 1);
+    const originCandidate = originDiscovered.candidates[0] as unknown as {
+      label: string;
+      placementInstanceIds: string[];
+      frame: unknown;
+      variants: Record<string, { root: FigmaNormalizedNode; assets: Array<{ sourceNodeId: string }> }>;
+    };
+    assert.equal(originCandidate.label, "Grid Day Card");
+    assert.equal(originCandidate.placementInstanceIds.length, 7);
+    assert.equal(originCandidate.variants.online.root.id, "origin-online");
+    assert.equal(originCandidate.variants.offline.root.id, "origin-offline");
+    assert.notEqual(originCandidate.variants.online.root.name, "Component 130");
+    assert.deepEqual(originCandidate.variants.online.root.frame, { left: 10, top: 20, width: 140, height: 180 });
+    assert.deepEqual(originCandidate.variants.online.root.relativeTransform, [[1, 0, 10], [0, 1, 20]]);
+    assert.deepEqual(originCandidate.variants.online.assets, []);
+    mutateOriginPlacements = true;
+    const movedPlacements = await fetchFigmaGridOriginCandidates({ fileKey: "origin-fixture", nodeId: "1412:5814" });
+    const movedCandidate = movedPlacements.candidates[0] as unknown as typeof originCandidate;
+    assert.deepEqual(movedCandidate.variants.online.root, originCandidate.variants.online.root);
+    assert.deepEqual(movedCandidate.variants.offline.root, originCandidate.variants.offline.root);
+    assert.deepEqual(movedCandidate.frame, originCandidate.frame);
+    assert.deepEqual(movedCandidate.variants.online.assets, originCandidate.variants.online.assets);
+    mutateOriginPlacements = false;
+
+    originFixtureMode = "missing-component-id";
+    const missingComponentId = await fetchFigmaGridOriginCandidates({ fileKey: "origin-fixture", nodeId: "1412:5814" });
+    assert.equal(missingComponentId.candidates[0]?.placementInstanceIds.length, 6);
+    originFixtureMode = "unknown-component";
+    const unknownComponent = await fetchFigmaGridOriginCandidates({ fileKey: "origin-fixture", nodeId: "1412:5814" });
+    assert.equal(unknownComponent.candidates[0]?.placementInstanceIds.length, 6);
+    for (const mode of ["missing-component-set", "only-online", "ambiguous-online"] as const) {
+      originFixtureMode = mode;
+      const incomplete = await fetchFigmaGridOriginCandidates({ fileKey: "origin-fixture", nodeId: "1412:5814" });
+      assert.equal(incomplete.candidates.length, 0);
+      assert.match(incomplete.warnings.join(" "), /excluded|complete/i);
+    }
+    originFixtureMode = "complete";
+
+    selectedRootName = "GRID";
     const routeHandler = createFigmaGridAnalyzeHandler({
       requireActor: async () => ({ ok: true, userId: 1 }),
       reviewNodes: async (nodes) => ({
@@ -1033,7 +1205,7 @@ const runRouteContractChecks = async () => {
       warnings: string[];
     };
     assert.equal(defaultRouteResponse.status, 200);
-    assert.equal(defaultRouteBody.candidates.length, 2);
+    assert.equal(defaultRouteBody.candidates.length, 1);
     const defaultCandidate = defaultRouteBody.candidates[0];
     assert.ok(defaultCandidate?.component.rootNodeId);
     assert.equal(
