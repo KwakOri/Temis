@@ -43,3 +43,29 @@ Every command below was run with a 60–120 second alarm timeout; no timeout fir
 The compatibility UI callback adapter still contains the existing arity-detection casts so old single-variant callers can coexist with nested variant callbacks. The legacy `convertFigmaGridCandidate` API remains for existing callers/tests; the production origin route and importer use nested variants. These are isolated compatibility surfaces, not sources of truth.
 
 No authenticated real-link Figma verification was possible in this environment because `FIGMA_ACCESS_TOKEN` was not available. The route/fixture checks use mocked Figma responses and assert redaction; no token or live-link data was written to the repository.
+
+## Official component-set metadata re-review fix
+
+Date: 2026-09-12
+
+The remaining P1 was fixed in implementation commit `7a964005aa8dd7d16fcac757731c3403c98365d9` (`fix: resolve official Figma component sets`). The resolver now accepts the official `containing_frame.containingComponentSet` shape while preserving `componentSetId` and `component_set_id`. Component-set references are matched against the response key and metadata IDs, and the returned `componentSetNodeId` is the response key consumed by the origin fetch path. The production route fixture uses the official shape with a distinct metadata node ID and still verifies explicit online/offline origin resolution and status authority.
+
+Changed files:
+
+- `src/utils/template-studio/figma-import/figma-origin.ts`
+- `scripts/check-template-studio-figma-import.ts`
+
+The focused regression was first run red against the official-shaped fixture (`actual: null`, expected resolved origin), then passed after the resolver change.
+
+### Bounded verification
+
+Each command was run with an alarm timeout; no timeout fired:
+
+| Command | Result |
+| --- | --- |
+| `node --import tsx scripts/check-template-studio-figma-import.ts` | exit 0 — `Figma import contract checks passed` |
+| `node --import tsx scripts/check-figma-grid-final-review.tsx` | exit 0 — 19 tests, 19 passed, 0 failed |
+| `npx tsc --noEmit` | exit 0 — no output |
+| `git diff --check` | exit 0 — no output |
+
+The report commit is separate from the implementation commit. No authenticated real-link Figma verification was available because `FIGMA_ACCESS_TOKEN` was not present; the production behavior is covered by the mocked route fixture.
