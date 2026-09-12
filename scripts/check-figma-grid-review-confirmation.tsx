@@ -38,6 +38,7 @@ const review = (
   suggestedBinding,
   confidence: 0.9,
   source: "rule",
+  decision: "needs_review",
   reason: "Fixture",
 });
 

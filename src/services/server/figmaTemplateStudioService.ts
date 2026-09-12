@@ -80,7 +80,7 @@ const normalizeRelativeTransform = (
   ];
 };
 
-const normalizeFigmaNode = (raw: FigmaRawNode): FigmaNormalizedNode => {
+export const normalizeFigmaNode = (raw: FigmaRawNode): FigmaNormalizedNode => {
   const absoluteBounds = normalizeBounds(raw.absoluteBoundingBox);
   const absoluteRenderBounds = normalizeBounds(raw.absoluteRenderBounds);
   const style = asRecord(raw.style);
@@ -119,6 +119,11 @@ const normalizeFigmaNode = (raw: FigmaRawNode): FigmaNormalizedNode => {
     rotateDeg,
     localSize: width !== undefined && height !== undefined ? { width, height } : undefined,
     relativeTransform: normalizeRelativeTransform(raw.relativeTransform),
+    componentId: asString(raw.componentId),
+    componentProperties: asRecord(raw.componentProperties) ?? undefined,
+    overrides: Array.isArray(raw.overrides)
+      ? raw.overrides.map(asRecord).filter((override): override is Record<string, unknown> => override !== null)
+      : undefined,
     children,
     frame: absoluteBounds,
   };

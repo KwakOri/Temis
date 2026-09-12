@@ -28,7 +28,7 @@ const review = (node: FigmaNormalizedNode, type: StudioFigmaNodeReview["suggeste
   suggestedRole: node.type === "TEXT" ? "main_title" : "decoration",
   suggestedStudioType: type,
   suggestedBinding: node.type === "TEXT" ? { kind: "builtinField", fieldId: "entry.main_title" } : { kind: "staticText", value: "" },
-  confidence: 0.9, source: "rule", reason: "Fixture",
+  confidence: 0.9, source: "rule", decision: "needs_review", reason: "Fixture",
 });
 const asset = (id: string): FigmaTransientAsset => ({ sourceNodeId: id, src: "data:image/png;base64,iVBORw==", mimeType: "image/png", byteSize: 4 });
 const convert = (children: FigmaNormalizedNode[], assets: FigmaTransientAsset[] = []) => convertFigmaGridCandidate({

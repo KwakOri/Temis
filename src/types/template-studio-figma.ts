@@ -15,6 +15,51 @@ export type StudioFigmaNodeReviewRole =
   | "decoration"
   | "unknown";
 
+export type StudioFigmaGridVariantStatus = "online" | "offline";
+export type FigmaReviewSource = "rule" | "ai" | "hybrid";
+export type FigmaReviewDecision = "auto" | "needs_review" | "manual";
+export type FigmaReviewAgreement = "agree" | "rule_only" | "ai_only" | "disagree";
+
+export interface FigmaOriginComponentRef {
+  componentId: string;
+  componentNodeId: string;
+  componentSetNodeId: string;
+  componentName: string;
+  componentSetName?: string;
+}
+
+export interface FigmaPlacementTextSample {
+  placementInstanceId: string;
+  variantStatus: StudioFigmaGridVariantStatus;
+  originNodeId: string;
+  value: string;
+}
+
+export interface FigmaSemanticEvidence {
+  samples: FigmaPlacementTextSample[];
+  sampleValues: string[];
+  matchedPlacementCount: number;
+  distinctValueCount: number;
+  signals: Array<
+    | "stable_origin_mapping"
+    | "known_weekday_set"
+    | "date_pattern"
+    | "time_pattern"
+    | "status_variant_match"
+    | "value_variation"
+    | "layer_name_alias"
+    | "layout_support"
+  >;
+  mapping: "override" | "stable_path" | "structural" | "ambiguous";
+}
+
+export interface FigmaReviewCandidate {
+  suggestedRole: StudioFigmaNodeReviewRole;
+  suggestedStudioType: StudioFigmaNodeReview["suggestedStudioType"];
+  confidence: number;
+  reason: string;
+}
+
 export interface StudioFigmaNodeReview {
   sourceNodeId: string;
   label: string;
@@ -25,7 +70,12 @@ export interface StudioFigmaNodeReview {
   /** Original source text for switching back from a dynamic binding. UI-only. */
   sourceCharacters?: string;
   confidence: number;
-  source: "rule" | "ai";
+  source: FigmaReviewSource;
+  decision: FigmaReviewDecision;
+  agreement?: FigmaReviewAgreement;
+  evidence?: FigmaSemanticEvidence;
+  ruleCandidate?: FigmaReviewCandidate;
+  aiCandidate?: FigmaReviewCandidate;
   reason: string;
 }
 
@@ -83,6 +133,9 @@ export interface FigmaNormalizedNode {
   localSize?: { width: number; height: number };
   /** Figma's parent-relative transform, used for local positioning under rotated parents. */
   relativeTransform?: [[number, number, number], [number, number, number]];
+  componentId?: string;
+  componentProperties?: Record<string, unknown>;
+  overrides?: Array<Record<string, unknown>>;
   children?: FigmaNormalizedNode[];
   frame?: { left: number; top: number; width: number; height: number };
 }

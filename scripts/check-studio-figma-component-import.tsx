@@ -20,6 +20,7 @@ const candidate: StudioFigmaGridCandidate = {
     suggestedBinding: { kind: "builtinField", fieldId: "entry.main_title" },
     confidence: 0.92,
     source: "rule",
+    decision: "needs_review",
     reason: "Semantic title mapping",
   }],
   warnings: ["Review this candidate"],

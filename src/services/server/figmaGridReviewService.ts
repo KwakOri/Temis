@@ -95,6 +95,7 @@ const ruleReview = (node: FigmaReviewInput): StudioFigmaNodeReview => {
       sourceCharacters: node.characters,
       confidence: classification.confidence,
       source: "rule",
+      decision: "needs_review",
       reason: classification.reason,
     };
   }
@@ -115,6 +116,7 @@ const ruleReview = (node: FigmaReviewInput): StudioFigmaNodeReview => {
     suggestedBinding: { kind: "staticText", value: node.characters ?? "" },
     confidence: 0.8,
     source: "rule",
+    decision: "needs_review",
     reason: "Non-text GRID layer was classified from its structure and style flags.",
   };
 };

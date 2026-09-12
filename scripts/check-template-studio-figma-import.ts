@@ -22,7 +22,14 @@ import { applyStudioFigmaReviewEdits } from "../src/utils/template-studio/figma-
 import {
   exportFigmaNodeAsDataUrl,
   fetchFigmaGridCandidates,
+  normalizeFigmaNode,
 } from "../src/services/server/figmaTemplateStudioService";
+import {
+  groupFigmaGridPlacements,
+  inferFigmaGridVariantStatus,
+  resolveFigmaOriginComponent,
+} from "../src/utils/template-studio/figma-import/figma-origin";
+import { fuseFigmaReview } from "../src/utils/template-studio/figma-import/figma-review-fusion";
 import { planStudioAssetSync } from "../src/utils/template-studio/asset-sync";
 import {
   reviewFigmaGridNodes,
@@ -104,6 +111,99 @@ const metadataContract: FigmaNormalizedNode = {
 };
 assert.equal(metadataContract.rotateDeg, -13.5);
 assert.equal(metadataContract.textAutoResize, "WIDTH_AND_HEIGHT");
+
+const originComponentSetId = "component-set-1";
+const onlineComponentId = "component-online";
+const offlineComponentId = "component-offline";
+const placementFixture = [
+  ["sun", onlineComponentId, "SUN", 720],
+  ["mon", onlineComponentId, "MON", 100],
+  ["offline-2", offlineComponentId, "SUN", 620],
+  ["wed", onlineComponentId, "WED", 300],
+  ["offline-1", offlineComponentId, "MON", 500],
+  ["tue", onlineComponentId, "TUE", 200],
+  ["thu", onlineComponentId, "THU", 400],
+] as const;
+const rawOriginFixture = {
+  id: "grid",
+  name: "GRID",
+  type: "FRAME",
+  children: placementFixture.map(([id, componentId, day, left]) => ({
+    id,
+    name: `Placement ${day}`,
+    type: "INSTANCE",
+    componentId,
+    componentProperties: { status: { value: componentId === offlineComponentId ? "OFFLINE" : "ONLINE" } },
+    overrides: [{ id: `${id}-day`, characters: day }],
+    absoluteBoundingBox: { x: left, y: 20 + left / 10, width: 100, height: 80 },
+    children: [{ id: `${id}-day`, name: "weekday", type: "TEXT", characters: day }],
+  })),
+};
+const normalizedPlacementFixture = rawOriginFixture.children.map(normalizeFigmaNode);
+assert.equal(normalizedPlacementFixture[0]!.componentId, onlineComponentId);
+assert.deepEqual(normalizedPlacementFixture[0]!.componentProperties, rawOriginFixture.children[0]!.componentProperties);
+assert.deepEqual(normalizedPlacementFixture[0]!.overrides, rawOriginFixture.children[0]!.overrides);
+assert.deepEqual(normalizedPlacementFixture[0]!.frame, { left: 720, top: 92, width: 100, height: 80 });
+assert.deepEqual(
+  resolveFigmaOriginComponent({
+    instance: normalizedPlacementFixture[0]!,
+    components: {
+      [onlineComponentId]: { id: onlineComponentId, name: "Online Origin", componentSetId: originComponentSetId },
+    },
+    componentSets: { [originComponentSetId]: { id: originComponentSetId, name: "Grid Origins" } },
+  }),
+  {
+    componentId: onlineComponentId,
+    componentNodeId: onlineComponentId,
+    componentSetNodeId: originComponentSetId,
+    componentName: "Online Origin",
+    componentSetName: "Grid Origins",
+  },
+);
+const placementGroups = groupFigmaGridPlacements({
+  placements: normalizedPlacementFixture.map((instance) => ({
+    instance,
+    origin: resolveFigmaOriginComponent({
+      instance,
+      components: {
+        [onlineComponentId]: { id: onlineComponentId, name: "Online Origin", componentSetId: originComponentSetId },
+        [offlineComponentId]: { id: offlineComponentId, name: "Offline Origin", componentSetId: originComponentSetId },
+      },
+      componentSets: { [originComponentSetId]: { id: originComponentSetId, name: "Grid Origins" } },
+    })!,
+  })),
+});
+assert.deepEqual(Object.keys(placementGroups), [originComponentSetId]);
+assert.equal(placementGroups[originComponentSetId]!.origins.length, 2);
+assert.equal(placementGroups[originComponentSetId]!.placementInstanceIds.length, 7);
+for (const status of ["online", "offline", "ONLINE", "OFFLINE"] as const) {
+  assert.equal(inferFigmaGridVariantStatus({ status }), status.toLowerCase());
+}
+for (const input of [{ status: "offlineMemo" }, { status: "multi" }, {}, { status: "ONLINE", variant: "OFFLINE" }]) {
+  assert.equal(inferFigmaGridVariantStatus(input), null);
+}
+const reviewContract = fuseFigmaReview({
+  rule: {
+    sourceNodeId: "day",
+    label: "weekday",
+    sourceType: "TEXT",
+    suggestedRole: "day_label",
+    suggestedStudioType: "text",
+    suggestedBinding: { kind: "builtinField", fieldId: "day.short_label", dayLabelFormat: "shortUpper" },
+    confidence: 0.9,
+    source: "rule",
+    decision: "auto",
+    reason: "Known weekday values.",
+  },
+  ai: { suggestedRole: "day_label", suggestedStudioType: "text", confidence: 0.8, reason: "The samples are weekdays." },
+  evidence: {
+    samples: [], sampleValues: ["MON", "TUE"], matchedPlacementCount: 2, distinctValueCount: 2,
+    signals: ["known_weekday_set"], mapping: "stable_path",
+  },
+});
+assert.equal(reviewContract.source, "hybrid");
+assert.equal(reviewContract.agreement, "agree");
+assert.equal(reviewContract.decision, "auto");
 
 assert.equal(normalizeFigmaRotation(undefined), undefined);
 assert.equal(normalizeFigmaRotation(0), 0);
@@ -792,6 +892,7 @@ const runRouteContractChecks = async () => {
           suggestedBinding: { kind: "staticText", value: node.characters ?? "" },
           confidence: 0.2,
           source: "rule",
+          decision: "needs_review",
           reason: "Route propagation fixture.",
         })),
         warnings: ["Automated review was unavailable; deterministic suggestions are shown."],
@@ -858,6 +959,7 @@ const runRouteContractChecks = async () => {
           },
           confidence: 0.8,
           source: "rule",
+          decision: "needs_review",
           reason: "Default converter route fixture.",
         })),
         warnings: [],
@@ -922,6 +1024,7 @@ const converterReview = (
     : { kind: "staticText", value: "Fallback static value" },
   confidence: 0.9,
   source: "rule",
+  decision: "needs_review",
   reason: "Converter fixture review.",
 });
 
@@ -1484,6 +1587,7 @@ const runComponentImportChecks = () => {
     sourceCharacters: "https://example.com/live",
     confidence: 0.9,
     source: "rule",
+    decision: "needs_review",
     reason: "Fixture",
   };
   transientSourceUrlCandidate.reviews = [transientSourceUrlReview];
