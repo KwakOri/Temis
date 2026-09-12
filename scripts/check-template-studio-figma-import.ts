@@ -179,9 +179,31 @@ assert.equal(placementGroups[originComponentSetId]!.placementInstanceIds.length,
 for (const status of ["online", "offline", "ONLINE", "OFFLINE"] as const) {
   assert.equal(inferFigmaGridVariantStatus({ status }), status.toLowerCase());
 }
+assert.equal(
+  inferFigmaGridVariantStatus({ componentProperties: { status: { value: "ONLINE" } } }),
+  "online",
+);
 for (const input of [{ status: "offlineMemo" }, { status: "multi" }, {}, { status: "ONLINE", variant: "OFFLINE" }]) {
   assert.equal(inferFigmaGridVariantStatus(input), null);
 }
+const reviewSources = ["rule", "ai", "hybrid"] as const satisfies StudioFigmaNodeReview["source"][];
+const reviewDecisions = ["auto", "needs_review", "manual"] as const satisfies StudioFigmaNodeReview["decision"][];
+const reviewAgreements = ["agree", "rule_only", "ai_only", "disagree"] as const;
+assert.deepEqual(reviewSources, ["rule", "ai", "hybrid"]);
+assert.deepEqual(reviewDecisions, ["auto", "needs_review", "manual"]);
+assert.deepEqual(reviewAgreements, ["agree", "rule_only", "ai_only", "disagree"]);
+const evidenceSample = {
+  placementInstanceId: "mon",
+  variantStatus: "online",
+  originNodeId: "origin-day",
+  value: "MON",
+} as const;
+assert.deepEqual(evidenceSample, {
+  placementInstanceId: "mon",
+  variantStatus: "online",
+  originNodeId: "origin-day",
+  value: "MON",
+});
 const reviewContract = fuseFigmaReview({
   rule: {
     sourceNodeId: "day",
@@ -204,6 +226,34 @@ const reviewContract = fuseFigmaReview({
 assert.equal(reviewContract.source, "hybrid");
 assert.equal(reviewContract.agreement, "agree");
 assert.equal(reviewContract.decision, "auto");
+const rulesOnlyReview = fuseFigmaReview({
+  rule: { ...reviewContract, source: "rule", decision: "needs_review", agreement: undefined, aiCandidate: undefined },
+});
+assert.equal(rulesOnlyReview.agreement, "rule_only");
+const disagreementReview = fuseFigmaReview({
+  rule: { ...reviewContract, suggestedRole: "day_label", source: "rule", decision: "needs_review", agreement: undefined, aiCandidate: undefined },
+  ai: { suggestedRole: "unknown", suggestedStudioType: "text", confidence: 0.7, reason: "Ambiguous." },
+  evidence: reviewContract.evidence,
+});
+assert.equal(disagreementReview.agreement, "disagree");
+assert.equal(disagreementReview.decision, "needs_review");
+const aiOnlyReview = fuseFigmaReview({
+  rule: {
+    ...reviewContract,
+    suggestedRole: "unknown",
+    suggestedBinding: { kind: "staticText", value: "Original" },
+    source: "rule",
+    decision: "manual",
+    agreement: undefined,
+    ruleCandidate: undefined,
+    aiCandidate: undefined,
+  },
+  ai: { suggestedRole: "main_title", suggestedStudioType: "flexibleText", confidence: 0.75, reason: "Title-like content." },
+});
+assert.equal(aiOnlyReview.source, "hybrid");
+assert.equal(aiOnlyReview.agreement, "ai_only");
+assert.equal(aiOnlyReview.decision, "needs_review");
+assert.deepEqual(aiOnlyReview.suggestedBinding, { kind: "builtinField", fieldId: "entry.main_title" });
 
 assert.equal(normalizeFigmaRotation(undefined), undefined);
 assert.equal(normalizeFigmaRotation(0), 0);

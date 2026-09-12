@@ -29,15 +29,18 @@ export const fuseFigmaReview = (input: {
   const aiCandidate = input.ai && validCandidate(input.ai) ? input.ai : undefined;
   const agreement: FigmaReviewAgreement = !aiCandidate
     ? "rule_only"
+    : ruleCandidate.suggestedRole === "unknown"
+      ? "ai_only"
     : ruleCandidate.suggestedRole === aiCandidate.suggestedRole &&
       ruleCandidate.suggestedStudioType === aiCandidate.suggestedStudioType
       ? "agree"
       : "disagree";
   const source: FigmaReviewSource = aiCandidate ? "hybrid" : "rule";
   const stableEvidence = input.evidence !== undefined && input.evidence.mapping !== "ambiguous";
-  const decision: FigmaReviewDecision = aiCandidate && agreement === "agree" &&
-    AUTO_ROLES.has(ruleCandidate.suggestedRole) && stableEvidence
-    ? "auto"
+  const decision: FigmaReviewDecision = aiCandidate
+    ? agreement === "agree" && AUTO_ROLES.has(ruleCandidate.suggestedRole) && stableEvidence
+      ? "auto"
+      : "needs_review"
     : input.rule.decision;
   const effectiveRole = agreement === "disagree" ? ruleCandidate.suggestedRole : aiCandidate?.suggestedRole ?? ruleCandidate.suggestedRole;
   const effectiveType = agreement === "disagree" ? ruleCandidate.suggestedStudioType : aiCandidate?.suggestedStudioType ?? ruleCandidate.suggestedStudioType;
@@ -45,7 +48,9 @@ export const fuseFigmaReview = (input: {
     ...input.rule,
     suggestedRole: effectiveRole,
     suggestedStudioType: effectiveType,
-    suggestedBinding: input.rule.suggestedBinding.kind === "builtinField"
+    suggestedBinding: aiCandidate && agreement !== "disagree"
+      ? bindingForFigmaRole(effectiveRole, input.rule.sourceCharacters ?? "")
+      : input.rule.suggestedBinding.kind === "builtinField"
       ? bindingForFigmaRole(effectiveRole, input.rule.sourceCharacters ?? "")
       : input.rule.suggestedBinding,
     confidence: Math.max(ruleCandidate.confidence, aiCandidate?.confidence ?? 0),

@@ -50,7 +50,12 @@ const statusValues = (value: unknown, key = ""): string[] => {
   return Object.entries(value as Record<string, unknown>).flatMap(([entryKey, entryValue]) => {
     const normalizedKey = entryKey.toLowerCase();
     if (["status", "variantstatus", "variant_status", "variant"].includes(normalizedKey)) {
-      return typeof entryValue === "string" ? [entryValue] : [];
+      if (typeof entryValue === "string") return [entryValue];
+      if (entryValue && typeof entryValue === "object" && !Array.isArray(entryValue)) {
+        const nestedValue = (entryValue as Record<string, unknown>).value;
+        return typeof nestedValue === "string" ? [nestedValue] : [];
+      }
+      return [];
     }
     return key === "" ? statusValues(entryValue, entryKey) : [];
   });
