@@ -57,7 +57,7 @@ The repository-wide TypeScript check remains blocked by stale generated `.next/t
 
 ### Report metadata correction
 
-The reviewed implementation commit is `9d96f539`; the stale `234e0bef` value above was corrected.
+The reviewed implementation commit is `9d96f539`.
 
 ### Hook-path coverage assessment
 
@@ -69,7 +69,7 @@ temis@0.1.0 ...
 └── (empty)
 ```
 
-`useTimetableObjectCommands` calls React `useCallback` and requires a complete `TimetableAdapterCommandOptions` object plus the timetable preview/runtime/document dependencies. Directly invoking it from the Node check would fail React's hook dispatcher and would not be a real mounted update/drag test. Mounting it would require adding unrelated test infrastructure or bootstrapping the full Template Studio client. Therefore no mock-only assertion was added. The focused pure-command regressions remain the narrowest executable coverage for the exact setter/planner behavior used by both the day-card update and drag branches.
+`useTimetableObjectCommands` calls React `useCallback`, so direct invocation would fail React's hook dispatcher. A minimal real server-render harness was feasible without a new dependency: it renders a probe component with `react-dom/server`, supplies a real sample document and runtime values, invokes the hook's actual `updateLayerPosition("day-card:mon", { rotateDeg: 17 })` path, then its actual `moveCanvasLayer("day-card:mon", { deltaX: 5, deltaY: 6 })` path, and asserts the mutated document. No mock-only call assertion was added.
 
 Fix-round covering command:
 
@@ -79,8 +79,22 @@ Studio timetable command baseline checks passed.
 exit_code=0
 ```
 
-The fix-round commit is recorded below.
+## Fix-round 2
 
-## Fix-round commit
+RED was first confirmed before completing the harness:
 
-`9705d3bb` (`docs: correct timetable task 2 review report`).
+```text
+node --import tsx scripts/check-studio-timetable-commands.ts
+Error: day-card hook integration harness not implemented
+exit_code=1
+```
+
+After completing the server-render harness, the same covering command passed:
+
+```text
+node --import tsx scripts/check-studio-timetable-commands.ts
+Studio timetable command baseline checks passed.
+exit_code=0
+```
+
+The fix-round commit is intentionally not named here to avoid self-referential report metadata.

@@ -6,6 +6,8 @@
  * 지키는 규칙이라 값으로 고정해 둔다.
  */
 import assert from "node:assert/strict";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 import type {
   StudioTimetableComposition,
@@ -13,6 +15,11 @@ import type {
   StudioTimetableDayCardsLayout,
   StudioTimetableDomain,
 } from "../src/types/template-studio";
+import {
+  createInitialStudioRuntimeValues,
+  createSampleStudioDocument,
+} from "../src/utils/template-studio/sample-document";
+import { useTimetableObjectCommands } from "../src/app/(root)/template-studio/_hooks/use-timetable-object-commands";
 import {
   applyStudioDeleteTimetableObject,
   applyStudioTimetableObjectFitParent,
@@ -572,4 +579,68 @@ assert.equal(
   null,
   "아무것도 없는 자리에서는 잡을 것이 없다.",
 );
+
+const runTimetableDayCardHookIntegration = (): {
+  rotateDeg: number | undefined;
+  left: number;
+  top: number;
+} => {
+  const document = createSampleStudioDocument();
+  const runtimeValues = createInitialStudioRuntimeValues(document);
+  const timetable = document.domains?.timetable;
+  if (!timetable) throw new Error("sample document has no timetable");
+
+  const HookProbe = () => {
+    const commands = useTimetableObjectCommands({
+      getDocument: () => document,
+      getRuntimeValues: () => runtimeValues,
+      updateDocument: (mutate) => mutate(document),
+      selectedLayerId: "day-card:mon",
+      onSelectLayer: () => {},
+      onSelectRuntimeDay: () => {},
+      onSelectRuntimeEntryIndex: () => {},
+      onOpenLayersPanel: () => {},
+      onStatusMessage: () => {},
+      captureHistory: () => {},
+      setDocument: () => {},
+      setRuntimeValues: () => {},
+      activeCardComponentId: Object.keys(timetable.components)[0],
+      componentLabelDraft: "",
+      selectedCardStatusId: "online",
+      selectedCardVariantRootId: null,
+      selectedNode: null,
+      selectedTimetableDayId: "mon",
+      selectedTimetableDayLabel: timetable.days.mon.label,
+      activeRuntimeDayId: "mon",
+      onSetPanelMode: () => {},
+      onSetSelectedCardComponentId: () => {},
+      onSetComponentLabelDraft: () => {},
+      onSetSelectedInputId: () => {},
+      onSetSelectedRuntimeEntryIndex: () => {},
+      onSelectNode: () => {},
+      onRestoreSelection: () => {},
+    });
+
+    commands.updateLayerPosition("day-card:mon", { rotateDeg: 17 });
+    commands.moveCanvasLayer("day-card:mon", { deltaX: 5, deltaY: 6 });
+    return null;
+  };
+
+  renderToStaticMarkup(React.createElement(HookProbe));
+  const offset = timetable.dayCardsLayout?.dayOffsets?.mon;
+  return {
+    rotateDeg: offset?.rotateDeg,
+    left: offset?.left ?? 0,
+    top: offset?.top ?? 0,
+  };
+};
+
+const hookIntegrationResult = runTimetableDayCardHookIntegration();
+assert.equal(
+  hookIntegrationResult.rotateDeg,
+  17,
+  "실제 hook update/drag 경로가 회전값을 보존한다.",
+);
+assert.equal(hookIntegrationResult.left, 5, "실제 hook drag 경로가 X 보정을 저장한다.");
+assert.equal(hookIntegrationResult.top, 6, "실제 hook drag 경로가 Y 보정을 저장한다.");
 console.log("Studio timetable command baseline checks passed.");
