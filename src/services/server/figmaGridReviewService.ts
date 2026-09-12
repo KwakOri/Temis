@@ -28,6 +28,7 @@ export interface FigmaReviewInput {
   absoluteBounds?: { left: number; top: number; width: number; height: number };
   evidence?: FigmaSemanticEvidence;
   componentSetEvidence?: FigmaSemanticEvidence;
+  semanticCandidate?: FigmaReviewCandidate;
   styleFlags: { hasSolidFill: boolean; hasImageFill: boolean; hasChildren: boolean; hasEffectsOrStrokes?: boolean };
 }
 
@@ -58,18 +59,19 @@ const ruleReview = (node: FigmaReviewInput): StudioFigmaNodeReview => {
   if (node.type === "TEXT") {
     const classification = classifyFigmaTextNode({ name: node.name, characters: node.characters ?? "", textAutoResize: node.textAutoResize, layoutSizingHorizontal: node.layoutSizingHorizontal, width: node.absoluteBounds?.width, height: node.absoluteBounds?.height });
     const evidenceSemanticRole = evidenceRole(evidence);
-    const candidate: FigmaReviewCandidate = {
+    const candidate: FigmaReviewCandidate = node.semanticCandidate ?? {
       suggestedRole: evidenceSemanticRole ?? classification.role,
       suggestedStudioType: (evidenceSemanticRole ?? classification.role) === "main_title" || (evidenceSemanticRole ?? classification.role) === "sub_title" ? "flexibleText" : "text",
       confidence: evidenceSemanticRole ? 0.95 : classification.confidence,
       reason: evidenceSemanticRole ? "Stable placement evidence matched a known semantic value pattern." : classification.reason,
     };
+    const recognizedRole = candidate.suggestedRole;
     return {
       sourceNodeId: node.id, label: node.name, sourceType: node.type,
-      suggestedRole: candidate.suggestedRole, suggestedStudioType: candidate.suggestedStudioType,
-      suggestedBinding: bindingForFigmaRole(candidate.suggestedRole, node.characters ?? ""), sourceCharacters: node.characters,
+      suggestedRole: recognizedRole, suggestedStudioType: candidate.suggestedStudioType,
+      suggestedBinding: bindingForFigmaRole(recognizedRole, node.characters ?? ""), sourceCharacters: node.characters,
       confidence: candidate.confidence, source: "rule",
-      decision: evidenceSemanticRole && ["day_label", "date", "time"].includes(evidenceSemanticRole) ? "auto" : "needs_review",
+      decision: ["day_label", "date", "time"].includes(recognizedRole) && evidence !== undefined ? "auto" : "needs_review",
       evidence, ruleCandidate: candidate, reason: candidate.reason,
     };
   }
@@ -143,7 +145,8 @@ export const reviewFigmaGridNodesWithWarnings = async (input: ReviewInput): Prom
   const rules = nodes.map(ruleReview);
   const token = process.env.OPENAI_ACCESS_TOKEN?.trim();
   const model = process.env.OPENAI_FIGMA_REVIEW_MODEL?.trim();
-  if (!token || !model) return { reviews: rules, warnings: [AI_FALLBACK_WARNING] };
+  const safeRuleOnlyReviews = () => rules.map((rule) => fuseFigmaReview({ rule }));
+  if (!token || !model) return { reviews: safeRuleOnlyReviews(), warnings: [AI_FALLBACK_WARNING] };
   try {
     const aiReviews = await requestAiReviews({ ...request, nodes }, token, model);
     const byId = new Map(aiReviews.map((review) => [review.sourceNodeId, review]));
@@ -155,7 +158,7 @@ export const reviewFigmaGridNodesWithWarnings = async (input: ReviewInput): Prom
       warnings: aiReviews.length < nodes.length ? [AI_FALLBACK_WARNING] : [],
     };
   } catch {
-    return { reviews: rules, warnings: [AI_INVALID_WARNING] };
+    return { reviews: safeRuleOnlyReviews(), warnings: [AI_INVALID_WARNING] };
   }
 };
 

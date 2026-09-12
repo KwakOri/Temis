@@ -11,12 +11,10 @@ import {
 import type {
   FigmaGridCandidateSource,
   StudioFigmaAnalyzeResponse,
+  StudioFigmaGridOriginCandidate,
   StudioFigmaGridCandidate,
 } from "@/types/template-studio-figma";
-import {
-  convertFigmaGridOriginCandidate,
-  type StudioFigmaGridOriginCandidate,
-} from "@/utils/template-studio/figma-import/figma-node-converter";
+import { convertFigmaGridOriginCandidate } from "@/utils/template-studio/figma-import/figma-node-converter";
 import { parseFigmaDesignUrl } from "@/utils/template-studio/figma-import/figma-url";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -33,20 +31,27 @@ type ReviewNodesWithContext = (input: FigmaGridReviewRequest) => Promise<FigmaGr
 
 const convertCandidates: CandidateAdapter = ({ candidates }) =>
   candidates.map((candidate) => {
+    const variants: Parameters<typeof convertFigmaGridOriginCandidate>[0]["variants"] = {
+      online: {
+        status: "online",
+        origin: candidate.variants.online.origin,
+        root: candidate.variants.online.root,
+        reviews: candidate.variants.online.reviews ?? candidate.reviews ?? [],
+        exportedAssets: candidate.variants.online.assets,
+      },
+      offline: {
+        status: "offline",
+        origin: candidate.variants.offline.origin,
+        root: candidate.variants.offline.root,
+        reviews: candidate.variants.offline.reviews ?? candidate.reviews ?? [],
+        exportedAssets: candidate.variants.offline.assets,
+      },
+    };
     const converted = convertFigmaGridOriginCandidate({
       label: candidate.label,
       frame: candidate.frame,
       placementInstanceIds: candidate.placementInstanceIds,
-      variants: Object.fromEntries((Object.entries(candidate.variants) as Array<[
-        "online" | "offline",
-        FigmaGridCandidateSource["variants"]["online"],
-      ]>).map(([status, variant]) => [status, {
-        status,
-        origin: variant.origin,
-        root: variant.root,
-        reviews: (variant as typeof variant & { reviews?: FigmaGridCandidateSource["reviews"] }).reviews ?? candidate.reviews ?? [],
-        exportedAssets: variant.assets,
-      }])) as unknown as Parameters<typeof convertFigmaGridOriginCandidate>[0]["variants"],
+      variants,
     });
     const online = converted.variants.online;
     return {
@@ -65,8 +70,10 @@ const toReviewInputs = (
   node: FigmaGridCandidateSource["root"],
   evidenceBySourceNodeId: FigmaGridCandidateSource["variants"]["online"]["placementEvidence"] = {},
   componentSetEvidence: FigmaGridCandidateSource["variants"]["online"]["placementEvidence"] = {},
+  semanticReviews: FigmaGridCandidateSource["variants"]["online"]["semanticReviews"] = [],
 ): FigmaReviewInput[] => {
   const fills = node.fills ?? [];
+  const semanticReview = semanticReviews.find((entry) => entry.sourceNodeId === node.id);
   return [
     {
       id: node.id,
@@ -80,8 +87,9 @@ const toReviewInputs = (
       visible: node.visible,
       opacity: node.opacity,
       absoluteBounds: node.absoluteBounds,
-      evidence: evidenceBySourceNodeId[node.id],
+      evidence: semanticReview?.evidence ?? evidenceBySourceNodeId[node.id],
       componentSetEvidence: componentSetEvidence[node.id],
+      semanticCandidate: semanticReview?.candidate,
       styleFlags: {
         hasSolidFill: fills.some(
           (fill) =>
@@ -101,7 +109,7 @@ const toReviewInputs = (
         hasChildren: (node.children?.length ?? 0) > 0,
       },
     },
-    ...(node.children?.flatMap((child) => toReviewInputs(child, evidenceBySourceNodeId, componentSetEvidence)) ?? []),
+    ...(node.children?.flatMap((child) => toReviewInputs(child, evidenceBySourceNodeId, componentSetEvidence, semanticReviews)) ?? []),
   ];
 };
 
@@ -155,25 +163,40 @@ export const createFigmaGridAnalyzeHandler = (dependencies: {
     try {
       const normalized = await fetchFigmaGridOriginCandidates(source);
       const reviewedCandidates = await Promise.all(normalized.candidates.map(async (candidate) => {
-        const reviewedVariants = {} as FigmaGridCandidateSource["variants"];
+        const reviewedVariants: FigmaGridCandidateSource["variants"] = {
+          online: { ...candidate.variants.online },
+          offline: { ...candidate.variants.offline },
+        };
         const reviewWarnings: string[] = [];
         for (const status of ["online", "offline"] as const) {
           const variant = candidate.variants[status];
-          const reviewInputs = toReviewInputs(variant.root, variant.placementEvidence, variant.componentSetEvidence);
+          const semanticEvidenceBySourceNodeId = Object.fromEntries(
+            (variant.semanticReviews ?? []).map((entry) => [entry.sourceNodeId, entry.evidence]),
+          );
+          const reviewEvidenceBySourceNodeId = {
+            ...variant.placementEvidence,
+            ...semanticEvidenceBySourceNodeId,
+          };
+          const reviewInputs = toReviewInputs(
+            variant.root,
+            reviewEvidenceBySourceNodeId,
+            variant.componentSetEvidence,
+            variant.semanticReviews,
+          );
           const reviewResult = dependencies.reviewNodesWithContext
             ? await dependencies.reviewNodesWithContext({
               nodes: reviewInputs,
-              evidenceBySourceNodeId: variant.placementEvidence,
+              evidenceBySourceNodeId: reviewEvidenceBySourceNodeId,
               componentSetContext: variant.componentSetEvidence,
             })
             : dependencies.reviewNodes
               ? await dependencies.reviewNodes(reviewInputs)
               : await reviewFigmaGridNodesWithWarnings({
                 nodes: reviewInputs,
-                evidenceBySourceNodeId: variant.placementEvidence,
+                evidenceBySourceNodeId: reviewEvidenceBySourceNodeId,
                 componentSetContext: variant.componentSetEvidence,
               });
-          reviewedVariants[status] = { ...variant, reviews: reviewResult.reviews } as typeof reviewedVariants[typeof status] & { reviews: typeof reviewResult.reviews };
+          reviewedVariants[status] = { ...variant, reviews: reviewResult.reviews };
           reviewWarnings.push(...reviewResult.warnings);
         }
         return {
@@ -181,7 +204,7 @@ export const createFigmaGridAnalyzeHandler = (dependencies: {
           variants: reviewedVariants,
           root: reviewedVariants.online.root,
           assets: reviewedVariants.online.assets,
-          reviews: (reviewedVariants.online as typeof reviewedVariants.online & { reviews: FigmaGridCandidateSource["reviews"] }).reviews,
+          reviews: reviewedVariants.online.reviews,
           warnings: [...candidate.warnings, ...reviewWarnings],
         };
       }));
@@ -199,7 +222,7 @@ export const createFigmaGridAnalyzeHandler = (dependencies: {
       ])];
       const response: StudioFigmaAnalyzeResponse = {
         success: true,
-        candidates: candidates as StudioFigmaGridCandidate[],
+        candidates,
         warnings: responseWarnings,
       };
       return NextResponse.json(response);

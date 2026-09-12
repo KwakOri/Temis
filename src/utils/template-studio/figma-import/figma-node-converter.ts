@@ -11,6 +11,8 @@ import type {
   FigmaNormalizedNode,
   FigmaTransientAsset,
   StudioFigmaGridCandidate,
+  StudioFigmaGridOriginCandidate,
+  StudioFigmaGridVariantCandidate,
   StudioFigmaNodeReview,
 } from "@/types/template-studio-figma";
 import {
@@ -21,36 +23,6 @@ import { createStudioId } from "@/utils/template-studio/id";
 
 type Frame = { left: number; top: number; width: number; height: number };
 type FigmaStyle = Record<string, unknown>;
-
-export interface StudioFigmaGridVariantCandidate {
-  status: "online" | "offline";
-  origin: {
-    componentId: string;
-    componentNodeId: string;
-    componentSetNodeId: string;
-    componentName: string;
-    componentSetName?: string;
-  };
-  component: {
-    nodes: Record<string, StudioGraphNode>;
-    styles: Record<string, StudioStyleRecord>;
-    rootNodeId: string;
-    assets: StudioAsset[];
-  };
-  reviews: StudioFigmaNodeReview[];
-  reviewNodeIds?: Record<string, string>;
-  reviewDefaults?: Record<string, StudioFigmaNodeReview>;
-  warnings: string[];
-}
-
-export interface StudioFigmaGridOriginCandidate {
-  candidateId: string;
-  label: string;
-  frame: Frame;
-  placementInstanceIds: string[];
-  variants: Record<"online" | "offline", StudioFigmaGridVariantCandidate>;
-  warnings: string[];
-}
 
 const DATA_IMAGE_SOURCE = /^data:image\/(?:png|jpeg|webp|gif|svg\+xml);base64,[a-z0-9+/=\s]+$/i;
 const GROUP_TYPES = new Set(["FRAME", "GROUP", "COMPONENT", "INSTANCE", "SECTION"]);

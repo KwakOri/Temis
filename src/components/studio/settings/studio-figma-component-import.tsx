@@ -6,13 +6,11 @@ import { bindingForFigmaRole } from "@/utils/template-studio/figma-import/figma-
 import type { StudioBinding } from "@/types/template-studio";
 import type {
   StudioFigmaGridCandidate,
+  StudioFigmaGridOriginCandidate,
   StudioFigmaNodeReview,
   StudioFigmaNodeReviewRole,
   StudioFigmaGridVariantStatus,
 } from "@/types/template-studio-figma";
-import type {
-  StudioFigmaGridOriginCandidate,
-} from "@/utils/template-studio/figma-import/figma-node-converter";
 
 export type ImportCandidate = StudioFigmaGridCandidate | StudioFigmaGridOriginCandidate;
 
@@ -59,12 +57,30 @@ type ReviewSection = {
  * origin boundary. The client uses this same pure transformation for UI
  * state, while the converter consumes the resulting nested reviews.
  */
-export const applyStudioFigmaReviewPatch = (
+export function applyStudioFigmaReviewPatch(
+  candidate: StudioFigmaGridCandidate,
+  status: StudioFigmaGridVariantStatus,
+  sourceNodeId: string,
+  patch: ReviewPatch,
+): StudioFigmaGridCandidate;
+export function applyStudioFigmaReviewPatch(
+  candidate: StudioFigmaGridOriginCandidate,
+  status: StudioFigmaGridVariantStatus,
+  sourceNodeId: string,
+  patch: ReviewPatch,
+): StudioFigmaGridOriginCandidate;
+export function applyStudioFigmaReviewPatch(
   candidate: ImportCandidate,
   status: StudioFigmaGridVariantStatus,
   sourceNodeId: string,
   patch: ReviewPatch,
-): ImportCandidate => {
+): ImportCandidate;
+export function applyStudioFigmaReviewPatch(
+  candidate: ImportCandidate,
+  status: StudioFigmaGridVariantStatus,
+  sourceNodeId: string,
+  patch: ReviewPatch,
+): ImportCandidate {
   if ("variants" in candidate) {
     return {
       ...candidate,
@@ -89,7 +105,7 @@ export const applyStudioFigmaReviewPatch = (
         : review,
     ),
   };
-};
+}
 
 const reviewSectionsFor = (candidate: ImportCandidate): ReviewSection[] => {
   if ("variants" in candidate) {

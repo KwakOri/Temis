@@ -60,6 +60,12 @@ export interface FigmaReviewCandidate {
   reason: string;
 }
 
+export interface FigmaSemanticInference {
+  sourceNodeId: string;
+  candidate: FigmaReviewCandidate;
+  evidence: FigmaSemanticEvidence;
+}
+
 export interface StudioFigmaNodeReview {
   sourceNodeId: string;
   label: string;
@@ -93,6 +99,35 @@ export interface StudioFigmaGridCandidate {
   /** Transient source-node to converted graph-node map for the review UI only. */
   reviewNodeIds?: Record<string, string>;
   /** Converter-effective choices before any user edits. Never merged into documents. */
+  reviewDefaults?: Record<string, StudioFigmaNodeReview>;
+  warnings: string[];
+}
+
+export interface StudioFigmaGridVariantCandidate {
+  status: StudioFigmaGridVariantStatus;
+  origin: FigmaOriginComponentRef;
+  component: {
+    nodes: Record<string, StudioGraphNode>;
+    styles: Record<string, StudioStyleRecord>;
+    rootNodeId: string;
+    assets: StudioAsset[];
+  };
+  reviews: StudioFigmaNodeReview[];
+  reviewNodeIds?: Record<string, string>;
+  reviewDefaults?: Record<string, StudioFigmaNodeReview>;
+  warnings: string[];
+}
+
+export interface StudioFigmaGridOriginCandidate {
+  candidateId: string;
+  label: string;
+  frame: { left: number; top: number; width: number; height: number };
+  placementInstanceIds: string[];
+  variants: Record<StudioFigmaGridVariantStatus, StudioFigmaGridVariantCandidate>;
+  /** Compatibility projection for old callers; nested variants are authoritative. */
+  component?: StudioFigmaGridVariantCandidate["component"];
+  reviews?: StudioFigmaNodeReview[];
+  reviewNodeIds?: Record<string, string>;
   reviewDefaults?: Record<string, StudioFigmaNodeReview>;
   warnings: string[];
 }
@@ -171,6 +206,14 @@ export interface FigmaGridOriginVariantSource {
   placementEvidence: Record<string, FigmaSemanticEvidence>;
   /** Aggregated transient evidence across all variants in this component set. */
   componentSetEvidence?: Record<string, FigmaSemanticEvidence>;
+  /** Deterministic transient semantic candidates derived from placement evidence. */
+  semanticReviews?: FigmaSemanticInference[];
+  /** Fetched origin metadata used to resolve the authoritative status. */
+  originMetadata?: {
+    component?: Record<string, unknown>;
+    componentSet?: Record<string, unknown>;
+  };
+  reviews?: StudioFigmaNodeReview[];
   warnings: string[];
 }
 
@@ -190,6 +233,6 @@ export interface FigmaGridCandidateSource {
 
 export interface StudioFigmaAnalyzeResponse {
   success: true;
-  candidates: StudioFigmaGridCandidate[];
+  candidates: Array<StudioFigmaGridCandidate | StudioFigmaGridOriginCandidate>;
   warnings: string[];
 }

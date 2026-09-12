@@ -6,12 +6,10 @@ import type {
 } from "@/types/template-studio";
 import type {
   StudioFigmaGridCandidate,
-  StudioFigmaNodeReview,
-} from "@/types/template-studio-figma";
-import type {
   StudioFigmaGridOriginCandidate,
   StudioFigmaGridVariantCandidate,
-} from "./figma-node-converter";
+  StudioFigmaNodeReview,
+} from "@/types/template-studio-figma";
 import { bindingForFigmaRole } from "./figma-text-classifier";
 
 const TEXT_TYPES = new Set<StudioGraphNodeType>(["text", "flexibleText"]);
@@ -92,13 +90,17 @@ const applyReviewToNode = (
  * neither is consumed by the document merger.
  */
 export function applyStudioFigmaReviewEdits(
+  candidate: StudioFigmaGridOriginCandidate,
+  bindingTouchedSourceNodeIds?: Readonly<Record<string, boolean>>,
+): StudioFigmaGridOriginCandidate;
+export function applyStudioFigmaReviewEdits(
   candidate: StudioFigmaGridCandidate,
   bindingTouchedSourceNodeIds?: Readonly<Record<string, boolean>>,
 ): StudioFigmaGridCandidate;
 export function applyStudioFigmaReviewEdits(
-  candidate: StudioFigmaGridOriginCandidate,
+  candidate: StudioFigmaGridCandidate | StudioFigmaGridOriginCandidate,
   bindingTouchedSourceNodeIds?: Readonly<Record<string, boolean>>,
-): StudioFigmaGridOriginCandidate;
+): StudioFigmaGridCandidate | StudioFigmaGridOriginCandidate;
 export function applyStudioFigmaReviewEdits(
   candidate: StudioFigmaGridCandidate | StudioFigmaGridOriginCandidate,
   bindingTouchedSourceNodeIds: Readonly<Record<string, boolean>> = {},

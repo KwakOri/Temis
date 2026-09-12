@@ -5,14 +5,14 @@ import { renderToStaticMarkup } from "react-dom/server";
 import * as route from "../src/app/api/admin/template-studio/figma/analyze/route";
 import { fetchFigmaGridCandidates, fetchFigmaGridNode } from "../src/services/server/figmaTemplateStudioService";
 import { reviewFigmaGridNodes } from "../src/services/server/figmaGridReviewService";
-import { convertFigmaGridCandidate, convertFigmaGridOriginCandidate } from "../src/utils/template-studio/figma-import/figma-node-converter";
+import { convertFigmaGridOriginCandidate } from "../src/utils/template-studio/figma-import/figma-node-converter";
 import { applyStudioFigmaReviewEdits } from "../src/utils/template-studio/figma-import/figma-review-edits";
 import { applyStudioFigmaGridCandidate } from "../src/utils/template-studio/figma-import/figma-component-import";
 import { classifyFigmaTextNode } from "../src/utils/template-studio/figma-import/figma-text-classifier";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
 import { resolveStudioSingleDateText } from "../src/utils/template-studio/date-template";
-import { StudioFigmaComponentImport } from "../src/components/studio/settings/studio-figma-component-import";
-import type { FigmaNormalizedNode, FigmaTransientAsset, StudioFigmaGridCandidate, StudioFigmaNodeReview } from "../src/types/template-studio-figma";
+import { applyStudioFigmaReviewPatch, StudioFigmaComponentImport } from "../src/components/studio/settings/studio-figma-component-import";
+import type { FigmaNormalizedNode, FigmaTransientAsset, StudioFigmaGridOriginCandidate, StudioFigmaNodeReview } from "../src/types/template-studio-figma";
 
 const solid = [{ type: "SOLID", color: { r: 1, g: 0, b: 0 } }];
 const textNode: FigmaNormalizedNode = {
@@ -31,11 +31,83 @@ const review = (node: FigmaNormalizedNode, type: StudioFigmaNodeReview["suggeste
   confidence: 0.9, source: "rule", decision: "needs_review", reason: "Fixture",
 });
 const asset = (id: string): FigmaTransientAsset => ({ sourceNodeId: id, src: "data:image/png;base64,iVBORw==", mimeType: "image/png", byteSize: 4 });
-const convert = (children: FigmaNormalizedNode[], assets: FigmaTransientAsset[] = []) => convertFigmaGridCandidate({
-  root: card(children), reviews: children.map((node) => review(node, node.type === "TEXT" ? "flexibleText" : "shape")), exportedAssets: assets,
+const remapRootForOffline = (root: FigmaNormalizedNode): { root: FigmaNormalizedNode; sourceNodeIdByOriginalId: Map<string, string> } => {
+  const sourceNodeIdByOriginalId = new Map<string, string>();
+  const collect = (node: FigmaNormalizedNode) => {
+    sourceNodeIdByOriginalId.set(node.id, `${node.id}-offline`);
+    node.children?.forEach(collect);
+  };
+  const nextRoot = structuredClone(root);
+  collect(nextRoot);
+  const apply = (node: FigmaNormalizedNode) => {
+    node.id = sourceNodeIdByOriginalId.get(node.id) ?? `${node.id}-offline`;
+    node.name = node.id === `${root.id}-offline` ? `${node.name} OFFLINE` : node.name;
+    node.children?.forEach(apply);
+  };
+  apply(nextRoot);
+  return { root: nextRoot, sourceNodeIdByOriginalId };
+};
+
+const withExplicitVariants = (input: {
+  root: FigmaNormalizedNode;
+  reviews: StudioFigmaNodeReview[];
+  exportedAssets?: FigmaTransientAsset[];
+}): StudioFigmaGridOriginCandidate => {
+  const exportedAssets = input.exportedAssets ?? [];
+  const offline = remapRootForOffline(input.root);
+  const offlineReviews = input.reviews.map((review) => ({
+    ...review,
+    sourceNodeId: offline.sourceNodeIdByOriginalId.get(review.sourceNodeId) ?? `${review.sourceNodeId}-offline`,
+  }));
+  const offlineAssets = exportedAssets.map((item) => ({
+    ...item,
+    sourceNodeId: offline.sourceNodeIdByOriginalId.get(item.sourceNodeId) ?? `${item.sourceNodeId}-offline`,
+  }));
+  const converted = convertFigmaGridOriginCandidate({
+    label: input.root.name,
+    frame: input.root.absoluteBounds ?? input.root.frame ?? { left: 0, top: 0, width: 0, height: 0 },
+    placementInstanceIds: ["fixture-placement-online", "fixture-placement-offline"],
+    variants: {
+      online: {
+        status: "online",
+        origin: { componentId: input.root.id, componentNodeId: input.root.id, componentSetNodeId: "fixture-set", componentName: input.root.name },
+        root: input.root,
+        reviews: input.reviews,
+        exportedAssets,
+      },
+      offline: {
+        status: "offline",
+        origin: { componentId: `${input.root.id}-offline`, componentNodeId: `${input.root.id}-offline`, componentSetNodeId: "fixture-set", componentName: `${input.root.name} OFFLINE` },
+        root: offline.root,
+        reviews: offlineReviews,
+        exportedAssets: offlineAssets,
+      },
+    },
+  });
+  return {
+    ...converted,
+    component: converted.variants.online.component,
+    reviews: converted.variants.online.reviews,
+    reviewNodeIds: converted.variants.online.reviewNodeIds,
+    reviewDefaults: converted.variants.online.reviewDefaults,
+  };
+};
+
+const convertRoot = (root: FigmaNormalizedNode, reviews: StudioFigmaNodeReview[], assets: FigmaTransientAsset[] = []) =>
+  withExplicitVariants({ root, reviews, exportedAssets: assets });
+const convert = (children: FigmaNormalizedNode[], assets: FigmaTransientAsset[] = []) =>
+  convertRoot(card(children), children.map((node) => review(node, node.type === "TEXT" ? "flexibleText" : "shape")), assets);
+const mapped = (candidate: StudioFigmaGridOriginCandidate, id: string) => candidate.variants.online.component.nodes[candidate.variants.online.reviewNodeIds![id]!]!;
+const styleOf = (candidate: StudioFigmaGridOriginCandidate, id: string) => candidate.variants.online.component.styles[mapped(candidate, id).styleId!]!;
+
+test("single-root fixture helper supplies an explicit independent offline graph", () => {
+  const candidate = convert([textNode]);
+  assert.ok(candidate.variants.online);
+  assert.ok(candidate.variants.offline);
+  assert.notEqual(candidate.variants.online.origin.componentNodeId, candidate.variants.offline.origin.componentNodeId);
+  assert.notDeepEqual(candidate.variants.online.component, candidate.variants.offline.component);
+  assert.match(candidate.variants.offline.component.nodes[candidate.variants.offline.component.rootNodeId]!.label, /OFFLINE/);
 });
-const mapped = (candidate: StudioFigmaGridCandidate, id: string) => candidate.component.nodes[candidate.reviewNodeIds![id]!]!;
-const styleOf = (candidate: StudioFigmaGridCandidate, id: string) => candidate.component.styles[mapped(candidate, id).styleId!]!;
 
 test("origin conversion keeps online and offline roots independent", () => {
   const makeRoot = (id: string, color?: string): FigmaNormalizedNode => ({
@@ -86,10 +158,10 @@ test("untouched effect/stroke reviews preserve converter image types, bindings a
   const candidate = convert([decoration], [asset("effect")]);
   const result = applyStudioFigmaReviewEdits(candidate);
   assert.equal(mapped(result, "effect").type, "image");
-  assert.deepEqual(result.component, candidate.component);
+  assert.deepEqual(result.variants.online.component, candidate.variants.online.component);
   const edited = structuredClone(candidate);
-  edited.reviews[0]!.suggestedStudioType = "text";
-  edited.reviews[0]!.suggestedBinding = { kind: "staticText", value: "explicit" };
+  edited.variants.online.reviews[0]!.suggestedStudioType = "text";
+  edited.variants.online.reviews[0]!.suggestedBinding = { kind: "staticText", value: "explicit" };
   const applied = applyStudioFigmaReviewEdits(edited, { effect: true });
   assert.equal(mapped(applied, "effect").type, "text");
   assert.deepEqual(mapped(applied, "effect").binding, { kind: "staticText", value: "explicit" });
@@ -136,11 +208,10 @@ test("nested rotated parents use parent-relative child coordinates", async () =>
     }],
   }, async () => {
     const { node } = await fetchFigmaGridNode(source);
-    const candidate = convertFigmaGridCandidate({
-      root: card([node]),
-      reviews: [review(node, "group"), review(node.children![0]!, "flexibleText")],
-      exportedAssets: [],
-    });
+    const candidate = convertRoot(
+      card([node]),
+      [review(node, "group"), review(node.children![0]!, "flexibleText")],
+    );
     assert.equal(styleOf(candidate, "parent").rotateDeg, 90);
     assert.deepEqual([styleOf(candidate, "nested").left, styleOf(candidate, "nested").top], [20, 10]);
   });
@@ -155,7 +226,7 @@ test("full-node raster exports use rendered bounds without applying opacity/rota
   const result = convert([node], [asset("raster")]);
   const style = styleOf(result, "raster");
   assert.deepEqual([style.left, style.top, style.width, style.height, style.rotateDeg ?? 0, style.opacity ?? 1], [10, 20, 130, 110, 0, 1]);
-  assert.deepEqual([result.component.assets[0]!.width, result.component.assets[0]!.height], [130, 110]);
+  assert.deepEqual([result.variants.online.component.assets[0]!.width, result.variants.online.component.assets[0]!.height], [130, 110]);
 });
 
 test("image-filled frames keep a background image behind semantic children, with no baked text", async () => {
@@ -166,17 +237,17 @@ test("image-filled frames keep a background image behind semantic children, with
   }] };
   await withFigma(raw, async (requests) => {
     const fetched = (await fetchFigmaGridCandidates(source)).candidates[0]!;
-    const candidate = convertFigmaGridCandidate({ root: fetched.root, reviews: [review(fetched.root, "image"), review(fetched.root.children![0]!, "flexibleText")], exportedAssets: fetched.assets });
+    const candidate = convertRoot(fetched.root, [review(fetched.root, "image"), review(fetched.root.children![0]!, "flexibleText")], fetched.assets);
     const result = applyStudioFigmaReviewEdits(candidate);
     const root = mapped(result, "card");
     assert.equal(root.type, "group");
-    const images = Object.values(result.component.nodes).filter((node) => node.type === "image");
+    const images = Object.values(result.variants.online.component.nodes).filter((node) => node.type === "image");
     assert.equal(images.length, 1);
     assert.equal(images[0]!.binding?.kind, "staticAsset");
-    const parent = result.component.nodes[images[0]!.parentId!]!;
+    const parent = result.variants.online.component.nodes[images[0]!.parentId!]!;
     assert.equal(parent.childIds[0], images[0]!.id);
     assert.deepEqual(mapped(result, "title").binding, { kind: "builtinField", fieldId: "entry.main_title" });
-    const bgStyle = result.component.styles[images[0]!.styleId!]!;
+    const bgStyle = result.variants.online.component.styles[images[0]!.styleId!]!;
     assert.deepEqual([bgStyle.left, bgStyle.top, bgStyle.width, bgStyle.height], [0, 0, 300, 180]);
     assert.ok(requests.some((url) => url.pathname === "/v1/files/fixture/images"));
     assert.ok(!requests.some((url) => url.pathname === "/v1/images/fixture" && url.searchParams.get("ids") === "card"));
@@ -206,8 +277,8 @@ test("vector decorations are discovered/exported and never silently become recta
     children: [{ id: "title", name: "main", type: "TEXT", characters: "Title" }, ...types.map((type) => ({ id: type, name: type, type, fills: solid }))] }] }, async () => {
     const fetched = (await fetchFigmaGridCandidates(source)).candidates[0]!;
     assert.deepEqual(fetched.assets.map((a) => a.sourceNodeId).sort(), [...types].sort());
-    const candidate = convertFigmaGridCandidate({ root: fetched.root, reviews: [], exportedAssets: fetched.assets });
-    for (const type of types) assert.equal(Object.values(candidate.component.nodes).find((n) => n.label === type)?.type, "image");
+    const candidate = convertRoot(fetched.root, [], fetched.assets);
+    for (const type of types) assert.equal(Object.values(candidate.variants.online.component.nodes).find((n) => n.label === type)?.type, "image");
     const noAsset = convert([{ id: "ellipse", name: "Ellipse", type: "ELLIPSE", fills: solid }]);
     assert.equal(mapped(noAsset, "ellipse").shapeFill, undefined);
     assert.ok(noAsset.warnings.some((warning) => /ellipse/i.test(warning)));
@@ -258,7 +329,7 @@ const panelHarness = () => {
   const props = () => ({ candidates: [candidate], errorMessage: null, figmaUrl: "", isAnalyzing: false, isImporting: false, isRemoteSyncing: false,
     selectedCandidateId: candidate.candidateId, statusMessage: null, onAnalyze() {}, onCancel() {}, onCandidateSelect() {}, onUrlChange() {}, onConfirm() {},
     onBindingChange(id: string) { touched[id] = true; },
-    onReviewChange(id: string, patch: Partial<StudioFigmaNodeReview>) { candidate = { ...candidate, reviews: candidate.reviews.map((r) => r.sourceNodeId === id ? { ...r, ...patch } : r) }; },
+    onReviewChange(status: string, id: string, patch: Partial<StudioFigmaNodeReview>) { candidate = applyStudioFigmaReviewPatch(candidate, status as "online" | "offline", id, patch); },
   });
   const selects = (): React.ReactElement<{ value: string; onChange: (event: { currentTarget: { value: string } }) => void }>[] => {
     const found: ReturnType<typeof selects> = [];
@@ -293,14 +364,14 @@ test("selecting staticText and unknown role retain original source characters", 
 
 test("static text whitespace survives import and unsafe source URLs cannot persist", () => {
   const node = { ...textNode, name: "Literal text" };
-  const candidate = convertFigmaGridCandidate({ root: card([node]), reviews: [], exportedAssets: [] });
+  const candidate = convertRoot(card([node]), [], []);
   const document = createSampleStudioDocument();
   assert.ok(applyStudioFigmaGridCandidate(document, candidate).ok);
   const literals = Object.values(document.graph.nodes).filter((n) => n.label === "Literal text");
   assert.equal(literals.length, 2);
   for (const literal of literals) assert.deepEqual(literal.binding, { kind: "staticText", value: textNode.characters });
   const unsafe = structuredClone(candidate);
-  unsafe.component.nodes[Object.keys(unsafe.component.nodes).find((id) => unsafe.component.nodes[id]!.label === "Literal text")!]!.binding = { kind: "staticText", value: "https://private.example/source" };
+  unsafe.variants.online.component.nodes[Object.keys(unsafe.variants.online.component.nodes).find((id) => unsafe.variants.online.component.nodes[id]!.label === "Literal text")!]!.binding = { kind: "staticText", value: "https://private.example/source" };
   const before = JSON.stringify(document);
   assert.equal(applyStudioFigmaGridCandidate(document, unsafe).ok, false);
   assert.equal(JSON.stringify(document), before);

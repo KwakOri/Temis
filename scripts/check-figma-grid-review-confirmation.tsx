@@ -16,7 +16,6 @@ import type {
 import {
   convertFigmaGridCandidate,
   convertFigmaGridOriginCandidate,
-  type StudioFigmaGridOriginCandidate,
 } from "../src/utils/template-studio/figma-import/figma-node-converter";
 import { applyStudioFigmaReviewEdits } from "../src/utils/template-studio/figma-import/figma-review-edits";
 
@@ -111,7 +110,7 @@ test("compatibility review edits survive JSON round-trip into the online origin 
   });
   const serialized = JSON.parse(JSON.stringify(compatibilityCandidate)) as typeof compatibilityCandidate;
   serialized.reviews[0]!.suggestedBinding = { kind: "builtinField", fieldId: "entry.time" };
-  const result = applyStudioFigmaReviewEdits(serialized, { "on-title": true }) as unknown as StudioFigmaGridOriginCandidate;
+  const result = applyStudioFigmaReviewEdits(serialized, { "on-title": true });
   const onlineId = result.variants.online.reviewNodeIds!["on-title"]!;
   const offlineId = result.variants.offline.reviewNodeIds!["off-title"]!;
   assert.deepEqual(result.variants.online.component.nodes[onlineId]!.binding, { kind: "builtinField", fieldId: "entry.time" });
@@ -144,7 +143,7 @@ test("variant-local review edits win when the compatibility projection is unchan
   compatibilityCandidate.variants.online.reviews[0]!.suggestedBinding = { kind: "builtinField", fieldId: "entry.time" };
   assert.equal(compatibilityCandidate.reviews[0]!.suggestedBinding.kind, "builtinField");
   assert.equal((compatibilityCandidate.reviews[0]!.suggestedBinding as { fieldId?: string }).fieldId, "entry.main_title");
-  const result = applyStudioFigmaReviewEdits(compatibilityCandidate, { "on-title": true }) as unknown as StudioFigmaGridOriginCandidate;
+  const result = applyStudioFigmaReviewEdits(compatibilityCandidate, { "on-title": true });
   const onlineId = result.variants.online.reviewNodeIds!["on-title"]!;
   const offlineId = result.variants.offline.reviewNodeIds!["off-title"]!;
   assert.deepEqual(result.variants.online.component.nodes[onlineId]!.binding, { kind: "builtinField", fieldId: "entry.time" });
@@ -153,7 +152,7 @@ test("variant-local review edits win when the compatibility projection is unchan
   assert.equal(result.variants.offline.reviews[0]!.decision, "auto");
 
   compatibilityCandidate.reviews[0]!.suggestedBinding = { kind: "builtinField", fieldId: "entry.sub_title" };
-  const bothChanged = applyStudioFigmaReviewEdits(compatibilityCandidate, { "on-title": true }) as unknown as StudioFigmaGridOriginCandidate;
+  const bothChanged = applyStudioFigmaReviewEdits(compatibilityCandidate, { "on-title": true });
   const bothChangedOnlineId = bothChanged.variants.online.reviewNodeIds!["on-title"]!;
   assert.deepEqual(bothChanged.variants.online.component.nodes[bothChangedOnlineId]!.binding, { kind: "builtinField", fieldId: "entry.time" });
 });

@@ -8,7 +8,11 @@ import type {
 } from "@/types/template-studio-figma";
 import { bindingForFigmaRole } from "@/utils/template-studio/figma-import/figma-text-classifier";
 
-const AUTO_ROLES = new Set(["day_label", "date", "time"]);
+const AUTO_SIGNALS: Partial<Record<StudioFigmaNodeReview["suggestedRole"], FigmaSemanticEvidence["signals"][number]>> = {
+  day_label: "known_weekday_set",
+  date: "date_pattern",
+  time: "time_pattern",
+};
 const clamp = (value: number): number => Math.max(0, Math.min(1, value));
 const candidateFromReview = (review: StudioFigmaNodeReview): FigmaReviewCandidate => ({
   suggestedRole: review.suggestedRole,
@@ -16,6 +20,16 @@ const candidateFromReview = (review: StudioFigmaNodeReview): FigmaReviewCandidat
   confidence: clamp(review.confidence),
   reason: review.reason,
 });
+
+const hasAdequateRoleEvidence = (
+  role: StudioFigmaNodeReview["suggestedRole"],
+  evidence: FigmaSemanticEvidence | undefined,
+): boolean => {
+  const requiredSignal = AUTO_SIGNALS[role];
+  if (!requiredSignal || !evidence || evidence.mapping === "ambiguous") return false;
+  if (!evidence.signals.includes(requiredSignal) || evidence.matchedPlacementCount < 2 || evidence.samples.length < 2) return false;
+  return role === "day_label" ? evidence.distinctValueCount >= 2 : evidence.distinctValueCount >= 1;
+};
 
 export const fuseFigmaReview = (input: {
   rule: StudioFigmaNodeReview;
@@ -38,10 +52,11 @@ export const fuseFigmaReview = (input: {
         : "disagree";
   const source: FigmaReviewSource = aiCandidate ? "hybrid" : "rule";
   const evidence = input.evidence ?? input.rule.evidence;
-  const stableEvidence = evidence !== undefined && evidence.mapping !== "ambiguous";
-  const supportsAuto = AUTO_ROLES.has(ruleCandidate.suggestedRole) && stableEvidence;
+  const supportsAuto = hasAdequateRoleEvidence(ruleCandidate.suggestedRole, evidence);
   const decision: FigmaReviewDecision = !aiCandidate
-    ? input.rule.decision
+    ? input.rule.decision === "auto" && !supportsAuto
+      ? "needs_review"
+      : input.rule.decision
     : agreement === "agree" && supportsAuto
       ? "auto"
       : "needs_review";
@@ -52,7 +67,7 @@ export const fuseFigmaReview = (input: {
     : bindingForFigmaRole(effectiveRole, input.rule.sourceCharacters ?? "");
   const confidence = aiCandidate
     ? agreement === "agree"
-      ? clamp((ruleCandidate.confidence + aiCandidate.confidence) / 2 + (stableEvidence ? 0.05 : 0))
+      ? clamp((ruleCandidate.confidence + aiCandidate.confidence) / 2 + (supportsAuto ? 0.05 : 0))
       : clamp(Math.max(ruleCandidate.confidence, aiCandidate.confidence * 0.5))
     : clamp(ruleCandidate.confidence);
   return {

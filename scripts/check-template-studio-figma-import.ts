@@ -3,6 +3,7 @@ import type {
   FigmaNormalizedNode,
   FigmaSemanticEvidence,
   StudioFigmaGridCandidate,
+  StudioFigmaGridOriginCandidate,
   StudioFigmaNodeReview,
 } from "../src/types/template-studio-figma";
 import type { StudioAsset } from "../src/types/template-studio";
@@ -26,7 +27,6 @@ import {
 import {
   convertFigmaGridCandidate,
   convertFigmaGridOriginCandidate,
-  type StudioFigmaGridOriginCandidate,
 } from "../src/utils/template-studio/figma-import/figma-node-converter";
 import { applyStudioFigmaReviewEdits } from "../src/utils/template-studio/figma-import/figma-review-edits";
 import {
@@ -37,6 +37,7 @@ import {
 } from "../src/services/server/figmaTemplateStudioService";
 import {
   groupFigmaGridPlacements,
+  inferFigmaGridOriginVariantStatus,
   inferFigmaGridVariantStatus,
   resolveFigmaOriginComponent,
 } from "../src/utils/template-studio/figma-import/figma-origin";
@@ -194,6 +195,20 @@ assert.equal(
   inferFigmaGridVariantStatus({ componentProperties: { status: { value: "ONLINE" } } }),
   "online",
 );
+assert.equal(
+  inferFigmaGridOriginVariantStatus({
+    root: { id: "origin-online", name: "Origin", type: "COMPONENT", componentProperties: { status: { value: "ONLINE" } } },
+    origin: { componentId: "online", componentNodeId: "origin-online", componentSetNodeId: "set", componentName: "Online" },
+  }),
+  "online",
+);
+assert.equal(
+  inferFigmaGridOriginVariantStatus({
+    root: { id: "origin-conflict", name: "Origin", type: "COMPONENT", componentProperties: { status: { value: "ONLINE" }, variant: { value: "OFFLINE" } } },
+    origin: { componentId: "conflict", componentNodeId: "origin-conflict", componentSetNodeId: "set", componentName: "Conflict" },
+  }),
+  null,
+);
 for (const input of [{ status: "offlineMemo" }, { status: "multi" }, {}, { status: "ONLINE", variant: "OFFLINE" }]) {
   assert.equal(inferFigmaGridVariantStatus(input), null);
 }
@@ -230,7 +245,8 @@ const reviewContract = fuseFigmaReview({
   },
   ai: { suggestedRole: "day_label", suggestedStudioType: "text", confidence: 0.8, reason: "The samples are weekdays." },
   evidence: {
-    samples: [], sampleValues: ["MON", "TUE"], matchedPlacementCount: 2, distinctValueCount: 2,
+    samples: [evidenceSample, { ...evidenceSample, placementInstanceId: "tue", value: "TUE" }],
+    sampleValues: ["MON", "TUE"], matchedPlacementCount: 2, distinctValueCount: 2,
     signals: ["known_weekday_set"], mapping: "stable_path",
   },
 });
@@ -265,6 +281,34 @@ assert.equal(aiOnlyReview.source, "hybrid");
 assert.equal(aiOnlyReview.agreement, "ai_only");
 assert.equal(aiOnlyReview.decision, "needs_review");
 assert.deepEqual(aiOnlyReview.suggestedBinding, { kind: "builtinField", fieldId: "entry.main_title" });
+for (const [suggestedRole, suggestedBinding] of [
+  ["day_label", { kind: "builtinField", fieldId: "day.short_label", dayLabelFormat: "shortUpper" }],
+  ["date", { kind: "builtinField", fieldId: "day.date", dateRangeFormat: "day" }],
+  ["time", { kind: "builtinField", fieldId: "entry.time" }],
+] as const) {
+  const stableMappingOnly = fuseFigmaReview({
+    rule: {
+      ...reviewContract,
+      sourceNodeId: `stable-${suggestedRole}`,
+      suggestedRole,
+      suggestedBinding,
+      source: "rule",
+      decision: "auto",
+      agreement: undefined,
+      aiCandidate: undefined,
+      ruleCandidate: undefined,
+    },
+    evidence: {
+      samples: [evidenceSample],
+      sampleValues: [evidenceSample.value],
+      matchedPlacementCount: 1,
+      distinctValueCount: 1,
+      signals: ["stable_origin_mapping"],
+      mapping: "stable_path",
+    },
+  });
+  assert.equal(stableMappingOnly.decision, "needs_review", `${suggestedRole} needs a recognized evidence signal before auto approval`);
+}
 
 assert.equal(normalizeFigmaRotation(undefined), undefined);
 assert.equal(normalizeFigmaRotation(0), 0);
@@ -911,7 +955,8 @@ const runRouteContractChecks = async () => {
   const originNodesRequests: string[][] = [];
   const reviewedOriginRootIds: string[] = [];
   let mutateOriginPlacements = false;
-  let originFixtureMode: "complete" | "missing-component-id" | "unknown-component" | "missing-component-set" | "only-online" | "ambiguous-online" = "complete";
+  let includeOriginAssets = false;
+  let originFixtureMode: "complete" | "conflicting-placement-status" | "missing-component-id" | "unknown-component" | "missing-component-set" | "only-online" | "ambiguous-online" = "complete";
 
   const responseJson = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), {
@@ -986,7 +1031,11 @@ const runRouteContractChecks = async () => {
                           : originFixtureMode === "ambiguous-online" && id === "sun"
                             ? "origin-online-ambiguous"
                             : "origin-online",
-                      componentProperties: { status: { value: "ONLINE" } },
+                      componentProperties: {
+                        status: {
+                          value: originFixtureMode === "conflicting-placement-status" ? "OFFLINE" : "ONLINE",
+                        },
+                      },
                       overrides: [{ id: `${id}-text`, characters: mutateOriginPlacements ? "CHANGED" : id.toUpperCase() }],
                       absoluteBoundingBox: { x: mutateOriginPlacements ? 9000 + index : index * 140, y: mutateOriginPlacements ? 8000 : index * 3, width: 140, height: 180 },
                       rotation: mutateOriginPlacements ? 77 + index : index,
@@ -1003,7 +1052,15 @@ const runRouteContractChecks = async () => {
                       name: `Component ${140 + index}`,
                       type: "INSTANCE",
                       componentId: originFixtureMode === "only-online" ? "origin-online" : "origin-offline",
-                      componentProperties: { status: { value: originFixtureMode === "only-online" ? "ONLINE" : "OFFLINE" } },
+                      componentProperties: {
+                        status: {
+                          value: originFixtureMode === "conflicting-placement-status"
+                            ? "ONLINE"
+                            : originFixtureMode === "only-online"
+                              ? "ONLINE"
+                              : "OFFLINE",
+                        },
+                      },
                       overrides: [{ id: `${id}-text`, characters: mutateOriginPlacements ? "CHANGED" : "07" }],
                       absoluteBoundingBox: { x: mutateOriginPlacements ? 9000 + index : 700 + index * 140, y: mutateOriginPlacements ? 8000 : 100, width: 140, height: 180 },
                       rotation: mutateOriginPlacements ? 77 + index : 20 + index,
@@ -1040,6 +1097,7 @@ const runRouteContractChecks = async () => {
                 id: "origin-online",
                 name: "Online Origin Root",
                 type: "COMPONENT",
+                componentProperties: { status: { value: "ONLINE" } },
                 absoluteBoundingBox: { x: 10, y: 20, width: 140, height: 180 },
                 relativeTransform: [[1, 0, 10], [0, 1, 20]],
                 children: [
@@ -1048,6 +1106,9 @@ const runRouteContractChecks = async () => {
                   { id: "origin-online-time", name: "time", type: "TEXT", characters: "AM 9:05" },
                   { id: "origin-online-title", name: "Headline", type: "TEXT", characters: "Title" },
                   { id: "origin-online-memo", name: "MEMO", type: "TEXT", characters: "REST DAY", visible: false },
+                  ...(includeOriginAssets
+                    ? [{ id: "effect-leaf", name: "Effect export", type: "FRAME", absoluteBoundingBox: { x: 40, y: 60, width: 20, height: 20 }, effects: [{ type: "DROP_SHADOW", radius: 4 }] }]
+                    : []),
                 ],
               },
             },
@@ -1056,6 +1117,7 @@ const runRouteContractChecks = async () => {
                 id: "origin-offline",
                 name: "Offline Origin Root",
                 type: "COMPONENT",
+                componentProperties: { status: { value: "OFFLINE" } },
                 absoluteBoundingBox: { x: 10, y: 20, width: 140, height: 180 },
                 relativeTransform: [[1, 0, 10], [0, 1, 20]],
                 children: [
@@ -1369,17 +1431,7 @@ const runRouteContractChecks = async () => {
       ["origin-online", "origin-offline"],
     ]);
     assert.equal(originDiscovered.candidates.length, 1);
-    const originCandidate = originDiscovered.candidates[0] as unknown as {
-      label: string;
-      placementInstanceIds: string[];
-      frame: unknown;
-      variants: Record<string, {
-        root: FigmaNormalizedNode;
-        assets: Array<{ sourceNodeId: string }>;
-        placementEvidence: Record<string, FigmaSemanticEvidence>;
-        componentSetEvidence?: Record<string, FigmaSemanticEvidence>;
-      }>;
-    };
+    const originCandidate = originDiscovered.candidates[0]!;
     assert.equal(originCandidate.label, "Grid Day Card");
     assert.deepEqual(originCandidate.placementInstanceIds, [
       "placement-sun",
@@ -1416,6 +1468,18 @@ const runRouteContractChecks = async () => {
     assert.equal(originCandidate.variants.offline.placementEvidence["origin-offline-memo"], undefined);
     assert.equal(originCandidate.variants.online.placementEvidence["origin-online-title"]?.mapping, "override");
     assert.equal(originCandidate.variants.offline.placementEvidence["origin-offline-title"]?.mapping, "override");
+    originFixtureMode = "conflicting-placement-status";
+    const conflictingPlacementStatus = await fetchFigmaGridOriginCandidates({ fileKey: "origin-fixture", nodeId: "1412:5814" });
+    const conflictingCandidate = conflictingPlacementStatus.candidates[0]!;
+    assert.equal(conflictingCandidate.variants.online.origin.componentNodeId, "origin-online");
+    assert.equal(conflictingCandidate.variants.offline.origin.componentNodeId, "origin-offline");
+    assert.deepEqual(
+      conflictingCandidate.variants.online.componentSetEvidence?.["origin-online-day"]?.samples.map((sample) => sample.variantStatus),
+      ["online", "online", "online", "online", "online", "offline", "offline"].map((status) => status as "online" | "offline"),
+      "Origin metadata remains authoritative when placement status metadata conflicts.",
+    );
+    assert.match(conflictingCandidate.warnings.join(" "), /status|inconsisten/i);
+    originFixtureMode = "complete";
     const routeDayReview = inferFigmaSemanticEvidence({
       origin: originCandidate.variants.online.root,
       evidenceByOriginNodeId: originCandidate.variants.online.placementEvidence,
@@ -1436,7 +1500,7 @@ const runRouteContractChecks = async () => {
     );
     mutateOriginPlacements = true;
     const movedPlacements = await fetchFigmaGridOriginCandidates({ fileKey: "origin-fixture", nodeId: "1412:5814" });
-    const movedCandidate = movedPlacements.candidates[0] as unknown as typeof originCandidate;
+    const movedCandidate = movedPlacements.candidates[0]!;
     assert.deepEqual(movedCandidate.variants.online.root, originCandidate.variants.online.root);
     assert.deepEqual(movedCandidate.variants.offline.root, originCandidate.variants.offline.root);
     assert.deepEqual(movedCandidate.frame, originCandidate.frame);
@@ -1495,7 +1559,7 @@ const runRouteContractChecks = async () => {
     assert.equal(routeBody.includes(temporaryAssetUrl), false);
     assert.match(routeBody, /Automated review was unavailable/);
     const routePayload = JSON.parse(routeBody) as {
-      candidates: Array<StudioFigmaGridCandidate & StudioFigmaGridOriginCandidate>;
+      candidates: StudioFigmaGridOriginCandidate[];
       warnings: string[];
     };
     assert.equal(reviewedOriginRootIds.length, 2);
@@ -1561,65 +1625,53 @@ const runRouteContractChecks = async () => {
 
     const defaultRouteHandler = createFigmaGridAnalyzeHandler({
       requireActor: async () => ({ ok: true, userId: 1 }),
-      reviewNodes: async (nodes) => ({
-        reviews: nodes.map((node) => ({
-          sourceNodeId: node.id,
-          label: node.name,
-          sourceType: node.type,
-          suggestedRole: node.type === "TEXT" ? "unknown" : "decoration",
-          suggestedStudioType: node.type === "TEXT"
-            ? "text"
-            : node.styleFlags.hasImageFill || node.type === "IMAGE"
-              ? "image"
-              : node.styleFlags.hasChildren
-                ? "group"
-                : "shape",
-          suggestedBinding: {
-            kind: "staticText",
-            value: node.characters ?? "",
-          },
-          confidence: 0.8,
-          source: "rule",
-          decision: "needs_review",
-          reason: "Default converter route fixture.",
-        })),
-        warnings: [],
-      }),
     });
+    includeOriginAssets = true;
+    const originalReviewToken = process.env.OPENAI_ACCESS_TOKEN;
+    const originalReviewModel = process.env.OPENAI_FIGMA_REVIEW_MODEL;
+    delete process.env.OPENAI_ACCESS_TOKEN;
+    delete process.env.OPENAI_FIGMA_REVIEW_MODEL;
     const defaultRouteResponse = await defaultRouteHandler(
       new Request("http://localhost/api/admin/template-studio/figma/analyze", {
         method: "POST",
-        body: JSON.stringify({ figmaUrl: privateFigmaUrl }),
+        body: JSON.stringify({ figmaUrl: originRouteFigmaUrl }),
       }),
     );
     const defaultRouteBody = await defaultRouteResponse.json() as {
-      candidates: Array<{
-        component: {
-          nodes: Record<string, { label: string; type: string }>;
-          rootNodeId: string;
-          assets: Array<{ src: string }>;
-        };
-        warnings: string[];
-        label: string;
-      }>;
+      candidates: StudioFigmaGridOriginCandidate[];
       warnings: string[];
     };
     assert.equal(defaultRouteResponse.status, 200);
     assert.equal(defaultRouteBody.candidates.length, 1);
-    const defaultCandidate = defaultRouteBody.candidates[0];
-    assert.equal(defaultCandidate?.label, "GRID cards");
-    assert.ok(defaultCandidate?.component.rootNodeId);
+    const defaultCandidate = defaultRouteBody.candidates[0]!;
+    const defaultOnlineReviews = Object.fromEntries(defaultCandidate.variants.online.reviews.map((review) => [review.sourceNodeId, review]));
+    const defaultOfflineReviews = Object.fromEntries(defaultCandidate.variants.offline.reviews.map((review) => [review.sourceNodeId, review]));
+    for (const [nodeId, role, fieldId] of [
+      ["origin-online-day", "day_label", "day.short_label"],
+      ["origin-online-date", "date", "day.date"],
+      ["origin-online-time", "time", "entry.time"],
+    ] as const) {
+      assert.equal(defaultOnlineReviews[nodeId]?.suggestedRole, role);
+      assert.equal(defaultOnlineReviews[nodeId]?.suggestedBinding.kind, "builtinField");
+      assert.equal((defaultOnlineReviews[nodeId]?.suggestedBinding as { fieldId?: string }).fieldId, fieldId);
+      assert.equal(defaultOnlineReviews[nodeId]?.decision, "auto");
+    }
+    assert.equal(defaultOnlineReviews["origin-online-title"]?.decision, "needs_review");
+    assert.equal(defaultOfflineReviews["origin-offline-day"]?.suggestedRole, "day_label");
+    assert.equal(defaultOfflineReviews["origin-offline-date"]?.suggestedRole, "date");
+    assert.equal(defaultOfflineReviews["origin-offline-time"]?.suggestedRole, "time");
+    if (originalReviewToken === undefined) delete process.env.OPENAI_ACCESS_TOKEN;
+    else process.env.OPENAI_ACCESS_TOKEN = originalReviewToken;
+    if (originalReviewModel === undefined) delete process.env.OPENAI_FIGMA_REVIEW_MODEL;
+    else process.env.OPENAI_FIGMA_REVIEW_MODEL = originalReviewModel;
+    const defaultOnlineComponent = defaultCandidate.variants.online.component;
+    assert.ok(Object.keys(defaultOnlineComponent.nodes).length > 0);
     assert.equal(
-      defaultCandidate?.component.nodes[defaultCandidate.component.rootNodeId]?.type,
-      "group",
-    );
-    assert.ok(Object.keys(defaultCandidate?.component.nodes ?? {}).length > 0);
-    assert.equal(
-      Object.values(defaultCandidate?.component.nodes ?? {})
+      Object.values(defaultOnlineComponent.nodes)
         .find((node) => node.label === "Effect export")?.type,
       "image",
     );
-    assert.ok(defaultCandidate?.component.assets.every((asset) => asset.src.startsWith("data:image/")));
+    assert.ok(defaultOnlineComponent.assets.every((asset) => asset.src.startsWith("data:image/")));
     assert.equal(defaultRouteBody.warnings.some((warning) => /graph conversion is not connected/i.test(warning)), false);
     assert.equal(JSON.stringify(defaultRouteBody).includes(privateFigmaUrl), false);
     assert.equal(JSON.stringify(defaultRouteBody).includes(secretToken), false);

@@ -6,12 +6,16 @@ import type {
 } from "@/types/template-studio-figma";
 import {
   groupFigmaGridPlacements,
+  inferFigmaGridOriginVariantStatus,
   inferFigmaGridVariantStatus,
   resolveFigmaOriginComponent,
 } from "@/utils/template-studio/figma-import/figma-origin";
 import { normalizeFigmaRotation } from "@/utils/template-studio/figma-import/figma-rotation";
 import { classifyFigmaTextNode } from "@/utils/template-studio/figma-import/figma-text-classifier";
-import { mapFigmaPlacementNodesToOrigin } from "@/utils/template-studio/figma-import/figma-placement-inference";
+import {
+  inferFigmaSemanticEvidence,
+  mapFigmaPlacementNodesToOrigin,
+} from "@/utils/template-studio/figma-import/figma-placement-inference";
 import { isFigmaVectorType } from "@/utils/template-studio/figma-import/figma-visual";
 
 const FIGMA_API_BASE_URL = "https://api.figma.com/v1";
@@ -377,16 +381,28 @@ const isVisibleGridPlacement = (node: FigmaNormalizedNode): boolean =>
   node.id.length > 0 &&
   !EXCLUDED_GRID_ROOTS.has(normalizeLayerName(node.name));
 
+type FigmaOriginNodeData = {
+  root: FigmaNormalizedNode;
+  components: Record<string, Record<string, unknown>>;
+  componentSets: Record<string, Record<string, unknown>>;
+};
+
 const fetchFigmaOriginNodes = async (source: { fileKey: string; nodeIds: string[] }) => {
   const ids = [...new Set(source.nodeIds)];
-  if (ids.length === 0) return new Map<string, FigmaNormalizedNode>();
+  if (ids.length === 0) return new Map<string, FigmaOriginNodeData>();
   const path = `/files/${encodeURIComponent(source.fileKey)}/nodes?ids=${encodeURIComponent(ids.join(","))}&geometry=paths`;
   const payload = asRecord(await (await figmaFetch(path)).json());
   const nodes = asRecord(payload?.nodes);
-  const result = new Map<string, FigmaNormalizedNode>();
+  const result = new Map<string, FigmaOriginNodeData>();
   for (const id of ids) {
-    const document = asRecord(asRecord(nodes?.[id])?.document);
-    if (document) result.set(id, normalizeFigmaNode(document));
+    const selected = asRecord(nodes?.[id]);
+    const document = asRecord(selected?.document);
+    if (!document) continue;
+    result.set(id, {
+      root: normalizeFigmaNode(document),
+      components: (asRecord(selected?.components) ?? asRecord(payload?.components) ?? {}) as Record<string, Record<string, unknown>>,
+      componentSets: (asRecord(selected?.componentSets) ?? asRecord(selected?.component_sets) ?? asRecord(payload?.componentSets) ?? asRecord(payload?.component_sets) ?? {}) as Record<string, Record<string, unknown>>,
+    });
   }
   return result;
 };
@@ -490,8 +506,8 @@ export const fetchFigmaGridOriginCandidates = async (source: {
     .filter(isVisibleGridPlacement)
     .flatMap((instance) => {
       const origin = resolveFigmaOriginComponent({ instance, components, componentSets });
-      const status = inferFigmaGridVariantStatus(instance.componentProperties);
-      return origin && status ? [{ instance, origin, status }] : [];
+      if (!origin) return [];
+      return [{ instance, origin, placementStatus: inferFigmaGridVariantStatus(instance.componentProperties) }];
     });
   const groups = groupFigmaGridPlacements({
     placements: placements.map(({ instance, origin }) => ({ instance, origin })),
@@ -510,32 +526,73 @@ export const fetchFigmaGridOriginCandidates = async (source: {
 
   for (const group of Object.values(groups)) {
     const groupPlacements = placements.filter(({ origin }) => origin.componentSetNodeId === group.componentSetNodeId);
-    const byStatus = new Map<string, typeof groupPlacements>();
+    const originStatusByComponentId = new Map<string, "online" | "offline">();
+    const originDataByComponentId = new Map<string, FigmaOriginNodeData>();
+    const groupWarnings: string[] = [];
+    let complete = true;
+    for (const origin of group.origins) {
+      const originData = originNodes.get(origin.componentNodeId);
+      if (!originData) {
+        complete = false;
+        continue;
+      }
+      const componentMetadata = originData.components[origin.componentId] ??
+        Object.values(originData.components).find((metadata) =>
+          metadata.node_id === origin.componentNodeId || metadata.nodeId === origin.componentNodeId,
+        );
+      const componentSetMetadata = originData.componentSets[origin.componentSetNodeId];
+      const status = inferFigmaGridOriginVariantStatus({
+        root: originData.root,
+        origin,
+        componentMetadata,
+        componentSetMetadata,
+      });
+      if (!status) {
+        complete = false;
+        const warning = "A GRID origin variant was excluded because its online/offline status was missing or ambiguous.";
+        warnings.push(warning);
+        groupWarnings.push(warning);
+        continue;
+      }
+      originStatusByComponentId.set(origin.componentId, status);
+      originDataByComponentId.set(origin.componentId, originData);
+    }
+    if (new Set(originStatusByComponentId.values()).size !== 2) complete = false;
+    const byStatus = new Map<"online" | "offline", typeof groupPlacements>();
     for (const placement of groupPlacements) {
-      const bucket = byStatus.get(placement.status) ?? [];
+      const authoritativeStatus = originStatusByComponentId.get(placement.origin.componentId);
+      if (!authoritativeStatus) continue;
+      if (placement.placementStatus && placement.placementStatus !== authoritativeStatus) {
+        const warning = "A GRID placement status disagreed with its explicit origin status; origin status remained authoritative.";
+        warnings.push(warning);
+        groupWarnings.push(warning);
+      }
+      const bucket = byStatus.get(authoritativeStatus) ?? [];
       bucket.push(placement);
-      byStatus.set(placement.status, bucket);
+      byStatus.set(authoritativeStatus, bucket);
     }
     const variants = {} as FigmaGridCandidateSource["variants"];
     const evidenceByPath = new Map<string, FigmaGridCandidateSource["variants"]["online"]["placementEvidence"][string]>();
-    let complete = true;
     for (const status of ["online", "offline"] as const) {
       const statusPlacements = byStatus.get(status) ?? [];
-      const originIds = [...new Set(statusPlacements.map(({ origin }) => origin.componentId))];
+      const originIds = group.origins
+        .filter((origin) => originStatusByComponentId.get(origin.componentId) === status)
+        .map((origin) => origin.componentId);
       if (originIds.length !== 1) {
         complete = false;
         continue;
       }
       const origin = statusPlacements[0]?.origin;
-      const root = origin ? originNodes.get(origin.componentNodeId) : undefined;
-      if (!origin || !root) {
+      const originData = origin ? originDataByComponentId.get(origin.componentId) : undefined;
+      const root = originData?.root;
+      if (!origin || !originData || !root) {
         complete = false;
         continue;
       }
       const exported = await createOriginAssets({ fileKey: source.fileKey, root, getImageUrls });
       const mapped = mapFigmaPlacementNodesToOrigin({
         origin: root,
-        placements: statusPlacements.map(({ instance, status }) => ({
+        placements: statusPlacements.map(({ instance }) => ({
           instanceId: instance.id,
           status,
           root: instance,
@@ -548,11 +605,22 @@ export const fetchFigmaGridOriginCandidates = async (source: {
         root,
         assets: exported.assets,
         placementEvidence: mapped.evidenceByOriginNodeId,
+        originMetadata: {
+          component: originData.components[origin.componentId] ?? Object.values(originData.components).find((metadata) =>
+            metadata.node_id === origin.componentNodeId || metadata.nodeId === origin.componentNodeId,
+          ),
+          componentSet: originData.componentSets[origin.componentSetNodeId],
+        },
         warnings: [...exported.warnings, ...mapped.warnings],
       };
     }
     for (const variant of Object.values(variants)) {
       variant.componentSetEvidence = evidenceByNodePath(variant.root, evidenceByPath);
+      variant.semanticReviews = inferFigmaSemanticEvidence({
+        origin: variant.root,
+        evidenceByOriginNodeId: variant.placementEvidence,
+        componentSetEvidence: variant.componentSetEvidence,
+      });
     }
     if (!complete) {
       warnings.push("A GRID component set was excluded because it did not resolve to exactly one online and one offline origin.");
@@ -567,7 +635,7 @@ export const fetchFigmaGridOriginCandidates = async (source: {
       variants,
       root: online.root,
       assets: online.assets,
-      warnings: [...online.warnings, ...variants.offline.warnings],
+      warnings: [...groupWarnings, ...online.warnings, ...variants.offline.warnings],
     });
   }
   if (candidates.length === 0 && warnings.length === 0) {

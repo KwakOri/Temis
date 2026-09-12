@@ -1,6 +1,7 @@
 import type {
   FigmaNormalizedNode,
   FigmaReviewCandidate,
+  FigmaSemanticInference,
   FigmaSemanticEvidence,
   FigmaPlacementTextSample,
   StudioFigmaGridVariantStatus,
@@ -204,7 +205,7 @@ export const inferFigmaSemanticEvidence = (input: {
   origin: FigmaNormalizedNode;
   evidenceByOriginNodeId: Record<string, FigmaSemanticEvidence>;
   componentSetEvidence?: Record<string, FigmaSemanticEvidence>;
-}): Array<{ sourceNodeId: string; candidate: FigmaReviewCandidate; evidence: FigmaSemanticEvidence }> => {
+}): FigmaSemanticInference[] => {
   const originText = walk(input.origin).filter(({ node }) => node.type === "TEXT" && !isMemoText(node));
   const evidenceByNodeId = Object.fromEntries(originText.map(({ node }) => [
     node.id,
@@ -212,7 +213,7 @@ export const inferFigmaSemanticEvidence = (input: {
       samples: [], sampleValues: [], matchedPlacementCount: 0, distinctValueCount: 0, signals: [], mapping: "ambiguous",
     }, input.componentSetEvidence?.[node.id]),
   ]));
-  const entries: Array<{ sourceNodeId: string; candidate: FigmaReviewCandidate; evidence: FigmaSemanticEvidence }> = [];
+  const entries: FigmaSemanticInference[] = [];
   for (const { node } of originText) {
     const evidence = evidenceByNodeId[node.id]!;
     if (evidence.mapping === "ambiguous" || evidence.samples.length === 0) continue;

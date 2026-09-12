@@ -27,9 +27,9 @@ import { getStudioWebFontSources } from "@/utils/template-studio/web-fonts";
 import { StudioHexColorPicker } from "@/components/studio/inspector/studio-hex-color-picker";
 import {
   StudioFigmaComponentImport,
+  type ImportCandidate,
   type ReviewPatch,
 } from "@/components/studio/settings/studio-figma-component-import";
-import type { StudioFigmaGridCandidate } from "@/types/template-studio-figma";
 
 type WorkspaceMode = "cards" | "timetable";
 type StudioTheme = "dark" | "light";
@@ -68,7 +68,7 @@ interface StudioSettingsModalProps {
   onTimetableGuideUpload: (file: File) => void;
   onWebFontsChange: (sources: StudioWebFontSource[]) => void;
   figmaImport: {
-    candidates: StudioFigmaGridCandidate[];
+    candidates: ImportCandidate[];
     errorMessage: string | null;
     figmaUrl: string;
     isAnalyzing: boolean;

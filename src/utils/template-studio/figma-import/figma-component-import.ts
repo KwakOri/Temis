@@ -7,7 +7,11 @@ import type {
   StudioTemplateDocument,
   StudioTimetableComponentId,
 } from "@/types/template-studio";
-import type { StudioFigmaGridCandidate } from "@/types/template-studio-figma";
+import type {
+  StudioFigmaGridCandidate,
+  StudioFigmaGridOriginCandidate,
+  StudioFigmaGridVariantCandidate,
+} from "@/types/template-studio-figma";
 import {
   applyStudioTimetableComponentFrames,
 } from "@/utils/template-studio/entry-groups";
@@ -79,10 +83,12 @@ const BUILTIN_FIELD_IDS = new Set([
 ]);
 
 type ExplicitVariant = {
-  component: StudioFigmaGridCandidate["component"];
+  component: StudioFigmaGridVariantCandidate["component"];
 };
 
-type ExplicitVariantCandidate = StudioFigmaGridCandidate & {
+type StudioFigmaImportCandidate = StudioFigmaGridCandidate | StudioFigmaGridOriginCandidate;
+
+type ExplicitVariantCandidate = StudioFigmaImportCandidate & {
   variants?: Partial<Record<"online" | "offline", ExplicitVariant>>;
 };
 
@@ -413,7 +419,7 @@ const restoreExistingComponentFrames = (
  */
 export const applyStudioFigmaGridCandidate = (
   document: StudioTemplateDocument,
-  candidate: StudioFigmaGridCandidate,
+  candidate: StudioFigmaImportCandidate,
 ): StudioFigmaGridCandidateImportResult => {
   // `variants` is the only graph source for the explicit GRID import flow.
   // Review/source metadata remains transient and is intentionally ignored.
@@ -439,7 +445,7 @@ export const applyStudioFigmaGridCandidate = (
     return id;
   };
   const componentId = freshId("component");
-  const mergeVariant = (component: StudioFigmaGridCandidate["component"]): string => {
+  const mergeVariant = (component: StudioFigmaGridVariantCandidate["component"]): string => {
     const assetIdBySourceId = new Map<string, string>();
     for (const sourceAsset of component.assets) {
       const assetId = freshId("asset");
