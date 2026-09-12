@@ -117,3 +117,31 @@ Task 6: complete (commit d9f9e4d8, review clean)
 Task 7: fix round 1/5 (2 findings to address; commit pending)
 Task 7: fix round 1/5 (2 addressed, 0 open; commits 046bbd88..bb0d55bc)
 Task 7: complete (commits 67354474..bb0d55bc, review clean)
+
+## Task 8 review notes
+
+- Initial verification commit: d19b588e. Mocked seven-placement/origin assertions and fallback checks pass; exact npm aliases are partly blocked by sandbox tsx IPC and one missing script alias, and authenticated real-link verification is unavailable because `FIGMA_ACCESS_TOKEN` is absent. Review must verify the added assertions and record the manual limitation without treating it as a code failure.
+- P1: URL redaction assertions use `new RegExp(privateFigmaUrl)`, so `?` makes the leakage check ineffective; use literal includes or escaped regex.
+- P2: route fixture injects a synthetic `toCandidates` graph, while graph isolation is asserted on a separate candidate; it does not prove the seven-placement route result itself converts/imports without placement IDs.
+
+Task 8: fix round 1/5 (2 verification findings to address; commit pending)
+Task 8: fix round 1/5 (2 addressed, 0 open; commit df85cdea; authenticated real-link still unavailable)
+- P1 follow-up: imported-document redaction checks cover URLs and transient metadata but omit the synthetic secret token; add the literal token assertion.
+
+Task 8: fix round 2/5 (1 verification assertion to address; commit pending)
+Task 8: fix round 2/5 (1 addressed, 0 open; commit 18b76079; authenticated real-link still unavailable)
+- Final broad review P1: production fetch records mapping evidence but never calls inferFigmaSemanticEvidence, so default review lacks day/date/time semantic signals.
+- Final broad review P1: variant status is derived only from placement componentProperties while origin metadata is discarded; explicit origin status must be authoritative with placement status as consistency evidence.
+- Final broad review P1: fusion auto-approves any auto role with stable mapping even without role-specific recognized evidence signals.
+- Final broad review P1: check-figma-grid-final-review.tsx still supplies legacy single-root candidates and currently fails 3 assertions after clone fallback removal.
+- Final broad review P2: nested variant candidate contracts are duplicated in converter and public API remains old single-graph shape, causing unsafe casts.
+
+Final review fix wave 1/5 (5 findings to address; commit pending)
+Task 8: automated verification complete (commits d19b588e..18b76079, review clean; authenticated real-link pending FIGMA_ACCESS_TOKEN)
+
+Final review fix wave 1/5 complete (commit 5cf18f02; report final-review-fix-wave-report.md)
+- Production semantic inference is wired through origin fetch and default contextual review, with day/date/time auto rules gated by recognized evidence and arbitrary title review.
+- Origin metadata/subtree status is authoritative; conflicting placement metadata warns without changing online/offline grouping.
+- Final broad-review fixture uses explicit independent online/offline graphs and passes 19/19.
+- Shared nested candidate/variant types are public; top-level component/reviews remain optional compatibility projections only.
+- Verification: all requested focused checks, `npx tsc --noEmit`, `npm run lint`, and `git diff --check` exited 0. Authenticated real-link verification remains unavailable without `FIGMA_ACCESS_TOKEN`.
