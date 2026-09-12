@@ -235,8 +235,13 @@ export const fetchFigmaGridNode = async (source: {
   const document = asRecord(selected?.document);
   if (!document) throw new Error("Figma node was not found.");
 
-  const components = asRecord(payload?.components) ?? {};
-  const componentSets = asRecord(payload?.componentSets) ?? asRecord(payload?.component_sets) ?? {};
+  const components = asRecord(selected?.components) ?? asRecord(payload?.components) ?? {};
+  const componentSets =
+    asRecord(selected?.componentSets) ??
+    asRecord(selected?.component_sets) ??
+    asRecord(payload?.componentSets) ??
+    asRecord(payload?.component_sets) ??
+    {};
   return {
     node: normalizeFigmaNode(document),
     components: components as FigmaNodeResponse["components"],

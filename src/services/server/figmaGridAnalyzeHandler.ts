@@ -35,6 +35,7 @@ const convertCandidates: CandidateAdapter = ({ candidates }) =>
     });
     return {
       ...converted,
+      label: candidate.label,
       warnings: [...candidate.warnings, ...converted.warnings],
     };
   });

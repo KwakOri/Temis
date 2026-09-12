@@ -726,17 +726,17 @@ const runRouteContractChecks = async () => {
                     { id: "profile", name: "PROFILE", type: "FRAME", children: [] },
                   ],
                 },
+                components: {
+                  "origin-online": { key: "origin-online", node_id: "origin-online", name: "Online Origin", component_set_id: "origin-set" },
+                  "origin-offline": { key: "origin-offline", node_id: "origin-offline", name: "Offline Origin", component_set_id: "origin-set" },
+                  ...(originFixtureMode === "ambiguous-online"
+                    ? { "origin-online-ambiguous": { key: "origin-online-ambiguous", node_id: "origin-online-ambiguous", name: "Ambiguous Online", component_set_id: "origin-set" } }
+                    : {}),
+                },
+                componentSets: originFixtureMode === "missing-component-set" ? {} : {
+                  "origin-set": { key: "origin-set", node_id: "origin-set", name: "Grid Day Card" },
+                },
               },
-            },
-            components: {
-              "origin-online": { key: "origin-online", node_id: "origin-online", name: "Online Origin", component_set_id: "origin-set" },
-              "origin-offline": { key: "origin-offline", node_id: "origin-offline", name: "Offline Origin", component_set_id: "origin-set" },
-              ...(originFixtureMode === "ambiguous-online"
-                ? { "origin-online-ambiguous": { key: "origin-online-ambiguous", node_id: "origin-online-ambiguous", name: "Ambiguous Online", component_set_id: "origin-set" } }
-                : {}),
-            },
-            componentSets: originFixtureMode === "missing-component-set" ? {} : {
-              "origin-set": { key: "origin-set", node_id: "origin-set", name: "Grid Day Card" },
             },
           });
         }
@@ -1201,12 +1201,14 @@ const runRouteContractChecks = async () => {
           assets: Array<{ src: string }>;
         };
         warnings: string[];
+        label: string;
       }>;
       warnings: string[];
     };
     assert.equal(defaultRouteResponse.status, 200);
     assert.equal(defaultRouteBody.candidates.length, 1);
     const defaultCandidate = defaultRouteBody.candidates[0];
+    assert.equal(defaultCandidate?.label, "GRID cards");
     assert.ok(defaultCandidate?.component.rootNodeId);
     assert.equal(
       defaultCandidate?.component.nodes[defaultCandidate.component.rootNodeId]?.type,
