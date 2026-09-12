@@ -12,6 +12,7 @@ import {
   getStudioWeekEndParts,
   getStudioWeekStartParts,
   parseStudioIsoDateParts,
+  resolveStudioDateRangeText,
   resolveStudioSingleDateText,
   resolveStudioWeekDateText,
 } from "@/utils/template-studio/date-template";
@@ -434,10 +435,8 @@ export const resolveStudioBuiltinFieldValue = (
   if (fieldId === "week.date_range") {
     const thumbnailSource = getThumbnailWeekDateSource(document, values);
     if (thumbnailSource) {
-      // Thumbnail의 레거시 Week Dates 바인딩도 기간이 아니라 선택한 하루만
-      // 렌더링한다. 새 프리셋은 week.start_date를 사용한다.
-      return resolveStudioSingleDateText({
-        date: thumbnailSource.date,
+      return resolveStudioDateRangeText({
+        startDate: thumbnailSource.date,
         format: options.dateRangeFormat,
         template: options.dateRangeTemplate,
         locale: thumbnailSource.locale,

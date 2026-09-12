@@ -78,3 +78,63 @@ Result: failed on unrelated stale generated `.next/types` imports for missing fi
 - The repository-wide TypeScript check remains blocked by stale generated `.next/types` references unrelated to this task.
 - Lint is green but emits pre-existing warnings across the repository.
 - The helper result is non-null asserted at inspector call sites after the existing binding guards; the guard and helper mappings are covered by the focused checks.
+
+## Round 1 fix: Thumbnail `week.date_range` runtime and validator parity
+
+### Root cause
+
+The inspector exposed range controls, but the Thumbnail branch in
+`src/utils/template-studio/builtin-fields.ts` still called
+`resolveStudioSingleDateText`. The validator also grouped Thumbnail
+`week.date_range` with `week.start_date` as a single-date binding, so range preset
+IDs such as `long` and range templates could not be used consistently.
+
+### Change
+
+- Thumbnail `week.date_range` now calls the shared `resolveStudioDateRangeText`
+  resolver with the existing Thumbnail date input and locale contract.
+- Thumbnail validator classification now treats `week.date_range` as range and
+  keeps `week.start_date` as single-date.
+- The focused week-dates check now covers default range rendering, a `long`
+  range preset, a custom `${start.*}`/`${end.*}` template, valid range
+  validation, and rejection of a range-only preset on `week.start_date`.
+
+### RED
+
+Command:
+
+```sh
+node --import tsx scripts/check-thumbnail-studio-week-dates.ts
+```
+
+Output:
+
+```text
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ '2024.02.28'
+- '2024.02.28 - 03.05'
+```
+
+This was the expected failure against the old Thumbnail single-date runtime path.
+
+### GREEN
+
+Command:
+
+```sh
+node --import tsx scripts/check-thumbnail-studio-week-dates.ts && node --import tsx scripts/check-studio-card-node-inspector.tsx && node --import tsx scripts/check-thumbnail-studio-editor.tsx
+```
+
+Output:
+
+```text
+check-thumbnail-studio-week-dates: ok
+Studio card node inspector baseline checks passed.
+Thumbnail Studio editor baseline checks passed.
+```
+
+The fix is limited to the Thumbnail resolver/validator classification and the
+focused week-dates regression check; existing field names and command/storage
+contracts are unchanged.
