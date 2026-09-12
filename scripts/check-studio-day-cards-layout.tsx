@@ -70,8 +70,15 @@ assert.ok(defaultMarkup.includes("<span>Grid Preset</span>"));
 assert.ok(defaultMarkup.includes("<span>Fill Order</span>"));
 assert.ok(defaultMarkup.includes("<span>Remainder</span>"));
 assert.ok(
-  defaultMarkup.includes("Reset card offsets"),
-  "카드 위치 되돌리기는 어떤 프리셋에서도 보인다.",
+  defaultMarkup.includes("Card Transforms") &&
+    defaultMarkup.includes("Offset X") &&
+    defaultMarkup.includes("Offset Y") &&
+    defaultMarkup.includes("Rotate"),
+  "모든 프리셋에서 요일별 카드 변환 필드를 보여준다.",
+);
+assert.ok(
+  defaultMarkup.includes("Reset card positions and rotations"),
+  "카드 위치와 회전 되돌리기는 어떤 프리셋에서도 보인다.",
 );
 assert.ok(
   !defaultMarkup.includes("Slot Map"),
@@ -84,6 +91,10 @@ assert.ok(
 
 const customMarkup = markupOf(
   createLayout({ gridPreset: "custom", columns: 3, rows: 3 }),
+);
+assert.ok(
+  customMarkup.indexOf("Slot Map") < customMarkup.indexOf("Card Transforms"),
+  "사용자 지정에서는 Slot Map 바로 아래에 카드 변환을 보여준다.",
 );
 assert.ok(
   customMarkup.includes("Slot Map"),
@@ -295,5 +306,56 @@ assert.equal(
   20,
   "세로 간격은 예전 이름의 값을 건드리지 않는다.",
 );
+
+const transformLayout = createLayout({
+  dayOffsets: { mon: { left: 4, top: -2, rotateDeg: 9 } },
+});
+const transformUpdates: StudioTimetableDayCardsLayout[] = [];
+const transformElement = StudioTimetableDayCardsLayoutControls({
+  days: DAYS,
+  layout: transformLayout,
+  onUpdateLayout: (recipe) => {
+    recipe(transformLayout);
+    transformUpdates.push(structuredClone(transformLayout));
+  },
+});
+const transformXField = findNumberField(transformElement, "Offset X");
+const transformYField = findNumberField(transformElement, "Offset Y");
+const transformRotateField = findNumberField(transformElement, "Rotate");
+assert.ok(transformXField && transformYField && transformRotateField);
+transformXField.props.onChange(12);
+transformYField.props.onChange(6);
+transformRotateField.props.onChange(18);
+assert.deepEqual(
+  transformUpdates.at(-1)?.dayOffsets?.mon,
+  { left: 12, top: 6, rotateDeg: 18 },
+  "요일별 Offset X/Y/Rotate를 해당 day ID로 저장한다.",
+);
+
+const resetLayout = createLayout({
+  dayOffsets: { mon: { left: 4, top: -2, rotateDeg: 9 } },
+});
+const resetElement = StudioTimetableDayCardsLayoutControls({
+  days: DAYS,
+  layout: resetLayout,
+  onUpdateLayout: (recipe) => recipe(resetLayout),
+}) as React.ReactElement<{ children: React.ReactNode }>;
+const findButton = (node: React.ReactNode, text: string): React.ReactElement<{ onClick: () => void }> | null => {
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const found = findButton(child, text);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (!React.isValidElement(node)) return null;
+  const props = node.props as { children?: React.ReactNode; onClick?: () => void };
+  if (props.onClick && props.children === text) return node as React.ReactElement<{ onClick: () => void }>;
+  return findButton(props.children, text);
+};
+const resetButton = findButton(resetElement, "Reset card positions and rotations");
+assert.ok(resetButton, "위치와 회전을 초기화하는 버튼을 찾을 수 있다.");
+resetButton?.props.onClick();
+assert.deepEqual(resetLayout.dayOffsets, {}, "초기화하면 모든 day transform을 지운다.");
 
 console.log("Studio day cards layout baseline checks passed.");

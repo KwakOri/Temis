@@ -1043,6 +1043,20 @@ export function TemplateStudioClient({
     getTimetableEntryCardSizeForDay,
     timetableDays,
   ]);
+  const selectedTimetableLayerRotation = useMemo(() => {
+    const timetable = document.domains?.timetable;
+    if (!timetable || !selectedTimetableLayerId) return 0;
+
+    const compositionObject = timetableComposition.objects[selectedTimetableLayerId];
+    if (compositionObject) return Number(compositionObject.style.rotateDeg ?? 0);
+
+    if (!selectedTimetableLayerId.startsWith("day-card:")) return 0;
+    const dayId = selectedTimetableLayerId.replace(
+      /^day-card:/,
+      "",
+    ) as StudioTimetableDayId;
+    return Number(getStudioTimetableDayCardsLayout(timetable).dayOffsets?.[dayId]?.rotateDeg ?? 0);
+  }, [document, selectedTimetableLayerId, timetableComposition]);
   const statusOptions = useMemo(
     () => getStudioAvailableTimetableStatuses(document),
     [document],
@@ -2847,6 +2861,7 @@ export function TemplateStudioClient({
       renderPreviewInputs: renderRuntimePreviewInputs,
       selectedLayerId: selectedTimetableLayerId,
       selectedLayerLabel: selectedTimetableLayerLabel,
+      selectedLayerRotation: selectedTimetableLayerRotation,
       selection: timetableSelection,
       onAssignComponentSet: assignComponentSetToSelectedDay,
       onToggleFitParent: toggleTimetableObjectFitParent,

@@ -68,6 +68,7 @@ export interface StudioTimetableInspectorModel {
   /** 지금 무엇을 편집하는지 알려줄 이름. */
   selectedLayerLabel: string;
   layerGeometry: StudioTimetableLayerGeometry | null;
+  selectedLayerRotation: number;
   /** 폰트 굵기 후보를 찾는 데 쓴다. */
   document: StudioTemplateDocument;
   fontFamilies: string[];
@@ -149,6 +150,7 @@ export const buildStudioTimetableInspectorSections = ({
   selectedLayerId,
   selectedLayerLabel,
   layerGeometry,
+  selectedLayerRotation,
   document,
   fontFamilies,
   componentOptions,
@@ -474,10 +476,10 @@ export const buildStudioTimetableInspectorSections = ({
                 </>
               )}
             </div>
-            {isPlacedObject || isDayCards ? (
+            {isPlacedObject || isDayCards || Boolean(day) ? (
               <StudioNumberField
-                label="Rotate"
-                value={Number(object?.style.rotateDeg ?? 0)}
+                label={day ? "Card Rotate" : isDayCards ? "Group Rotate" : "Rotate"}
+                value={selectedLayerRotation}
                 onChange={(value) =>
                   onUpdateLayerPosition(selectedLayerId, { rotateDeg: value })
                 }
