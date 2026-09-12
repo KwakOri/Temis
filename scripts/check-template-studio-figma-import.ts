@@ -26,6 +26,7 @@ import {
 import {
   convertFigmaGridCandidate,
   convertFigmaGridOriginCandidate,
+  type StudioFigmaGridOriginCandidate,
 } from "../src/utils/template-studio/figma-import/figma-node-converter";
 import { applyStudioFigmaReviewEdits } from "../src/utils/template-studio/figma-import/figma-review-edits";
 import {
@@ -897,6 +898,9 @@ const runRouteContractChecks = async () => {
   const secretToken = "figma-secret-token";
   const privateFigmaUrl =
     "https://www.figma.com/design/T2VDXkMPVFa6yEl9FnVvYo/Private-Grid?node-id=1412-5814";
+  const originRouteFigmaUrl =
+    "https://www.figma.com/design/originfixture123456789/Private-Grid?node-id=1412-5814";
+  const temporaryAssetUrl = "https://temporary.example/asset.png";
   const invalidFigmaUrl = "https://example.test/private?token=" + secretToken;
   const originalFetch = globalThis.fetch;
   const originalToken = process.env.FIGMA_ACCESS_TOKEN;
@@ -905,6 +909,7 @@ const runRouteContractChecks = async () => {
   let figmaFetchCount = 0;
   let streamingAssetPulls = 0;
   const originNodesRequests: string[][] = [];
+  const reviewedOriginRootIds: string[] = [];
   let mutateOriginPlacements = false;
   let originFixtureMode: "complete" | "missing-component-id" | "unknown-component" | "missing-component-set" | "only-online" | "ambiguous-online" = "complete";
 
@@ -927,8 +932,8 @@ const runRouteContractChecks = async () => {
     );
     const missingTokenBody = await missingTokenResponse.text();
     assert.equal(missingTokenResponse.status, 503);
-    assert.doesNotMatch(missingTokenBody, new RegExp(secretToken));
-    assert.doesNotMatch(missingTokenBody, new RegExp(privateFigmaUrl));
+    assert.equal(missingTokenBody.includes(secretToken), false);
+    assert.equal(missingTokenBody.includes(privateFigmaUrl), false);
 
     const invalidPayloadHandler = createFigmaGridAnalyzeHandler({
       requireActor: async () => ({ ok: true, userId: 1 }),
@@ -951,14 +956,14 @@ const runRouteContractChecks = async () => {
     );
     const invalidUrlBody = await invalidUrlResponse.text();
     assert.equal(invalidUrlResponse.status, 400);
-    assert.doesNotMatch(invalidUrlBody, new RegExp(secretToken));
-    assert.doesNotMatch(invalidUrlBody, new RegExp(invalidFigmaUrl));
+    assert.equal(invalidUrlBody.includes(secretToken), false);
+    assert.equal(invalidUrlBody.includes(invalidFigmaUrl), false);
 
     process.env.FIGMA_ACCESS_TOKEN = secretToken;
     globalThis.fetch = (async (input: string | URL | Request) => {
       const url = String(input);
       figmaFetchCount += 1;
-      if (url.includes("/v1/files/origin-fixture/nodes")) {
+      if (url.includes("/v1/files/origin-fixture/nodes") || url.includes("/v1/files/originfixture123456789/nodes")) {
         const ids = new URL(url).searchParams.get("ids")?.split(",") ?? [];
         originNodesRequests.push(ids);
         if (ids.length === 1 && ids[0] === "1412:5814") {
@@ -1281,8 +1286,8 @@ const runRouteContractChecks = async () => {
     );
     const nonGridRouteBody = await nonGridRouteResponse.text();
     assert.equal(nonGridRouteResponse.status, 422);
-    assert.doesNotMatch(nonGridRouteBody, new RegExp(secretToken));
-    assert.doesNotMatch(nonGridRouteBody, new RegExp(privateFigmaUrl));
+    assert.equal(nonGridRouteBody.includes(secretToken), false);
+    assert.equal(nonGridRouteBody.includes(privateFigmaUrl), false);
 
     selectedRootName = "GRID";
     selectedRootType = "GROUP";
@@ -1455,61 +1460,103 @@ const runRouteContractChecks = async () => {
     selectedRootName = "GRID";
     const routeHandler = createFigmaGridAnalyzeHandler({
       requireActor: async () => ({ ok: true, userId: 1 }),
-      reviewNodes: async (nodes) => ({
-        reviews: nodes.map((node) => ({
-          sourceNodeId: node.id,
-          label: node.name,
-          sourceType: node.type,
-          suggestedRole: "unknown",
-          suggestedStudioType: "text",
-          suggestedBinding: { kind: "staticText", value: node.characters ?? "" },
-          confidence: 0.2,
-          source: "rule",
-          decision: "needs_review",
-          reason: "Route propagation fixture.",
-        })),
-        warnings: ["Automated review was unavailable; deterministic suggestions are shown."],
-      }),
-      toCandidates: async ({ candidates }) => {
-        assert.match(candidates[0]?.reviews?.[0]?.reason ?? "", /Route propagation fixture/);
-        return candidates.map((candidate) => ({
-          candidateId: candidate.candidateId,
-          label: candidate.label,
-          frame: { left: 10, top: 20, width: 140, height: 180 },
-          component: {
-            nodes: {
-              "fixture-root": {
-                id: "fixture-root",
-                type: "group",
-                label: "Fixture root",
-                parentId: null,
-                childIds: [],
-              },
-            },
-            styles: {},
-            rootNodeId: "fixture-root",
-            assets: [],
-          },
-          reviews: candidate.reviews ?? [],
-          warnings: candidate.warnings,
-        }));
+      reviewNodes: async (nodes) => {
+        const rootId = nodes.find((node) => node.id === "origin-online" || node.id === "origin-offline")?.id;
+        assert.ok(rootId, "The route review callback receives an origin root.");
+        reviewedOriginRootIds.push(rootId!);
+        return {
+          reviews: nodes.map((node) => ({
+            sourceNodeId: node.id,
+            label: node.name,
+            sourceType: node.type,
+            suggestedRole: "unknown",
+            suggestedStudioType: "text",
+            suggestedBinding: { kind: "staticText", value: node.characters ?? "" },
+            confidence: 0.2,
+            source: "rule",
+            decision: "needs_review",
+            reason: "Route propagation fixture.",
+          })),
+          warnings: ["Automated review was unavailable; deterministic suggestions are shown."],
+        };
       },
     });
     const routeResponse = await routeHandler(
       new Request("http://localhost/api/admin/template-studio/figma/analyze", {
         method: "POST",
-        body: JSON.stringify({ figmaUrl: privateFigmaUrl }),
+        body: JSON.stringify({ figmaUrl: originRouteFigmaUrl }),
       }),
     );
     const routeBody = await routeResponse.text();
     assert.equal(routeResponse.status, 200);
-    assert.doesNotMatch(routeBody, new RegExp(secretToken));
-    assert.doesNotMatch(routeBody, new RegExp(privateFigmaUrl));
-    assert.doesNotMatch(routeBody, /temporary\.example/);
-    assert.match(routeBody, /Monday card/);
-    assert.match(routeBody, /10 MiB/);
+    assert.equal(routeBody.includes(secretToken), false);
+    assert.equal(routeBody.includes(originRouteFigmaUrl), false);
+    assert.equal(routeBody.includes(privateFigmaUrl), false);
+    assert.equal(routeBody.includes(temporaryAssetUrl), false);
     assert.match(routeBody, /Automated review was unavailable/);
-    assert.match(routeBody, /Route propagation fixture/);
+    const routePayload = JSON.parse(routeBody) as {
+      candidates: Array<StudioFigmaGridCandidate & StudioFigmaGridOriginCandidate>;
+      warnings: string[];
+    };
+    assert.equal(reviewedOriginRootIds.length, 2);
+    assert.deepEqual([...new Set(reviewedOriginRootIds)].sort(), ["origin-offline", "origin-online"]);
+    assert.equal(routePayload.candidates.length, 1);
+    const routeCandidate = routePayload.candidates[0]!;
+    assert.equal(routeCandidate.label, "Grid Day Card");
+    assert.deepEqual(routeCandidate.placementInstanceIds, [
+      "placement-sun",
+      "placement-mon",
+      "placement-wed",
+      "placement-tue",
+      "placement-thu",
+      "placement-offline-1",
+      "placement-offline-2",
+    ]);
+    assert.notEqual(
+      routeCandidate.variants.online.component.rootNodeId,
+      routeCandidate.variants.offline.component.rootNodeId,
+    );
+    assert.notEqual(routeCandidate.variants.online.origin.componentNodeId, routeCandidate.variants.offline.origin.componentNodeId);
+    assert.equal(routeCandidate.variants.online.component.nodes[routeCandidate.variants.online.component.rootNodeId]?.label, "Online Origin Root");
+    assert.equal(routeCandidate.variants.offline.component.nodes[routeCandidate.variants.offline.component.rootNodeId]?.label, "Offline Origin Root");
+    const onlineGraphNodeIds = Object.keys(routeCandidate.variants.online.component.nodes);
+    const offlineGraphNodeIds = Object.keys(routeCandidate.variants.offline.component.nodes);
+    assert.equal(onlineGraphNodeIds.some((id) => offlineGraphNodeIds.includes(id)), false);
+    for (const status of ["online", "offline"] as const) {
+      const graphJson = JSON.stringify(routeCandidate.variants[status].component);
+      assert.equal(graphJson.includes("placement-"), false);
+      assert.equal(graphJson.includes("placementEvidence"), false);
+      assert.equal(graphJson.includes("componentSetEvidence"), false);
+      assert.equal(graphJson.includes("Fixture root"), false);
+    }
+
+    const routeDocument = createSampleStudioDocument();
+    const routeTimetable = routeDocument.domains?.timetable;
+    assert.ok(routeTimetable);
+    if (!routeTimetable) return;
+    const existingRouteComponents = Object.fromEntries(
+      Object.entries(routeTimetable.components).map(([id, component]) => [id, structuredClone(component)]),
+    );
+    const existingRouteDayAssignments = JSON.stringify(
+      routeTimetable.dayIds.map((dayId) => [dayId, routeTimetable.days[dayId]?.componentId]),
+    );
+    const routeImport = applyStudioFigmaGridCandidate(routeDocument, routeCandidate);
+    assert.equal(routeImport.ok, true);
+    assert.deepEqual(
+      Object.fromEntries(Object.keys(existingRouteComponents).map((id) => [id, routeTimetable.components[id]])),
+      existingRouteComponents,
+    );
+    assert.equal(
+      JSON.stringify(routeTimetable.dayIds.map((dayId) => [dayId, routeTimetable.days[dayId]?.componentId])),
+      existingRouteDayAssignments,
+    );
+    const routeDocumentJson = JSON.stringify(routeDocument);
+    assert.equal(routeDocumentJson.includes(originRouteFigmaUrl), false);
+    assert.equal(routeDocumentJson.includes(privateFigmaUrl), false);
+    assert.equal(routeDocumentJson.includes(temporaryAssetUrl), false);
+    assert.equal(routeDocumentJson.includes("placement-"), false);
+    assert.equal(routeDocumentJson.includes("placementEvidence"), false);
+    assert.equal(routeDocumentJson.includes("componentSetEvidence"), false);
 
     const defaultRouteHandler = createFigmaGridAnalyzeHandler({
       requireActor: async () => ({ ok: true, userId: 1 }),
@@ -1573,8 +1620,8 @@ const runRouteContractChecks = async () => {
     );
     assert.ok(defaultCandidate?.component.assets.every((asset) => asset.src.startsWith("data:image/")));
     assert.equal(defaultRouteBody.warnings.some((warning) => /graph conversion is not connected/i.test(warning)), false);
-    assert.doesNotMatch(JSON.stringify(defaultRouteBody), new RegExp(privateFigmaUrl));
-    assert.doesNotMatch(JSON.stringify(defaultRouteBody), new RegExp(secretToken));
+    assert.equal(JSON.stringify(defaultRouteBody).includes(privateFigmaUrl), false);
+    assert.equal(JSON.stringify(defaultRouteBody).includes(secretToken), false);
   } finally {
     globalThis.fetch = originalFetch;
     if (originalToken === undefined) delete process.env.FIGMA_ACCESS_TOKEN;
