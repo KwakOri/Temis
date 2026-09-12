@@ -8,6 +8,10 @@ import type {
   StudioFigmaGridCandidate,
   StudioFigmaNodeReview,
 } from "@/types/template-studio-figma";
+import type {
+  StudioFigmaGridOriginCandidate,
+  StudioFigmaGridVariantCandidate,
+} from "./figma-node-converter";
 import { bindingForFigmaRole } from "./figma-text-classifier";
 
 const TEXT_TYPES = new Set<StudioGraphNodeType>(["text", "flexibleText"]);
@@ -42,7 +46,7 @@ const fallbackTextAppearance = (color?: string): StudioTextAppearance => ({
 });
 
 const applyReviewToNode = (
-  candidate: StudioFigmaGridCandidate,
+  component: StudioFigmaGridVariantCandidate["component"],
   node: StudioGraphNode,
   review: StudioFigmaNodeReview,
   bindingTouched: boolean,
@@ -57,7 +61,7 @@ const applyReviewToNode = (
     delete node.shapeFill;
     delete node.fit;
     node.textAppearance ??= fallbackTextAppearance(
-      node.styleId ? String(candidate.component.styles[node.styleId]?.color ?? "") : undefined,
+      node.styleId ? String(component.styles[node.styleId]?.color ?? "") : undefined,
     );
     node.binding = binding && isTextBinding(binding) ? binding : { kind: "staticText", value: review.sourceCharacters ?? "" };
     return;
@@ -79,31 +83,44 @@ const applyReviewToNode = (
  * `reviewNodeIds` and `bindingTouchedSourceNodeIds` are transient UI metadata;
  * neither is consumed by the document merger.
  */
-export const applyStudioFigmaReviewEdits = (
+export function applyStudioFigmaReviewEdits(
   candidate: StudioFigmaGridCandidate,
+  bindingTouchedSourceNodeIds?: Readonly<Record<string, boolean>>,
+): StudioFigmaGridCandidate;
+export function applyStudioFigmaReviewEdits(
+  candidate: StudioFigmaGridOriginCandidate,
+  bindingTouchedSourceNodeIds?: Readonly<Record<string, boolean>>,
+): StudioFigmaGridOriginCandidate;
+export function applyStudioFigmaReviewEdits(
+  candidate: StudioFigmaGridCandidate | StudioFigmaGridOriginCandidate,
   bindingTouchedSourceNodeIds: Readonly<Record<string, boolean>> = {},
-): StudioFigmaGridCandidate => {
+): StudioFigmaGridCandidate | StudioFigmaGridOriginCandidate {
   const nextCandidate = structuredClone(candidate);
-  nextCandidate.reviews.forEach((review) => {
-    const graphNodeId = nextCandidate.reviewNodeIds?.[review.sourceNodeId];
-    const graphNode = graphNodeId
-      ? nextCandidate.component.nodes[graphNodeId]
-      : undefined;
-    if (!graphNode) return;
-    const initial = candidate.reviewDefaults?.[review.sourceNodeId];
-    const roleTouched = initial ? review.suggestedRole !== initial.suggestedRole : true;
-    const typeTouched = initial ? review.suggestedStudioType !== initial.suggestedStudioType : true;
-    const bindingTouched = bindingTouchedSourceNodeIds[review.sourceNodeId] === true ||
-      (initial !== undefined && JSON.stringify(review.suggestedBinding) !== JSON.stringify(initial.suggestedBinding));
-    if (!roleTouched && !typeTouched && !bindingTouched) return;
-    applyReviewToNode(
-      nextCandidate,
-      graphNode,
-      review,
-      bindingTouched,
-      roleTouched,
-      typeTouched,
-    );
+  const variants: StudioFigmaGridVariantCandidate[] = "variants" in nextCandidate
+    ? Object.values(nextCandidate.variants)
+    : [{
+      status: "online",
+      origin: { componentId: "", componentNodeId: "", componentSetNodeId: "", componentName: "" },
+      component: nextCandidate.component,
+      reviews: nextCandidate.reviews,
+      reviewNodeIds: nextCandidate.reviewNodeIds,
+      reviewDefaults: nextCandidate.reviewDefaults,
+      warnings: nextCandidate.warnings,
+    }];
+  variants.forEach((variant) => {
+    variant.reviews.forEach((review) => {
+      const graphNodeId = variant.reviewNodeIds?.[review.sourceNodeId];
+      const graphNode = graphNodeId ? variant.component.nodes[graphNodeId] : undefined;
+      if (!graphNode) return;
+      const initial = variant.reviewDefaults?.[review.sourceNodeId];
+      const roleTouched = initial ? review.suggestedRole !== initial.suggestedRole : true;
+      const typeTouched = initial ? review.suggestedStudioType !== initial.suggestedStudioType : true;
+      const bindingTouched = bindingTouchedSourceNodeIds[review.sourceNodeId] === true ||
+        (initial !== undefined && JSON.stringify(review.suggestedBinding) !== JSON.stringify(initial.suggestedBinding));
+      if (!roleTouched && !typeTouched && !bindingTouched) return;
+      applyReviewToNode(variant.component, graphNode, review, bindingTouched, roleTouched, typeTouched);
+      review.decision = "manual";
+    });
   });
   return nextCandidate;
-};
+}

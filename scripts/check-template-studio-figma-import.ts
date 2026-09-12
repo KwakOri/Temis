@@ -23,7 +23,10 @@ import {
   mapFigmaPlacementNodesToOrigin,
   normalizeFigmaSemanticValue,
 } from "../src/utils/template-studio/figma-import/figma-placement-inference";
-import { convertFigmaGridCandidate } from "../src/utils/template-studio/figma-import/figma-node-converter";
+import {
+  convertFigmaGridCandidate,
+  convertFigmaGridOriginCandidate,
+} from "../src/utils/template-studio/figma-import/figma-node-converter";
 import { applyStudioFigmaReviewEdits } from "../src/utils/template-studio/figma-import/figma-review-edits";
 import {
   exportFigmaNodeAsDataUrl,
@@ -1982,6 +1985,73 @@ const runConverterChecks = () => {
       ),
     ),
   );
+
+  const originReview = (sourceNodeId: string, value: string): StudioFigmaNodeReview => ({
+    sourceNodeId,
+    label: sourceNodeId,
+    sourceType: "TEXT",
+    suggestedRole: "day_label",
+    suggestedStudioType: "text",
+    suggestedBinding: { kind: "builtinField", fieldId: "day.short_label" },
+    sourceCharacters: value,
+    confidence: 0.95,
+    source: "hybrid",
+    decision: "auto",
+    agreement: "agree",
+    reason: "Stable origin evidence",
+  });
+  const onlineOrigin: FigmaNormalizedNode = {
+    id: "origin-online",
+    name: "Online origin",
+    type: "COMPONENT",
+    absoluteBounds: { left: 0, top: 0, width: 240, height: 120 },
+    children: [{ id: "online-day", name: "weekday", type: "TEXT", characters: "MON", rotateDeg: 90,
+      absoluteBounds: { left: 20, top: 20, width: 30, height: 12 }, }],
+  };
+  const offlineOrigin: FigmaNormalizedNode = {
+    id: "origin-offline",
+    name: "Offline origin",
+    type: "COMPONENT",
+    absoluteBounds: { left: 0, top: 0, width: 260, height: 140 },
+    children: [{ id: "offline-day", name: "weekday", type: "TEXT", characters: "OFFLINE", fills: [{ type: "SOLID", color: { r: 1, g: 0, b: 0 } }] }],
+  };
+  const originCandidate = convertFigmaGridOriginCandidate({
+    label: "GRID cards",
+    frame: { left: 900, top: 700, width: 240, height: 120 },
+    placementInstanceIds: ["placement-2", "placement-1"],
+    variants: {
+      online: {
+        status: "online",
+        origin: { componentId: "component-online", componentNodeId: onlineOrigin.id, componentSetNodeId: "set-1", componentName: onlineOrigin.name },
+        root: onlineOrigin,
+        reviews: [originReview("online-day", "MON")],
+        exportedAssets: [],
+      },
+      offline: {
+        status: "offline",
+        origin: { componentId: "component-offline", componentNodeId: offlineOrigin.id, componentSetNodeId: "set-1", componentName: offlineOrigin.name },
+        root: offlineOrigin,
+        reviews: [originReview("offline-day", "OFFLINE")],
+        exportedAssets: [],
+      },
+    },
+  });
+  assert.deepEqual(Object.keys(originCandidate.variants).sort(), ["offline", "online"]);
+  assert.notEqual(originCandidate.variants.online.component.rootNodeId, originCandidate.variants.offline.component.rootNodeId);
+  assert.notDeepEqual(originCandidate.variants.online.component.styles, originCandidate.variants.offline.component.styles);
+  assert.deepEqual(originCandidate.placementInstanceIds, ["placement-2", "placement-1"]);
+  assert.equal(JSON.stringify(originCandidate.variants).includes("placement-1"), false);
+  assert.equal(JSON.stringify(Object.values(originCandidate.variants).map((variant) => variant.component)).includes("componentSetNodeId"), false);
+  assert.equal(JSON.stringify(originCandidate.variants).includes("offlineMemo"), false);
+  const offlineReviewNodeId = originCandidate.variants.offline.reviewNodeIds?.["offline-day"];
+  const onlineReviewNodeId = originCandidate.variants.online.reviewNodeIds?.["online-day"];
+  const editedOriginCandidate = structuredClone(originCandidate);
+  editedOriginCandidate.variants.online.reviews[0]!.suggestedBinding = { kind: "builtinField", fieldId: "entry.time" };
+  const edited = applyStudioFigmaReviewEdits(editedOriginCandidate, { "online-day": true });
+  assert.deepEqual(edited.variants.online.component.nodes[onlineReviewNodeId!]?.binding, { kind: "builtinField", fieldId: "entry.time" });
+  assert.deepEqual(edited.variants.offline.component.nodes[offlineReviewNodeId!]?.binding, { kind: "builtinField", fieldId: "day.short_label" });
+  assert.equal(edited.variants.online.reviews[0]?.decision, "manual");
+  assert.equal(edited.variants.offline.reviews[0]?.decision, "auto");
 };
 
 const createComponentImportCandidate = (): StudioFigmaGridCandidate => ({

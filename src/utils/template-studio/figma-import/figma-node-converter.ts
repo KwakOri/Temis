@@ -22,6 +22,36 @@ import { createStudioId } from "@/utils/template-studio/id";
 type Frame = { left: number; top: number; width: number; height: number };
 type FigmaStyle = Record<string, unknown>;
 
+export interface StudioFigmaGridVariantCandidate {
+  status: "online" | "offline";
+  origin: {
+    componentId: string;
+    componentNodeId: string;
+    componentSetNodeId: string;
+    componentName: string;
+    componentSetName?: string;
+  };
+  component: {
+    nodes: Record<string, StudioGraphNode>;
+    styles: Record<string, StudioStyleRecord>;
+    rootNodeId: string;
+    assets: StudioAsset[];
+  };
+  reviews: StudioFigmaNodeReview[];
+  reviewNodeIds?: Record<string, string>;
+  reviewDefaults?: Record<string, StudioFigmaNodeReview>;
+  warnings: string[];
+}
+
+export interface StudioFigmaGridOriginCandidate {
+  candidateId: string;
+  label: string;
+  frame: Frame;
+  placementInstanceIds: string[];
+  variants: Record<"online" | "offline", StudioFigmaGridVariantCandidate>;
+  warnings: string[];
+}
+
 const DATA_IMAGE_SOURCE = /^data:image\/(?:png|jpeg|webp|gif|svg\+xml);base64,[a-z0-9+/=\s]+$/i;
 const GROUP_TYPES = new Set(["FRAME", "GROUP", "COMPONENT", "INSTANCE", "SECTION"]);
 
@@ -219,11 +249,13 @@ const makeAsset = (
   };
 };
 
-export const convertFigmaGridCandidate = (input: {
+export const convertFigmaGridVariant = (input: {
+  status: "online" | "offline";
+  origin: StudioFigmaGridVariantCandidate["origin"];
   root: FigmaNormalizedNode;
   reviews: StudioFigmaNodeReview[];
   exportedAssets: FigmaTransientAsset[];
-}): StudioFigmaGridCandidate => {
+}): StudioFigmaGridVariantCandidate => {
   const rootFrame = getNodeFrame(input.root);
   const reviewsBySourceId = new Map(input.reviews.map((review) => [review.sourceNodeId, review]));
   const assetsBySourceId = new Map(input.exportedAssets.map((asset) => [asset.sourceNodeId, asset]));
@@ -430,13 +462,69 @@ export const convertFigmaGridCandidate = (input: {
     };
   });
   return {
-    candidateId: createStudioId("candidate"),
-    label: safeLabel(input.root.name, "Imported Figma card"),
-    frame: { ...rootFrame, left: 0, top: 0 },
+    status: input.status,
+    origin: structuredClone(input.origin),
     component: { nodes, styles, rootNodeId, assets },
     reviews: effectiveReviews,
     reviewNodeIds,
     reviewDefaults: Object.fromEntries(effectiveReviews.map((review) => [review.sourceNodeId, structuredClone(review)])),
     warnings,
+  };
+};
+
+/**
+ * Converts independent origin roots into one transient GRID candidate.
+ * Origin/evidence/placement metadata intentionally lives beside the graphs,
+ * never inside Studio graph nodes.
+ */
+export const convertFigmaGridOriginCandidate = (input: {
+  label: string;
+  frame: Frame;
+  placementInstanceIds: string[];
+  variants: Record<"online" | "offline", {
+    status: "online" | "offline";
+    origin: StudioFigmaGridVariantCandidate["origin"];
+    root: FigmaNormalizedNode;
+    reviews: StudioFigmaNodeReview[];
+    exportedAssets: FigmaTransientAsset[];
+  }>;
+}): StudioFigmaGridOriginCandidate => {
+  const online = convertFigmaGridVariant(input.variants.online);
+  const offline = convertFigmaGridVariant(input.variants.offline);
+  return {
+    candidateId: createStudioId("candidate"),
+    label: safeLabel(input.label, "Imported Figma card"),
+    frame: { ...input.frame, left: 0, top: 0 },
+    placementInstanceIds: [...input.placementInstanceIds],
+    variants: { online, offline },
+    warnings: [...online.warnings, ...offline.warnings],
+  };
+};
+
+/** Legacy single-root API retained for existing callers until Task 6 merges variants. */
+export const convertFigmaGridCandidate = (input: {
+  root: FigmaNormalizedNode;
+  reviews: StudioFigmaNodeReview[];
+  exportedAssets: FigmaTransientAsset[];
+}): StudioFigmaGridCandidate => {
+  const converted = convertFigmaGridVariant({
+    status: "online",
+    origin: {
+      componentId: input.root.id,
+      componentNodeId: input.root.id,
+      componentSetNodeId: input.root.id,
+      componentName: input.root.name,
+    },
+    ...input,
+  });
+  return {
+    candidateId: createStudioId("candidate"),
+    label: safeLabel(input.root.name, "Imported Figma card"),
+    frame: { ...getNodeFrame(input.root), left: 0, top: 0 },
+    component: converted.component,
+    reviews: converted.reviews,
+    reviewNodeIds: converted.reviewNodeIds,
+    reviewDefaults: converted.reviewDefaults,
+    warnings: converted.warnings,
   };
 };

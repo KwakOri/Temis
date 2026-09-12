@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import * as route from "../src/app/api/admin/template-studio/figma/analyze/route";
 import { fetchFigmaGridCandidates, fetchFigmaGridNode } from "../src/services/server/figmaTemplateStudioService";
 import { reviewFigmaGridNodes } from "../src/services/server/figmaGridReviewService";
-import { convertFigmaGridCandidate } from "../src/utils/template-studio/figma-import/figma-node-converter";
+import { convertFigmaGridCandidate, convertFigmaGridOriginCandidate } from "../src/utils/template-studio/figma-import/figma-node-converter";
 import { applyStudioFigmaReviewEdits } from "../src/utils/template-studio/figma-import/figma-review-edits";
 import { applyStudioFigmaGridCandidate } from "../src/utils/template-studio/figma-import/figma-component-import";
 import { classifyFigmaTextNode } from "../src/utils/template-studio/figma-import/figma-text-classifier";
@@ -36,6 +36,23 @@ const convert = (children: FigmaNormalizedNode[], assets: FigmaTransientAsset[] 
 });
 const mapped = (candidate: StudioFigmaGridCandidate, id: string) => candidate.component.nodes[candidate.reviewNodeIds![id]!]!;
 const styleOf = (candidate: StudioFigmaGridCandidate, id: string) => candidate.component.styles[mapped(candidate, id).styleId!]!;
+
+test("origin conversion keeps online and offline roots independent", () => {
+  const makeRoot = (id: string, color?: string): FigmaNormalizedNode => ({
+    id, name: id, type: "COMPONENT", absoluteBounds: { left: 900, top: 700, width: 100, height: 60 },
+    children: [{ id: `${id}-text`, name: "weekday", type: "TEXT", characters: id, ...(color ? { fills: [{ type: "SOLID", color: { r: 1, g: 0, b: 0 } }] } : {}) }],
+  });
+  const candidate = convertFigmaGridOriginCandidate({
+    label: "GRID cards", frame: { left: 900, top: 700, width: 100, height: 60 }, placementInstanceIds: ["placement"],
+    variants: {
+      online: { status: "online", origin: { componentId: "online", componentNodeId: "online-root", componentSetNodeId: "set", componentName: "Online" }, root: makeRoot("online-root"), reviews: [], exportedAssets: [] },
+      offline: { status: "offline", origin: { componentId: "offline", componentNodeId: "offline-root", componentSetNodeId: "set", componentName: "Offline" }, root: makeRoot("offline-root", "red"), reviews: [], exportedAssets: [] },
+    },
+  });
+  assert.notEqual(candidate.variants.online.component.rootNodeId, candidate.variants.offline.component.rootNodeId);
+  assert.equal(JSON.stringify(candidate.variants.online.component).includes("placement"), false);
+  assert.equal(JSON.stringify(candidate.variants.online.component).includes("componentSetNodeId"), false);
+});
 
 // Only external HTTP is mocked. Normalization, discovery and conversion remain real.
 const withFigma = async (raw: Record<string, unknown>, run: (requests: URL[]) => Promise<void>) => {

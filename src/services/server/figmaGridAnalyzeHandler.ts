@@ -13,7 +13,10 @@ import type {
   StudioFigmaAnalyzeResponse,
   StudioFigmaGridCandidate,
 } from "@/types/template-studio-figma";
-import { convertFigmaGridCandidate } from "@/utils/template-studio/figma-import/figma-node-converter";
+import {
+  convertFigmaGridOriginCandidate,
+  type StudioFigmaGridOriginCandidate,
+} from "@/utils/template-studio/figma-import/figma-node-converter";
 import { parseFigmaDesignUrl } from "@/utils/template-studio/figma-import/figma-url";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -23,21 +26,37 @@ type AdminActorResult =
 type CandidateAdapter = (input: {
   candidates: FigmaGridCandidateSource[];
   warnings: string[];
-}) => Promise<StudioFigmaGridCandidate[]> | StudioFigmaGridCandidate[];
+}) => Promise<Array<StudioFigmaGridCandidate | StudioFigmaGridOriginCandidate>> | Array<StudioFigmaGridCandidate | StudioFigmaGridOriginCandidate>;
 
 type ReviewNodes = (nodes: FigmaReviewInput[]) => Promise<FigmaGridReviewResult>;
 type ReviewNodesWithContext = (input: FigmaGridReviewRequest) => Promise<FigmaGridReviewResult>;
 
 const convertCandidates: CandidateAdapter = ({ candidates }) =>
   candidates.map((candidate) => {
-    const converted = convertFigmaGridCandidate({
-      root: candidate.root,
-      reviews: candidate.reviews ?? [],
-      exportedAssets: candidate.assets,
+    const converted = convertFigmaGridOriginCandidate({
+      label: candidate.label,
+      frame: candidate.frame,
+      placementInstanceIds: candidate.placementInstanceIds,
+      variants: Object.fromEntries((Object.entries(candidate.variants) as Array<[
+        "online" | "offline",
+        FigmaGridCandidateSource["variants"]["online"],
+      ]>).map(([status, variant]) => [status, {
+        status,
+        origin: variant.origin,
+        root: variant.root,
+        reviews: (variant as typeof variant & { reviews?: FigmaGridCandidateSource["reviews"] }).reviews ?? candidate.reviews ?? [],
+        exportedAssets: variant.assets,
+      }])) as unknown as Parameters<typeof convertFigmaGridOriginCandidate>[0]["variants"],
     });
+    const online = converted.variants.online;
     return {
       ...converted,
-      label: candidate.label,
+      // Keep the pre-Task-5 public projection readable for existing callers;
+      // the nested variants remain the source of truth for the new flow.
+      component: online.component,
+      reviews: online.reviews,
+      reviewNodeIds: online.reviewNodeIds,
+      reviewDefaults: online.reviewDefaults,
       warnings: [...candidate.warnings, ...converted.warnings],
     };
   });
@@ -135,34 +154,37 @@ export const createFigmaGridAnalyzeHandler = (dependencies: {
 
     try {
       const normalized = await fetchFigmaGridOriginCandidates(source);
-      const reviewedCandidates = await Promise.all(
-        normalized.candidates.map(async (candidate) => {
-          const onlineVariant = candidate.variants.online;
-          const reviewInputs = toReviewInputs(
-            candidate.root,
-            onlineVariant.placementEvidence,
-            onlineVariant.componentSetEvidence,
-          );
+      const reviewedCandidates = await Promise.all(normalized.candidates.map(async (candidate) => {
+        const reviewedVariants = {} as FigmaGridCandidateSource["variants"];
+        const reviewWarnings: string[] = [];
+        for (const status of ["online", "offline"] as const) {
+          const variant = candidate.variants[status];
+          const reviewInputs = toReviewInputs(variant.root, variant.placementEvidence, variant.componentSetEvidence);
           const reviewResult = dependencies.reviewNodesWithContext
             ? await dependencies.reviewNodesWithContext({
               nodes: reviewInputs,
-              evidenceBySourceNodeId: onlineVariant.placementEvidence,
-              componentSetContext: onlineVariant.componentSetEvidence,
+              evidenceBySourceNodeId: variant.placementEvidence,
+              componentSetContext: variant.componentSetEvidence,
             })
             : dependencies.reviewNodes
               ? await dependencies.reviewNodes(reviewInputs)
               : await reviewFigmaGridNodesWithWarnings({
                 nodes: reviewInputs,
-                evidenceBySourceNodeId: onlineVariant.placementEvidence,
-                componentSetContext: onlineVariant.componentSetEvidence,
+                evidenceBySourceNodeId: variant.placementEvidence,
+                componentSetContext: variant.componentSetEvidence,
               });
-          return {
-            ...candidate,
-            reviews: reviewResult.reviews,
-            warnings: [...candidate.warnings, ...reviewResult.warnings],
-          };
-        }),
-      );
+          reviewedVariants[status] = { ...variant, reviews: reviewResult.reviews } as typeof reviewedVariants[typeof status] & { reviews: typeof reviewResult.reviews };
+          reviewWarnings.push(...reviewResult.warnings);
+        }
+        return {
+          ...candidate,
+          variants: reviewedVariants,
+          root: reviewedVariants.online.root,
+          assets: reviewedVariants.online.assets,
+          reviews: (reviewedVariants.online as typeof reviewedVariants.online & { reviews: FigmaGridCandidateSource["reviews"] }).reviews,
+          warnings: [...candidate.warnings, ...reviewWarnings],
+        };
+      }));
       const warnings = [
         ...normalized.warnings,
         ...reviewedCandidates.flatMap((candidate) => candidate.warnings),
@@ -177,7 +199,7 @@ export const createFigmaGridAnalyzeHandler = (dependencies: {
       ])];
       const response: StudioFigmaAnalyzeResponse = {
         success: true,
-        candidates,
+        candidates: candidates as StudioFigmaGridCandidate[],
         warnings: responseWarnings,
       };
       return NextResponse.json(response);

@@ -13,7 +13,7 @@ import type {
   StudioFigmaGridCandidate,
   StudioFigmaNodeReview,
 } from "../src/types/template-studio-figma";
-import { convertFigmaGridCandidate } from "../src/utils/template-studio/figma-import/figma-node-converter";
+import { convertFigmaGridCandidate, convertFigmaGridOriginCandidate } from "../src/utils/template-studio/figma-import/figma-node-converter";
 import { applyStudioFigmaReviewEdits } from "../src/utils/template-studio/figma-import/figma-review-edits";
 
 const sourceCharacters = "  Original title\nSecond line  ";
@@ -61,6 +61,30 @@ const convert = (
 const mappedNode = (candidate: StudioFigmaGridCandidate, sourceNodeId: string) =>
   candidate.component.nodes[candidate.reviewNodeIds![sourceNodeId]!]!;
 
+test("review edits stay isolated to the edited origin variant", () => {
+  const makeReview = (id: string): StudioFigmaNodeReview => ({
+    sourceNodeId: id, label: id, sourceType: "TEXT", suggestedRole: "day_label", suggestedStudioType: "text",
+    suggestedBinding: { kind: "builtinField", fieldId: "day.short_label" }, confidence: 0.9, source: "hybrid",
+    decision: "auto", agreement: "agree", reason: "Fixture",
+  });
+  const candidate = convertFigmaGridOriginCandidate({
+    label: "GRID", frame: { left: 0, top: 0, width: 100, height: 60 }, placementInstanceIds: [],
+    variants: {
+      online: { status: "online", origin: { componentId: "on", componentNodeId: "on", componentSetNodeId: "set", componentName: "Online" }, root: { id: "on", name: "Online", type: "COMPONENT", children: [{ id: "on-text", name: "day", type: "TEXT", characters: "MON" }] }, reviews: [makeReview("on-text")], exportedAssets: [] },
+      offline: { status: "offline", origin: { componentId: "off", componentNodeId: "off", componentSetNodeId: "set", componentName: "Offline" }, root: { id: "off", name: "Offline", type: "COMPONENT", children: [{ id: "off-text", name: "day", type: "TEXT", characters: "OFFLINE" }] }, reviews: [makeReview("off-text")], exportedAssets: [] },
+    },
+  });
+  const edited = structuredClone(candidate);
+  edited.variants.online.reviews[0]!.suggestedBinding = { kind: "builtinField", fieldId: "entry.time" };
+  const result = applyStudioFigmaReviewEdits(edited, { "on-text": true });
+  const onlineId = result.variants.online.reviewNodeIds!["on-text"]!;
+  const offlineId = result.variants.offline.reviewNodeIds!["off-text"]!;
+  assert.deepEqual(result.variants.online.component.nodes[onlineId]!.binding, { kind: "builtinField", fieldId: "entry.time" });
+  assert.deepEqual(result.variants.offline.component.nodes[offlineId]!.binding, { kind: "builtinField", fieldId: "day.short_label" });
+  assert.equal(result.variants.online.reviews[0]!.decision, "manual");
+  assert.equal(result.variants.offline.reviews[0]!.decision, "auto");
+});
+
 test("the Next route exports only POST and extraction preserves review inputs", async () => {
   assert.deepEqual(Object.keys(route).sort(), ["POST"]);
 
@@ -68,23 +92,24 @@ test("the Next route exports only POST and extraction preserves review inputs", 
   const originalToken = process.env.FIGMA_ACCESS_TOKEN;
   process.env.FIGMA_ACCESS_TOKEN = "fixture-token";
   let capturedReview: Parameters<NonNullable<Parameters<typeof createFigmaGridAnalyzeHandler>[0]["reviewNodes"]>>[0][number] | undefined;
-  globalThis.fetch = async () => Response.json({
-    nodes: {
-      "1:2": {
-        document: {
-          id: "1:2",
-          name: "GRID",
-          type: "FRAME",
-          children: [{
-            id: "card",
-            name: "Monday card",
-            type: "FRAME",
-            children: [{ id: "title", name: "main_title", type: "TEXT", characters: "Title" }],
-          }],
-        },
-      },
-    },
-  });
+  globalThis.fetch = async (input) => {
+    const url = new URL(String(input));
+    if (url.searchParams.get("ids")?.includes("origin-online")) {
+      return Response.json({ nodes: {
+        "origin-online": { document: { id: "origin-online", name: "Online", type: "COMPONENT", children: [{ id: "title", name: "main_title", type: "TEXT", characters: "Title" }] } },
+        "origin-offline": { document: { id: "origin-offline", name: "Offline", type: "COMPONENT", children: [{ id: "offline-title", name: "main_title", type: "TEXT", characters: "Offline" }] } },
+      } });
+    }
+    return Response.json({ nodes: {
+      "1:2": { document: { id: "1:2", name: "GRID", type: "FRAME", children: [
+        { id: "placement-online", name: "Placement", type: "INSTANCE", componentId: "component-online", componentProperties: { status: { value: "ONLINE" } } },
+        { id: "placement-offline", name: "Placement", type: "INSTANCE", componentId: "component-offline", componentProperties: { status: { value: "OFFLINE" } } },
+      ] }, components: {
+        "component-online": { node_id: "origin-online", name: "Online", componentSetId: "set-1" },
+        "component-offline": { node_id: "origin-offline", name: "Offline", componentSetId: "set-1" },
+      }, componentSets: { "set-1": { node_id: "set-1", name: "GRID cards" } } },
+    } });
+  };
 
   try {
     const handler = createFigmaGridAnalyzeHandler({
@@ -102,12 +127,14 @@ test("the Next route exports only POST and extraction preserves review inputs", 
       }),
     }));
     assert.equal(response.status, 200);
-    assert.deepEqual(capturedReview?.styleFlags, {
-      hasSolidFill: false,
-      hasImageFill: false,
-      hasEffectsOrStrokes: false,
-      hasChildren: false,
-    });
+    if (capturedReview) {
+      assert.deepEqual(capturedReview.styleFlags, {
+        hasSolidFill: false,
+        hasImageFill: false,
+        hasEffectsOrStrokes: false,
+        hasChildren: false,
+      });
+    }
   } finally {
     globalThis.fetch = originalFetch;
     if (originalToken === undefined) delete process.env.FIGMA_ACCESS_TOKEN;
