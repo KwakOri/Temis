@@ -287,6 +287,35 @@ assert.deepEqual(
   "다른 날짜의 보정 값은 건드리지 않는다.",
 );
 
+const rotationLayout = {
+  left: 0,
+  top: 0,
+  dayOffsets: { mon: { left: 1, top: 2, rotateDeg: 12 } },
+} as unknown as StudioTimetableDayCardsLayout;
+setStudioTimetableDayOffset(rotationLayout, "mon", {
+  left: 3,
+  top: 4,
+});
+assert.equal(
+  rotationLayout.dayOffsets?.mon.rotateDeg,
+  12,
+  "X/Y만 바꾸면 기존 회전값을 보존한다.",
+);
+setStudioTimetableDayOffset(rotationLayout, "tue", {
+  left: 5,
+  top: 6,
+  rotateDeg: -12.345,
+});
+assert.equal(
+  rotationLayout.dayOffsets?.tue.rotateDeg,
+  -12.35,
+  "음수 소수 회전값도 둘째 자리로 반올림한다.",
+);
+
+const resetLayout = rotationLayout;
+resetLayout.dayOffsets = {};
+assert.deepEqual(resetLayout.dayOffsets, {}, "offset reset은 빈 map을 유지한다.");
+
 // --- 시간표 객체 삭제 ---
 
 expectFail(
@@ -433,7 +462,7 @@ assert.deepEqual(
     { left: 30, top: 10 },
     { left: 150, top: 60 },
   ),
-  { left: 50, top: 30 },
+  { left: 50, top: 30, rotateDeg: 0 },
   "기준 좌표(100, 30)를 빼서 새 보정 값을 구한다. 지금 보정 값을 빼지 않으면 옮긴 거리가 두 번 더해진다.",
 );
 assert.deepEqual(
@@ -442,7 +471,7 @@ assert.deepEqual(
     { left: 0, top: 0 },
     { left: 100, top: 30 },
   ),
-  { left: 0, top: 0 },
+  { left: 0, top: 0, rotateDeg: 0 },
   "제자리에 놓으면 보정 값이 없다.",
 );
 assert.deepEqual(
@@ -451,7 +480,7 @@ assert.deepEqual(
     { left: 30, top: 10 },
     { top: 60 },
   ),
-  { left: 30, top: 30 },
+  { left: 30, top: 30, rotateDeg: 0 },
   "위아래만 옮겼으면 좌우 보정 값은 그대로 둔다. 함께 지우면 카드가 기준 자리로 돌아간다.",
 );
 assert.deepEqual(
@@ -460,7 +489,7 @@ assert.deepEqual(
     { left: 30, top: 10 },
     {},
   ),
-  { left: 30, top: 10 },
+  { left: 30, top: 10, rotateDeg: 0 },
   "옮긴 것이 없으면 보정 값도 그대로다.",
 );
 assert.deepEqual(
@@ -469,8 +498,26 @@ assert.deepEqual(
     { left: 0, top: 0 },
     { left: 60, top: 10 },
   ),
-  { left: -40, top: -20 },
+  { left: -40, top: -20, rotateDeg: 0 },
   "기준보다 앞으로 옮기면 보정 값이 음수가 된다.",
+);
+assert.deepEqual(
+  planStudioTimetableDayCardOffset(
+    { left: 130, top: 40 },
+    { left: 30, top: 10 },
+    { rotateDeg: 22.226 },
+  ),
+  { left: 30, top: 10, rotateDeg: 22.23 },
+  "회전만 바꿔도 위치 보정 값은 유지하고 회전은 반올림한다.",
+);
+assert.deepEqual(
+  planStudioTimetableDayCardOffset(
+    { left: 130, top: 40 },
+    { left: 30, top: 10 },
+    {},
+  ),
+  { left: 30, top: 10, rotateDeg: 0 },
+  "legacy offset에 회전값이 없으면 0도로 해석한다.",
 );
 // --- 캔버스에서 무엇을 집었는지 ---
 //
