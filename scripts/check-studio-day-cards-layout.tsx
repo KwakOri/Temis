@@ -15,6 +15,11 @@ import {
   StudioTimetableDayCardsLayoutControls,
   type StudioDayCardsLayoutDay,
 } from "../src/app/(root)/template-studio/_components/studio-timetable-day-cards-layout-controls";
+import {
+  getStudioTimetableDayCardsBounds,
+  getStudioTimetableEntryCardSize,
+} from "../src/app/(root)/template-studio/_components/studio-timetable-preview";
+import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
 import type {
   StudioTimetableDayCardsLayout,
   StudioTimetableDayId,
@@ -175,6 +180,14 @@ const toPreset = (
   return nextLayout;
 };
 
+const findSelects = (node: React.ReactNode): React.ReactElement[] => {
+  if (Array.isArray(node)) return node.flatMap(findSelects);
+  if (!React.isValidElement(node)) return [];
+
+  const selects = node.type === "select" ? [node] : [];
+  return [...selects, ...findSelects((node.props as { children?: React.ReactNode }).children)];
+};
+
 assert.ok(
   gridPresetSelect(createLayout()) !== null,
   "격자 프리셋 선택을 찾을 수 있다.",
@@ -229,6 +242,33 @@ const cardTransformFixture = {
   tue: { left: -7, top: 3, rotateDeg: -12 },
 } as StudioTimetableDayCardsLayout["dayOffsets"];
 
+const customSlotMapLayout = createLayout({
+  gridPreset: "custom",
+  columns: 3,
+  rows: 3,
+  slots: ["mon", "tue", null],
+  dayOffsets: cardTransformFixture,
+});
+const customSlotMapElement = StudioTimetableDayCardsLayoutControls({
+  days: DAYS,
+  layout: customSlotMapLayout,
+  onUpdateLayout: (recipe) => recipe(customSlotMapLayout),
+});
+const customSlotSelects = findSelects(customSlotMapElement);
+const firstSlotSelect = customSlotSelects.at(-9 + 2);
+assert.ok(firstSlotSelect, "사용자 지정 자리 지도의 실제 select를 찾을 수 있다.");
+firstSlotSelect?.props.onChange({ currentTarget: { value: "wed" } });
+assert.deepEqual(
+  customSlotMapLayout.slots?.slice(0, 3),
+  ["mon", "tue", "wed"],
+  "실제 자리 지도 select를 바꾸면 해당 슬롯이 갱신된다.",
+);
+assert.deepEqual(
+  customSlotMapLayout.dayOffsets,
+  cardTransformFixture,
+  "자리 지도를 바꿔도 day ID별 Offset X/Y/Rotate는 그대로 보존된다.",
+);
+
 for (const gridPreset of cardTransformPresets) {
   const presetMarkup = markupOf(createLayout({ gridPreset }));
   assert.ok(
@@ -249,6 +289,51 @@ for (const gridPreset of cardTransformPresets) {
     `${gridPreset} 프리셋으로 바꿔도 day ID별 카드 변환을 보존한다.`,
   );
 }
+
+const sampleDocument = createSampleStudioDocument();
+const sampleTimetable = sampleDocument.domains?.timetable;
+assert.ok(sampleTimetable);
+const persistedDay = sampleTimetable.days[sampleTimetable.dayIds[0]];
+assert.ok(persistedDay);
+const persistedComponent =
+  sampleTimetable.components[sampleTimetable.entryComponentId];
+assert.ok(persistedComponent);
+const persistedEntryCardSize = getStudioTimetableEntryCardSize(
+  sampleDocument,
+  persistedComponent,
+);
+const persistedLayout = {
+  ...sampleTimetable.dayCardsLayout!,
+  columns: 1,
+  rows: 1,
+  slots: [persistedDay.id],
+  dayOffsets: {
+    [persistedDay.id]: { left: 0, top: 0, rotateDeg: 90 },
+  },
+};
+const restoredLayout = JSON.parse(JSON.stringify(persistedLayout));
+const restoredBounds = getStudioTimetableDayCardsBounds(
+  restoredLayout,
+  [persistedDay],
+  () => 1,
+  persistedEntryCardSize,
+);
+const unrotatedBounds = getStudioTimetableDayCardsBounds(
+  { ...restoredLayout, dayOffsets: { [persistedDay.id]: { left: 0, top: 0 } } },
+  [persistedDay],
+  () => 1,
+  persistedEntryCardSize,
+);
+assert.equal(
+  restoredLayout.dayOffsets[persistedDay.id].rotateDeg,
+  90,
+  "JSON round-trip preserves the keyed card rotation.",
+);
+assert.ok(
+  restoredBounds.width === unrotatedBounds.height &&
+    restoredBounds.height === unrotatedBounds.width,
+  "Restored card rotation is reflected in preview visual bounds.",
+);
 
 // 요일이 많으면 프리셋보다 줄을 늘려서 모두 담는다.
 //
