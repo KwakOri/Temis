@@ -25,9 +25,11 @@ npm run dev:local
 3. 원격 migration 버전까지 로컬 schema를 되돌린다.
 4. 덤프 테이블이 해당 schema에 존재하는지 확인하고, 단일 트랜잭션으로 데이터를
    가져온다.
-5. 최신 로컬 migration을 적용한다. 이 단계에서 `template_access` 중복 정리와
-   신규 unique 제약 조건 적용이 수행된다.
-6. 필수 객체, migration 버전, 핵심 중복 데이터를 검증한다.
+5. 최신 로컬 migration을 적용하고 파생 데이터를 동기화한다. 이 단계에서
+   `template_access` 중복 정리와 신규 unique 제약 조건 적용이 수행된다.
+6. 로컬 테스트 관리자 `admin@admin.com`을 upsert하고 `is_admin_user()`가
+   해당 계정을 인식하도록 보정한다.
+7. 필수 객체, migration 버전, 핵심 중복 데이터를 검증한다.
 
 ## 중단되는 경우
 

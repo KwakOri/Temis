@@ -449,6 +449,24 @@ assert.ok(
   "묶인 노드는 어떤 입력에 묶였는지 보여준다.",
 );
 
+const dateBindingDocument = createDocument();
+dateBindingDocument.graph.nodes.text.binding = {
+  kind: "builtinField",
+  fieldId: "day.date",
+  dateRangeFormat: "day",
+} as StudioGraphNode["binding"];
+const dateBindingMarkup = markupOf(
+  findSection(
+    build(dateBindingDocument, dateBindingDocument.graph.nodes.text).sections,
+    "binding:",
+  ),
+);
+assert.ok(
+  dateBindingMarkup.includes("Date Format") &&
+    dateBindingMarkup.includes("${DD}"),
+  "day.date 바인딩에는 단일 날짜 포맷과 템플릿 편집이 나타난다.",
+);
+
 // --- 글꼴 ---
 
 const typographyMarkup = markupOf(

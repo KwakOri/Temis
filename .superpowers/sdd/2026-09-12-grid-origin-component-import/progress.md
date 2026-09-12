@@ -145,3 +145,15 @@ Final review fix wave 1/5 complete (commit 5cf18f02; report final-review-fix-wav
 - Final broad-review fixture uses explicit independent online/offline graphs and passes 19/19.
 - Shared nested candidate/variant types are public; top-level component/reviews remain optional compatibility projections only.
 - Verification: all requested focused checks, `npx tsc --noEmit`, `npm run lint`, and `git diff --check` exited 0. Authenticated real-link verification remains unavailable without `FIGMA_ACCESS_TOKEN`.
+
+## Final review re-review findings
+
+- P1: `resolveFigmaOriginComponent` does not read the official component metadata linkage `containing_frame.containingComponentSet`; an official-shaped response can therefore lose the component-set origin before status grouping. Add support for this shape and a regression fixture.
+
+Final review fix wave 2/5 (1 finding addressed; commits 7a964005..91a4bfa9)
+- `resolveFigmaOriginComponent` now supports official `containing_frame.containingComponentSet` metadata, resolves references to the component-set response key, preserves legacy metadata shapes, and has a regression fixture.
+- Fresh Luna final review: APPROVED; all six review conditions passed and the dirty-file list was unchanged.
+- Fresh controller verification: importer passed; final review 19/19; review confirmation 8/8; component import/settings/component-set/asset-sync/auto-text/timetable checks passed; `npx tsc --noEmit`, `npm run lint`, and `git diff --check` exited 0. `npm test` is unavailable because this checkout has no `test` script.
+- Authenticated live Figma verification remains pending because `FIGMA_ACCESS_TOKEN` is not configured.
+
+Task 8: complete (commits d19b588e..91a4bfa9; automated verification and final review clean; authenticated real-link pending FIGMA_ACCESS_TOKEN)

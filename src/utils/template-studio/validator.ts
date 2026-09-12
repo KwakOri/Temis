@@ -814,12 +814,20 @@ const validateBinding = (
       document.metadata.kind === "thumbnail" &&
       (node.binding.fieldId === "week.start_date" ||
         node.binding.fieldId === "week.date_range");
+    const isTimetableSingleDateBinding =
+      document.metadata.kind !== "thumbnail" &&
+      node.binding.fieldId === "day.date";
     const isTimetableDateRangeBinding =
       document.metadata.kind !== "thumbnail" &&
       node.binding.fieldId === "week.date_range";
 
-    if (isThumbnailSingleDateBinding || isTimetableDateRangeBinding) {
-      const isValidPreset = isThumbnailSingleDateBinding
+    if (
+      isThumbnailSingleDateBinding ||
+      isTimetableSingleDateBinding ||
+      isTimetableDateRangeBinding
+    ) {
+      const isValidPreset =
+        isThumbnailSingleDateBinding || isTimetableSingleDateBinding
         ? isStudioSingleDateFormatPresetId
         : isStudioWeekDateFormatPresetId;
       if (

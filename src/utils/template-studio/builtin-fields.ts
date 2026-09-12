@@ -362,8 +362,15 @@ export const resolveStudioBuiltinFieldValue = (
     return formatStudioDayLabel(day, fieldId, options.dayLabelFormat);
   }
   if (fieldId === "day.date") {
-    return formatStudioDateParts(getDayDateParts(document, values, context), {
-      includeYear: false,
+    const dateParts = getDayDateParts(document, values, context);
+    return resolveStudioSingleDateText({
+      date: dateParts
+        ? `${dateParts.year}-${dateParts.month}-${dateParts.day}`
+        : undefined,
+      // timetable의 기존 day.date 출력은 MM.DD였으므로, 옵션이 없을 때도
+      // single-date resolver의 기본값을 short로 고정해 하위 호환을 지킨다.
+      format: options.dateRangeFormat ?? "short",
+      template: options.dateRangeTemplate,
     });
   }
 

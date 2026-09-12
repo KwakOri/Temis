@@ -29,6 +29,7 @@ import {
 } from "../src/utils/template-studio/runtime-week";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
 import { ensureStudioTimetableCapabilityStatus } from "../src/utils/template-studio/timetable-capabilities";
+import { validateStudioDocument } from "../src/utils/template-studio/validator";
 import {
   addStudioTimetableEntry,
   setStudioTimetableDayBaseStatus,
@@ -271,6 +272,45 @@ assert.equal(
     dayId,
   }),
   "07.08",
+);
+assert.equal(
+  resolveStudioBuiltinFieldValue(
+    document,
+    nextWeekValues,
+    "day.date",
+    { dayId },
+    { dateRangeFormat: "day" },
+  ),
+  "08",
+  "day.date must support the single-date day-only format.",
+);
+assert.equal(
+  resolveStudioTextBinding(
+    document,
+    nextWeekValues,
+    {
+      kind: "builtinField",
+      fieldId: "day.date",
+      dateRangeFormat: "custom",
+      dateRangeTemplate: "${D}일 (${weekdayShort})",
+    },
+    { dayId },
+  ),
+  "8일 (Wed)",
+  "day.date must resolve a custom single-date template through bindings.",
+);
+const invalidDayDateFormatDocument = structuredClone(document);
+invalidDayDateFormatDocument.graph.nodes.node_i9.binding = {
+  kind: "builtinField",
+  fieldId: "day.date",
+  dateRangeFormat: "unknown",
+};
+assert.ok(
+  validateStudioDocument(invalidDayDateFormatDocument).some(
+    (diagnostic) =>
+      diagnostic.id === "binding-date-range-format-invalid:node_i9",
+  ),
+  "day.date must validate date format identifiers.",
 );
 assert.equal(
   resolveStudioBuiltinFieldValue(

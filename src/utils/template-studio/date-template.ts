@@ -46,6 +46,11 @@ export const STUDIO_SINGLE_DATE_FORMAT_PRESETS = [
     template: "${MM}.${DD}",
   },
   {
+    id: "day",
+    label: "01",
+    template: "${DD}",
+  },
+  {
     id: "localized",
     label: "Jul 01, 2026",
     template: "${localizedWithYear}",
