@@ -180,11 +180,17 @@ const toPreset = (
   return nextLayout;
 };
 
-const findSelects = (node: React.ReactNode): React.ReactElement[] => {
+type SelectElement = React.ReactElement<{
+  onChange?: (event: unknown) => void;
+  children?: React.ReactNode;
+}>;
+
+const findSelects = (node: React.ReactNode): SelectElement[] => {
   if (Array.isArray(node)) return node.flatMap(findSelects);
   if (!React.isValidElement(node)) return [];
 
-  const selects = node.type === "select" ? [node] : [];
+  const selects: SelectElement[] =
+    node.type === "select" ? [node as SelectElement] : [];
   return [...selects, ...findSelects((node.props as { children?: React.ReactNode }).children)];
 };
 
@@ -257,7 +263,7 @@ const customSlotMapElement = StudioTimetableDayCardsLayoutControls({
 const customSlotSelects = findSelects(customSlotMapElement);
 const firstSlotSelect = customSlotSelects.at(-9 + 2);
 assert.ok(firstSlotSelect, "사용자 지정 자리 지도의 실제 select를 찾을 수 있다.");
-firstSlotSelect?.props.onChange({ currentTarget: { value: "wed" } });
+firstSlotSelect?.props.onChange?.({ currentTarget: { value: "wed" } });
 assert.deepEqual(
   customSlotMapLayout.slots?.slice(0, 3),
   ["mon", "tue", "wed"],
