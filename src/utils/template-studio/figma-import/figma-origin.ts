@@ -5,23 +5,42 @@ import type {
 } from "@/types/template-studio-figma";
 
 type FigmaComponentMetadata = {
+  key?: string;
   id?: string;
   node_id?: string;
   nodeId?: string;
   name?: string;
   componentSetId?: string;
   component_set_id?: string;
+  containing_frame?: {
+    containingComponentSet?: string;
+  };
 };
 
 type FigmaComponentSetMetadata = {
+  key?: string;
   id?: string;
   node_id?: string;
   nodeId?: string;
   name?: string;
 };
 
-const metadataId = (metadata: FigmaComponentMetadata | FigmaComponentSetMetadata, fallback: string) =>
-  metadata.id ?? metadata.node_id ?? metadata.nodeId ?? fallback;
+const metadataReferences = (
+  metadata: FigmaComponentMetadata | FigmaComponentSetMetadata,
+  fallback: string,
+) => [metadata.id, metadata.node_id, metadata.nodeId, metadata.key, fallback].filter(
+  (value): value is string => typeof value === "string" && value.length > 0,
+);
+
+const resolveComponentSet = (
+  componentSets: Record<string, FigmaComponentSetMetadata>,
+  reference: string,
+): { nodeId: string; metadata: FigmaComponentSetMetadata } | null => {
+  const entry = Object.entries(componentSets).find(([key, metadata]) =>
+    metadataReferences(metadata, key).includes(reference),
+  );
+  return entry ? { nodeId: entry[0], metadata: entry[1] } : null;
+};
 
 export const resolveFigmaOriginComponent = (input: {
   instance: Pick<FigmaNormalizedNode, "componentId">;
@@ -32,16 +51,18 @@ export const resolveFigmaOriginComponent = (input: {
   if (!componentId) return null;
   const component = input.components[componentId];
   if (!component) return null;
-  const componentSetNodeId = component.componentSetId ?? component.component_set_id;
-  if (!componentSetNodeId || !component.name) return null;
-  const componentSet = input.componentSets[componentSetNodeId];
+  const componentSetReference = component.componentSetId ??
+    component.component_set_id ??
+    component.containing_frame?.containingComponentSet;
+  if (!componentSetReference || !component.name) return null;
+  const componentSet = resolveComponentSet(input.componentSets, componentSetReference);
   if (!componentSet) return null;
   return {
     componentId,
-    componentNodeId: metadataId(component, componentId),
-    componentSetNodeId,
+    componentNodeId: metadataReferences(component, componentId)[0]!,
+    componentSetNodeId: componentSet.nodeId,
     componentName: component.name,
-    componentSetName: componentSet.name,
+    componentSetName: componentSet.metadata.name,
   };
 };
 

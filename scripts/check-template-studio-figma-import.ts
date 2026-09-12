@@ -172,6 +172,30 @@ assert.deepEqual(
     componentSetName: "Grid Origins",
   },
 );
+assert.deepEqual(
+  resolveFigmaOriginComponent({
+    instance: normalizedPlacementFixture[0]!,
+    components: {
+      [onlineComponentId]: {
+        id: onlineComponentId,
+        node_id: onlineComponentId,
+        name: "Online Origin",
+        containing_frame: { containingComponentSet: "origin-set-node" },
+      },
+    },
+    componentSets: {
+      "origin-set-key": { node_id: "origin-set-node", name: "Grid Origins" },
+    },
+  }),
+  {
+    componentId: onlineComponentId,
+    componentNodeId: onlineComponentId,
+    componentSetNodeId: "origin-set-key",
+    componentName: "Online Origin",
+    componentSetName: "Grid Origins",
+  },
+  "Official containing_frame metadata resolves through the component-set response key.",
+);
 const placementGroups = groupFigmaGridPlacements({
   placements: normalizedPlacementFixture.map((instance) => ({
     instance,
@@ -1077,14 +1101,14 @@ const runRouteContractChecks = async () => {
                   ],
                 },
                 components: {
-                  "origin-online": { key: "origin-online", node_id: "origin-online", name: "Online Origin", component_set_id: "origin-set" },
-                  "origin-offline": { key: "origin-offline", node_id: "origin-offline", name: "Offline Origin", component_set_id: "origin-set" },
+                  "origin-online": { key: "origin-online", node_id: "origin-online", name: "Online Origin", containing_frame: { containingComponentSet: "origin-set-node" } },
+                  "origin-offline": { key: "origin-offline", node_id: "origin-offline", name: "Offline Origin", containing_frame: { containingComponentSet: "origin-set-node" } },
                   ...(originFixtureMode === "ambiguous-online"
-                    ? { "origin-online-ambiguous": { key: "origin-online-ambiguous", node_id: "origin-online-ambiguous", name: "Ambiguous Online", component_set_id: "origin-set" } }
+                    ? { "origin-online-ambiguous": { key: "origin-online-ambiguous", node_id: "origin-online-ambiguous", name: "Ambiguous Online", containing_frame: { containingComponentSet: "origin-set-node" } } }
                     : {}),
                 },
                 componentSets: originFixtureMode === "missing-component-set" ? {} : {
-                  "origin-set": { key: "origin-set", node_id: "origin-set", name: "Grid Day Card" },
+                  "origin-set": { key: "origin-set", node_id: "origin-set-node", name: "Grid Day Card" },
                 },
               },
             },
