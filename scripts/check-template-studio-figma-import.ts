@@ -17,6 +17,11 @@ import {
   classifyFigmaTextNode,
   normalizeFigmaLayerName,
 } from "../src/utils/template-studio/figma-import/figma-text-classifier";
+import {
+  inferFigmaSemanticEvidence,
+  mapFigmaPlacementNodesToOrigin,
+  normalizeFigmaSemanticValue,
+} from "../src/utils/template-studio/figma-import/figma-placement-inference";
 import { convertFigmaGridCandidate } from "../src/utils/template-studio/figma-import/figma-node-converter";
 import { applyStudioFigmaReviewEdits } from "../src/utils/template-studio/figma-import/figma-review-edits";
 import {
@@ -394,6 +399,109 @@ const unknown = classifyFigmaTextNode({
 assert.equal(unknown.role, "unknown");
 assert.deepEqual(unknown.binding, { kind: "staticText", value: "Keep me" });
 assert.match(unknown.reason, /review/i);
+
+const semanticOrigin: FigmaNormalizedNode = {
+  id: "origin-card",
+  name: "Origin Card",
+  type: "COMPONENT",
+  children: [
+    { id: "origin-day", name: "weekday", type: "TEXT", characters: "MON", localSize: { width: 30, height: 12 } },
+    { id: "origin-date", name: "date", type: "TEXT", characters: "01", localSize: { width: 20, height: 12 } },
+    { id: "origin-time", name: "time", type: "TEXT", characters: "AM 9:05", localSize: { width: 40, height: 12 } },
+    { id: "origin-status", name: "status", type: "TEXT", characters: "ONLINE", localSize: { width: 45, height: 12 } },
+    { id: "origin-title", name: "Headline", type: "TEXT", characters: "Title", localSize: { width: 80, height: 12 } },
+    { id: "origin-memo", name: "MEMO", type: "TEXT", characters: "REST DAY", visible: false },
+  ],
+};
+const semanticValues = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+const semanticPlacements = semanticValues.map((value, index) => ({
+  instanceId: `placement-${value}`,
+  status: index < 5 ? "online" as const : "offline" as const,
+  root: {
+    id: `placement-${value}`,
+    name: "Placement",
+    type: "INSTANCE",
+    absoluteBounds: { left: 1000 - index * 100, top: 500 + index, width: 140, height: 180 },
+    children: [
+      { id: `day-${value}`, name: "weekday", type: "TEXT", characters: value, localSize: { width: 30, height: 12 }, overrides: [{ id: "origin-day" }] },
+      { id: `date-${value}`, name: "date", type: "TEXT", characters: String(index + 1).padStart(2, "0"), localSize: { width: 20, height: 12 } },
+      { id: `time-${value}`, name: "time", type: "TEXT", characters: index % 2 ? "21:05" : "PM 8:00", localSize: { width: 40, height: 12 } },
+      { id: `status-${value}`, name: "status", type: "TEXT", characters: index < 5 ? "ONLINE" : "OFFLINE", localSize: { width: 45, height: 12 } },
+      { id: `title-${value}`, name: index % 2 ? "제목" : "Title", type: "TEXT", characters: index % 2 ? `다른 제목 ${index}` : `Another title ${index}`, localSize: { width: 80, height: 12 } },
+      { id: `memo-${value}`, name: "MEMO", type: "TEXT", characters: "REST DAY", visible: false },
+    ],
+  },
+}));
+const semanticMapping = mapFigmaPlacementNodesToOrigin({ origin: semanticOrigin, placements: semanticPlacements });
+assert.equal(normalizeFigmaSemanticValue(" Tue "), "tue");
+assert.equal(normalizeFigmaSemanticValue("07"), "7");
+assert.equal(Object.values(semanticMapping.evidenceByOriginNodeId).length, 5);
+const semanticReviews = inferFigmaSemanticEvidence({
+  origin: semanticOrigin,
+  evidenceByOriginNodeId: semanticMapping.evidenceByOriginNodeId,
+});
+assert.equal(semanticReviews.find((entry) => entry.sourceNodeId === "origin-day")?.candidate.suggestedRole, "day_label");
+assert.equal(semanticReviews.find((entry) => entry.sourceNodeId === "origin-date")?.candidate.suggestedRole, "date");
+assert.equal(semanticReviews.find((entry) => entry.sourceNodeId === "origin-time")?.candidate.suggestedRole, "time");
+assert.equal(semanticReviews.find((entry) => entry.sourceNodeId === "origin-status")?.candidate.suggestedRole, "status_label");
+assert.equal(semanticReviews.find((entry) => entry.sourceNodeId === "origin-title"), undefined);
+assert.equal(semanticReviews.some((entry) => entry.sourceNodeId === "origin-memo"), false);
+assert.equal(semanticMapping.warnings.length, 0);
+const onlineEvidence = mapFigmaPlacementNodesToOrigin({ origin: semanticOrigin, placements: semanticPlacements.slice(0, 5) });
+const offlineEvidence = mapFigmaPlacementNodesToOrigin({ origin: semanticOrigin, placements: semanticPlacements.slice(5) });
+const aggregatedDay = inferFigmaSemanticEvidence({
+  origin: semanticOrigin,
+  evidenceByOriginNodeId: onlineEvidence.evidenceByOriginNodeId,
+  componentSetEvidence: offlineEvidence.evidenceByOriginNodeId,
+}).find((entry) => entry.sourceNodeId === "origin-day");
+assert.equal(aggregatedDay?.candidate.suggestedRole, "day_label");
+assert.equal(aggregatedDay?.evidence.samples.length, 7);
+
+const randomNumberOrigin: FigmaNormalizedNode = {
+  id: "random-origin",
+  name: "Card",
+  type: "COMPONENT",
+  children: [{ id: "random-number", name: "Headline", type: "TEXT", characters: "42", localSize: { width: 20, height: 12 } }],
+};
+const randomNumberMapping = mapFigmaPlacementNodesToOrigin({
+  origin: randomNumberOrigin,
+  placements: [{ instanceId: "random-placement", status: "online", root: {
+    id: "random-placement", name: "Placement", type: "INSTANCE",
+    children: [{ id: "random-value", name: "Headline", type: "TEXT", characters: "42", localSize: { width: 20, height: 12 } }],
+  } }],
+});
+assert.equal(inferFigmaSemanticEvidence({ origin: randomNumberOrigin, evidenceByOriginNodeId: randomNumberMapping.evidenceByOriginNodeId }).length, 0);
+
+const ambiguousOrigin: FigmaNormalizedNode = {
+  id: "ambiguous-origin",
+  name: "Card",
+  type: "COMPONENT",
+  children: [
+    { id: "ambiguous-a", name: "value", type: "TEXT", characters: "MON", localSize: { width: 30, height: 12 } },
+    { id: "ambiguous-b", name: "value", type: "TEXT", characters: "MON", localSize: { width: 30, height: 12 } },
+  ],
+};
+const ambiguousMapping = mapFigmaPlacementNodesToOrigin({
+  origin: ambiguousOrigin,
+  placements: [{ instanceId: "ambiguous-placement", status: "online", root: {
+    id: "ambiguous-placement", name: "Placement", type: "INSTANCE",
+    children: [{ id: "ambiguous-wrapper", name: "Wrapper", type: "FRAME", children: [
+      { id: "ambiguous-value", name: "value", type: "TEXT", characters: "MON", localSize: { width: 30, height: 12 } },
+    ] }],
+  } }],
+});
+assert.ok(ambiguousMapping.warnings.some((warning) => /ambiguous/i.test(warning)));
+assert.equal(Object.keys(ambiguousMapping.evidenceByOriginNodeId).length, 0);
+const coordinateOnlyMapping = mapFigmaPlacementNodesToOrigin({
+  origin: semanticOrigin,
+  placements: [{ instanceId: "coordinate-only", status: "online", root: {
+    id: "coordinate-only", name: "Placement", type: "INSTANCE",
+    absoluteBounds: semanticOrigin.absoluteBounds,
+    children: [{ id: "coordinate-only-value", name: "Unrelated", type: "TEXT", characters: "MON", localSize: { width: 999, height: 999 }, absoluteBounds: semanticOrigin.children?.[0]?.absoluteBounds }],
+  } }],
+});
+assert.ok(coordinateOnlyMapping.warnings.some((warning) => /no origin descendant/i.test(warning)));
+assert.equal(Object.keys(coordinateOnlyMapping.evidenceByOriginNodeId).length, 0);
 
 for (const [characters, role, fieldId] of [
   ["PM 8:00", "time", "entry.time"],

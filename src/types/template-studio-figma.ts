@@ -169,6 +169,8 @@ export interface FigmaGridOriginVariantSource {
   root: FigmaNormalizedNode;
   assets: FigmaTransientAsset[];
   placementEvidence: Record<string, FigmaSemanticEvidence>;
+  /** Aggregated transient evidence across all variants in this component set. */
+  componentSetEvidence?: Record<string, FigmaSemanticEvidence>;
   warnings: string[];
 }
 

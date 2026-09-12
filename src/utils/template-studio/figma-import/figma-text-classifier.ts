@@ -16,8 +16,8 @@ type KnownRole = "main_title" | "sub_title" | "time" | "day_label" | "date" | "s
 const classifyRole = (name: string, characters: string): Classification["role"] => {
   const normalized = normalizeFigmaLayerName(name);
   const content = characters.trim();
-  if (/^(am|pm)\s*\d{1,2}:\d{2}$/i.test(content)) return "time";
-  if (/^(mon|tue|wed|thu|fri|sat|sun)$/i.test(content)) return "day_label";
+  if (/^(?:(am|pm)\s*)?\d{1,2}:\d{2}$/i.test(content)) return "time";
+  if (/^(mon|tue|wed|thu|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/i.test(content)) return "day_label";
   if (/^\d{1,2}$/.test(content)) return "date";
   if (/^(online|offline)$/i.test(content)) return "status_label";
   if (["main", "maintitle", "title", "heading"].includes(normalized)) return "main_title";

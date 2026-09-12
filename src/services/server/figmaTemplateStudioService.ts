@@ -11,6 +11,7 @@ import {
 } from "@/utils/template-studio/figma-import/figma-origin";
 import { normalizeFigmaRotation } from "@/utils/template-studio/figma-import/figma-rotation";
 import { classifyFigmaTextNode } from "@/utils/template-studio/figma-import/figma-text-classifier";
+import { mapFigmaPlacementNodesToOrigin } from "@/utils/template-studio/figma-import/figma-placement-inference";
 import { isFigmaVectorType } from "@/utils/template-studio/figma-import/figma-visual";
 
 const FIGMA_API_BASE_URL = "https://api.figma.com/v1";
@@ -421,6 +422,62 @@ const createOriginAssets = async (input: {
   return { assets, warnings };
 };
 
+const findNodePath = (root: FigmaNormalizedNode, nodeId: string): string | undefined => {
+  const visit = (node: FigmaNormalizedNode, path: string): string | undefined => {
+    if (node.id === nodeId) return path;
+    for (const [index, child] of (node.children ?? []).entries()) {
+      const found = visit(child, `${path}/${index}`);
+      if (found !== undefined) return found;
+    }
+    return undefined;
+  };
+  return visit(root, "");
+};
+
+const aggregateSemanticEvidence = (
+  evidenceByPath: Map<string, FigmaGridCandidateSource["variants"]["online"]["placementEvidence"][string]>,
+  evidence: FigmaGridCandidateSource["variants"]["online"]["placementEvidence"],
+  root: FigmaNormalizedNode,
+) => {
+  for (const [nodeId, current] of Object.entries(evidence)) {
+    const path = findNodePath(root, nodeId);
+    if (path === undefined) continue;
+    const existing = evidenceByPath.get(path);
+    if (!existing) {
+      evidenceByPath.set(path, {
+        ...current,
+        samples: [...current.samples],
+        sampleValues: [...current.sampleValues],
+        signals: [...current.signals],
+      });
+      continue;
+    }
+    for (const sample of current.samples) {
+      if (!existing.samples.some((entry) => entry.placementInstanceId === sample.placementInstanceId)) {
+        existing.samples.push(sample);
+        existing.sampleValues.push(sample.value);
+      }
+    }
+    existing.matchedPlacementCount = existing.samples.length;
+    existing.distinctValueCount = new Set(existing.sampleValues.map((value) => value.trim().toLowerCase())).size;
+    existing.signals = [...new Set([...existing.signals, ...current.signals])];
+  }
+};
+
+const evidenceByNodePath = (
+  root: FigmaNormalizedNode,
+  evidenceByPath: Map<string, FigmaGridCandidateSource["variants"]["online"]["placementEvidence"][string]>,
+) => {
+  const result: FigmaGridCandidateSource["variants"]["online"]["placementEvidence"] = {};
+  const visit = (node: FigmaNormalizedNode, path: string) => {
+    const evidence = evidenceByPath.get(path);
+    if (evidence) result[node.id] = { ...evidence, samples: [...evidence.samples], sampleValues: [...evidence.sampleValues], signals: [...evidence.signals] };
+    node.children?.forEach((child, index) => visit(child, `${path}/${index}`));
+  };
+  visit(root, "");
+  return result;
+};
+
 export const fetchFigmaGridOriginCandidates = async (source: {
   fileKey: string;
   nodeId: string;
@@ -460,6 +517,7 @@ export const fetchFigmaGridOriginCandidates = async (source: {
       byStatus.set(placement.status, bucket);
     }
     const variants = {} as FigmaGridCandidateSource["variants"];
+    const evidenceByPath = new Map<string, FigmaGridCandidateSource["variants"]["online"]["placementEvidence"][string]>();
     let complete = true;
     for (const status of ["online", "offline"] as const) {
       const statusPlacements = byStatus.get(status) ?? [];
@@ -475,14 +533,26 @@ export const fetchFigmaGridOriginCandidates = async (source: {
         continue;
       }
       const exported = await createOriginAssets({ fileKey: source.fileKey, root, getImageUrls });
+      const mapped = mapFigmaPlacementNodesToOrigin({
+        origin: root,
+        placements: statusPlacements.map(({ instance, status }) => ({
+          instanceId: instance.id,
+          status,
+          root: instance,
+        })),
+      });
+      aggregateSemanticEvidence(evidenceByPath, mapped.evidenceByOriginNodeId, root);
       variants[status] = {
         status,
         origin,
         root,
         assets: exported.assets,
-        placementEvidence: {},
-        warnings: exported.warnings,
+        placementEvidence: mapped.evidenceByOriginNodeId,
+        warnings: [...exported.warnings, ...mapped.warnings],
       };
+    }
+    for (const variant of Object.values(variants)) {
+      variant.componentSetEvidence = evidenceByNodePath(variant.root, evidenceByPath);
     }
     if (!complete) {
       warnings.push("A GRID component set was excluded because it did not resolve to exactly one online and one offline origin.");
