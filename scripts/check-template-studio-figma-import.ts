@@ -1565,64 +1565,16 @@ const runComponentImportChecks = () => {
   capabilityTimetable.capabilities!.multi.enabled = true;
   capabilityTimetable.capabilities!.offlineMemo.enabled = true;
   ensureStudioIndependentStatusVariants(capabilityDocument);
-  const existingCapabilityComponents = structuredClone(capabilityTimetable.components);
-  const capabilityDayAssignments = JSON.stringify(
-    Object.fromEntries(
-      capabilityTimetable.dayIds.map((dayId) => [dayId, capabilityTimetable.days[dayId]?.componentId]),
-    ),
-  );
+  const capabilityBeforeImport = JSON.stringify(capabilityDocument);
   const capabilityImport = applyStudioFigmaGridCandidate(
     capabilityDocument,
     createComponentImportCandidate(),
   );
-  assert.equal(capabilityImport.ok, true);
-  if (!capabilityImport.ok) return;
-  const capabilityComponent = capabilityTimetable.components[capabilityImport.componentId];
-  assert.ok(capabilityComponent);
-  assert.deepEqual(Object.keys(capabilityComponent?.variants ?? {}).sort(), [
-    "multi",
-    "offline",
-    "offlineMemo",
-    "online",
-  ]);
-  assert.notEqual(
-    capabilityComponent?.variants.multi?.rootNodeId,
-    capabilityComponent?.variants.online?.rootNodeId,
-  );
-  assert.notEqual(
-    capabilityComponent?.variants.offlineMemo?.rootNodeId,
-    capabilityComponent?.variants.offline?.rootNodeId,
-  );
-  assert.ok(
-    Object.values(capabilityComponent?.variants ?? {}).every(
-      (variant) => capabilityDocument.graph.rootNodeIds.includes(variant.rootNodeId),
-    ),
-  );
-  assert.ok(
-    Object.values(capabilityComponent?.variants.offlineMemo
-      ? capabilityDocument.graph.nodes[capabilityComponent.variants.offlineMemo.rootNodeId]?.childIds.map(
-          (nodeId) => capabilityDocument.graph.nodes[nodeId],
-        ) ?? []
-      : [],
-    ).some(
-      (node) =>
-        node?.binding?.kind === "builtinField" &&
-        node.binding.fieldId === "day.offline_memo",
-    ),
-  );
-  Object.entries(existingCapabilityComponents).forEach(([componentId, componentBeforeImport]) => {
-    assert.deepEqual(capabilityTimetable.components[componentId], componentBeforeImport);
+  assert.deepEqual(capabilityImport, {
+    ok: false,
+    reason: "Figma GRID candidate has no explicit variants for enabled statuses: multi, offlineMemo",
   });
-  assert.equal(
-    JSON.stringify(
-      Object.fromEntries(
-        capabilityTimetable.dayIds.map((dayId) => [dayId, capabilityTimetable.days[dayId]?.componentId]),
-      ),
-    ),
-    capabilityDayAssignments,
-  );
-  assert.ok(capabilityImport.warnings.some((warning) => /synthesized.*multi/i.test(warning)));
-  assert.ok(capabilityImport.warnings.some((warning) => /synthesized.*offline memo/i.test(warning)));
+  assert.equal(JSON.stringify(capabilityDocument), capabilityBeforeImport);
 
   for (const unsafeSource of [
     "https://www.figma.com/api/temporary-export.png",

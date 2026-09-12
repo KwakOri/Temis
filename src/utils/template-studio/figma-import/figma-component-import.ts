@@ -10,13 +10,10 @@ import type {
 import type { StudioFigmaGridCandidate } from "@/types/template-studio-figma";
 import {
   applyStudioTimetableComponentFrames,
-  ensureStudioVariantEntryGroups,
-  getStudioTimetableComponentFrame,
 } from "@/utils/template-studio/entry-groups";
 import { createStudioId } from "@/utils/template-studio/id";
 import { ensureStudioVariantSyncKeys } from "@/utils/template-studio/status-variants";
 import {
-  ensureStudioTimetableCapabilityStatus,
   getStudioTimetableCapabilities,
 } from "@/utils/template-studio/timetable-capabilities";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
@@ -513,88 +510,18 @@ export const applyStudioFigmaGridCandidate = (
   ensureStudioVariantSyncKeys(draft, onlineRootNodeId);
   ensureStudioVariantSyncKeys(draft, offlineRootNodeId);
 
-  const synthesizedWarnings: string[] = [];
-  const addOfflineMemoText = (rootNodeId: StudioNodeId) => {
-    const root = draft.graph.nodes[rootNodeId];
-    if (!root) return;
-
-    const visited = new Set<StudioNodeId>();
-    const hasOfflineMemoText = (nodeId: StudioNodeId): boolean => {
-      if (visited.has(nodeId)) return false;
-      visited.add(nodeId);
-      const node = draft.graph.nodes[nodeId];
-      if (!node) return false;
-      if (
-        node.binding?.kind === "builtinField" &&
-        node.binding.fieldId === "day.offline_memo"
-      ) {
-        return true;
-      }
-      return node.childIds.some(hasOfflineMemoText);
-    };
-    if (hasOfflineMemoText(root.id)) return;
-
-    const component = draftTimetable.components[componentId]!;
-    const frame =
-      component.frame ?? getStudioTimetableComponentFrame(draft, component);
-    const styleId = freshId("style");
-    draft.styles[styleId] = {
-      position: "absolute",
-      left: Math.round(frame.width * 0.18),
-      top: Math.round(frame.height * 0.32),
-      width: Math.round(frame.width * 0.64),
-      height: Math.round(frame.height * 0.36),
-      fontSize: 32,
-      fontWeight: 700,
-      color: "#475569",
-      display: "flex",
-      alignItems: "center",
-    };
-    const nodeId = freshId("node");
-    draft.graph.nodes[nodeId] = {
-      id: nodeId,
-      type: "flexibleText",
-      label: "offline_memo",
-      parentId: root.id,
-      childIds: [],
-      styleId,
-      binding: {
-        kind: "builtinField",
-        fieldId: "day.offline_memo",
-      },
-      meta: { variantSyncKey: "builtin:day.offline_memo" },
-    };
-    root.childIds.push(nodeId);
-  };
-
   const capabilities = getStudioTimetableCapabilities(draftTimetable);
-  ( [
-    ["multi", "online"],
-    ["offlineMemo", "offline"],
-  ] as const).forEach(([capabilityKey, sourceStatusId]) => {
-    if (!capabilities[capabilityKey].enabled) return;
-
-    ensureStudioTimetableCapabilityStatus(draftTimetable, capabilityKey);
-    const component = draftTimetable.components[componentId]!;
-    if (component.variants[capabilityKey]) return;
-    const sourceVariant = component.variants[sourceStatusId];
-    if (!sourceVariant) return;
-
-    const rootNodeId = cloneVariantRoot(sourceVariant.rootNodeId);
-    draft.graph.rootNodeIds.push(rootNodeId);
-    component.variants[capabilityKey] = {
-      statusId: capabilityKey,
-      rootNodeId,
+  const missingExplicitVariants = (["multi", "offlineMemo"] as const).filter(
+    (capabilityKey) =>
+      capabilities[capabilityKey].enabled &&
+      !draftTimetable.components[componentId]?.variants[capabilityKey],
+  );
+  if (missingExplicitVariants.length > 0) {
+    return {
+      ok: false,
+      reason: `Figma GRID candidate has no explicit variants for enabled statuses: ${missingExplicitVariants.join(", ")}`,
     };
-    ensureStudioVariantEntryGroups(draft, component, capabilityKey);
-    if (capabilityKey === "offlineMemo") addOfflineMemoText(rootNodeId);
-    ensureStudioVariantSyncKeys(draft, rootNodeId);
-    const capabilityLabel =
-      capabilityKey === "offlineMemo" ? "offline memo" : capabilityKey;
-    synthesizedWarnings.push(
-      `Synthesized compliant ${capabilityLabel} fallback variant for ${component.label} because the candidate had no explicit optional ${capabilityLabel} variant.`,
-    );
-  });
+  }
 
   applyStudioTimetableComponentFrames(draft);
   restoreExistingComponentFrames(document, draft, existingComponentIds);
@@ -613,12 +540,10 @@ export const applyStudioFigmaGridCandidate = (
   const originalCapabilities = getStudioTimetableCapabilities(timetable);
   warnings.push(
     originalCapabilities.multi.enabled
-      ? synthesizedWarnings.find((warning) => /multi fallback variant/i.test(warning)) ??
-        "Optional multi variant was already present and was preserved."
+      ? "Explicit multi variant was imported from the Figma candidate."
       : "Optional multi status is disabled and was not imported.",
     originalCapabilities.offlineMemo.enabled
-      ? synthesizedWarnings.find((warning) => /offline memo fallback variant/i.test(warning)) ??
-        "Optional offline memo variant was already present and was preserved."
+      ? "Explicit offline memo variant was imported from the Figma candidate."
       : "Optional offline memo status is disabled and was not imported.",
   );
   return {
