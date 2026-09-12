@@ -1,0 +1,113 @@
+# Task 8 report — GRID origin/component import end-to-end verification
+
+## Scope
+
+Added only Task 8 fixture/assertion coverage in `scripts/check-template-studio-figma-import.ts`.
+The redacted route fixture now exercises seven shuffled visible placements (five online, two offline), distinct placement coordinates/rotations, one online and one offline origin, repeated day/date/time slots, arbitrary title samples, hidden MEMO/OFFLINE_MEMO samples, and origin-only geometry. Assertions verify one component-set candidate, seven placement IDs, independent origin geometry, aggregated day evidence, stable date/time evidence, title reviewability, memo exclusion, and existing graph-import isolation.
+
+No production behavior or dependencies were changed. Pre-existing dirty files were not staged.
+
+## Real-link attempt
+
+Attempted credential availability check for the user-supplied Figma link without printing or persisting the link or token.
+
+Exact result:
+
+```text
+FIGMA_ACCESS_TOKEN=absent
+```
+
+Limitation: no authenticated Figma access path was available in this environment, so the real-link/admin-session checks could not be performed. Verification relies on the redacted mocked route fixture and existing pure helper/import checks. The supplied link and any token were not written to source, logs, this report, or document JSON.
+
+## Verification commands and outputs
+
+Task 8 focused import check:
+
+```text
+$ npm run check:template-studio:figma-import
+
+> temis@0.1.0 check:template-studio:figma-import
+> node --import tsx scripts/check-template-studio-figma-import.ts
+
+Figma import contract checks passed
+EXIT_CODE=0
+```
+
+Component import UI check:
+
+```text
+$ npm run check:studio:figma-component-import
+
+> temis@0.1.0 check:studio:figma-component-import
+> node --import tsx scripts/check-studio-figma-component-import.tsx
+
+Studio Figma component import panel checks passed
+EXIT_CODE=0
+```
+
+The exact requested settings, asset-sync, auto-text, and timetable-runtime npm commands each failed before script execution with the documented sandbox IPC error:
+
+```text
+Error: listen EPERM: operation not permitted /var/folders/.../tsx-501/<pid>.pipe
+EXIT_CODE=1
+```
+
+The exact requested component-set command is not defined by this checkout:
+
+```text
+$ npm run check:studio:component-sets
+npm error Missing script: "check:studio:component-sets"
+EXIT_CODE=1
+```
+
+Prescribed `node --import tsx` fallbacks and the repository's actual component-set script:
+
+```text
+$ node --import tsx scripts/check-studio-settings.tsx
+Studio settings baseline checks passed.
+EXIT_CODE=0
+
+$ node --import tsx scripts/check-template-studio-component-sets.ts
+Template Studio component set checks passed.
+EXIT_CODE=0
+
+$ node --import tsx scripts/check-studio-asset-sync.ts
+Studio asset sync baseline checks passed.
+EXIT_CODE=0
+
+$ node --import tsx scripts/check-template-studio-auto-text.tsx
+Template Studio Auto Text line break checks passed.
+EXIT_CODE=0
+
+$ node --import tsx scripts/check-template-studio-timetable-runtime.ts
+Template Studio timetable runtime checks passed.
+EXIT_CODE=0
+```
+
+Compiler and diff checks:
+
+```text
+$ npx tsc --noEmit
+EXIT_CODE=0
+
+$ git diff --check
+EXIT_CODE=0
+```
+
+Lint:
+
+```text
+$ npm run lint
+... existing repository ESLint warnings ...
+info - Need to disable some ESLint rules? See the Next.js ESLint documentation.
+EXIT_CODE=0
+```
+
+`npm test` was not attempted; no test script was needed for this verification.
+
+## Residual concerns
+
+- The real Figma link and authenticated UI flow remain unverified because `FIGMA_ACCESS_TOKEN` was absent.
+- The exact focused command list is not fully green as written because of sandbox `tsx` IPC restrictions and the missing `check:studio:component-sets` alias; all affected checks pass through the prescribed fallback/actual script.
+- Existing lint warnings remain; lint exits 0 and no Task 8 lint error was reported.
+- Task 8 should not be marked unconditionally complete until an authenticated manual real-link session is available, or the verification owner explicitly accepts the mocked-fixture limitation.

@@ -985,6 +985,13 @@ const runRouteContractChecks = async () => {
                       overrides: [{ id: `${id}-text`, characters: mutateOriginPlacements ? "CHANGED" : id.toUpperCase() }],
                       absoluteBoundingBox: { x: mutateOriginPlacements ? 9000 + index : index * 140, y: mutateOriginPlacements ? 8000 : index * 3, width: 140, height: 180 },
                       rotation: mutateOriginPlacements ? 77 + index : index,
+                      children: [
+                        { id: `${id}-day`, name: "weekday", type: "TEXT", characters: id.toUpperCase(), overrides: [{ id: "origin-online-day" }] },
+                        { id: `${id}-date`, name: "date", type: "TEXT", characters: String(index + 1).padStart(2, "0"), overrides: [{ id: "origin-online-date" }] },
+                        { id: `${id}-time`, name: "time", type: "TEXT", characters: index % 2 ? "21:05" : "PM 8:00", overrides: [{ id: "origin-online-time" }] },
+                        { id: `${id}-title`, name: id === "wed" ? "제목" : "Headline", type: "TEXT", characters: `Arbitrary ${id}`, overrides: [{ id: "origin-online-title" }] },
+                        { id: `${id}-memo`, name: "MEMO", type: "TEXT", characters: "REST DAY", visible: false },
+                      ],
                     })),
                     ...["offline-1", "offline-2"].map((id, index) => ({
                       id: `placement-${id}`,
@@ -995,6 +1002,13 @@ const runRouteContractChecks = async () => {
                       overrides: [{ id: `${id}-text`, characters: mutateOriginPlacements ? "CHANGED" : "07" }],
                       absoluteBoundingBox: { x: mutateOriginPlacements ? 9000 + index : 700 + index * 140, y: mutateOriginPlacements ? 8000 : 100, width: 140, height: 180 },
                       rotation: mutateOriginPlacements ? 77 + index : 20 + index,
+                      children: [
+                        { id: `${id}-day`, name: "weekday", type: "TEXT", characters: id === "offline-1" ? "FRI" : "SAT", overrides: [{ id: "origin-offline-day" }] },
+                        { id: `${id}-date`, name: "date", type: "TEXT", characters: String(index + 6).padStart(2, "0"), overrides: [{ id: "origin-offline-date" }] },
+                        { id: `${id}-time`, name: "time", type: "TEXT", characters: "09:30", overrides: [{ id: "origin-offline-time" }] },
+                        { id: `${id}-title`, name: "Headline", type: "TEXT", characters: `Offline ${id}`, overrides: [{ id: "origin-offline-title" }] },
+                        { id: `${id}-memo`, name: "OFFLINE_MEMO", type: "TEXT", characters: "REST DAY", visible: false },
+                      ],
                     })),
                     { id: "hidden-placement", name: "Hidden", type: "INSTANCE", visible: false, componentId: "origin-online" },
                     { id: "profile", name: "PROFILE", type: "FRAME", children: [] },
@@ -1023,7 +1037,13 @@ const runRouteContractChecks = async () => {
                 type: "COMPONENT",
                 absoluteBoundingBox: { x: 10, y: 20, width: 140, height: 180 },
                 relativeTransform: [[1, 0, 10], [0, 1, 20]],
-                children: [{ id: "origin-online-text", name: "weekday", type: "TEXT", characters: "MON" }],
+                children: [
+                  { id: "origin-online-day", name: "weekday", type: "TEXT", characters: "MON" },
+                  { id: "origin-online-date", name: "date", type: "TEXT", characters: "01" },
+                  { id: "origin-online-time", name: "time", type: "TEXT", characters: "AM 9:05" },
+                  { id: "origin-online-title", name: "Headline", type: "TEXT", characters: "Title" },
+                  { id: "origin-online-memo", name: "MEMO", type: "TEXT", characters: "REST DAY", visible: false },
+                ],
               },
             },
             "origin-offline": {
@@ -1033,7 +1053,13 @@ const runRouteContractChecks = async () => {
                 type: "COMPONENT",
                 absoluteBoundingBox: { x: 10, y: 20, width: 140, height: 180 },
                 relativeTransform: [[1, 0, 10], [0, 1, 20]],
-                children: [{ id: "origin-offline-text", name: "weekday", type: "TEXT", characters: "MON" }],
+                children: [
+                  { id: "origin-offline-day", name: "weekday", type: "TEXT", characters: "MON" },
+                  { id: "origin-offline-date", name: "date", type: "TEXT", characters: "06" },
+                  { id: "origin-offline-time", name: "time", type: "TEXT", characters: "09:30" },
+                  { id: "origin-offline-title", name: "Headline", type: "TEXT", characters: "Offline title" },
+                  { id: "origin-offline-memo", name: "OFFLINE_MEMO", type: "TEXT", characters: "REST DAY", visible: false },
+                ],
               },
             },
           },
@@ -1342,16 +1368,67 @@ const runRouteContractChecks = async () => {
       label: string;
       placementInstanceIds: string[];
       frame: unknown;
-      variants: Record<string, { root: FigmaNormalizedNode; assets: Array<{ sourceNodeId: string }> }>;
+      variants: Record<string, {
+        root: FigmaNormalizedNode;
+        assets: Array<{ sourceNodeId: string }>;
+        placementEvidence: Record<string, FigmaSemanticEvidence>;
+        componentSetEvidence?: Record<string, FigmaSemanticEvidence>;
+      }>;
     };
     assert.equal(originCandidate.label, "Grid Day Card");
-    assert.equal(originCandidate.placementInstanceIds.length, 7);
+    assert.deepEqual(originCandidate.placementInstanceIds, [
+      "placement-sun",
+      "placement-mon",
+      "placement-wed",
+      "placement-tue",
+      "placement-thu",
+      "placement-offline-1",
+      "placement-offline-2",
+    ]);
+    assert.equal(new Set(originCandidate.placementInstanceIds).size, 7);
     assert.equal(originCandidate.variants.online.root.id, "origin-online");
     assert.equal(originCandidate.variants.offline.root.id, "origin-offline");
+    assert.equal(Object.keys(originCandidate.variants).length, 2);
     assert.notEqual(originCandidate.variants.online.root.name, "Component 130");
     assert.deepEqual(originCandidate.variants.online.root.frame, { left: 10, top: 20, width: 140, height: 180 });
     assert.deepEqual(originCandidate.variants.online.root.relativeTransform, [[1, 0, 10], [0, 1, 20]]);
     assert.deepEqual(originCandidate.variants.online.assets, []);
+    assert.deepEqual(
+      originCandidate.variants.online.placementEvidence["origin-online-day"]?.samples.map((sample) => sample.placementInstanceId),
+      ["placement-sun", "placement-mon", "placement-wed", "placement-tue", "placement-thu"],
+      "Online evidence is aggregated from five placements in shuffled order.",
+    );
+    assert.deepEqual(
+      originCandidate.variants.offline.placementEvidence["origin-offline-day"]?.samples.map((sample) => sample.placementInstanceId),
+      ["placement-offline-1", "placement-offline-2"],
+      "Offline evidence is aggregated from two placements.",
+    );
+    assert.equal(originCandidate.variants.online.componentSetEvidence?.["origin-online-day"]?.samples.length, 7);
+    assert.equal(originCandidate.variants.online.componentSetEvidence?.["origin-online-day"]?.distinctValueCount, 7);
+    assert.equal(originCandidate.variants.online.placementEvidence["origin-online-date"]?.samples.length, 5);
+    assert.equal(originCandidate.variants.online.placementEvidence["origin-online-time"]?.samples.length, 5);
+    assert.equal(originCandidate.variants.online.placementEvidence["origin-online-memo"], undefined);
+    assert.equal(originCandidate.variants.offline.placementEvidence["origin-offline-memo"], undefined);
+    assert.equal(originCandidate.variants.online.placementEvidence["origin-online-title"]?.mapping, "override");
+    assert.equal(originCandidate.variants.offline.placementEvidence["origin-offline-title"]?.mapping, "override");
+    const routeDayReview = inferFigmaSemanticEvidence({
+      origin: originCandidate.variants.online.root,
+      evidenceByOriginNodeId: originCandidate.variants.online.placementEvidence,
+      componentSetEvidence: originCandidate.variants.online.componentSetEvidence,
+    }).find((entry) => entry.sourceNodeId === "origin-online-day");
+    assert.equal(routeDayReview?.candidate.suggestedRole, "day_label");
+    assert.equal(routeDayReview?.evidence.samples.length, 7);
+    assert.equal(routeDayReview?.evidence.distinctValueCount, 7);
+    assert.equal(routeDayReview?.evidence.mapping, "override");
+    assert.equal(
+      inferFigmaSemanticEvidence({
+        origin: originCandidate.variants.online.root,
+        evidenceByOriginNodeId: originCandidate.variants.online.placementEvidence,
+        componentSetEvidence: originCandidate.variants.online.componentSetEvidence,
+      }).some((entry) => entry.sourceNodeId === "origin-online-title"),
+      false,
+      "Arbitrary title text remains reviewable rather than becoming an automatic rule binding.",
+    );
     mutateOriginPlacements = true;
     const movedPlacements = await fetchFigmaGridOriginCandidates({ fileKey: "origin-fixture", nodeId: "1412:5814" });
     const movedCandidate = movedPlacements.candidates[0] as unknown as typeof originCandidate;
