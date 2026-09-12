@@ -221,6 +221,35 @@ assert.equal(
 );
 assert.equal(toOneBySeven.columns, 7, "프리셋의 칸 수를 그대로 쓴다.");
 
+// --- 프리셋 간 카드 변환 보존 ---
+
+const cardTransformPresets = ["1x7", "7x1", "4x2", "3x3", "custom"] as const;
+const cardTransformFixture = {
+  mon: { left: 4, top: -2, rotateDeg: 9 },
+  tue: { left: -7, top: 3, rotateDeg: -12 },
+} as StudioTimetableDayCardsLayout["dayOffsets"];
+
+for (const gridPreset of cardTransformPresets) {
+  const presetMarkup = markupOf(createLayout({ gridPreset }));
+  assert.ok(
+    presetMarkup.includes("Card Transforms") &&
+      presetMarkup.includes("Offset X") &&
+      presetMarkup.includes("Offset Y") &&
+      presetMarkup.includes("Rotate"),
+    `${gridPreset} 프리셋에서도 카드 변환 필드를 렌더링한다.`,
+  );
+
+  const presetLayout = toPreset(
+    createLayout({ gridPreset: "1x7", dayOffsets: cardTransformFixture }),
+    gridPreset,
+  );
+  assert.deepEqual(
+    presetLayout.dayOffsets,
+    cardTransformFixture,
+    `${gridPreset} 프리셋으로 바꿔도 day ID별 카드 변환을 보존한다.`,
+  );
+}
+
 // 요일이 많으면 프리셋보다 줄을 늘려서 모두 담는다.
 //
 // 한 줄 프리셋에 요일 여덟 개를 담으려면 줄이 두 개여야 한다.
