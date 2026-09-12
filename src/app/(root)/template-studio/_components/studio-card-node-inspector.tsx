@@ -58,6 +58,7 @@ import {
   STUDIO_TEXT_WRAP_MODE_STYLE_KEY,
 } from "@/utils/template-studio/text-wrap";
 import { getStudioFontWeightOptions } from "@/utils/template-studio/web-fonts";
+import { getStudioDateFormatMode } from "@/utils/template-studio/date-template";
 
 import { StudioDayLabelFormatField } from "./studio-day-label-format-field";
 import { StudioWeekDatesFormatControls } from "./studio-timetable-object-inspector-controls";
@@ -542,9 +543,13 @@ export const buildStudioCardNodeInspectorSections = ({
                             })
                           }
                         />
-                        {selectedNode.binding.fieldId === "day.date" ? (
+                        {getStudioDateFormatMode(
+                          selectedNode.binding.fieldId,
+                        ) ? (
                           <StudioWeekDatesFormatControls
-                            mode="single"
+                            mode={getStudioDateFormatMode(
+                              selectedNode.binding.fieldId,
+                            )!}
                             format={
                               selectedNode.binding.dateRangeFormat ?? "short"
                             }
@@ -553,7 +558,7 @@ export const buildStudioCardNodeInspectorSections = ({
                               updateNode(selectedNode.id, (node) => {
                                 if (
                                   node.binding?.kind !== "builtinField" ||
-                                  node.binding.fieldId !== "day.date"
+                                  !getStudioDateFormatMode(node.binding.fieldId)
                                 ) {
                                   return;
                                 }

@@ -468,7 +468,9 @@ const boundBindingSection = boundSections.find((item) => item.id === "binding");
 const boundTextSection = boundSections.find((item) => item.id === "text");
 assert.ok(boundBindingSection && boundBindingSection.kind !== "block");
 assert.ok(boundTextSection && boundTextSection.kind !== "block");
-const boundBindingMarkup = renderToStaticMarkup(<>{boundBindingSection.content}</>);
+const boundBindingMarkup = renderToStaticMarkup(
+  <>{boundBindingSection.content}</>,
+);
 assert.ok(
   boundBindingMarkup.includes(">Label</span>") &&
     boundBindingMarkup.includes(">Placeholder</span>"),
@@ -511,6 +513,47 @@ for (const label of [
     `이미지 Inspector에 ${label}이 있어야 한다.`,
   );
 }
+
+const weekRangeDocument = createInspectorDocument();
+weekRangeDocument.graph.nodes.text.binding = {
+  kind: "builtinField",
+  fieldId: "week.date_range",
+};
+weekRangeDocument.graph.nodes.text.meta = {
+  semantic: { type: "weekDates" },
+};
+const weekRangeSection = buildSections({
+  document: weekRangeDocument,
+  selectedNodeIds: ["text"],
+}).find((item) => item.id === "binding");
+assert.ok(weekRangeSection && weekRangeSection.kind !== "block");
+const weekRangeMarkup = renderToStaticMarkup(<>{weekRangeSection.content}</>);
+assert.ok(
+  weekRangeMarkup.includes("Date Format") &&
+    weekRangeMarkup.includes("${start.YYYY}") &&
+    weekRangeMarkup.includes("Split lines"),
+  "썸네일 Week Dates의 week.date_range에는 기간 포맷과 start/end 토큰이 나타난다.",
+);
+
+const weekStartDocument = createInspectorDocument();
+weekStartDocument.graph.nodes.text.binding = {
+  kind: "builtinField",
+  fieldId: "week.start_date",
+};
+weekStartDocument.graph.nodes.text.meta = {
+  semantic: { type: "weekDates" },
+};
+const weekStartSection = buildSections({
+  document: weekStartDocument,
+  selectedNodeIds: ["text"],
+}).find((item) => item.id === "binding");
+assert.ok(weekStartSection && weekStartSection.kind !== "block");
+const weekStartMarkup = renderToStaticMarkup(<>{weekStartSection.content}</>);
+assert.ok(
+  weekStartMarkup.includes("Date Format") &&
+    weekStartMarkup.includes("${YYYY}"),
+  "썸네일 Week Dates의 week.start_date에는 단일 날짜 포맷과 토큰이 나타난다.",
+);
 
 const lockedImageDocument = createInspectorDocument();
 lockedImageDocument.graph.nodes.image.locked = true;

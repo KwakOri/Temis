@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import { resolveStudioTextBinding } from "../src/utils/template-studio/binding-resolver";
 import {
+  getStudioDateFormatMode,
   resolveStudioDateRangeText,
   STUDIO_WEEK_DATE_LONG_TEMPLATE,
 } from "../src/utils/template-studio/date-template";
@@ -11,6 +12,13 @@ import { validateStudioRuntimeValuesForDocument } from "../src/utils/template-st
 import { validateStudioDocument } from "../src/utils/template-studio/validator";
 import { createThumbnailStudioDocument } from "../src/utils/thumbnail-studio/document-factory";
 import { ensureThumbnailWeekDatesContract } from "../src/utils/thumbnail-studio/week-dates";
+
+assert.equal(getStudioDateFormatMode("week.date_range"), "range");
+assert.equal(getStudioDateFormatMode("day.date"), "single");
+assert.equal(getStudioDateFormatMode("week.start_date"), "single");
+assert.equal(getStudioDateFormatMode("week.end_date"), "single");
+assert.equal(getStudioDateFormatMode("day.label"), null);
+assert.equal(getStudioDateFormatMode("entry.time"), null);
 
 assert.equal(
   resolveStudioDateRangeText({
