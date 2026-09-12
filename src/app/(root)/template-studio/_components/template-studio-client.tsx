@@ -980,22 +980,30 @@ export function TemplateStudioClient({
       timetableComposition.objects[selectedTimetableLayerId];
 
     if (isStudioPlacedTimetableCompositionObject(compositionObject)) {
-      return resolveStudioTimetableObjectGeometry(
-        timetableComposition,
-        compositionObject.id,
-        getStudioTimetablePreviewSize(timetable),
-      );
+      return {
+        ...resolveStudioTimetableObjectGeometry(
+          timetableComposition,
+          compositionObject.id,
+          getStudioTimetablePreviewSize(timetable),
+        ),
+        rotateDeg: compositionObject.style.rotateDeg ?? 0,
+      };
     }
 
     if (selectedTimetableLayerId === STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID) {
-      return getStudioTimetableDayCardsBounds(
-        layout,
-        timetableDays,
-        (dayId) =>
-          getStudioTimetableEntriesForDay(document, runtimeValues, dayId)
-            .length,
-        getTimetableEntryCardSizeForDay,
-      );
+      return {
+        ...getStudioTimetableDayCardsBounds(
+          layout,
+          timetableDays,
+          (dayId) =>
+            getStudioTimetableEntriesForDay(document, runtimeValues, dayId)
+              .length,
+          getTimetableEntryCardSizeForDay,
+        ),
+        rotateDeg:
+          timetableComposition.objects[STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID]
+            ?.style.rotateDeg ?? 0,
+      };
     }
 
     if (!selectedTimetableLayerId.startsWith("day-card:")) return null;
@@ -1007,7 +1015,7 @@ export function TemplateStudioClient({
     const dayIndex = timetableDays.findIndex((day) => day.id === dayId);
     if (dayIndex < 0) return null;
 
-    return (
+    const geometry =
       getStudioTimetableDayCardGeometries(
         layout,
         timetableDays,
@@ -1022,8 +1030,11 @@ export function TemplateStudioClient({
         dayIndex,
         getStudioTimetableEntriesForDay(document, runtimeValues, dayId).length,
         getTimetableEntryCardSizeForDay(dayId),
-      )
-    );
+      );
+    return {
+      ...geometry,
+      rotateDeg: layout.dayOffsets?.[dayId]?.rotateDeg ?? 0,
+    };
   }, [
     document,
     runtimeValues,
