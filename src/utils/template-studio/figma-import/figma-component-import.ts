@@ -78,6 +78,14 @@ const BUILTIN_FIELD_IDS = new Set([
   "entry.is_offline_memo",
 ]);
 
+type ExplicitVariant = {
+  component: StudioFigmaGridCandidate["component"];
+};
+
+type ExplicitVariantCandidate = StudioFigmaGridCandidate & {
+  variants?: Partial<Record<"online" | "offline", ExplicitVariant>>;
+};
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
@@ -170,29 +178,12 @@ const validateBinding = (
   }
 };
 
-const validateCandidate = (
-  candidate: StudioFigmaGridCandidate,
+const validateComponent = (
+  component: StudioFigmaGridCandidate["component"],
   document: StudioTemplateDocument,
 ): string | null => {
-  const component = candidate?.component;
   if (!component || !isRecord(component.nodes) || !isRecord(component.styles) || !Array.isArray(component.assets)) {
     return "Candidate component graph is malformed";
-  }
-  if (
-    typeof candidate.candidateId !== "string" ||
-    candidate.candidateId.length === 0 ||
-    typeof candidate.label !== "string" ||
-    !isRecord(candidate.frame) ||
-    !Array.isArray(candidate.reviews) ||
-    !Array.isArray(candidate.warnings) ||
-    candidate.warnings.some((warning) => typeof warning !== "string")
-  ) {
-    return "Candidate label or frame is malformed";
-  }
-  if ([candidate.frame.left, candidate.frame.top, candidate.frame.width, candidate.frame.height].some(
-    (value) => !isFiniteNumber(value),
-  ) || candidate.frame.width <= 0 || candidate.frame.height <= 0) {
-    return "Candidate frame is invalid";
   }
   if (typeof component.rootNodeId !== "string" || !component.nodes[component.rootNodeId]) {
     return "Candidate root node is missing";
@@ -227,7 +218,7 @@ const validateCandidate = (
     assetIds.add(asset.id);
   }
 
-  if (/(?:https?|mcp):\/\//i.test(JSON.stringify(candidate.component))) {
+  if (/(?:https?|mcp):\/\//i.test(JSON.stringify(component))) {
     return "Candidate contains an unsafe source URL";
   }
 
@@ -333,6 +324,36 @@ const validateCandidate = (
   return documentErrors.length > 0 ? "Document timetable domain is invalid" : null;
 };
 
+const validateCandidate = (
+  candidate: ExplicitVariantCandidate,
+  document: StudioTemplateDocument,
+): string | null => {
+  if (
+    typeof candidate.candidateId !== "string" ||
+    candidate.candidateId.length === 0 ||
+    typeof candidate.label !== "string" ||
+    !isRecord(candidate.frame) ||
+    !Array.isArray(candidate.warnings) ||
+    candidate.warnings.some((warning) => typeof warning !== "string")
+  ) {
+    return "Candidate label or frame is malformed";
+  }
+  if ([candidate.frame.left, candidate.frame.top, candidate.frame.width, candidate.frame.height].some(
+    (value) => !isFiniteNumber(value),
+  ) || candidate.frame.width <= 0 || candidate.frame.height <= 0) {
+    return "Candidate frame is invalid";
+  }
+  const variants = candidate.variants;
+  if (!variants?.online || !variants.offline) {
+    return "Candidate must contain explicit online and offline variants";
+  }
+  for (const status of ["online", "offline"] as const) {
+    const error = validateComponent(variants[status]!.component, document);
+    if (error) return `${status} variant: ${error}`;
+  }
+  return null;
+};
+
 const remapBindingAssets = (
   binding: StudioBinding | undefined,
   assetIdBySourceId: Map<string, string>,
@@ -394,11 +415,12 @@ export const applyStudioFigmaGridCandidate = (
   document: StudioTemplateDocument,
   candidate: StudioFigmaGridCandidate,
 ): StudioFigmaGridCandidateImportResult => {
-  // `reviewNodeIds` is transient UI metadata. Only candidate.component is merged;
-  // source-node mappings and all other review metadata are intentionally ignored.
+  // `variants` is the only graph source for the explicit GRID import flow.
+  // Review/source metadata remains transient and is intentionally ignored.
   const timetable = document.domains?.timetable;
   if (!timetable) return { ok: false, reason: "Document timetable domain is missing" };
-  const validationError = validateCandidate(candidate, document);
+  const explicitCandidate = candidate as ExplicitVariantCandidate;
+  const validationError = validateCandidate(explicitCandidate, document);
   if (validationError) return { ok: false, reason: validationError };
 
   const draft = cloneData(document);
@@ -417,90 +439,62 @@ export const applyStudioFigmaGridCandidate = (
     return id;
   };
   const componentId = freshId("component");
-  const assetIdBySourceId = new Map<string, string>();
-  for (const sourceAsset of candidate.component.assets) {
-    const assetId = freshId("asset");
-    assetIdBySourceId.set(sourceAsset.id, assetId);
-    const transientAsset = cloneData(sourceAsset);
-    delete transientAsset.storageProvider;
-    delete transientAsset.storagePath;
-    delete transientAsset.publicUrl;
-    delete transientAsset.contentHash;
-    delete transientAsset.lastSyncedAt;
-    draft.assets[assetId] = {
-      ...redactSourceUrls(cloneData(transientAsset)),
-      id: assetId,
-      label: safeLabel(sourceAsset.label, "Imported Figma asset"),
-    } satisfies StudioAsset;
-  }
-
-  const nodeIdBySourceId = new Map<string, string>();
-  const styleIdBySourceId = new Map<string, string>();
-  Object.keys(candidate.component.nodes).forEach((sourceNodeId) =>
-    nodeIdBySourceId.set(sourceNodeId, freshId("node")),
-  );
-  Object.keys(candidate.component.styles).forEach((sourceStyleId) =>
-    styleIdBySourceId.set(sourceStyleId, freshId("style")),
-  );
-  for (const [sourceStyleId, sourceStyle] of Object.entries(candidate.component.styles)) {
-    draft.styles[styleIdBySourceId.get(sourceStyleId)!] = cloneData(sourceStyle) as StudioStyleRecord;
-  }
-  for (const [sourceNodeId, sourceNode] of Object.entries(candidate.component.nodes)) {
-    const nextNode = redactSourceUrls(cloneData(sourceNode));
-    const meta = nextNode.meta ? cloneData(nextNode.meta) : undefined;
-    if (meta) delete meta.variantSyncKey;
-    nextNode.id = nodeIdBySourceId.get(sourceNodeId)!;
-    nextNode.label = safeLabel(nextNode.label, "Imported Figma layer");
-    nextNode.parentId = nextNode.parentId
-      ? nodeIdBySourceId.get(nextNode.parentId)!
-      : null;
-    nextNode.childIds = nextNode.childIds.map((childId) => nodeIdBySourceId.get(childId)!);
-    nextNode.styleId = nextNode.styleId
-      ? styleIdBySourceId.get(nextNode.styleId)!
-      : undefined;
-    nextNode.binding = remapBindingAssets(nextNode.binding, assetIdBySourceId);
-    nextNode.assetSlots = remapAssetSlots(nextNode.assetSlots, assetIdBySourceId);
-    nextNode.meta = meta && Object.keys(meta).length > 0 ? meta : undefined;
-    draft.graph.nodes[nextNode.id] = nextNode;
-  }
-
-  const cloneVariantRoot = (sourceRootId: string): string => {
-    const cloneNode = (sourceNodeId: string, parentId: string | null): string => {
-      const sourceNode = draft.graph.nodes[sourceNodeId]!;
-      const nodeId = freshId("node");
-      const styleId = sourceNode.styleId ? freshId("style") : undefined;
-      if (sourceNode.styleId && styleId) draft.styles[styleId] = cloneData(draft.styles[sourceNode.styleId]!);
-      const meta = sourceNode.meta ? cloneData(sourceNode.meta) : undefined;
+  const mergeVariant = (component: StudioFigmaGridCandidate["component"]): string => {
+    const assetIdBySourceId = new Map<string, string>();
+    for (const sourceAsset of component.assets) {
+      const assetId = freshId("asset");
+      assetIdBySourceId.set(sourceAsset.id, assetId);
+      const transientAsset = cloneData(sourceAsset);
+      delete transientAsset.storageProvider;
+      delete transientAsset.storagePath;
+      delete transientAsset.publicUrl;
+      delete transientAsset.contentHash;
+      delete transientAsset.lastSyncedAt;
+      draft.assets[assetId] = {
+        ...redactSourceUrls(cloneData(transientAsset)),
+        id: assetId,
+        label: safeLabel(sourceAsset.label, "Imported Figma asset"),
+      } satisfies StudioAsset;
+    }
+    const nodeIdBySourceId = new Map<string, string>();
+    const styleIdBySourceId = new Map<string, string>();
+    Object.keys(component.nodes).forEach((sourceNodeId) => nodeIdBySourceId.set(sourceNodeId, freshId("node")));
+    Object.keys(component.styles).forEach((sourceStyleId) => styleIdBySourceId.set(sourceStyleId, freshId("style")));
+    for (const [sourceStyleId, sourceStyle] of Object.entries(component.styles)) {
+      draft.styles[styleIdBySourceId.get(sourceStyleId)!] = cloneData(sourceStyle) as StudioStyleRecord;
+    }
+    for (const [sourceNodeId, sourceNode] of Object.entries(component.nodes)) {
+      const nextNode = redactSourceUrls(cloneData(sourceNode));
+      const meta = nextNode.meta ? cloneData(nextNode.meta) : undefined;
       if (meta) delete meta.variantSyncKey;
-      const cloned: StudioGraphNode = {
-        ...cloneData(sourceNode),
-        id: nodeId,
-        parentId,
-        childIds: [],
-        styleId,
-        meta: meta && Object.keys(meta).length > 0 ? meta : undefined,
-      };
-      draft.graph.nodes[nodeId] = cloned;
-      cloned.childIds = sourceNode.childIds.map((childId) => cloneNode(childId, nodeId));
-      return nodeId;
-    };
-    return cloneNode(sourceRootId, null);
+      nextNode.id = nodeIdBySourceId.get(sourceNodeId)!;
+      nextNode.label = safeLabel(nextNode.label, "Imported Figma layer");
+      nextNode.parentId = nextNode.parentId ? nodeIdBySourceId.get(nextNode.parentId)! : null;
+      nextNode.childIds = nextNode.childIds.map((childId) => nodeIdBySourceId.get(childId)!);
+      nextNode.styleId = nextNode.styleId ? styleIdBySourceId.get(nextNode.styleId)! : undefined;
+      nextNode.binding = remapBindingAssets(nextNode.binding, assetIdBySourceId);
+      nextNode.assetSlots = remapAssetSlots(nextNode.assetSlots, assetIdBySourceId);
+      nextNode.meta = meta && Object.keys(meta).length > 0 ? meta : undefined;
+      draft.graph.nodes[nextNode.id] = nextNode;
+    }
+    return nodeIdBySourceId.get(component.rootNodeId)!;
   };
 
-  const onlineRootNodeId = nodeIdBySourceId.get(candidate.component.rootNodeId)!;
-  const offlineRootNodeId = cloneVariantRoot(onlineRootNodeId);
+  const variants = explicitCandidate.variants!;
+  const onlineRootNodeId = mergeVariant(variants.online!.component);
+  const offlineRootNodeId = mergeVariant(variants.offline!.component);
   draft.graph.rootNodeIds.push(onlineRootNodeId, offlineRootNodeId);
   draftTimetable.components[componentId] = {
     id: componentId,
     label: (() => {
-      const base = safeLabel(candidate.label, "Imported Figma card");
+      const base = safeLabel(explicitCandidate.label, "Imported Figma card");
       const labels = new Set(Object.values(draftTimetable.components).map((component) => component.label));
       if (!labels.has(base)) return base;
       let suffix = 2;
       while (labels.has(`${base} ${suffix}`)) suffix += 1;
       return `${base} ${suffix}`;
     })(),
-    frame: { left: 0, top: 0, width: candidate.frame.width, height: candidate.frame.height },
+    frame: { left: 0, top: 0, width: explicitCandidate.frame.width, height: explicitCandidate.frame.height },
     defaultStatusId: "online",
     variants: {
       online: { statusId: "online", rootNodeId: onlineRootNodeId },
@@ -536,7 +530,7 @@ export const applyStudioFigmaGridCandidate = (
   document.assets = draft.assets;
   timetable.components = draftTimetable.components;
 
-  const warnings = candidate.warnings.map(safeWarning);
+  const warnings = explicitCandidate.warnings.map(safeWarning);
   const originalCapabilities = getStudioTimetableCapabilities(timetable);
   warnings.push(
     originalCapabilities.multi.enabled

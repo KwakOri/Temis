@@ -2054,7 +2054,15 @@ const runConverterChecks = () => {
   assert.equal(edited.variants.offline.reviews[0]?.decision, "auto");
 };
 
-const createComponentImportCandidate = (): StudioFigmaGridCandidate => ({
+type ExplicitComponentImportCandidate = StudioFigmaGridCandidate & {
+  variants: {
+    online: { status: "online"; component: StudioFigmaGridCandidate["component"]; reviews: StudioFigmaNodeReview[]; reviewNodeIds: Record<string, string>; reviewDefaults?: Record<string, StudioFigmaNodeReview>; warnings: string[]; origin: Record<string, string> };
+    offline?: { status: "offline"; component: StudioFigmaGridCandidate["component"]; reviews: StudioFigmaNodeReview[]; reviewNodeIds: Record<string, string>; reviewDefaults?: Record<string, StudioFigmaNodeReview>; warnings: string[]; origin: Record<string, string> };
+  };
+};
+
+const createComponentImportCandidate = (): ExplicitComponentImportCandidate => {
+  const candidate: StudioFigmaGridCandidate = {
   candidateId: "figma-source-card-1412:5814",
   label: "Monday card",
   frame: { left: 10, top: 20, width: 240, height: 140 },
@@ -2120,7 +2128,43 @@ const createComponentImportCandidate = (): StudioFigmaGridCandidate => ({
   },
   reviews: [],
   warnings: ["Unsupported Figma shadow was omitted."],
-});
+  };
+  const offlineComponent = structuredClone(candidate.component);
+  offlineComponent.nodes["figma-root"]!.label = "Monday card OFFLINE";
+  offlineComponent.nodes["figma-title"]!.label = "Offline title";
+  offlineComponent.assets[0] = {
+    ...offlineComponent.assets[0]!,
+    label: "Offline decoration",
+    src: "data:image/png;base64,AQ==",
+  };
+  const origin = {
+    componentId: "figma-component",
+    componentNodeId: "figma-root",
+    componentSetNodeId: "figma-set",
+    componentName: "Monday card",
+  };
+  return {
+    ...candidate,
+    variants: {
+      online: {
+        status: "online",
+        component: candidate.component,
+        reviews: [],
+        reviewNodeIds: { "figma-title": "figma-title", "figma-image": "figma-image" },
+        origin,
+        warnings: [],
+      },
+      offline: {
+        status: "offline",
+        component: offlineComponent,
+        reviews: [],
+        reviewNodeIds: { "figma-title": "figma-title", "figma-image": "figma-image" },
+        origin: { ...origin, componentId: "figma-component-offline", componentName: "Monday card OFFLINE" },
+        warnings: [],
+      },
+    },
+  };
+};
 
 const runComponentImportChecks = () => {
   const unsafeCandidateDocument = createSampleStudioDocument();
@@ -2174,7 +2218,34 @@ const runComponentImportChecks = () => {
   const originalDayComponentIds = JSON.stringify(
     Object.fromEntries(timetable.dayIds.map((dayId) => [dayId, timetable.days[dayId]?.componentId])),
   );
+  const originalRootNodeIds = [...document.graph.rootNodeIds];
+  const originalGraphNodeIds = new Set(Object.keys(document.graph.nodes));
+  const originalStyleIds = new Set(Object.keys(document.styles));
+  const originalAssetIds = new Set(Object.keys(document.assets));
+  const originalExistingComponents = Object.fromEntries(
+    Object.entries(timetable.components).map(([componentId, component]) => [componentId, structuredClone(component)]),
+  );
   const candidate = createComponentImportCandidate();
+  candidate.variants.online.reviews = [{
+    sourceNodeId: "figma-title",
+    label: "Title",
+    sourceType: "TEXT",
+    suggestedRole: "main_title",
+    suggestedStudioType: "flexibleText",
+    suggestedBinding: { kind: "builtinField", fieldId: "entry.main_title" },
+    confidence: 0.8,
+    source: "ai",
+    decision: "needs_review",
+    reason: "AI reason must remain transient",
+    evidence: {
+      samples: [{ placementInstanceId: "placement-1", variantStatus: "online", originNodeId: "figma-title", value: "MON" }],
+      sampleValues: ["MON"],
+      matchedPlacementCount: 1,
+      distinctValueCount: 1,
+      signals: ["stable_origin_mapping"],
+      mapping: "override",
+    },
+  }];
   const result = applyStudioFigmaGridCandidate(document, candidate);
   assert.equal(result.ok, true);
   if (!result.ok) return;
@@ -2191,6 +2262,23 @@ const runComponentImportChecks = () => {
   const onlineRootId = component?.variants.online?.rootNodeId;
   const offlineRootId = component?.variants.offline?.rootNodeId;
   assert.ok(onlineRootId && offlineRootId && onlineRootId !== offlineRootId);
+  assert.equal(document.graph.rootNodeIds.slice(0, originalRootNodeIds.length).join(","), originalRootNodeIds.join(","));
+  const importedNodeIds = new Set<string>();
+  const collectNodeIds = (nodeId: string) => {
+    if (importedNodeIds.has(nodeId)) return;
+    importedNodeIds.add(nodeId);
+    document.graph.nodes[nodeId]?.childIds.forEach(collectNodeIds);
+  };
+  collectNodeIds(onlineRootId!);
+  collectNodeIds(offlineRootId!);
+  assert.equal([...importedNodeIds].some((id) => originalGraphNodeIds.has(id)), false);
+  assert.equal(Object.keys(document.styles).some((id) => !originalStyleIds.has(id) && id === document.graph.nodes[onlineRootId!]?.styleId), true);
+  assert.equal(Object.keys(document.assets).some((id) => !originalAssetIds.has(id)), true);
+  assert.equal(
+    JSON.stringify(Object.fromEntries(Object.keys(originalExistingComponents).map((id) => [id, timetable.components[id]]))),
+    JSON.stringify(originalExistingComponents),
+    "Existing component frames and variants remain byte-for-byte unchanged.",
+  );
   const collectSubtreeStyleIds = (rootId: string) => {
     const styleIds = new Set<string>();
     const visit = (nodeId: string) => {
@@ -2205,6 +2293,40 @@ const runComponentImportChecks = () => {
   const onlineStyleIds = collectSubtreeStyleIds(onlineRootId!);
   const offlineStyleIds = collectSubtreeStyleIds(offlineRootId!);
   assert.equal([...onlineStyleIds].some((styleId) => offlineStyleIds.has(styleId)), false);
+  const onlineLabels = new Set(
+    [...onlineRootId ? [onlineRootId] : [], ...document.graph.nodes[onlineRootId!]?.childIds ?? []]
+      .map((nodeId) => document.graph.nodes[nodeId]?.label),
+  );
+  const offlineLabels = new Set(
+    [...offlineRootId ? [offlineRootId] : [], ...document.graph.nodes[offlineRootId!]?.childIds ?? []]
+      .map((nodeId) => document.graph.nodes[nodeId]?.label),
+  );
+  assert.ok(onlineLabels.has("Monday card"));
+  assert.ok(offlineLabels.has("Monday card OFFLINE"));
+  for (const rootId of [onlineRootId!, offlineRootId!]) {
+    const style = document.styles[document.graph.nodes[rootId]?.styleId ?? ""];
+    assert.deepEqual(
+      { left: style?.left, top: style?.top, width: style?.width, height: style?.height },
+      { left: 0, top: 0, width: candidate.frame.width, height: candidate.frame.height },
+      "The shared candidate frame is applied to both variant roots.",
+    );
+  }
+  const onlineAssetIds = new Set(
+    Object.values(document.graph.nodes).filter((node) => onlineStyleIds.has(node.styleId ?? "")).flatMap((node) =>
+      node.binding?.kind === "staticAsset" ? [node.binding.assetId] : [],
+    ),
+  );
+  const offlineAssetIds = new Set(
+    Object.values(document.graph.nodes).filter((node) => offlineStyleIds.has(node.styleId ?? "")).flatMap((node) =>
+      node.binding?.kind === "staticAsset" ? [node.binding.assetId] : [],
+    ),
+  );
+  assert.equal([...onlineAssetIds].some((assetId) => offlineAssetIds.has(assetId)), false);
+  assert.notEqual(
+    document.assets[[...onlineAssetIds][0] ?? ""]?.src,
+    document.assets[[...offlineAssetIds][0] ?? ""]?.src,
+    "Online and offline assets remain visually distinct.",
+  );
   for (const rootId of [onlineRootId!, offlineRootId!]) {
     const directEntryGroups = document.graph.nodes[rootId]?.childIds
       .map((nodeId) => document.graph.nodes[nodeId])
@@ -2214,6 +2336,8 @@ const runComponentImportChecks = () => {
   assert.equal(JSON.stringify(document).includes("https://www.figma.com/design/private-grid"), false);
   assert.equal(JSON.stringify(document).includes("reviewNodeIds"), false);
   assert.equal(JSON.stringify(document).includes("bindingTouchedSourceNodeIds"), false);
+  assert.equal(JSON.stringify(document).includes("placement-"), false);
+  assert.equal(JSON.stringify(document).includes("Stable origin evidence"), false);
   assert.ok(result.warnings.some((warning) => /Unsupported Figma shadow/i.test(warning)));
   assert.ok(result.warnings.some((warning) => /multi/i.test(warning)));
   assert.ok(result.warnings.some((warning) => /offline memo/i.test(warning)));
@@ -2226,6 +2350,15 @@ const runComponentImportChecks = () => {
     timetable.components[duplicate.componentId]?.label,
     timetable.components[result.componentId]?.label,
   );
+
+  const incompleteDocument = createSampleStudioDocument();
+  const incompleteBefore = JSON.stringify(incompleteDocument);
+  const incompleteCandidate = createComponentImportCandidate();
+  delete incompleteCandidate.variants.offline;
+  const incomplete = applyStudioFigmaGridCandidate(incompleteDocument, incompleteCandidate);
+  assert.equal(incomplete.ok, false, "A one-status candidate is rejected instead of cloned.");
+  assert.match(incomplete.ok ? "" : incomplete.reason, /online and offline|both.*variant|incomplete/i);
+  assert.equal(JSON.stringify(incompleteDocument), incompleteBefore);
 
   const capabilityDocument = createSampleStudioDocument();
   const capabilityTimetable = capabilityDocument.domains?.timetable;
@@ -2254,7 +2387,7 @@ const runComponentImportChecks = () => {
     const remoteAssetCandidate = createComponentImportCandidate();
     remoteAssetCandidate.component.assets[0]!.src = unsafeSource;
     const rejected = applyStudioFigmaGridCandidate(rejectedDocument, remoteAssetCandidate);
-    assert.deepEqual(rejected, { ok: false, reason: "Candidate asset source must be a supported data URL" });
+    assert.deepEqual(rejected, { ok: false, reason: "online variant: Candidate asset source must be a supported data URL" });
     assert.equal(JSON.stringify(rejectedDocument), rejectedBefore);
   }
 
