@@ -435,8 +435,21 @@ const subTitle = classifyFigmaTextNode({
   characters: "Subtitle",
 });
 assert.equal(subTitle.role, "sub_title");
+assert.equal(subTitle.studioType, "flexibleText");
 if (subTitle.binding.kind === "builtinField")
   assert.equal(subTitle.binding.fieldId, "entry.sub_title");
+
+for (const name of ["offline_memo", "offlineMemo", "OFFLINE MEMO", "오프라인 메모"]) {
+  const offlineMemo = classifyFigmaTextNode({ name, characters: "Closed today" });
+  assert.equal(offlineMemo.role, "offline_memo", name);
+  assert.equal(offlineMemo.studioType, "flexibleText", name);
+  assert.deepEqual(offlineMemo.binding, { kind: "builtinField", fieldId: "day.offline_memo" }, name);
+}
+for (const name of ["weekly_memo", "artist_text", "weeklyMemo", "artistProfileText"]) {
+  const excluded = classifyFigmaTextNode({ name, characters: "Keep ordinary" });
+  assert.notEqual(excluded.role, "offline_memo", name);
+  assert.equal(excluded.studioType, "text", name);
+}
 
 const time = classifyFigmaTextNode({
   name: "PM 8:00",
@@ -687,6 +700,15 @@ const gridReviewNodes: FigmaReviewInput[] = [
     absoluteBounds: { left: 20, top: 10, width: 32, height: 18 },
     styleFlags: { hasSolidFill: true, hasImageFill: false, hasChildren: false },
   },
+  {
+    id: "grid-card-offline-memo",
+    name: "offline_memo",
+    type: "TEXT",
+    characters: "Closed today",
+    textAutoResize: "HEIGHT",
+    layoutSizingHorizontal: "FILL",
+    styleFlags: { hasSolidFill: true, hasImageFill: false, hasChildren: false },
+  },
 ];
 
 const nonTextGridReviewNodes: FigmaReviewInput[] = [
@@ -758,11 +780,20 @@ const runReviewServiceChecks = async () => {
     delete process.env.OPENAI_ACCESS_TOKEN;
     delete process.env.OPENAI_FIGMA_REVIEW_MODEL;
     const rulesOnly = await reviewFigmaGridNodes(gridReviewNodes);
-    assert.equal(rulesOnly.length, 2);
+    assert.equal(rulesOnly.length, 3);
     assert.equal(rulesOnly[0]?.source, "rule");
     assert.equal(rulesOnly[0]?.suggestedRole, "main_title");
     assert.equal(rulesOnly[0]?.suggestedStudioType, "flexibleText");
     assert.equal(rulesOnly[1]?.suggestedRole, "day_label");
+    assert.equal(rulesOnly[2]?.suggestedRole, "offline_memo");
+    assert.equal(rulesOnly[2]?.suggestedStudioType, "flexibleText");
+    assert.deepEqual(rulesOnly[2]?.suggestedBinding, { kind: "builtinField", fieldId: "day.offline_memo" });
+
+    const explicitOfflineMemo = await reviewFigmaGridNodesWithWarnings({
+      nodes: [gridReviewNodes[2]!],
+      evidenceBySourceNodeId: {},
+    });
+    assert.equal(explicitOfflineMemo.reviews[0]?.suggestedStudioType, "flexibleText");
 
     const stableDayEvidence: FigmaSemanticEvidence = {
       samples: [
@@ -887,6 +918,23 @@ const runReviewServiceChecks = async () => {
     assert.equal(disagreement.reviews[0]?.source, "hybrid");
     assert.equal(disagreement.reviews[0]?.agreement, "disagree");
     assert.equal(disagreement.reviews[0]?.decision, "needs_review");
+
+    aiResponse = {
+      reviews: [{
+        sourceNodeId: "grid-card-offline-memo",
+        suggestedRole: "unknown",
+        suggestedStudioType: "text",
+        confidence: 0.7,
+        reason: "The memo may be static.",
+      }],
+    };
+    const offlineMemoDisagreement = await reviewFigmaGridNodesWithWarnings({
+      nodes: [{ ...gridReviewNodes[2]!, evidence: undefined }],
+      evidenceBySourceNodeId: {},
+    });
+    assert.equal(offlineMemoDisagreement.reviews[0]?.suggestedRole, "offline_memo");
+    assert.equal(offlineMemoDisagreement.reviews[0]?.suggestedStudioType, "flexibleText");
+    assert.equal(offlineMemoDisagreement.reviews[0]?.agreement, "disagree");
 
     aiResponse = {
       reviews: [{

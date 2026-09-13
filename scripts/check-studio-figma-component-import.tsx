@@ -154,6 +154,8 @@ assert.match(reviewEditSource, /component\.nodes\[graphNodeId\]/);
 assert.doesNotMatch(reviewEditSource, /node\.label === review\.label/);
 assert.doesNotMatch(panelSource, /onFocus=/);
 assert.match(panelSource, /onBindingChange/);
+assert.match(panelSource, /offline_memo/);
+assert.match(panelSource, /day\.offline_memo/);
 assert.match(panelSource, /onChange=\{\(event\) => \{[\s\S]*emitBindingChange\([^)]*review\.sourceNodeId/);
 assert.match(panelSource, /review\.evidence/);
 assert.match(panelSource, /candidate\.variants/);

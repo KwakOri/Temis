@@ -8,6 +8,7 @@ import type {
 export type StudioFigmaNodeReviewRole =
   | "main_title"
   | "sub_title"
+  | "offline_memo"
   | "time"
   | "day_label"
   | "date"

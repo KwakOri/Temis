@@ -11,7 +11,7 @@ type Classification = {
   confidence: number;
   reason: string;
 };
-type KnownRole = "main_title" | "sub_title" | "time" | "day_label" | "date" | "status_label";
+type KnownRole = "main_title" | "sub_title" | "offline_memo" | "time" | "day_label" | "date" | "status_label";
 
 const classifyRole = (name: string, characters: string): Classification["role"] => {
   const normalized = normalizeFigmaLayerName(name);
@@ -22,6 +22,7 @@ const classifyRole = (name: string, characters: string): Classification["role"] 
   if (/^(online|offline)$/i.test(content)) return "status_label";
   if (["main", "maintitle", "title", "heading"].includes(normalized)) return "main_title";
   if (["sub", "subtitle", "subheading"].includes(normalized)) return "sub_title";
+  if (["offlinememo", "오프라인메모"].includes(normalized)) return "offline_memo";
   if (["time", "entrytime", "streamingtime", "clock"].includes(normalized)) return "time";
   if (["mon", "day", "daylabel", "shortday", "streamingday", "weekday"].includes(normalized)) return "day_label";
   if (["date", "daydate", "streamingdate"].includes(normalized)) return "date";
@@ -36,6 +37,7 @@ export const bindingForFigmaRole = (
   const bindings: Record<KnownRole, StudioBinding> = {
     main_title: { kind: "builtinField", fieldId: "entry.main_title" },
     sub_title: { kind: "builtinField", fieldId: "entry.sub_title" },
+    offline_memo: { kind: "builtinField", fieldId: "day.offline_memo" },
     time: { kind: "builtinField", fieldId: "entry.time" },
     day_label: { kind: "builtinField", fieldId: "day.short_label", dayLabelFormat: "shortUpper" },
     date: { kind: "builtinField", fieldId: "day.date", dateRangeFormat: "day" },
@@ -65,14 +67,14 @@ export const classifyFigmaTextNode = (input: {
     };
   }
 
-  const isDynamicTitle = role === "main_title" || role === "sub_title";
+  const isDynamicText = role === "main_title" || role === "sub_title" || role === "offline_memo";
   return {
     role,
-    studioType: isDynamicTitle ? "flexibleText" : "text",
+    studioType: isDynamicText ? "flexibleText" : "text",
     binding: bindingForFigmaRole(role, input.characters),
     confidence: input.textAutoResize || input.layoutSizingHorizontal ? 0.95 : 0.9,
-    reason: isDynamicTitle
-      ? "Semantic title role matched; titles default to Auto Text."
+    reason: isDynamicText
+      ? "Semantic dynamic text role matched; this GRID field defaults to Auto Text."
       : "Semantic role matched from the layer name or text content.",
   };
 };

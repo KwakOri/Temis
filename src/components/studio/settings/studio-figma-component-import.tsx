@@ -17,6 +17,7 @@ export type ImportCandidate = StudioFigmaGridCandidate | StudioFigmaGridOriginCa
 const ROLE_OPTIONS: Array<{ value: StudioFigmaNodeReviewRole; label: string }> = [
   { value: "main_title", label: "Main title" },
   { value: "sub_title", label: "Sub title" },
+  { value: "offline_memo", label: "Offline memo" },
   { value: "time", label: "Time" },
   { value: "day_label", label: "Day" },
   { value: "date", label: "Date" },
@@ -139,6 +140,7 @@ const bindingFromOption = (value: string, review: StudioFigmaNodeReview): Studio
   }
   if (value === "day.date") return bindingForFigmaRole("date", "");
   if (value === "day.short_label") return bindingForFigmaRole("day_label", "");
+  if (value === "day.offline_memo") return bindingForFigmaRole("offline_memo", "");
   return { kind: "builtinField", fieldId: value as Extract<StudioBinding, { kind: "builtinField" }>['fieldId'] };
 };
 
@@ -328,6 +330,7 @@ export function StudioFigmaComponentImport({
                   <option value="staticText">staticText</option>
                   <option value="entry.main_title">entry.main_title</option>
                   <option value="entry.sub_title">entry.sub_title</option>
+                  <option value="day.offline_memo">day.offline_memo</option>
                   <option value="entry.time">entry.time</option>
                   <option value="day.short_label">day.short_label</option>
                   <option value="day.date">day.date</option>
