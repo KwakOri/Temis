@@ -16,13 +16,13 @@ type KnownRole = "main_title" | "sub_title" | "offline_memo" | "time" | "day_lab
 const classifyRole = (name: string, characters: string): Classification["role"] => {
   const normalized = normalizeFigmaLayerName(name);
   const content = characters.trim();
+  if (["main", "maintitle", "title", "heading"].includes(normalized)) return "main_title";
+  if (["sub", "subtitle", "subheading"].includes(normalized)) return "sub_title";
+  if (["offlinememo", "오프라인메모"].includes(normalized)) return "offline_memo";
   if (/^(?:(am|pm)\s*)?\d{1,2}:\d{2}$/i.test(content)) return "time";
   if (/^(mon|tue|wed|thu|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/i.test(content)) return "day_label";
   if (/^\d{1,2}$/.test(content)) return "date";
   if (/^(online|offline)$/i.test(content)) return "status_label";
-  if (["main", "maintitle", "title", "heading"].includes(normalized)) return "main_title";
-  if (["sub", "subtitle", "subheading"].includes(normalized)) return "sub_title";
-  if (["offlinememo", "오프라인메모"].includes(normalized)) return "offline_memo";
   if (["time", "entrytime", "streamingtime", "clock"].includes(normalized)) return "time";
   if (["mon", "day", "daylabel", "shortday", "streamingday", "weekday"].includes(normalized)) return "day_label";
   if (["date", "daydate", "streamingdate"].includes(normalized)) return "date";

@@ -445,6 +445,10 @@ for (const name of ["offline_memo", "offlineMemo", "OFFLINE MEMO", "오프라인
   assert.equal(offlineMemo.studioType, "flexibleText", name);
   assert.deepEqual(offlineMemo.binding, { kind: "builtinField", fieldId: "day.offline_memo" }, name);
 }
+const offlineMemoContentCollision = classifyFigmaTextNode({ name: "offline_memo", characters: "offline" });
+assert.equal(offlineMemoContentCollision.role, "offline_memo");
+assert.equal(offlineMemoContentCollision.studioType, "flexibleText");
+assert.deepEqual(offlineMemoContentCollision.binding, { kind: "builtinField", fieldId: "day.offline_memo" });
 for (const name of ["weekly_memo", "artist_text", "weeklyMemo", "artistProfileText"]) {
   const excluded = classifyFigmaTextNode({ name, characters: "Keep ordinary" });
   assert.notEqual(excluded.role, "offline_memo", name);
@@ -668,7 +672,7 @@ for (const [characters, role, fieldId] of [
   ["ONLINE", "status_label", "entry.status_label"],
 ] as const) {
   const protectedRole = classifyFigmaTextNode({
-    name: "title",
+    name: "value",
     characters,
     layoutSizingHorizontal: "FILL",
   });
