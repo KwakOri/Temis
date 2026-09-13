@@ -78,10 +78,23 @@ const offlinePanelReviews = [
 
 const assertPanelRow = (label: string, type: string, binding: string) => {
   const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const reviewRowStart = '<div class="grid gap-2 rounded-lg border border-[var(--field-border)] p-2">';
+  const reviewRows: number[] = [];
+  for (let offset = markup.indexOf(reviewRowStart); offset !== -1; offset = markup.indexOf(reviewRowStart, offset + reviewRowStart.length)) {
+    reviewRows.push(offset);
+  }
+  const rowIndex = reviewRows.findIndex((start, index) => {
+    const end = reviewRows[index + 1] ?? markup.length;
+    return new RegExp(`>${escapedLabel}</span>`).test(markup.slice(start, end));
+  });
+  assert.notEqual(rowIndex, -1, `${label} review row is rendered`);
+  const rowStart = reviewRows[rowIndex] ?? 0;
+  const rowEnd = reviewRows[rowIndex + 1] ?? markup.length;
+  const rowMarkup = markup.slice(rowStart, rowEnd);
   const row = new RegExp(
-    `>${escapedLabel}</span>[\\s\\S]*?<select aria-label="${escapedLabel} text type"[^>]*>[\\s\\S]*?<option value="${type}" selected="">[\\s\\S]*?</select>[\\s\\S]*?<option value="${binding}" selected="">`,
+    `>${escapedLabel}</span>[\\s\\S]*?<select aria-label="${escapedLabel} text type"[^>]*>[\\s\\S]*?<option value="${type}" selected="">[\\s\\S]*?</select>[\\s\\S]*?<select[^>]*>[\\s\\S]*?<option value="${binding}" selected="">`,
   );
-  assert.match(markup, row, `${label} selects ${type} with ${binding}`);
+  assert.match(rowMarkup, row, `${label} selects ${type} with ${binding}`);
 };
 
 const candidate = {
