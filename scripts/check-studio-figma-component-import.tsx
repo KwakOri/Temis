@@ -8,7 +8,7 @@ import {
   StudioFigmaComponentImport,
   type ImportCandidate,
 } from "../src/components/studio/settings/studio-figma-component-import";
-import type { StudioFigmaGridCandidate } from "../src/types/template-studio-figma";
+import type { StudioFigmaGridCandidate, StudioFigmaNodeReview } from "../src/types/template-studio-figma";
 
 const onlineReview = {
   sourceNodeId: "title",
@@ -32,33 +32,65 @@ const onlineReview = {
   reason: "Rule and AI disagree about the semantic role",
 };
 
-const offlineReview = {
+const panelReview = (
+  sourceNodeId: string,
+  label: string,
+  suggestedRole: StudioFigmaNodeReview["suggestedRole"],
+  suggestedStudioType: StudioFigmaNodeReview["suggestedStudioType"],
+  suggestedBinding: StudioFigmaNodeReview["suggestedBinding"],
+) => ({
   ...onlineReview,
-  sourceNodeId: "title",
+  sourceNodeId,
+  label,
+  suggestedRole,
+  suggestedStudioType,
+  suggestedBinding,
   decision: "auto" as const,
   agreement: "agree" as const,
-  reason: "Offline origin evidence is stable",
-};
+  reason: "Stable GRID origin evidence",
+});
+
+const onlinePanelReviews = [
+  onlineReview,
+  panelReview("sub-title", "Sub title", "sub_title", "flexibleText", { kind: "builtinField", fieldId: "entry.sub_title" }),
+  panelReview("time", "Time", "time", "text", { kind: "builtinField", fieldId: "entry.time" }),
+  panelReview("day", "Day", "day_label", "text", { kind: "builtinField", fieldId: "day.short_label" }),
+  panelReview("date", "Date", "date", "text", { kind: "builtinField", fieldId: "day.date" }),
+  panelReview("status", "Status", "status_label", "text", { kind: "builtinField", fieldId: "entry.status_label" }),
+  panelReview("weekly", "Weekly memo", "unknown", "text", { kind: "staticText", value: "Weekly memo" }),
+  panelReview("artist", "Artist text", "unknown", "text", { kind: "staticText", value: "Artist text" }),
+];
+const offlinePanelReviews = [
+  { ...onlineReview, ...panelReview("offline-title", "Offline title", "main_title", "flexibleText", { kind: "builtinField", fieldId: "entry.main_title" }) },
+  panelReview("offline-sub-title", "Offline sub title", "sub_title", "flexibleText", { kind: "builtinField", fieldId: "entry.sub_title" }),
+  panelReview("offline-day", "Offline day", "day_label", "text", { kind: "builtinField", fieldId: "day.short_label" }),
+  panelReview("offline-date", "Offline date", "date", "text", { kind: "builtinField", fieldId: "day.date" }),
+  panelReview("offline-time", "Offline time", "time", "text", { kind: "builtinField", fieldId: "entry.time" }),
+  panelReview("offline-status", "Offline status", "status_label", "text", { kind: "builtinField", fieldId: "entry.status_label" }),
+  panelReview("offline-memo", "Offline memo", "offline_memo", "flexibleText", { kind: "builtinField", fieldId: "day.offline_memo" }),
+  panelReview("offline-weekly", "Weekly memo", "unknown", "text", { kind: "staticText", value: "Weekly memo" }),
+  panelReview("offline-artist", "Artist text", "unknown", "text", { kind: "staticText", value: "Artist text" }),
+];
 
 const candidate = {
   candidateId: "candidate-mon",
   label: "Monday card",
   frame: { left: 0, top: 0, width: 320, height: 180 },
   component: { nodes: {}, styles: {}, rootNodeId: "root", assets: [] },
-  reviews: [onlineReview],
+  reviews: onlinePanelReviews,
   variants: {
     online: {
       status: "online" as const,
       origin: { componentId: "online", componentNodeId: "online", componentSetNodeId: "set", componentName: "Online" },
       component: { nodes: {}, styles: {}, rootNodeId: "online-root", assets: [] },
-      reviews: [onlineReview],
+      reviews: onlinePanelReviews,
       warnings: [],
     },
     offline: {
       status: "offline" as const,
       origin: { componentId: "offline", componentNodeId: "offline", componentSetNodeId: "set", componentName: "Offline" },
       component: { nodes: {}, styles: {}, rootNodeId: "offline-root", assets: [] },
-      reviews: [offlineReview],
+      reviews: offlinePanelReviews,
       warnings: [],
     },
   },
@@ -98,6 +130,17 @@ assert.match(markup, /7.*discovery evidence only|7.*발견 증거/);
 assert.match(markup, /Title/);
 assert.match(markup, /Auto Text/);
 assert.match(markup, /entry\.main_title/);
+assert.match(markup, /Offline memo/);
+assert.match(markup, /day\.offline_memo/);
+assert.match(markup, /<select aria-label="Offline memo text type"[^>]*>[\s\S]*?<option value="flexibleText" selected="">Auto Text[\s\S]*?<\/select>/);
+const weeklyTypeSelects = [...markup.matchAll(/<select aria-label="Weekly memo text type"[^>]*>[\s\S]*?<\/select>/g)].map(([select]) => select);
+const artistTypeSelects = [...markup.matchAll(/<select aria-label="Artist text text type"[^>]*>[\s\S]*?<\/select>/g)].map(([select]) => select);
+assert.equal(weeklyTypeSelects.length, 2);
+assert.equal(artistTypeSelects.length, 2);
+for (const select of [...weeklyTypeSelects, ...artistTypeSelects]) {
+  assert.match(select, /<option value="text" selected="">Text/);
+  assert.doesNotMatch(select, /<option value="flexibleText" selected="">/);
+}
 assert.match(markup, /confidence|신뢰도/);
 assert.match(markup, /MON.*TUE.*WED/);
 assert.match(markup, /disagree|불일치/);
@@ -118,8 +161,8 @@ assert.deepEqual(interactedVariants.online.reviews[0]?.suggestedBinding, {
   fieldId: "entry.time",
 });
 assert.equal(interactedVariants.online.reviews[0]?.decision, "manual");
-assert.deepEqual(interactedVariants.offline.reviews[0]?.suggestedBinding, offlineReview.suggestedBinding);
-assert.equal(interactedVariants.offline.reviews[0]?.decision, offlineReview.decision);
+assert.deepEqual(interactedVariants.offline.reviews[0]?.suggestedBinding, offlinePanelReviews[0]?.suggestedBinding);
+assert.equal(interactedVariants.offline.reviews[0]?.decision, offlinePanelReviews[0]?.decision);
 
 const clientSource = fs.readFileSync(
   "src/app/(root)/template-studio/_components/template-studio-client.tsx",

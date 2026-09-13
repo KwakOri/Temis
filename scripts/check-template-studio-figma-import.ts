@@ -2264,13 +2264,19 @@ const runConverterChecks = () => {
     ),
   );
 
-  const originReview = (sourceNodeId: string, value: string): StudioFigmaNodeReview => ({
+  const originReview = (
+    sourceNodeId: string,
+    value: string,
+    suggestedRole: StudioFigmaNodeReview["suggestedRole"] = "day_label",
+    suggestedStudioType: StudioFigmaNodeReview["suggestedStudioType"] = "text",
+    suggestedBinding: StudioFigmaNodeReview["suggestedBinding"] = { kind: "builtinField", fieldId: "day.short_label" },
+  ): StudioFigmaNodeReview => ({
     sourceNodeId,
     label: sourceNodeId,
     sourceType: "TEXT",
-    suggestedRole: "day_label",
-    suggestedStudioType: "text",
-    suggestedBinding: { kind: "builtinField", fieldId: "day.short_label" },
+    suggestedRole,
+    suggestedStudioType,
+    suggestedBinding,
     sourceCharacters: value,
     confidence: 0.95,
     source: "hybrid",
@@ -2283,16 +2289,55 @@ const runConverterChecks = () => {
     name: "Online origin",
     type: "COMPONENT",
     absoluteBounds: { left: 0, top: 0, width: 240, height: 120 },
-    children: [{ id: "online-day", name: "weekday", type: "TEXT", characters: "MON", rotateDeg: 90,
-      absoluteBounds: { left: 20, top: 20, width: 30, height: 12 }, }],
+    children: [
+      { id: "online-title", name: "main_title", type: "TEXT", characters: "Morning show", absoluteBounds: { left: 20, top: 20, width: 160, height: 24 } },
+      { id: "online-sub-title", name: "sub_title", type: "TEXT", characters: "Episode 1", absoluteBounds: { left: 20, top: 48, width: 120, height: 18 } },
+      { id: "online-day", name: "weekday", type: "TEXT", characters: "MON", rotateDeg: 90, absoluteBounds: { left: 20, top: 70, width: 30, height: 12 } },
+      { id: "online-date", name: "date", type: "TEXT", characters: "09/13", absoluteBounds: { left: 60, top: 70, width: 50, height: 18 } },
+      { id: "online-time", name: "time", type: "TEXT", characters: "09:00", absoluteBounds: { left: 120, top: 70, width: 50, height: 18 } },
+      { id: "online-status", name: "status_label", type: "TEXT", characters: "LIVE", absoluteBounds: { left: 180, top: 70, width: 40, height: 18 } },
+      { id: "online-weekly", name: "weekly_memo", type: "TEXT", characters: "Weekly note", absoluteBounds: { left: 20, top: 95, width: 100, height: 18 } },
+      { id: "online-artist", name: "artist_text", type: "TEXT", characters: "Artist", absoluteBounds: { left: 130, top: 95, width: 80, height: 18 } },
+    ],
   };
   const offlineOrigin: FigmaNormalizedNode = {
     id: "origin-offline",
     name: "Offline origin",
     type: "COMPONENT",
     absoluteBounds: { left: 0, top: 0, width: 260, height: 140 },
-    children: [{ id: "offline-day", name: "weekday", type: "TEXT", characters: "OFFLINE", fills: [{ type: "SOLID", color: { r: 1, g: 0, b: 0 } }] }],
+    children: [
+      { id: "offline-title", name: "main_title", type: "TEXT", characters: "Offline show", absoluteBounds: { left: 20, top: 20, width: 160, height: 24 } },
+      { id: "offline-sub-title", name: "sub_title", type: "TEXT", characters: "Replay", absoluteBounds: { left: 20, top: 48, width: 120, height: 18 } },
+      { id: "offline-day", name: "weekday", type: "TEXT", characters: "OFFLINE", fills: [{ type: "SOLID", color: { r: 1, g: 0, b: 0 } }] },
+      { id: "offline-date", name: "date", type: "TEXT", characters: "09/13", absoluteBounds: { left: 60, top: 70, width: 50, height: 18 } },
+      { id: "offline-time", name: "time", type: "TEXT", characters: "09:00", absoluteBounds: { left: 120, top: 70, width: 50, height: 18 } },
+      { id: "offline-status", name: "status_label", type: "TEXT", characters: "OFFLINE", absoluteBounds: { left: 180, top: 70, width: 60, height: 18 } },
+      { id: "offline-memo", name: "offline_memo", type: "TEXT", characters: "Available later", absoluteBounds: { left: 20, top: 95, width: 120, height: 18 } },
+      { id: "offline-weekly", name: "weekly_memo", type: "TEXT", characters: "Weekly note", absoluteBounds: { left: 20, top: 118, width: 100, height: 18 } },
+      { id: "offline-artist", name: "artist_text", type: "TEXT", characters: "Artist", absoluteBounds: { left: 130, top: 118, width: 80, height: 18 } },
+    ],
   };
+  const onlineReviews = [
+    originReview("online-day", "MON"),
+    originReview("online-title", "Morning show", "main_title", "flexibleText", { kind: "builtinField", fieldId: "entry.main_title" }),
+    originReview("online-sub-title", "Episode 1", "sub_title", "flexibleText", { kind: "builtinField", fieldId: "entry.sub_title" }),
+    originReview("online-date", "09/13", "date", "text", { kind: "builtinField", fieldId: "day.date" }),
+    originReview("online-time", "09:00", "time", "text", { kind: "builtinField", fieldId: "entry.time" }),
+    originReview("online-status", "LIVE", "status_label", "text", { kind: "builtinField", fieldId: "entry.status_label" }),
+    originReview("online-weekly", "Weekly note", "unknown", "text", { kind: "staticText", value: "Weekly note" }),
+    originReview("online-artist", "Artist", "unknown", "text", { kind: "staticText", value: "Artist" }),
+  ];
+  const offlineReviews = [
+    originReview("offline-day", "OFFLINE"),
+    originReview("offline-title", "Offline show", "main_title", "flexibleText", { kind: "builtinField", fieldId: "entry.main_title" }),
+    originReview("offline-sub-title", "Replay", "sub_title", "flexibleText", { kind: "builtinField", fieldId: "entry.sub_title" }),
+    originReview("offline-date", "09/13", "date", "text", { kind: "builtinField", fieldId: "day.date" }),
+    originReview("offline-time", "09:00", "time", "text", { kind: "builtinField", fieldId: "entry.time" }),
+    originReview("offline-status", "OFFLINE", "status_label", "text", { kind: "builtinField", fieldId: "entry.status_label" }),
+    originReview("offline-memo", "Available later", "offline_memo", "flexibleText", { kind: "builtinField", fieldId: "day.offline_memo" }),
+    originReview("offline-weekly", "Weekly note", "unknown", "text", { kind: "staticText", value: "Weekly note" }),
+    originReview("offline-artist", "Artist", "unknown", "text", { kind: "staticText", value: "Artist" }),
+  ];
   const originCandidate = convertFigmaGridOriginCandidate({
     label: "GRID cards",
     frame: { left: 900, top: 700, width: 240, height: 120 },
@@ -2302,14 +2347,14 @@ const runConverterChecks = () => {
         status: "online",
         origin: { componentId: "component-online", componentNodeId: onlineOrigin.id, componentSetNodeId: "set-1", componentName: onlineOrigin.name },
         root: onlineOrigin,
-        reviews: [originReview("online-day", "MON")],
+        reviews: onlineReviews,
         exportedAssets: [],
       },
       offline: {
         status: "offline",
         origin: { componentId: "component-offline", componentNodeId: offlineOrigin.id, componentSetNodeId: "set-1", componentName: offlineOrigin.name },
         root: offlineOrigin,
-        reviews: [originReview("offline-day", "OFFLINE")],
+        reviews: offlineReviews,
         exportedAssets: [],
       },
     },
@@ -2321,6 +2366,20 @@ const runConverterChecks = () => {
   assert.equal(JSON.stringify(originCandidate.variants).includes("placement-1"), false);
   assert.equal(JSON.stringify(Object.values(originCandidate.variants).map((variant) => variant.component)).includes("componentSetNodeId"), false);
   assert.equal(JSON.stringify(originCandidate.variants).includes("offlineMemo"), false);
+  const graphNode = (status: "online" | "offline", sourceNodeId: string) => {
+    const nodeId = originCandidate.variants[status].reviewNodeIds?.[sourceNodeId];
+    assert.ok(nodeId, `${status} review node is mapped: ${sourceNodeId}`);
+    return originCandidate.variants[status].component.nodes[nodeId!];
+  };
+  for (const [status, ids] of [["online", ["online-title", "online-sub-title"]], ["offline", ["offline-title", "offline-sub-title", "offline-memo"]]] as const) {
+    for (const id of ids) assert.equal(graphNode(status, id)?.type, "flexibleText", `${status} ${id} is Auto Text`);
+  }
+  assert.deepEqual(graphNode("online", "online-title")?.binding, { kind: "builtinField", fieldId: "entry.main_title" });
+  assert.deepEqual(graphNode("online", "online-sub-title")?.binding, { kind: "builtinField", fieldId: "entry.sub_title" });
+  assert.deepEqual(graphNode("offline", "offline-memo")?.binding, { kind: "builtinField", fieldId: "day.offline_memo" });
+  for (const [status, ids] of [["online", ["online-day", "online-date", "online-time", "online-status", "online-weekly", "online-artist"]], ["offline", ["offline-day", "offline-date", "offline-time", "offline-status", "offline-weekly", "offline-artist"]]] as const) {
+    for (const id of ids) assert.equal(graphNode(status, id)?.type, "text", `${status} ${id} remains ordinary text`);
+  }
   const offlineReviewNodeId = originCandidate.variants.offline.reviewNodeIds?.["offline-day"];
   const onlineReviewNodeId = originCandidate.variants.online.reviewNodeIds?.["online-day"];
   const editedOriginCandidate = structuredClone(originCandidate);
