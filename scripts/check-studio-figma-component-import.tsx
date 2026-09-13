@@ -59,6 +59,8 @@ const onlinePanelReviews = [
   panelReview("status", "Status", "status_label", "text", { kind: "builtinField", fieldId: "entry.status_label" }),
   panelReview("weekly", "Weekly memo", "unknown", "text", { kind: "staticText", value: "Weekly memo" }),
   panelReview("artist", "Artist text", "unknown", "text", { kind: "staticText", value: "Artist text" }),
+  panelReview("weekly-camel", "weeklyMemo", "unknown", "text", { kind: "staticText", value: "weeklyMemo" }),
+  panelReview("artist-camel", "artistProfileText", "unknown", "text", { kind: "staticText", value: "artistProfileText" }),
 ];
 const offlinePanelReviews = [
   { ...onlineReview, ...panelReview("offline-title", "Offline title", "main_title", "flexibleText", { kind: "builtinField", fieldId: "entry.main_title" }) },
@@ -70,7 +72,17 @@ const offlinePanelReviews = [
   panelReview("offline-memo", "Offline memo", "offline_memo", "flexibleText", { kind: "builtinField", fieldId: "day.offline_memo" }),
   panelReview("offline-weekly", "Weekly memo", "unknown", "text", { kind: "staticText", value: "Weekly memo" }),
   panelReview("offline-artist", "Artist text", "unknown", "text", { kind: "staticText", value: "Artist text" }),
+  panelReview("offline-weekly-camel", "weeklyMemo", "unknown", "text", { kind: "staticText", value: "weeklyMemo" }),
+  panelReview("offline-artist-camel", "artistProfileText", "unknown", "text", { kind: "staticText", value: "artistProfileText" }),
 ];
+
+const assertPanelRow = (label: string, type: string, binding: string) => {
+  const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const row = new RegExp(
+    `>${escapedLabel}</span>[\\s\\S]*?<select aria-label="${escapedLabel} text type"[^>]*>[\\s\\S]*?<option value="${type}" selected="">[\\s\\S]*?</select>[\\s\\S]*?<option value="${binding}" selected="">`,
+  );
+  assert.match(markup, row, `${label} selects ${type} with ${binding}`);
+};
 
 const candidate = {
   candidateId: "candidate-mon",
@@ -128,11 +140,13 @@ assert.match(markup, /Online/);
 assert.match(markup, /Offline/);
 assert.match(markup, /7.*discovery evidence only|7.*발견 증거/);
 assert.match(markup, /Title/);
-assert.match(markup, /Auto Text/);
-assert.match(markup, /entry\.main_title/);
-assert.match(markup, /Offline memo/);
-assert.match(markup, /day\.offline_memo/);
-assert.match(markup, /<select aria-label="Offline memo text type"[^>]*>[\s\S]*?<option value="flexibleText" selected="">Auto Text[\s\S]*?<\/select>/);
+for (const row of [
+  ["Title", "flexibleText", "entry.main_title"],
+  ["Sub title", "flexibleText", "entry.sub_title"],
+  ["Offline title", "flexibleText", "entry.main_title"],
+  ["Offline sub title", "flexibleText", "entry.sub_title"],
+  ["Offline memo", "flexibleText", "day.offline_memo"],
+] as const) assertPanelRow(...row);
 const weeklyTypeSelects = [...markup.matchAll(/<select aria-label="Weekly memo text type"[^>]*>[\s\S]*?<\/select>/g)].map(([select]) => select);
 const artistTypeSelects = [...markup.matchAll(/<select aria-label="Artist text text type"[^>]*>[\s\S]*?<\/select>/g)].map(([select]) => select);
 assert.equal(weeklyTypeSelects.length, 2);
@@ -140,6 +154,17 @@ assert.equal(artistTypeSelects.length, 2);
 for (const select of [...weeklyTypeSelects, ...artistTypeSelects]) {
   assert.match(select, /<option value="text" selected="">Text/);
   assert.doesNotMatch(select, /<option value="flexibleText" selected="">/);
+}
+assertPanelRow("Weekly memo", "text", "staticText");
+assertPanelRow("Artist text", "text", "staticText");
+for (const label of ["weeklyMemo", "artistProfileText"] as const) {
+  const typeSelects = [...markup.matchAll(new RegExp(`<select aria-label="${label} text type"[^>]*>[\\s\\S]*?<\\/select>`, "g"))];
+  assert.equal(typeSelects.length, 2, `${label} appears in online and offline rows`);
+  for (const [select] of typeSelects) {
+    assert.match(select, /<option value="text" selected="">Text/);
+    assert.doesNotMatch(select, /<option value="flexibleText" selected="">/);
+  }
+  assertPanelRow(label, "text", "staticText");
 }
 assert.match(markup, /confidence|신뢰도/);
 assert.match(markup, /MON.*TUE.*WED/);

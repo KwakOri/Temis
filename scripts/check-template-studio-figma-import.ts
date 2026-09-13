@@ -2298,6 +2298,8 @@ const runConverterChecks = () => {
       { id: "online-status", name: "status_label", type: "TEXT", characters: "LIVE", absoluteBounds: { left: 180, top: 70, width: 40, height: 18 } },
       { id: "online-weekly", name: "weekly_memo", type: "TEXT", characters: "Weekly note", absoluteBounds: { left: 20, top: 95, width: 100, height: 18 } },
       { id: "online-artist", name: "artist_text", type: "TEXT", characters: "Artist", absoluteBounds: { left: 130, top: 95, width: 80, height: 18 } },
+      { id: "online-weekly-camel", name: "weeklyMemo", type: "TEXT", characters: "Weekly camel note", absoluteBounds: { left: 20, top: 115, width: 100, height: 18 } },
+      { id: "online-artist-camel", name: "artistProfileText", type: "TEXT", characters: "Artist camel", absoluteBounds: { left: 130, top: 115, width: 80, height: 18 } },
     ],
   };
   const offlineOrigin: FigmaNormalizedNode = {
@@ -2315,6 +2317,8 @@ const runConverterChecks = () => {
       { id: "offline-memo", name: "offline_memo", type: "TEXT", characters: "Available later", absoluteBounds: { left: 20, top: 95, width: 120, height: 18 } },
       { id: "offline-weekly", name: "weekly_memo", type: "TEXT", characters: "Weekly note", absoluteBounds: { left: 20, top: 118, width: 100, height: 18 } },
       { id: "offline-artist", name: "artist_text", type: "TEXT", characters: "Artist", absoluteBounds: { left: 130, top: 118, width: 80, height: 18 } },
+      { id: "offline-weekly-camel", name: "weeklyMemo", type: "TEXT", characters: "Weekly camel note", absoluteBounds: { left: 20, top: 138, width: 100, height: 18 } },
+      { id: "offline-artist-camel", name: "artistProfileText", type: "TEXT", characters: "Artist camel", absoluteBounds: { left: 130, top: 138, width: 80, height: 18 } },
     ],
   };
   const onlineReviews = [
@@ -2326,6 +2330,8 @@ const runConverterChecks = () => {
     originReview("online-status", "LIVE", "status_label", "text", { kind: "builtinField", fieldId: "entry.status_label" }),
     originReview("online-weekly", "Weekly note", "unknown", "text", { kind: "staticText", value: "Weekly note" }),
     originReview("online-artist", "Artist", "unknown", "text", { kind: "staticText", value: "Artist" }),
+    originReview("online-weekly-camel", "Weekly camel note", "unknown", "text", { kind: "staticText", value: "Weekly camel note" }),
+    originReview("online-artist-camel", "Artist camel", "unknown", "text", { kind: "staticText", value: "Artist camel" }),
   ];
   const offlineReviews = [
     originReview("offline-day", "OFFLINE"),
@@ -2337,6 +2343,8 @@ const runConverterChecks = () => {
     originReview("offline-memo", "Available later", "offline_memo", "flexibleText", { kind: "builtinField", fieldId: "day.offline_memo" }),
     originReview("offline-weekly", "Weekly note", "unknown", "text", { kind: "staticText", value: "Weekly note" }),
     originReview("offline-artist", "Artist", "unknown", "text", { kind: "staticText", value: "Artist" }),
+    originReview("offline-weekly-camel", "Weekly camel note", "unknown", "text", { kind: "staticText", value: "Weekly camel note" }),
+    originReview("offline-artist-camel", "Artist camel", "unknown", "text", { kind: "staticText", value: "Artist camel" }),
   ];
   const originCandidate = convertFigmaGridOriginCandidate({
     label: "GRID cards",
@@ -2376,8 +2384,10 @@ const runConverterChecks = () => {
   }
   assert.deepEqual(graphNode("online", "online-title")?.binding, { kind: "builtinField", fieldId: "entry.main_title" });
   assert.deepEqual(graphNode("online", "online-sub-title")?.binding, { kind: "builtinField", fieldId: "entry.sub_title" });
+  assert.deepEqual(graphNode("offline", "offline-title")?.binding, { kind: "builtinField", fieldId: "entry.main_title" });
+  assert.deepEqual(graphNode("offline", "offline-sub-title")?.binding, { kind: "builtinField", fieldId: "entry.sub_title" });
   assert.deepEqual(graphNode("offline", "offline-memo")?.binding, { kind: "builtinField", fieldId: "day.offline_memo" });
-  for (const [status, ids] of [["online", ["online-day", "online-date", "online-time", "online-status", "online-weekly", "online-artist"]], ["offline", ["offline-day", "offline-date", "offline-time", "offline-status", "offline-weekly", "offline-artist"]]] as const) {
+  for (const [status, ids] of [["online", ["online-day", "online-date", "online-time", "online-status", "online-weekly", "online-artist", "online-weekly-camel", "online-artist-camel"]], ["offline", ["offline-day", "offline-date", "offline-time", "offline-status", "offline-weekly", "offline-artist", "offline-weekly-camel", "offline-artist-camel"]]] as const) {
     for (const id of ids) assert.equal(graphNode(status, id)?.type, "text", `${status} ${id} remains ordinary text`);
   }
   const offlineReviewNodeId = originCandidate.variants.offline.reviewNodeIds?.["offline-day"];
