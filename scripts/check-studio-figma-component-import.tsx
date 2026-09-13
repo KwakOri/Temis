@@ -159,7 +159,7 @@ for (const row of [
   ["Offline title", "flexibleText", "entry.main_title"],
   ["Offline sub title", "flexibleText", "entry.sub_title"],
   ["Offline memo", "flexibleText", "day.offline_memo"],
-] as const) assertPanelRow(...row);
+] as const) assertPanelRow(row[0], row[1], row[2]);
 const weeklyTypeSelects = [...markup.matchAll(/<select aria-label="Weekly memo text type"[^>]*>[\s\S]*?<\/select>/g)].map(([select]) => select);
 const artistTypeSelects = [...markup.matchAll(/<select aria-label="Artist text text type"[^>]*>[\s\S]*?<\/select>/g)].map(([select]) => select);
 assert.equal(weeklyTypeSelects.length, 2);
