@@ -11,13 +11,14 @@ import PlateImg from "./main/plate.png";
 import TopObjectImg from "./main/top_object.png";
 import WeekDatesImg from "./main/week_dates.png";
 import WeeklyMemo from "./main/weekly_memo.png";
+import OfflineFrame from "./main/offline_frame.png";
 
 export const Imgs: ImgsType = {
   first: {
     artist: ArtistImg,
     frame: FrameImg,
     plate: PlateImg,
-
+    offline_frame: OfflineFrame,
     offline: OfflineImg,
     online: OnlineImg,
     top_object: TopObjectImg,
