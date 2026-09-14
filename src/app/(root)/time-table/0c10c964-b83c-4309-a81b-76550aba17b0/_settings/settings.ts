@@ -33,7 +33,7 @@ export const templateSize = {
 
 export const BASE_FONTS = {
   PRIMARY: "KccSign",
-  SECONDARY: "",
+  SECONDARY: "NostalgicMongtori",
   TERTIARY: "",
   QUATERNARY: "",
 };
@@ -72,7 +72,7 @@ export const BASE_COLORS = {
   first: {
     primary: "#5C4044",
     secondary: "#8D6A6A",
-    tertiary: "#FDF6F8",
+    tertiary: "#ffffff",
     quaternary: "#",
   },
   second: {
@@ -106,7 +106,7 @@ export const COMP_FONTS = {
   STREAMING_DATE: BASE_FONTS.PRIMARY,
   STREAMING_DAY: BASE_FONTS.PRIMARY,
   ARTIST: BASE_FONTS.PRIMARY,
-  WEEKLY_FLAG: BASE_FONTS.PRIMARY,
+  WEEKLY_FLAG: BASE_FONTS.SECONDARY,
 };
 
 export const MAX_FONT_SIZES = {
@@ -118,11 +118,11 @@ export const MAX_FONT_SIZES = {
 export const CARD_SIZES: CardSizesProps = {
   ONLINE: {
     width: 771,
-    height: 685,
+    height: 700,
   },
   OFFLINE: {
     width: 771,
-    height: 685,
+    height: 700,
   },
   PROFILE: {
     width: 1500,

@@ -81,8 +81,8 @@ const CardStreamingDay = ({
         style={{
           width: 200,
           height: 100,
-          top: 128,
-          left: 332,
+          top: 132,
+          left: 336,
           fontSize: 50,
           fontFamily: COMP_FONTS.STREAMING_DAY,
           color: COMP_COLORS.STREAMING_DAY,
@@ -107,8 +107,8 @@ const CardStreamingDate = ({
       style={{
         width: 200,
         height: 100,
-        top: 128,
-        left: 220,
+        top: 132,
+        left: 228,
         fontSize: 50,
         fontFamily: COMP_FONTS.STREAMING_DATE,
         color: COMP_COLORS.STREAMING_DATE,
@@ -139,7 +139,7 @@ const CardStreamingTime = ({
         height: 100,
         lineHeight: 1,
         fontSize: 45,
-        top: 228,
+        top: 236,
         left: 252,
       }}
       className=" absolute flex justify-center items-center"
@@ -155,7 +155,7 @@ const CardMainTitle = ({ currentTheme, content, day }: CardMainTitleProps) => {
       style={{
         width: 440,
         height: 240,
-        top: 360,
+        top: 372,
         left: 178,
       }}
       className="absolute flex justify-center items-center shrink-0"
@@ -211,7 +211,7 @@ const CardSubTitle = ({ content, day }: CardSubTitleProps) => {
       style={{
         width: 440,
         height: 80,
-        top: 320,
+        top: 330,
         left: 178,
       }}
       className="absolute flex justify-center items-center"
@@ -302,9 +302,34 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
         ...CARD_SIZES.OFFLINE,
       }}
       key={day}
+      className="-z-10"
     >
       <img
         src={Imgs[currentTheme || "first"]["offline"].src.replace("./", "/")}
+        alt="offline"
+        style={{
+          ...CARD_SIZES.OFFLINE,
+        }}
+        draggable={false}
+      />
+    </div>
+  );
+};
+
+const OfflineFrame = ({ day, currentTheme }: OfflineCardProps) => {
+  return (
+    <div
+      style={{
+        ...CARD_SIZES.OFFLINE,
+      }}
+      key={day}
+      className="absolute inset-0 z-30"
+    >
+      <img
+        src={Imgs[currentTheme || "first"]["offline_frame"].src.replace(
+          "./",
+          "/",
+        )}
         alt="offline"
         style={{
           ...CARD_SIZES.OFFLINE,
@@ -329,7 +354,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   const entrySubTitle = (primaryEntry.subTitle as string) || "";
 
   const pos = [
-    { left: 3126, top: 85, rotate: "2.5deg" },
+    { left: 3128, top: 88, rotate: "2.5deg" },
     { left: 1572, top: 717, rotate: "-2.4deg" },
     { left: 2346, top: 689, rotate: "0deg" },
     { left: 3128, top: 785, rotate: "2.3deg" },
@@ -340,69 +365,39 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 
   return (
     <>
-      {time.isOffline ? (
-        <>
-          <div
-            style={{ ...CARD_SIZES.ONLINE, ...pos[time.day] }}
-            key={time.day}
-            className="absolute flex justify-center"
-          >
-            <CardStreamingDay
-              currentTheme={currentTheme}
-              day={time.day}
-              isOffline={time.isOffline}
-            />
-            <CardStreamingDate
-              day={time.day}
-              date={weekDate}
-              currentTheme={currentTheme}
-              isOffline={time.isOffline}
-            />
+      <div
+        style={{ ...CARD_SIZES.ONLINE, ...pos[time.day] }}
+        key={time.day}
+        className="absolute flex justify-center"
+      >
+        {time.isOffline && <OfflineFrame day={time.day} />}
+        <CardStreamingDay
+          currentTheme={currentTheme}
+          day={time.day}
+          isOffline={time.isOffline}
+        />
+        <CardStreamingDate
+          day={time.day}
+          date={weekDate}
+          currentTheme={currentTheme}
+          isOffline={time.isOffline}
+        />
 
-            {/* <CardSubTitle content={entrySubTitle} day={time.day} />
-            <CardMainTitle content={entryMainTitle} day={time.day} />
+        <CardSubTitle content={entrySubTitle} day={time.day} />
+        <CardMainTitle content={entryMainTitle} day={time.day} />
 
-            <CardStreamingTime
-              isGuerrilla={primaryEntry.isGuerrilla}
-              time={entryTime}
-              day={time.day}
-            /> */}
+        <CardStreamingTime
+          isGuerrilla={primaryEntry.isGuerrilla}
+          time={entryTime}
+          day={time.day}
+        />
 
-            <OfflineCard day={time.day} />
-          </div>
-        </>
-      ) : (
-        <>
-          <div
-            style={{ ...CARD_SIZES.ONLINE, ...pos[time.day] }}
-            key={time.day}
-            className="absolute flex justify-center"
-          >
-            <CardStreamingDay
-              currentTheme={currentTheme}
-              day={time.day}
-              isOffline={time.isOffline}
-            />
-            <CardStreamingDate
-              day={time.day}
-              date={weekDate}
-              currentTheme={currentTheme}
-              isOffline={time.isOffline}
-            />
-
-            <CardSubTitle content={entrySubTitle} day={time.day} />
-            <CardMainTitle content={entryMainTitle} day={time.day} />
-
-            <CardStreamingTime
-              isGuerrilla={primaryEntry.isGuerrilla}
-              time={entryTime}
-              day={time.day}
-            />
-
-            <OnlineCardBG day={time.day} />
-          </div>
-        </>
-      )}
+        {time.isOffline ? (
+          <OfflineCard day={time.day} />
+        ) : (
+          <OnlineCardBG day={time.day} />
+        )}
+      </div>
     </>
   );
 };

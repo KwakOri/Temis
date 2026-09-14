@@ -20,7 +20,7 @@ const TimeTableArtist = ({
         width: 4000,
         height: 2250,
       }}
-      className="absolute z-30 flex justify-center items-center "
+      className="absolute z-40 flex justify-center items-center "
     >
       <div
         style={{
@@ -28,10 +28,10 @@ const TimeTableArtist = ({
           height: 110,
           width: 680,
           zIndex: 20,
-          top: 1957,
-          left: 140,
+          top: 2032,
+          left: 156,
         }}
-        className="flex justify-center items-center "
+        className="flex justify-center items-center"
       >
         <AutoResizeText
           style={{

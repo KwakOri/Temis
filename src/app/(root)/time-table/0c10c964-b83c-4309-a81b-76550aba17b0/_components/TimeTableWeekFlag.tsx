@@ -29,15 +29,16 @@ const TimeTableWeekFlag = ({
         style={{
           fontFamily: COMP_FONTS.WEEKLY_FLAG,
           color: COMP_COLORS.WEEKLY_FLAG,
-          fontSize: 50,
-          top: 501,
-          left: 1600,
+          fontSize: 42,
+          top: 560,
+          left: 1608,
           width: 1600,
           height: 120,
+          fontWeight: 400,
         }}
       >
         {start.year}년 {padZero(start.month)}월 {padZero(start.date)}일 부터{" "}
-        {end.year}년 {padZero(end.month)}월 {padZero(end.date)}일 까지
+        {end.year}년 {padZero(end.month)}월 {padZero(end.date)}일
       </p>
 
       {/* <img
