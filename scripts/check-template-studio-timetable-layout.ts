@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 
 import {
   getStudioTimetableDayCardGeometries,
+  getStudioTimetableDayCardsBounds,
   getStudioTimetableEntryCardSize,
+  getStudioTimetableRotatedRectangleBounds,
   getStudioTimetableThreeByThreeEmptySlotIndexes,
 } from "../src/app/(root)/template-studio/_components/studio-timetable-preview";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
@@ -95,6 +97,60 @@ assert.deepEqual(mixedGeometries[mixedDays[2].id], {
   width: 120,
   height: 40,
 });
+
+assert.deepEqual(
+  getStudioTimetableRotatedRectangleBounds(
+    { left: 10, top: 20, width: 100, height: 50 },
+    0,
+  ),
+  { left: 10, top: 20, width: 100, height: 50 },
+  "A zero-degree card keeps its logical visual bounds.",
+);
+const ninetyDegreeBounds = getStudioTimetableRotatedRectangleBounds(
+  { left: 10, top: 20, width: 100, height: 50 },
+  90,
+);
+assert.ok(Math.abs(ninetyDegreeBounds.left - 35) < 1e-9);
+assert.ok(Math.abs(ninetyDegreeBounds.top - -5) < 1e-9);
+assert.ok(Math.abs(ninetyDegreeBounds.width - 50) < 1e-9);
+assert.ok(Math.abs(ninetyDegreeBounds.height - 100) < 1e-9);
+const negativeFortyFiveBounds = getStudioTimetableRotatedRectangleBounds(
+  { left: 10, top: 20, width: 100, height: 50 },
+  -45,
+);
+assert.ok(Math.abs(negativeFortyFiveBounds.left - 6.966991411008934) < 1e-9);
+assert.ok(Math.abs(negativeFortyFiveBounds.top - -8.033008588991066) < 1e-9);
+assert.ok(Math.abs(negativeFortyFiveBounds.width - 106.06601717798213) < 1e-9);
+assert.ok(Math.abs(negativeFortyFiveBounds.height - 106.06601717798213) < 1e-9);
+
+const mixedRotationLayout = {
+  ...mixedLayout,
+  dayOffsets: {
+    [mixedDays[0].id]: { left: 0, top: 0, rotateDeg: 0 },
+    [mixedDays[1].id]: { left: 0, top: 0, rotateDeg: 90 },
+    [mixedDays[2].id]: { left: 0, top: 0, rotateDeg: -45 },
+  },
+};
+assert.deepEqual(
+  mixedGeometries,
+  getStudioTimetableDayCardGeometries(
+    mixedRotationLayout,
+    mixedDays,
+    () => 1,
+    (dayId) => mixedSizes[dayId],
+  ),
+  "Per-card rotation must not alter logical drag geometry.",
+);
+const mixedRotationBounds = getStudioTimetableDayCardsBounds(
+  mixedRotationLayout,
+  mixedDays,
+  () => 1,
+  (dayId) => mixedSizes[dayId],
+);
+assert.ok(Math.abs(mixedRotationBounds.left - 100) < 1e-9);
+assert.ok(Math.abs(mixedRotationBounds.top - 140) < 1e-9);
+assert.ok(Math.abs(mixedRotationBounds.width - 270) < 1e-9);
+assert.ok(Math.abs(mixedRotationBounds.height - 236.5685424949238) < 1e-9);
 
 const fillParentDocument = createSampleStudioDocument();
 fillParentDocument.canvas.width = 640;

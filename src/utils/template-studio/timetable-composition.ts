@@ -94,8 +94,8 @@ const createStudioProfileBlockExceptionMeta = (
   visible = true,
   frameAssetId?: StudioTimetableCompositionObject["backgroundAssetId"],
   frameFit: StudioTimetableCompositionObject["backgroundFit"] = "contain",
-  maskRadius = 56,
-  maskShape: StudioSemanticMaskShape = "rounded",
+  maskRadius = 0,
+  maskShape: StudioSemanticMaskShape = "rectangle",
 ) => ({
   semanticKey: "profileBlock" as const,
   scope: "timetable" as const,
@@ -536,7 +536,7 @@ const createStudioProfileBlockGroupFromLegacyObject = (
   const maskRadius =
     typeof object.style.borderRadius === "number"
       ? object.style.borderRadius
-      : 56;
+      : 0;
   const commonChildStyle = {
     position: "absolute",
     left: 0,
@@ -1172,7 +1172,7 @@ export const createStudioProfileBlockPresetObjects = (
       profileRole: "userImage",
       style: {
         ...commonChildStyle,
-        borderRadius: 56,
+        borderRadius: 0,
         overflow: "hidden",
       },
       assetSlots: {

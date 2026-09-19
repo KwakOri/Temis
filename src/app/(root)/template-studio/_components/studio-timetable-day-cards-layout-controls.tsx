@@ -374,6 +374,85 @@ export function StudioTimetableDayCardsLayoutControls({
         </div>
       ) : null}
 
+      <div className="grid gap-2 rounded-xl border border-[var(--field-border)] bg-[var(--field)]/40 p-2.5">
+        <div className="grid gap-0.5">
+          <span className="text-[11px] font-bold text-[var(--fg)]">
+            Card Transforms
+          </span>
+          <span className="text-[9px] font-semibold leading-relaxed text-[var(--fg3)]">
+            Adjust each card relative to its automatic grid position.
+          </span>
+        </div>
+        {days.map((day) => {
+          const offset = layout.dayOffsets?.[day.id] ?? {
+            left: 0,
+            top: 0,
+            rotateDeg: 0,
+          };
+
+          return (
+            <div className="grid gap-1.5" key={day.id}>
+              <span className="text-[10px] font-bold text-[var(--fg2)]">
+                {day.label}
+              </span>
+              <div className="grid grid-cols-3 gap-2">
+                <StudioNumberField
+                  label="Offset X"
+                  value={offset.left}
+                  onChange={(value) =>
+                    onUpdateLayout((nextLayout) => {
+                      const current = nextLayout.dayOffsets?.[day.id] ?? {
+                        left: 0,
+                        top: 0,
+                        rotateDeg: 0,
+                      };
+                      nextLayout.dayOffsets = {
+                        ...nextLayout.dayOffsets,
+                        [day.id]: { ...current, left: value },
+                      };
+                    })
+                  }
+                />
+                <StudioNumberField
+                  label="Offset Y"
+                  value={offset.top}
+                  onChange={(value) =>
+                    onUpdateLayout((nextLayout) => {
+                      const current = nextLayout.dayOffsets?.[day.id] ?? {
+                        left: 0,
+                        top: 0,
+                        rotateDeg: 0,
+                      };
+                      nextLayout.dayOffsets = {
+                        ...nextLayout.dayOffsets,
+                        [day.id]: { ...current, top: value },
+                      };
+                    })
+                  }
+                />
+                <StudioNumberField
+                  label="Rotate"
+                  value={offset.rotateDeg ?? 0}
+                  onChange={(value) =>
+                    onUpdateLayout((nextLayout) => {
+                      const current = nextLayout.dayOffsets?.[day.id] ?? {
+                        left: 0,
+                        top: 0,
+                        rotateDeg: 0,
+                      };
+                      nextLayout.dayOffsets = {
+                        ...nextLayout.dayOffsets,
+                        [day.id]: { ...current, rotateDeg: value },
+                      };
+                    })
+                  }
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       <button
         className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-semibold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
         type="button"
@@ -383,7 +462,7 @@ export function StudioTimetableDayCardsLayoutControls({
           })
         }
       >
-        Reset card offsets
+        Reset card positions and rotations
       </button>
     </div>
   );

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import { resolveStudioTextBinding } from "../src/utils/template-studio/binding-resolver";
 import {
+  getStudioDateFormatMode,
   resolveStudioDateRangeText,
   STUDIO_WEEK_DATE_LONG_TEMPLATE,
 } from "../src/utils/template-studio/date-template";
@@ -11,6 +12,13 @@ import { validateStudioRuntimeValuesForDocument } from "../src/utils/template-st
 import { validateStudioDocument } from "../src/utils/template-studio/validator";
 import { createThumbnailStudioDocument } from "../src/utils/thumbnail-studio/document-factory";
 import { ensureThumbnailWeekDatesContract } from "../src/utils/thumbnail-studio/week-dates";
+
+assert.equal(getStudioDateFormatMode("week.date_range"), "range");
+assert.equal(getStudioDateFormatMode("day.date"), "single");
+assert.equal(getStudioDateFormatMode("week.start_date"), "single");
+assert.equal(getStudioDateFormatMode("week.end_date"), "single");
+assert.equal(getStudioDateFormatMode("day.label"), null);
+assert.equal(getStudioDateFormatMode("entry.time"), null);
 
 assert.equal(
   resolveStudioDateRangeText({
@@ -116,17 +124,92 @@ assert.equal(
   resolveStudioTextBinding(document, runtimeValues, {
     kind: "builtinField",
     fieldId: "week.date_range",
+    dateRangeFormat: "long",
+  }),
+  "2024.02.28 - 03.05",
+);
+assert.equal(
+  resolveStudioTextBinding(document, runtimeValues, {
+    kind: "builtinField",
+    fieldId: "week.date_range",
+    dateRangeFormat: "custom",
+    dateRangeTemplate:
+      "${start.YYYY}/${start.MM}/${start.DD} → ${end.MM}/${end.DD}",
+  }),
+  "2024/02/28 → 03/05",
+);
+assert.equal(
+  resolveStudioTextBinding(document, runtimeValues, {
+    kind: "builtinField",
+    fieldId: "week.start_date",
+    dateRangeFormat: "long",
   }),
   "2024.02.28",
 );
 assert.equal(
   resolveStudioTextBinding(document, runtimeValues, {
     kind: "builtinField",
-    fieldId: "week.start_date",
-    dateRangeFormat: "custom",
-    dateRangeTemplate: "${YYYY}년 ${M}월 ${D}일 ${weekdayShort}",
+    fieldId: "week.date_range",
   }),
-  "2024년 2월 28일 Wed",
+  "2024.02.28 - 03.05",
+);
+assert.equal(
+  validateStudioDocument({
+    ...document,
+    graph: {
+      ...document.graph,
+      nodes: {
+        ...document.graph.nodes,
+        range: {
+          ...makeWeekDatesNode("range"),
+          meta: undefined,
+          binding: {
+            kind: "builtinField",
+            fieldId: "week.date_range",
+            dateRangeFormat: "long",
+            dateRangeTemplate: STUDIO_WEEK_DATE_LONG_TEMPLATE,
+          },
+        },
+      },
+    },
+  }).some((diagnostic) => diagnostic.severity === "error"),
+  false,
+);
+assert.equal(
+  validateStudioDocument({
+    ...document,
+    graph: {
+      ...document.graph,
+      nodes: {
+        ...document.graph.nodes,
+        invalidStart: {
+          ...makeWeekDatesNode("invalidStart"),
+          binding: {
+            kind: "builtinField",
+            fieldId: "week.start_date",
+            dateRangeFormat: "split",
+          },
+        },
+      },
+    },
+  }).some(
+    (diagnostic) =>
+      diagnostic.id === "binding-date-range-format-invalid:invalidStart",
+  ),
+  true,
+);
+assert.equal(
+  validateStudioDocument(document).some(
+    (diagnostic) => diagnostic.severity === "error",
+  ),
+  false,
+);
+assert.equal(
+  resolveStudioTextBinding(document, runtimeValues, {
+    kind: "builtinField",
+    fieldId: "week.date_range",
+  }),
+  "2024.02.28 - 03.05",
 );
 assert.equal(
   validateStudioDocument(document).some(

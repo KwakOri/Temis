@@ -7,11 +7,11 @@ import {
   StudioTemplateDocument,
 } from "@/types/template-studio";
 import {
-  formatStudioDateParts,
   getStudioDatePartsWithDayOffset,
   getStudioWeekEndParts,
   getStudioWeekStartParts,
   parseStudioIsoDateParts,
+  resolveStudioDateRangeText,
   resolveStudioSingleDateText,
   resolveStudioWeekDateText,
 } from "@/utils/template-studio/date-template";
@@ -344,6 +344,11 @@ const getDayDateParts = (
   return getStudioDatePartsWithDayOffset(timetable.week.startDate, day.order);
 };
 
+const toStudioIsoDate = (
+  parts: ReturnType<typeof parseStudioIsoDateParts>,
+): string | undefined =>
+  parts ? `${parts.year}-${parts.month}-${parts.day}` : undefined;
+
 export const resolveStudioBuiltinFieldValue = (
   document: StudioTemplateDocument,
   values: StudioRuntimeValues,
@@ -362,8 +367,15 @@ export const resolveStudioBuiltinFieldValue = (
     return formatStudioDayLabel(day, fieldId, options.dayLabelFormat);
   }
   if (fieldId === "day.date") {
-    return formatStudioDateParts(getDayDateParts(document, values, context), {
-      includeYear: false,
+    const dateParts = getDayDateParts(document, values, context);
+    return resolveStudioSingleDateText({
+      date: dateParts
+        ? `${dateParts.year}-${dateParts.month}-${dateParts.day}`
+        : undefined,
+      // timetable의 기존 day.date 출력은 MM.DD였으므로, 옵션이 없을 때도
+      // single-date resolver의 기본값을 short로 고정해 하위 호환을 지킨다.
+      format: options.dateRangeFormat ?? "short",
+      template: options.dateRangeTemplate,
     });
   }
 
@@ -398,12 +410,13 @@ export const resolveStudioBuiltinFieldValue = (
         locale: thumbnailSource.locale,
       });
     }
-    return formatStudioDateParts(
-      getStudioWeekStartParts(document, values.timetable.weekStartDate),
-      {
-        includeYear: true,
-      },
-    );
+    return resolveStudioSingleDateText({
+      date: toStudioIsoDate(
+        getStudioWeekStartParts(document, values.timetable.weekStartDate),
+      ),
+      format: options.dateRangeFormat,
+      template: options.dateRangeTemplate,
+    });
   }
 
   if (fieldId === "week.end_date") {
@@ -416,21 +429,20 @@ export const resolveStudioBuiltinFieldValue = (
         locale: thumbnailSource.locale,
       });
     }
-    return formatStudioDateParts(
-      getStudioWeekEndParts(document, values.timetable.weekStartDate),
-      {
-        includeYear: true,
-      },
-    );
+    return resolveStudioSingleDateText({
+      date: toStudioIsoDate(
+        getStudioWeekEndParts(document, values.timetable.weekStartDate),
+      ),
+      format: options.dateRangeFormat,
+      template: options.dateRangeTemplate,
+    });
   }
 
   if (fieldId === "week.date_range") {
     const thumbnailSource = getThumbnailWeekDateSource(document, values);
     if (thumbnailSource) {
-      // Thumbnail의 레거시 Week Dates 바인딩도 기간이 아니라 선택한 하루만
-      // 렌더링한다. 새 프리셋은 week.start_date를 사용한다.
-      return resolveStudioSingleDateText({
-        date: thumbnailSource.date,
+      return resolveStudioDateRangeText({
+        startDate: thumbnailSource.date,
         format: options.dateRangeFormat,
         template: options.dateRangeTemplate,
         locale: thumbnailSource.locale,

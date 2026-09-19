@@ -1,8 +1,9 @@
 "use client";
 
-import { Plus, RotateCcw, Upload } from "lucide-react";
+import { Plus, RotateCcw, Trash2, Upload } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
+import { cn } from "@/lib/utils";
 import type {
   StudioInputDefinition,
   StudioRuntimeValues,
@@ -33,6 +34,7 @@ import { isStudioTimetableStatusAvailable } from "@/utils/template-studio/timeta
 import {
   findStudioArtistProfileTextInput,
   findStudioWeeklyMemoInput,
+  isStudioProfileBlockImageInput,
 } from "@/utils/template-studio/preset-inputs";
 import {
   getLocalizedStudioAddEntryDisabledReason,
@@ -121,26 +123,50 @@ const createEntryId = (dayId: StudioTimetableDayId, entryCount: number) => {
 
 const RuntimeImageUploadAction = ({
   label,
+  removeLabel,
   localOnlyNotice,
+  inline = false,
   onFileSelect,
+  onRemove,
 }: {
   label: string;
+  removeLabel?: string;
   localOnlyNotice?: string;
+  inline?: boolean;
   onFileSelect: (file: File) => void;
+  onRemove?: () => void;
 }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   return (
-    <div className="grid gap-1">
-      <StudioRuntimeActionButton
-        fullWidth
-        size="compact"
-        variant="secondary"
-        onClick={() => inputRef.current?.click()}
+    <div className={cn("grid gap-1", inline && "min-w-0")}>
+      <div
+        className={cn(
+          onRemove ? "grid grid-cols-2 gap-2" : "flex justify-end",
+          inline && "min-w-0",
+        )}
       >
-        <Upload size={14} />
-        {label}
-      </StudioRuntimeActionButton>
+        <StudioRuntimeActionButton
+          fullWidth={!inline}
+          size="compact"
+          variant="secondary"
+          onClick={() => inputRef.current?.click()}
+        >
+          <Upload size={14} />
+          {label}
+        </StudioRuntimeActionButton>
+        {onRemove && removeLabel ? (
+          <StudioRuntimeActionButton
+            fullWidth={!inline}
+            size="compact"
+            variant="secondary"
+            onClick={onRemove}
+          >
+            <Trash2 size={14} />
+            {removeLabel}
+          </StudioRuntimeActionButton>
+        ) : null}
+      </div>
       <input
         ref={inputRef}
         accept="image/*"
@@ -389,7 +415,12 @@ export function TemplateStudioRuntimeForm({
       // Admin preview (or any caller without a real user identity) keeps the
       // previous in-memory-only behavior: show the image for this session
       // without touching IndexedDB.
-      updateInputValue(input, URL.createObjectURL(blob), context);
+      const objectUrl = URL.createObjectURL(blob);
+      setLocalImageObjectUrl(
+        buildLocalImageStateKey(input.id, context),
+        objectUrl,
+      );
+      updateInputValue(input, objectUrl, context);
       return;
     }
 
@@ -419,6 +450,33 @@ export function TemplateStudioRuntimeForm({
           : copy.imageStorageFailed;
       console.error("Failed to store a runtime image locally", error);
       window.alert(message);
+    }
+  };
+
+  const removeRuntimeImage = async (
+    input: StudioInputDefinition,
+    context: StudioRuntimeContext = {},
+  ) => {
+    if (input.type !== "image") return;
+
+    setLocalImageObjectUrl(buildLocalImageStateKey(input.id, context), null);
+    updateInputValue(input, "", context);
+
+    if (!canUseLocalImageStorage || !templateId || !storageOwnerId) return;
+
+    const imageContext = buildImageStorageContext(context);
+    if (!imageContext) return;
+
+    try {
+      await deleteStudioRuntimeImage({
+        userId: storageOwnerId,
+        templateId,
+        inputId: input.id,
+        context: imageContext,
+      });
+    } catch (error) {
+      console.error("Failed to delete a local runtime image", error);
+      window.alert(copy.imageRemovalFailed);
     }
   };
 
@@ -603,7 +661,12 @@ export function TemplateStudioRuntimeForm({
   const renderInput = (
     input: StudioInputDefinition,
     context: StudioRuntimeContext = {},
-    options: { hideLabel?: boolean; imageUploadOnly?: boolean } = {},
+    options: {
+      hideLabel?: boolean;
+      imageUploadOnly?: boolean;
+      inline?: boolean;
+      allowImageRemoval?: boolean;
+    } = {},
   ) => {
     const value = getStudioRuntimeInputValue(input, runtimeValues, context);
     const key = [
@@ -659,14 +722,31 @@ export function TemplateStudioRuntimeForm({
 
     if (input.type === "image") {
       if (options.imageUploadOnly) {
+        const hasRuntimeImage =
+          value.trim().length > 0 && value !== input.defaultUrl;
         return (
           <RuntimeImageUploadAction
             key={key}
-            label={copy.upload}
+            inline={options.inline}
+            label={
+              options.allowImageRemoval && hasRuntimeImage
+                ? copy.changeImage
+                : copy.upload
+            }
             localOnlyNotice={
               canUseLocalImageStorage ? copy.imageLocalOnlyNotice : undefined
             }
             onFileSelect={(file) => uploadRuntimeImage(input, file, context)}
+            onRemove={
+              options.allowImageRemoval && hasRuntimeImage
+                ? () => void removeRuntimeImage(input, context)
+                : undefined
+            }
+            removeLabel={
+              options.allowImageRemoval && hasRuntimeImage
+                ? copy.removeImage
+                : undefined
+            }
           />
         );
       }
@@ -723,10 +803,28 @@ export function TemplateStudioRuntimeForm({
           ? toggleValue === onOffValues.onValue
           : undefined;
       const hideContentLabels = group.contentInputs.length === 1;
+      const inlineImageInput =
+        !toggleInput &&
+        group.contentInputs.length === 1 &&
+        group.contentInputs[0]?.type === "image";
+      const inlineImageContent = inlineImageInput
+        ? renderInput(
+            group.contentInputs[0],
+            {},
+            {
+              imageUploadOnly: true,
+              inline: true,
+              allowImageRemoval: isStudioProfileBlockImageInput(
+                group.contentInputs[0],
+              ),
+            },
+          )
+        : undefined;
 
       return (
         <StudioRuntimeGlobalInputCard
           enabled={enabled}
+          inlineContent={inlineImageContent}
           key={group.id}
           label={group.label}
           toggleAriaLabel={toggleInput?.label}
@@ -740,16 +838,19 @@ export function TemplateStudioRuntimeForm({
               : undefined
           }
         >
-          {group.contentInputs.map((input) =>
-            renderInput(
-              input,
-              {},
-              {
-                hideLabel: hideContentLabels,
-                imageUploadOnly: input.type === "image",
-              },
-            ),
-          )}
+          {inlineImageInput
+            ? null
+            : group.contentInputs.map((input) =>
+                renderInput(
+                  input,
+                  {},
+                  {
+                    hideLabel: hideContentLabels,
+                    imageUploadOnly: input.type === "image",
+                    allowImageRemoval: isStudioProfileBlockImageInput(input),
+                  },
+                ),
+              )}
         </StudioRuntimeGlobalInputCard>
       );
     });
@@ -758,6 +859,7 @@ export function TemplateStudioRuntimeForm({
     title: string,
     inputs: StudioInputDefinition[],
     context: StudioRuntimeContext = {},
+    options: { hideInputLabels?: boolean } = {},
   ) => {
     if (inputs.length === 0) return null;
 
@@ -767,7 +869,11 @@ export function TemplateStudioRuntimeForm({
           {title}
         </h3>
         <div className="grid gap-3">
-          {inputs.map((input) => renderInput(input, context))}
+          {inputs.map((input) =>
+            renderInput(input, context, {
+              hideLabel: options.hideInputLabels,
+            }),
+          )}
         </div>
       </StudioRuntimeCard>
     );
@@ -804,6 +910,7 @@ export function TemplateStudioRuntimeForm({
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
           <StudioRuntimeTimePicker
             disabled={Boolean(entry.isGuerrilla)}
+            hideLabel
             hourLabel={copy.hour}
             label={copy.time}
             minuteLabel={copy.minute}
@@ -816,7 +923,6 @@ export function TemplateStudioRuntimeForm({
             ariaLabel={guerrillaAriaLabel}
             checked={Boolean(entry.isGuerrilla)}
             className="h-10"
-            label={copy.guerrilla}
             title={`${copy.guerrilla} ${entry.isGuerrilla ? "ON" : "OFF"}`}
             onCheckedChange={(isGuerrilla) =>
               updateEntryGuerrilla(dayId, entryIndex, isGuerrilla)
@@ -825,6 +931,7 @@ export function TemplateStudioRuntimeForm({
         </div>
         <StudioRuntimeField
           control="input"
+          hideLabel
           label={copy.subTitle}
           placeholder="서브타이틀 적는 곳"
           value={entry.subTitle ?? ""}
@@ -834,6 +941,7 @@ export function TemplateStudioRuntimeForm({
         />
         <StudioRuntimeField
           control="textarea"
+          hideLabel
           label={copy.mainTitle}
           placeholder={"메인타이틀\n적는 곳"}
           rows={3}
@@ -842,7 +950,9 @@ export function TemplateStudioRuntimeForm({
             updateEntryField(dayId, entryIndex, "mainTitle", value)
           }
         />
-        {inputGroups.entry.map((input) => renderInput(input, context))}
+        {inputGroups.entry.map((input) =>
+          renderInput(input, context, { hideLabel: true }),
+        )}
       </StudioRuntimeEntryCard>
     );
   };
@@ -939,10 +1049,12 @@ export function TemplateStudioRuntimeForm({
                         {
                           dayId: day.id,
                         },
+                        { hideInputLabels: true },
                       )}
                       offlineContent={
                         <StudioRuntimeField
                           control="textarea"
+                          hideLabel
                           label={copy.offlineMemo}
                           placeholder={copy.offlineMemoPlaceholder}
                           rows={4}

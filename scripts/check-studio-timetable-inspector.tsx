@@ -119,6 +119,7 @@ const build = (
     renderPreviewInputs: () => <div data-preview-inputs="" />,
     selectedLayerId,
     selectedLayerLabel: selectedLayerId ?? "Timetable Composition",
+    selectedLayerRotation: 0,
     selection: resolveStudioTimetableSelection(
       document,
       composition,
@@ -175,6 +176,29 @@ assert.deepEqual(
 
 const componentSetMarkup = markupOf(
   findSection(build("day-card:mon"), "componentSet:"),
+);
+
+const dayCardPositionMarkup = markupOf(
+  findSection(
+    build("day-card:mon", {
+      overrides: { selectedLayerRotation: 17 } as never,
+    }),
+    "position:",
+  ),
+);
+assert.ok(
+  dayCardPositionMarkup.includes('value="17"'),
+  "개별 요일 카드의 Rotate는 선택된 카드 회전값을 보여준다.",
+);
+assert.equal(
+  (dayCardPositionMarkup.match(/<span>W<\/span>/g) ?? []).length,
+  1,
+  "개별 요일 카드의 W는 읽기 전용이다.",
+);
+assert.equal(
+  (dayCardPositionMarkup.match(/<span>H<\/span>/g) ?? []).length,
+  1,
+  "개별 요일 카드의 H는 읽기 전용이다.",
 );
 assert.ok(
   componentSetMarkup.includes("Monday layout"),
@@ -474,6 +498,24 @@ assert.ok(
 assert.ok(
   markupOf(derivedPosition).includes(">30</span>"),
   "계산된 크기는 읽기 전용으로 보여준다.",
+);
+
+const groupPositionMarkup = markupOf(
+  findSection(
+    build(STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID, {
+      objects: [
+        createObject(STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID, {
+          kind: "generatedDayCards",
+        } as never),
+      ],
+      overrides: { selectedLayerRotation: 23 } as never,
+    }),
+    "position:",
+  ),
+);
+assert.ok(
+  groupPositionMarkup.includes('value="23"'),
+  "요일 카드 묶음의 Rotate는 묶음 회전값을 계속 보여준다.",
 );
 
 // 부모를 채우는 객체는 좌표와 크기를 모두 잠근다.

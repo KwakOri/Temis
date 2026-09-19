@@ -456,6 +456,7 @@ export type StudioTimetableCapabilities = Record<
 export interface StudioTimetableDayCardOffset {
   left: number;
   top: number;
+  rotateDeg?: number;
 }
 
 export type StudioTimetableDayCardsGridPreset =

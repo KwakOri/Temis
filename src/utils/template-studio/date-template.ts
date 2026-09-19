@@ -1,4 +1,7 @@
-import { StudioTemplateDocument } from "@/types/template-studio";
+import {
+  StudioBuiltinFieldId,
+  StudioTemplateDocument,
+} from "@/types/template-studio";
 
 export type StudioDateParts = {
   year: string;
@@ -46,6 +49,11 @@ export const STUDIO_SINGLE_DATE_FORMAT_PRESETS = [
     template: "${MM}.${DD}",
   },
   {
+    id: "day",
+    label: "01",
+    template: "${DD}",
+  },
+  {
     id: "localized",
     label: "Jul 01, 2026",
     template: "${localizedWithYear}",
@@ -58,6 +66,20 @@ export const STUDIO_SINGLE_DATE_FORMAT_PRESETS = [
 ] as const;
 
 export type StudioDateFormatMode = "range" | "single";
+
+export const getStudioDateFormatMode = (
+  fieldId: StudioBuiltinFieldId,
+): StudioDateFormatMode | null => {
+  if (fieldId === "week.date_range") return "range";
+  if (
+    fieldId === "day.date" ||
+    fieldId === "week.start_date" ||
+    fieldId === "week.end_date"
+  ) {
+    return "single";
+  }
+  return null;
+};
 
 export const STUDIO_WEEK_DATE_TEMPLATE_TOKENS = [
   "${start.YYYY}",
