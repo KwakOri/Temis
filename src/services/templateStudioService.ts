@@ -16,6 +16,10 @@ import type {
   TemplateStudioDocumentSummary,
   TemplateStudioSaveOperation,
 } from "@/utils/template-studio/save-audit";
+import {
+  getStudioDataImageMetadata,
+  parseStudioDataImageUrl,
+} from "@/utils/template-studio/asset-sync";
 
 export interface TemplateStudioTemplateListResponse {
   success: boolean;
@@ -108,6 +112,32 @@ export interface TemplateStudioUploadAssetPayload {
   localContentHash?: string;
   mimeType?: string;
   byteSize?: number;
+}
+
+export interface TemplateStudioAssetMetadataPayload {
+  assetId: string;
+  label: string;
+  contentHash: string;
+  mimeType: string;
+  byteSize: number;
+}
+
+interface TemplateStudioPresignedAsset {
+  assetId: string;
+  label: string;
+  contentHash: string;
+  mimeType: string;
+  byteSize: number;
+  storagePath: string;
+  publicUrl: string;
+  uploadUrl: string;
+  headers: Record<string, string>;
+}
+
+interface TemplateStudioPresignAssetsResponse {
+  success: boolean;
+  templateId: string;
+  assets: TemplateStudioPresignedAsset[];
 }
 
 export interface TemplateStudioUploadedAsset {
@@ -224,11 +254,17 @@ export class TemplateStudioService {
     });
 
     if (!response.ok) {
-      throw new Error("Figma 컴포넌트를 분석하지 못했습니다. 링크와 권한을 확인해 주세요.");
+      throw new Error(
+        "Figma 컴포넌트를 분석하지 못했습니다. 링크와 권한을 확인해 주세요.",
+      );
     }
 
     const result = await response.json().catch(() => null);
-    if (!result || result.success !== true || !Array.isArray(result.candidates)) {
+    if (
+      !result ||
+      result.success !== true ||
+      !Array.isArray(result.candidates)
+    ) {
       throw new Error("Figma 컴포넌트 분석 결과를 확인하지 못했습니다.");
     }
     return result as StudioFigmaAnalyzeResponse;
@@ -360,18 +396,10 @@ export class TemplateStudioService {
     templateId: string,
     assets: TemplateStudioUploadAssetPayload[],
   ): Promise<TemplateStudioUploadAssetsResponse> {
-    const response = await fetch(`${this.baseUrl}/${templateId}/assets/sync`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ assets }),
+    return this.syncAssets(templateId, assets, {
+      attemptId: globalThis.crypto.randomUUID(),
+      operation: "save_draft",
     });
-
-    return parseJsonResponse<TemplateStudioUploadAssetsResponse>(
-      response,
-      "Template Studio asset 업로드에 실패했습니다.",
-    );
   }
 
   static async syncAssets(
@@ -379,17 +407,114 @@ export class TemplateStudioService {
     assets: TemplateStudioUploadAssetPayload[],
     context: TemplateStudioAssetSyncContext,
   ): Promise<TemplateStudioUploadAssetsResponse> {
+    const preparedAssets = await Promise.all(
+      assets.map(async (asset) => {
+        const parsed = parseStudioDataImageUrl(asset.src);
+        if (!parsed) {
+          throw new TemplateStudioApiError({
+            message: `Template Studio asset를 읽을 수 없습니다: ${asset.label}`,
+            status: 400,
+          });
+        }
+
+        const localMetadata = await getStudioDataImageMetadata(asset.src);
+        const contentHash =
+          localMetadata?.contentHash ?? asset.localContentHash ?? null;
+        if (!contentHash) {
+          throw new TemplateStudioApiError({
+            message: `Template Studio asset의 content hash를 계산할 수 없습니다: ${asset.label}`,
+            status: 400,
+          });
+        }
+
+        return {
+          source: parsed.buffer,
+          metadata: {
+            assetId: asset.assetId,
+            label: asset.label,
+            contentHash,
+            mimeType: parsed.mimeType,
+            byteSize: parsed.buffer.byteLength,
+          } satisfies TemplateStudioAssetMetadataPayload,
+        };
+      }),
+    );
+    const metadataAssets = preparedAssets.map((asset) => asset.metadata);
+
+    const presignedResponse = await this.presignAssets(
+      templateId,
+      metadataAssets,
+    );
+    const preparedAssetsById = new Map(
+      preparedAssets.map((asset) => [asset.metadata.assetId, asset]),
+    );
+
+    for (const presignedAsset of presignedResponse.assets) {
+      const preparedAsset = preparedAssetsById.get(presignedAsset.assetId);
+      if (!preparedAsset) {
+        throw new TemplateStudioApiError({
+          message: `Template Studio presigned asset 응답이 일치하지 않습니다: ${presignedAsset.assetId}`,
+          status: 502,
+        });
+      }
+
+      let response: Response;
+      try {
+        response = await fetch(presignedAsset.uploadUrl, {
+          method: "PUT",
+          headers: presignedAsset.headers,
+          body: preparedAsset.source,
+        });
+      } catch {
+        throw new TemplateStudioApiError({
+          message: `Template Studio R2 asset 업로드에 실패했습니다: ${presignedAsset.label}`,
+          status: 502,
+        });
+      }
+
+      if (!response.ok) {
+        const detail = await response.text().catch(() => "");
+        throw new TemplateStudioApiError({
+          message: detail
+            ? `Template Studio R2 asset 업로드에 실패했습니다: ${presignedAsset.label} (${detail.slice(0, 160)})`
+            : `Template Studio R2 asset 업로드에 실패했습니다: ${presignedAsset.label}`,
+          status: response.status,
+        });
+      }
+    }
+
     const response = await fetch(`${this.baseUrl}/${templateId}/assets/sync`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ assets, ...context }),
+      body: JSON.stringify({ assets: metadataAssets, ...context }),
     });
 
     return parseJsonResponse<TemplateStudioUploadAssetsResponse>(
       response,
       "Template Studio asset 동기화에 실패했습니다.",
+    );
+  }
+
+  private static async presignAssets(
+    templateId: string,
+    assets: TemplateStudioAssetMetadataPayload[],
+  ): Promise<TemplateStudioPresignAssetsResponse> {
+    const response = await fetch(
+      `${this.baseUrl}/${templateId}/assets/presign`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ assets }),
+      },
+    );
+
+    return parseJsonResponse<TemplateStudioPresignAssetsResponse>(
+      response,
+      "Template Studio R2 asset 업로드 URL 생성에 실패했습니다.",
     );
   }
 

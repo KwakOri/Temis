@@ -154,18 +154,17 @@ assert.equal(
   "폰트가 가진 굵기만 후보로 둔다.",
 );
 
+const unsupportedWeightMarkup = renderToStaticMarkup(
+  <StudioFontWeightField options={weightOptions} value={600} onChange={noop} />,
+);
 assert.ok(
-  renderToStaticMarkup(
-    <StudioFontWeightField
-      options={weightOptions}
-      value={600}
-      onChange={noop}
-    />,
-  ).includes('value="700" selected=""'),
-  "가지지 않은 굵기는 가장 가까운 굵기로 보여준다.",
+  unsupportedWeightMarkup.includes('value="600"') &&
+    unsupportedWeightMarkup.includes('disabled=""') &&
+    unsupportedWeightMarkup.includes("600 (current)"),
+  "가지지 않은 굵기도 현재값으로 유지해 보여준다.",
 );
 
-// 값이 후보에 없으면 초점을 받을 때 문서를 화면과 맞춘다.
+// 값이 후보에 없어도 초점만으로 문서를 바꾸지 않는다.
 const weightCalls: number[] = [];
 const weightElement = StudioFontWeightField({
   options: weightOptions,
@@ -173,26 +172,40 @@ const weightElement = StudioFontWeightField({
   onChange: (value) => weightCalls.push(value),
 }) as React.ReactElement<{ children: React.ReactNode[] }>;
 const weightSelect = weightElement.props.children[1] as React.ReactElement<{
-  onFocus: () => void;
+  onFocus?: () => void;
 }>;
 
-weightSelect.props.onFocus();
-assert.deepEqual(weightCalls, [700], "화면에 보이는 굵기로 문서를 맞춘다.");
+weightSelect.props.onFocus?.();
+assert.deepEqual(weightCalls, [], "초점만으로 굵기를 바꾸지 않는다.");
+
+const singleWeightMarkup = renderToStaticMarkup(
+  <StudioFontWeightField
+    options={[{ value: 800, label: "Extra Bold" }]}
+    value={700}
+    onChange={noop}
+  />,
+);
+assert.ok(
+  singleWeightMarkup.includes('value="700"') &&
+    singleWeightMarkup.includes('disabled=""') &&
+    singleWeightMarkup.includes("700 (current)"),
+  "후보에 없는 현재 굵기도 선택 상태로 보존한다.",
+);
 
 const matchedWeightElement = StudioFontWeightField({
   options: weightOptions,
   value: 400,
-  onChange: (value) => weightCalls.push(value),
+  onChange: noop,
 }) as React.ReactElement<{ children: React.ReactNode[] }>;
 (
   matchedWeightElement.props.children[1] as React.ReactElement<{
-    onFocus: () => void;
+    onFocus?: () => void;
   }>
-).props.onFocus();
+).props.onFocus?.();
 assert.deepEqual(
   weightCalls,
-  [700],
-  "이미 맞는 굵기면 문서를 건드리지 않는다.",
+  [],
+  "맞는 굵기 역시 포커스에서 문서를 건드리지 않는다.",
 );
 
 // --- 정렬 선택 ---

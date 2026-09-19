@@ -18,7 +18,10 @@ import type {
   StudioTimetableDayId,
   StudioTimetableRuntimeEntry,
 } from "@/types/template-studio";
-import { normalizeStudioDayLabelFormat } from "@/utils/template-studio/builtin-fields";
+import {
+  isStudioTimeBuiltinField,
+  normalizeStudioDayLabelFormat,
+} from "@/utils/template-studio/builtin-fields";
 import { getStudioInputScopeLabel } from "@/utils/template-studio/input-scope";
 import { setStudioTimetableObjectVisibilitySlot } from "@/utils/template-studio/semantic-slots";
 import { isStudioPlacedTimetableCompositionObject } from "@/utils/template-studio/object-layout";
@@ -34,6 +37,7 @@ import {
   StudioTimetableArtistProfileTextAssetLayoutControls,
   StudioTimetableObjectVariantControls,
   StudioTimetableProfileMaskControls,
+  StudioTimeFormatControls,
   StudioTimetableTextTypographyControls,
   StudioTimetableWeekDatesFormatControls,
 } from "./studio-timetable-object-inspector-controls";
@@ -325,6 +329,25 @@ export const buildStudioTimetableInspectorSections = ({
                     }
                   />
                 ) : null}
+                {textObject.binding?.kind === "builtinField" &&
+                isStudioTimeBuiltinField(textObject.binding.fieldId) ? (
+                  <StudioTimeFormatControls
+                    format={textObject.binding.timeFormat}
+                    amText={textObject.binding.timeAmText}
+                    pmText={textObject.binding.timePmText}
+                    onChange={({ format, amText, pmText }) =>
+                      onUpdateObject(textObject.id, (target) => {
+                        if (target.binding?.kind !== "builtinField") return;
+                        target.binding = {
+                          ...target.binding,
+                          timeFormat: format,
+                          timeAmText: amText,
+                          timePmText: pmText,
+                        };
+                      })
+                    }
+                  />
+                ) : null}
               </>
             ) : boundInput ? (
               renderInputSourceSlot(boundInput)
@@ -478,7 +501,9 @@ export const buildStudioTimetableInspectorSections = ({
             </div>
             {isPlacedObject || isDayCards || Boolean(day) ? (
               <StudioNumberField
-                label={day ? "Card Rotate" : isDayCards ? "Group Rotate" : "Rotate"}
+                label={
+                  day ? "Card Rotate" : isDayCards ? "Group Rotate" : "Rotate"
+                }
                 value={selectedLayerRotation}
                 onChange={(value) =>
                   onUpdateLayerPosition(selectedLayerId, { rotateDeg: value })

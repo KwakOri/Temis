@@ -505,6 +505,28 @@ assert.ok(
   "week.start_date 바인딩에는 단일 날짜 프리셋과 토큰이 나타난다.",
 );
 
+const timeBindingDocument = createDocument();
+timeBindingDocument.graph.nodes.text.binding = {
+  kind: "builtinField",
+  fieldId: "entry.time",
+  timeFormat: "half",
+  timeAmText: "아침",
+  timePmText: "오후",
+};
+const timeBindingMarkup = markupOf(
+  findSection(
+    build(timeBindingDocument, timeBindingDocument.graph.nodes.text).sections,
+    "binding:",
+  ),
+);
+assert.ok(
+  timeBindingMarkup.includes("Time Format") &&
+    timeBindingMarkup.includes("12-hour") &&
+    timeBindingMarkup.includes('value="아침"') &&
+    timeBindingMarkup.includes('value="오후"'),
+  "entry.time 바인딩에는 12/24시간 형식과 AM/PM 사용자 문구가 나타난다.",
+);
+
 for (const fieldId of ["day.label", "entry.time"] as const) {
   const nonDateDocument = createDocument();
   nonDateDocument.graph.nodes.text.binding = {
@@ -534,6 +556,11 @@ const typographyMarkup = markupOf(
 assert.ok(typographyMarkup.includes("Pretendard"), "폰트 후보를 받아서 쓴다.");
 assert.ok(typographyMarkup.includes('value="24"'), "글자 크기를 보여준다.");
 assert.ok(
+  typographyMarkup.includes("Line height") &&
+    typographyMarkup.includes('value="1.2"'),
+  "일반 텍스트에 줄간격 입력이 나타난다.",
+);
+assert.ok(
   !typographyMarkup.includes("Line Breaks"),
   "고정 크기 텍스트에는 줄바꿈 선택이 없다.",
 );
@@ -548,6 +575,15 @@ assert.ok(
     ),
   ).includes("Line Breaks"),
   "Auto Text에는 줄바꿈 선택이 나타난다.",
+);
+assert.ok(
+  markupOf(
+    findSection(
+      build(flexibleDocument, flexibleDocument.graph.nodes.text).sections,
+      "typography:",
+    ),
+  ).includes('value="1.08"'),
+  "Auto Text에도 줄간격 입력이 나타난다.",
 );
 
 // --- 섹션 접기 ---

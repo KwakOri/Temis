@@ -195,8 +195,9 @@ export interface StudioFontWeightFieldProps {
 /**
  * 글자 굵기 선택.
  *
- * 폰트가 가진 굵기만 후보로 둔다. 지금 값이 후보에 없으면 가장 가까운 굵기를
- * 보여주고, 초점을 받는 순간 그 값으로 맞춰서 화면과 문서가 어긋나지 않게 한다.
+ * 폰트가 가진 굵기만 후보로 둔다. 지금 값이 후보에 없더라도 포커스만으로 문서를
+ * 바꾸지 않는다. 현재 저장값을 임시 선택지로 남겨 두고, 사용자가 실제 후보를
+ * 고른 경우에만 굵기를 바꾼다.
  */
 export function StudioFontWeightField({
   options,
@@ -204,28 +205,41 @@ export function StudioFontWeightField({
   onChange,
 }: StudioFontWeightFieldProps) {
   const normalizedValue = normalizeStudioFontWeight(value);
-  const selectedWeight = options.reduce(
-    (closest, option) =>
-      Math.abs(option.value - normalizedValue) <
-      Math.abs(closest.value - normalizedValue)
-        ? option
-        : closest,
-    options[0],
-  ).value;
+  const hasCurrentWeight = options.some(
+    (option) => option.value === normalizedValue,
+  );
+  const renderedOptions =
+    options.length === 0
+      ? [
+          {
+            value: normalizedValue,
+            label: `${normalizedValue} (current)`,
+          },
+        ]
+      : hasCurrentWeight
+        ? options
+        : [
+            {
+              value: normalizedValue,
+              label: `${normalizedValue} (current)`,
+            },
+            ...options,
+          ];
 
   return (
     <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
       <span>Weight</span>
       <select
         className="h-8 w-full min-w-0 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-        value={selectedWeight}
+        value={normalizedValue}
         onChange={(event) => onChange(Number(event.currentTarget.value))}
-        onFocus={() => {
-          if (selectedWeight !== normalizedValue) onChange(selectedWeight);
-        }}
       >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
+        {renderedOptions.map((option, index) => (
+          <option
+            disabled={options.length > 0 && !hasCurrentWeight && index === 0}
+            key={option.value}
+            value={option.value}
+          >
             {option.label}
           </option>
         ))}

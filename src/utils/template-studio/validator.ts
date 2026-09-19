@@ -371,6 +371,48 @@ const validateBuiltinFieldReference = (
   return [];
 };
 
+const validateBuiltinFieldFormatting = (
+  ownerId: string,
+  ownerLabel: string,
+  binding: Extract<StudioBinding, { kind: "builtinField" }>,
+): StudioDiagnostic[] => {
+  if (binding.fieldId !== "entry.time") return [];
+
+  const diagnostics: StudioDiagnostic[] = [];
+  if (
+    binding.timeFormat !== undefined &&
+    binding.timeFormat !== "half" &&
+    binding.timeFormat !== "full"
+  ) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `binding-time-format-invalid:${ownerId}`,
+        "Invalid time format",
+        `${ownerLabel} uses an unknown time format ${String(binding.timeFormat)}.`,
+      ),
+    );
+  }
+
+  for (const [key, value] of [
+    ["timeAmText", binding.timeAmText],
+    ["timePmText", binding.timePmText],
+  ] as const) {
+    if (value !== undefined && typeof value !== "string") {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `binding-time-half-text-invalid:${ownerId}:${key}`,
+          "Invalid half-day text",
+          `${ownerLabel} ${key} must be a string when present.`,
+        ),
+      );
+    }
+  }
+
+  return diagnostics;
+};
+
 const validateExceptionObjectMeta = (
   document: StudioTemplateDocument,
   ownerId: string,
@@ -507,6 +549,11 @@ const validateTimetableCompositionObjectBinding = (
         object.id,
         object.label,
         object.binding.fieldId,
+      ),
+      ...validateBuiltinFieldFormatting(
+        object.id,
+        object.label,
+        object.binding,
       ),
     );
   }
@@ -808,6 +855,7 @@ const validateBinding = (
         node.label,
         node.binding.fieldId,
       ),
+      ...validateBuiltinFieldFormatting(node.id, node.label, node.binding),
     );
 
     const isThumbnailSingleDateBinding =

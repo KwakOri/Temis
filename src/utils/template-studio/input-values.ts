@@ -6,6 +6,7 @@ import {
 } from "@/types/template-studio";
 import { STUDIO_MULTI_ENTRY_SLOT_COUNT } from "@/utils/template-studio/entry-groups";
 import { isStudioTimetableCapabilityEnabled } from "@/utils/template-studio/timetable-capabilities";
+import { getStudioNearestPastMonday } from "@/utils/template-studio/runtime-week";
 
 export interface StudioRuntimeContext {
   dayId?: string;
@@ -67,7 +68,7 @@ export const createStudioInitialRuntimeValues = (
       ]),
     ),
     timetable: {
-      weekStartDate: timetable?.week?.startDate,
+      weekStartDate: timetable ? getStudioNearestPastMonday() : undefined,
       entriesByDay: Object.fromEntries(
         dayIds.map((dayId) => [
           dayId,

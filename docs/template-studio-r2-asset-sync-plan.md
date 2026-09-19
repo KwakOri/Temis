@@ -16,8 +16,10 @@ Runtime input images used only for preview form data are separate from canonical
 
 - `StudioAsset` already has `src`, `storagePath`, `mimeType`, and `byteSize`.
 - `template_studio_assets` stores metadata keyed by `template_id + asset_id`.
-- The current Template Studio permanent asset upload route uses Supabase Storage (`template-studio-assets` bucket).
-- The current upload route creates a new random storage path for every upload.
+- The current Template Studio permanent asset route already writes to R2, but it
+  receives the full image data URL in the Next.js function request first.
+- The current route therefore has the correct storage provider but can fail at
+  the function payload limit before the R2 upload starts.
 - Template detail API currently returns template document/draft/revision state, but not the asset metadata list.
 - Preview currently uploads `data:image/...` document assets into preview-temporary R2 storage using a new `previewId` per open.
 
@@ -59,7 +61,8 @@ For each `document.assets[assetId]`:
 5. Upsert Supabase metadata by `template_id + asset_id`.
 6. Update editor document state with the returned URL and metadata.
 
-The server must recompute the SHA-256 hash from received bytes and not trust client-provided hash as authoritative.
+The server must recompute the SHA-256 hash from the verified R2 object bytes and
+not trust the client-provided hash as authoritative.
 
 ## API Plan
 
@@ -98,29 +101,32 @@ Update client response types accordingly.
 
 ### 4. R2 Helper
 
-Add an R2 helper that uploads to a provided deterministic key:
+Add an R2 helper that creates a presigned PUT URL for a provided deterministic
+key:
 
-- `uploadFileToR2Key(buffer, fileKey, mimeType)`
+- `createPresignedUploadUrlForKey(fileKey, mimeType)`
 
 Do not use random file keys for canonical Template Studio assets.
 
-### 5. Asset Sync API
+### 5. Asset Upload and Metadata APIs
 
-Add or replace with:
+Use two requests so image bytes never pass through the Next.js function request
+body:
 
+- `POST /api/admin/template-studio/templates/[id]/assets/presign`
+- `PUT` each returned presigned URL directly from the browser to R2
 - `POST /api/admin/template-studio/templates/[id]/assets/sync`
 
-Payload:
+The presign and sync payloads contain metadata only:
 
 ```ts
 {
   assets: Array<{
     assetId: string;
     label: string;
-    src: string;
-    localContentHash?: string;
-    mimeType?: string;
-    byteSize?: number;
+    contentHash: string;
+    mimeType: string;
+    byteSize: number;
   }>;
 }
 ```
@@ -146,15 +152,20 @@ Response:
 }
 ```
 
-Server behavior:
+Presign behavior:
 
 - Authenticate as Template Studio admin.
 - Validate template existence.
-- Parse supported image data URLs.
-- Compute hash server-side.
-- Check existing metadata for `templateId + assetId`.
-- If metadata matches and object URL exists, return existing metadata without upload.
-- Otherwise upload to R2 deterministic key and upsert metadata.
+- Validate the supported image MIME type, content hash, and size metadata.
+- Create a deterministic R2 key and presigned PUT URL.
+
+Sync behavior:
+
+- Authenticate as Template Studio admin.
+- Validate template existence and metadata payload.
+- Derive the deterministic R2 key from the template, asset, hash, and MIME type.
+- Verify the R2 object size, MIME type, and server-computed SHA-256 hash.
+- Upsert Supabase metadata only after the R2 object passes verification.
 
 ## Client Plan
 
@@ -163,7 +174,8 @@ Server behavior:
 Update `TemplateStudioService`:
 
 - `TemplateStudioTemplateDetailResponse.assets`
-- `syncAssets(templateId, assets)`
+- `syncAssets(templateId, assets)`: parse local data URLs, request presigned URLs,
+  upload bytes directly to R2, and send only metadata to the sync API.
 
 Add React Query mutation:
 

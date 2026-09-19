@@ -312,6 +312,12 @@ export const getStudioTimetableObjectRuntimeVariantValue = (
   const variantSet = normalizeStudioTimetableVariantSet(object.variantSet);
   if (!variantSet) return null;
 
+  if (variantSet.mode === "always") {
+    return variantSet.options.some((option) => option.value === "on")
+      ? "on"
+      : variantSet.defaultValue;
+  }
+
   const input = variantSet.inputId
     ? document.inputs[variantSet.inputId]
     : undefined;

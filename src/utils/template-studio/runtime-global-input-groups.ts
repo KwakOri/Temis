@@ -36,6 +36,21 @@ export const getStudioRuntimeOnOffOptionValues = (
   };
 };
 
+export const getStudioRuntimeSuppressedInputIds = (
+  document: StudioTemplateDocument,
+): ReadonlySet<string> => {
+  const suppressedInputIds = new Set<string>();
+  const objects = document.domains?.timetable?.composition?.objects ?? {};
+
+  Object.values(objects).forEach((object) => {
+    if (object.variantSet?.mode === "always" && object.variantSet.inputId) {
+      suppressedInputIds.add(object.variantSet.inputId);
+    }
+  });
+
+  return suppressedInputIds;
+};
+
 const collectObjectInputIds = ({
   objectId,
   objects,
@@ -84,10 +99,18 @@ export const getStudioRuntimeGlobalInputGroups = (
     globalInputs.map((input, index) => [input.id, index]),
   );
   const assignedInputIds = new Set<string>();
+  const suppressedInputIds = getStudioRuntimeSuppressedInputIds(document);
   const groups: StudioRuntimeGlobalInputGroup[] = [];
   const objects = document.domains?.timetable?.composition?.objects ?? {};
 
   Object.values(objects).forEach((object) => {
+    if (object.variantSet?.mode === "always") {
+      if (object.variantSet.inputId) {
+        assignedInputIds.add(object.variantSet.inputId);
+      }
+      return;
+    }
+
     const toggleInputId = object.variantSet?.inputId;
     if (!toggleInputId || assignedInputIds.has(toggleInputId)) return;
 
@@ -169,7 +192,9 @@ export const getStudioRuntimeGlobalInputGroups = (
   });
 
   globalInputs.forEach((input) => {
-    if (assignedInputIds.has(input.id)) return;
+    if (assignedInputIds.has(input.id) || suppressedInputIds.has(input.id)) {
+      return;
+    }
 
     const onOffValues = getStudioRuntimeOnOffOptionValues(input);
     groups.push({
