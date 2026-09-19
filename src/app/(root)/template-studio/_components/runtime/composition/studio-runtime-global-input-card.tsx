@@ -48,7 +48,7 @@ export function StudioRuntimeGlobalInputCard({
       <div
         className={cn(
           "grid transition-[grid-template-rows] duration-300 ease-in-out",
-          showContent && hasContent && !hasInlineContent
+          showContent && hasContent
             ? "grid-rows-[1fr]"
             : "grid-rows-[0fr]",
         )}

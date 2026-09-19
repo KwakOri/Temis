@@ -16,6 +16,22 @@ import {
 import { validateStudioDocument } from "../src/utils/template-studio/validator";
 
 const document = createSampleStudioDocument();
+assert.equal(document.styles.style_background.border, undefined);
+const legacyBorderDocument = structuredClone(document);
+legacyBorderDocument.styles.style_background.border =
+  "1px solid rgba(148, 163, 184, 0.35)";
+const borderMigration = migrateStudioTemplateDocument(legacyBorderDocument);
+assert.ok(borderMigration.ok);
+if (!borderMigration.ok) throw new Error(borderMigration.message);
+assert.equal(borderMigration.document.styles.style_background.border, undefined);
+legacyBorderDocument.styles.style_background.border = "2px solid red";
+const customBorderMigration = migrateStudioTemplateDocument(legacyBorderDocument);
+assert.ok(customBorderMigration.ok);
+if (!customBorderMigration.ok) throw new Error(customBorderMigration.message);
+assert.equal(
+  customBorderMigration.document.styles.style_background.border,
+  "2px solid red",
+);
 const timetable = document.domains?.timetable;
 assert.ok(timetable);
 const [mondayId, tuesdayId] = timetable.dayIds;
