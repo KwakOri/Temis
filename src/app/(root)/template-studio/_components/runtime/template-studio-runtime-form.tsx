@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, RotateCcw, Upload } from "lucide-react";
+import { Plus, RotateCcw, Trash2, Upload } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import type {
@@ -33,6 +33,7 @@ import { isStudioTimetableStatusAvailable } from "@/utils/template-studio/timeta
 import {
   findStudioArtistProfileTextInput,
   findStudioWeeklyMemoInput,
+  isStudioProfileBlockImageInput,
 } from "@/utils/template-studio/preset-inputs";
 import {
   getLocalizedStudioAddEntryDisabledReason,
@@ -121,26 +122,43 @@ const createEntryId = (dayId: StudioTimetableDayId, entryCount: number) => {
 
 const RuntimeImageUploadAction = ({
   label,
+  removeLabel,
   localOnlyNotice,
   onFileSelect,
+  onRemove,
 }: {
   label: string;
+  removeLabel?: string;
   localOnlyNotice?: string;
   onFileSelect: (file: File) => void;
+  onRemove?: () => void;
 }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   return (
     <div className="grid gap-1">
-      <StudioRuntimeActionButton
-        fullWidth
-        size="compact"
-        variant="secondary"
-        onClick={() => inputRef.current?.click()}
-      >
-        <Upload size={14} />
-        {label}
-      </StudioRuntimeActionButton>
+      <div className={onRemove ? "grid grid-cols-2 gap-2" : undefined}>
+        <StudioRuntimeActionButton
+          fullWidth
+          size="compact"
+          variant="secondary"
+          onClick={() => inputRef.current?.click()}
+        >
+          <Upload size={14} />
+          {label}
+        </StudioRuntimeActionButton>
+        {onRemove && removeLabel ? (
+          <StudioRuntimeActionButton
+            fullWidth
+            size="compact"
+            variant="secondary"
+            onClick={onRemove}
+          >
+            <Trash2 size={14} />
+            {removeLabel}
+          </StudioRuntimeActionButton>
+        ) : null}
+      </div>
       <input
         ref={inputRef}
         accept="image/*"
@@ -389,7 +407,12 @@ export function TemplateStudioRuntimeForm({
       // Admin preview (or any caller without a real user identity) keeps the
       // previous in-memory-only behavior: show the image for this session
       // without touching IndexedDB.
-      updateInputValue(input, URL.createObjectURL(blob), context);
+      const objectUrl = URL.createObjectURL(blob);
+      setLocalImageObjectUrl(
+        buildLocalImageStateKey(input.id, context),
+        objectUrl,
+      );
+      updateInputValue(input, objectUrl, context);
       return;
     }
 
@@ -419,6 +442,33 @@ export function TemplateStudioRuntimeForm({
           : copy.imageStorageFailed;
       console.error("Failed to store a runtime image locally", error);
       window.alert(message);
+    }
+  };
+
+  const removeRuntimeImage = async (
+    input: StudioInputDefinition,
+    context: StudioRuntimeContext = {},
+  ) => {
+    if (input.type !== "image") return;
+
+    setLocalImageObjectUrl(buildLocalImageStateKey(input.id, context), null);
+    updateInputValue(input, "", context);
+
+    if (!canUseLocalImageStorage || !templateId || !storageOwnerId) return;
+
+    const imageContext = buildImageStorageContext(context);
+    if (!imageContext) return;
+
+    try {
+      await deleteStudioRuntimeImage({
+        userId: storageOwnerId,
+        templateId,
+        inputId: input.id,
+        context: imageContext,
+      });
+    } catch (error) {
+      console.error("Failed to delete a local runtime image", error);
+      window.alert(copy.imageRemovalFailed);
     }
   };
 
@@ -603,7 +653,11 @@ export function TemplateStudioRuntimeForm({
   const renderInput = (
     input: StudioInputDefinition,
     context: StudioRuntimeContext = {},
-    options: { hideLabel?: boolean; imageUploadOnly?: boolean } = {},
+    options: {
+      hideLabel?: boolean;
+      imageUploadOnly?: boolean;
+      allowImageRemoval?: boolean;
+    } = {},
   ) => {
     const value = getStudioRuntimeInputValue(input, runtimeValues, context);
     const key = [
@@ -659,14 +713,30 @@ export function TemplateStudioRuntimeForm({
 
     if (input.type === "image") {
       if (options.imageUploadOnly) {
+        const hasRuntimeImage =
+          value.trim().length > 0 && value !== input.defaultUrl;
         return (
           <RuntimeImageUploadAction
             key={key}
-            label={copy.upload}
+            label={
+              options.allowImageRemoval && hasRuntimeImage
+                ? copy.changeImage
+                : copy.upload
+            }
             localOnlyNotice={
               canUseLocalImageStorage ? copy.imageLocalOnlyNotice : undefined
             }
             onFileSelect={(file) => uploadRuntimeImage(input, file, context)}
+            onRemove={
+              options.allowImageRemoval && hasRuntimeImage
+                ? () => void removeRuntimeImage(input, context)
+                : undefined
+            }
+            removeLabel={
+              options.allowImageRemoval && hasRuntimeImage
+                ? copy.removeImage
+                : undefined
+            }
           />
         );
       }
@@ -747,6 +817,7 @@ export function TemplateStudioRuntimeForm({
               {
                 hideLabel: hideContentLabels,
                 imageUploadOnly: input.type === "image",
+                allowImageRemoval: isStudioProfileBlockImageInput(input),
               },
             ),
           )}

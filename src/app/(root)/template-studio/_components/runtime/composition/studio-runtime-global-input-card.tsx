@@ -47,7 +47,11 @@ export function StudioRuntimeGlobalInputCard({
         )}
       >
         <div className="overflow-hidden">
-          <div className="grid gap-3 pb-3.5">{children}</div>
+          <div
+            className={cn("grid gap-3", showContent && hasContent && "pb-3.5")}
+          >
+            {children}
+          </div>
         </div>
       </div>
     </StudioRuntimeCard>

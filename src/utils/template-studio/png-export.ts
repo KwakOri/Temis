@@ -284,6 +284,51 @@ export const downloadStudioPng = (blob: Blob, fileName: string): void => {
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 };
 
+export const resizeStudioPng = async (
+  sourceBlob: Blob,
+  targetWidth: number,
+  targetHeight: number,
+): Promise<Blob> => {
+  const sourceUrl = URL.createObjectURL(sourceBlob);
+  const canvas = document.createElement("canvas");
+
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const loadedImage = new Image();
+      loadedImage.onload = () => resolve(loadedImage);
+      loadedImage.onerror = () =>
+        reject(new Error("캡처된 이미지를 불러오지 못했습니다."));
+      loadedImage.src = sourceUrl;
+    });
+
+    canvas.width = Math.max(1, Math.round(targetWidth));
+    canvas.height = Math.max(1, Math.round(targetHeight));
+
+    const context = canvas.getContext("2d");
+    if (!context) {
+      throw new Error("이미지 리사이즈용 캔버스를 생성하지 못했습니다.");
+    }
+
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    return await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(blob);
+          return;
+        }
+        reject(new Error("리사이즈된 PNG 이미지를 생성하지 못했습니다."));
+      }, "image/png");
+    });
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+    canvas.width = 0;
+    canvas.height = 0;
+  }
+};
+
 export const exportStudioPng = async (
   element: HTMLElement,
   options: StudioPngExportOptions,
