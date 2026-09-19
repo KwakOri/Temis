@@ -469,7 +469,7 @@ assert.equal(
   ),
   1,
 );
-assert.match(groupedMarkup, />Upload new image</);
+assert.match(groupedMarkup, />Upload</);
 assert.doesNotMatch(groupedMarkup, /Paste profile image URL/);
 
 const registeredImageValues = createStudioInitialRuntimeValues(groupedDocument);
@@ -478,9 +478,9 @@ const registeredImageMarkup = renderForm(
   groupedDocument,
   registeredImageValues,
 );
-assert.match(registeredImageMarkup, />Change image</);
-assert.match(registeredImageMarkup, />Remove image</);
-assert.doesNotMatch(registeredImageMarkup, />Upload new image</);
+assert.match(registeredImageMarkup, />Edit</);
+assert.match(registeredImageMarkup, />Delete</);
+assert.doesNotMatch(registeredImageMarkup, />Upload</);
 
 const shellMarkup = renderToStaticMarkup(
   <TemplateStudioRuntimeShell

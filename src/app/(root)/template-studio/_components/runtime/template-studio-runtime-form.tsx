@@ -3,6 +3,7 @@
 import { Plus, RotateCcw, Trash2, Upload } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
+import { cn } from "@/lib/utils";
 import type {
   StudioInputDefinition,
   StudioRuntimeValues,
@@ -124,22 +125,29 @@ const RuntimeImageUploadAction = ({
   label,
   removeLabel,
   localOnlyNotice,
+  inline = false,
   onFileSelect,
   onRemove,
 }: {
   label: string;
   removeLabel?: string;
   localOnlyNotice?: string;
+  inline?: boolean;
   onFileSelect: (file: File) => void;
   onRemove?: () => void;
 }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   return (
-    <div className="grid gap-1">
-      <div className={onRemove ? "grid grid-cols-2 gap-2" : undefined}>
+    <div className={cn("grid gap-1", inline && "min-w-0")}>
+      <div
+        className={cn(
+          onRemove ? "grid grid-cols-2 gap-2" : "flex justify-end",
+          inline && "min-w-0",
+        )}
+      >
         <StudioRuntimeActionButton
-          fullWidth
+          fullWidth={!inline}
           size="compact"
           variant="secondary"
           onClick={() => inputRef.current?.click()}
@@ -149,7 +157,7 @@ const RuntimeImageUploadAction = ({
         </StudioRuntimeActionButton>
         {onRemove && removeLabel ? (
           <StudioRuntimeActionButton
-            fullWidth
+            fullWidth={!inline}
             size="compact"
             variant="secondary"
             onClick={onRemove}
@@ -656,6 +664,7 @@ export function TemplateStudioRuntimeForm({
     options: {
       hideLabel?: boolean;
       imageUploadOnly?: boolean;
+      inline?: boolean;
       allowImageRemoval?: boolean;
     } = {},
   ) => {
@@ -718,6 +727,7 @@ export function TemplateStudioRuntimeForm({
         return (
           <RuntimeImageUploadAction
             key={key}
+            inline={options.inline}
             label={
               options.allowImageRemoval && hasRuntimeImage
                 ? copy.changeImage
@@ -793,10 +803,28 @@ export function TemplateStudioRuntimeForm({
           ? toggleValue === onOffValues.onValue
           : undefined;
       const hideContentLabels = group.contentInputs.length === 1;
+      const inlineImageInput =
+        !toggleInput &&
+        group.contentInputs.length === 1 &&
+        group.contentInputs[0]?.type === "image";
+      const inlineImageContent = inlineImageInput
+        ? renderInput(
+            group.contentInputs[0],
+            {},
+            {
+              imageUploadOnly: true,
+              inline: true,
+              allowImageRemoval: isStudioProfileBlockImageInput(
+                group.contentInputs[0],
+              ),
+            },
+          )
+        : undefined;
 
       return (
         <StudioRuntimeGlobalInputCard
           enabled={enabled}
+          inlineContent={inlineImageContent}
           key={group.id}
           label={group.label}
           toggleAriaLabel={toggleInput?.label}
@@ -810,17 +838,19 @@ export function TemplateStudioRuntimeForm({
               : undefined
           }
         >
-          {group.contentInputs.map((input) =>
-            renderInput(
-              input,
-              {},
-              {
-                hideLabel: hideContentLabels,
-                imageUploadOnly: input.type === "image",
-                allowImageRemoval: isStudioProfileBlockImageInput(input),
-              },
-            ),
-          )}
+          {inlineImageInput
+            ? null
+            : group.contentInputs.map((input) =>
+                renderInput(
+                  input,
+                  {},
+                  {
+                    hideLabel: hideContentLabels,
+                    imageUploadOnly: input.type === "image",
+                    allowImageRemoval: isStudioProfileBlockImageInput(input),
+                  },
+                ),
+              )}
         </StudioRuntimeGlobalInputCard>
       );
     });
@@ -829,6 +859,7 @@ export function TemplateStudioRuntimeForm({
     title: string,
     inputs: StudioInputDefinition[],
     context: StudioRuntimeContext = {},
+    options: { hideInputLabels?: boolean } = {},
   ) => {
     if (inputs.length === 0) return null;
 
@@ -838,7 +869,11 @@ export function TemplateStudioRuntimeForm({
           {title}
         </h3>
         <div className="grid gap-3">
-          {inputs.map((input) => renderInput(input, context))}
+          {inputs.map((input) =>
+            renderInput(input, context, {
+              hideLabel: options.hideInputLabels,
+            }),
+          )}
         </div>
       </StudioRuntimeCard>
     );
@@ -875,6 +910,7 @@ export function TemplateStudioRuntimeForm({
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
           <StudioRuntimeTimePicker
             disabled={Boolean(entry.isGuerrilla)}
+            hideLabel
             hourLabel={copy.hour}
             label={copy.time}
             minuteLabel={copy.minute}
@@ -887,7 +923,6 @@ export function TemplateStudioRuntimeForm({
             ariaLabel={guerrillaAriaLabel}
             checked={Boolean(entry.isGuerrilla)}
             className="h-10"
-            label={copy.guerrilla}
             title={`${copy.guerrilla} ${entry.isGuerrilla ? "ON" : "OFF"}`}
             onCheckedChange={(isGuerrilla) =>
               updateEntryGuerrilla(dayId, entryIndex, isGuerrilla)
@@ -896,6 +931,7 @@ export function TemplateStudioRuntimeForm({
         </div>
         <StudioRuntimeField
           control="input"
+          hideLabel
           label={copy.subTitle}
           placeholder="서브타이틀 적는 곳"
           value={entry.subTitle ?? ""}
@@ -905,6 +941,7 @@ export function TemplateStudioRuntimeForm({
         />
         <StudioRuntimeField
           control="textarea"
+          hideLabel
           label={copy.mainTitle}
           placeholder={"메인타이틀\n적는 곳"}
           rows={3}
@@ -913,7 +950,9 @@ export function TemplateStudioRuntimeForm({
             updateEntryField(dayId, entryIndex, "mainTitle", value)
           }
         />
-        {inputGroups.entry.map((input) => renderInput(input, context))}
+        {inputGroups.entry.map((input) =>
+          renderInput(input, context, { hideLabel: true }),
+        )}
       </StudioRuntimeEntryCard>
     );
   };
@@ -1010,10 +1049,12 @@ export function TemplateStudioRuntimeForm({
                         {
                           dayId: day.id,
                         },
+                        { hideInputLabels: true },
                       )}
                       offlineContent={
                         <StudioRuntimeField
                           control="textarea"
+                          hideLabel
                           label={copy.offlineMemo}
                           placeholder={copy.offlineMemoPlaceholder}
                           rows={4}

@@ -8,6 +8,7 @@ interface StudioRuntimeGlobalInputCardProps {
   label: React.ReactNode;
   enabled?: boolean;
   toggleAriaLabel?: string;
+  inlineContent?: React.ReactNode;
   children?: React.ReactNode;
   onEnabledChange?: (enabled: boolean) => void;
 }
@@ -16,6 +17,7 @@ export function StudioRuntimeGlobalInputCard({
   label,
   enabled,
   toggleAriaLabel,
+  inlineContent,
   children,
   onEnabledChange,
 }: StudioRuntimeGlobalInputCardProps) {
@@ -24,14 +26,17 @@ export function StudioRuntimeGlobalInputCard({
     Boolean(toggleAriaLabel) &&
     Boolean(onEnabledChange);
   const hasContent = React.Children.count(children) > 0;
+  const hasInlineContent =
+    inlineContent !== undefined && inlineContent !== null;
   const showContent = !hasToggle || enabled;
 
   return (
     <StudioRuntimeCard className="grid gap-0 border-2 px-3 py-0">
       <header className="flex h-12 items-center justify-between gap-4">
-        <h3 className="min-w-0 truncate pl-1 text-base font-semibold tracking-[-1px] text-[var(--runtime-fg)]">
+        <h3 className="min-w-0 flex-1 truncate pl-1 text-base font-semibold tracking-[-1px] text-[var(--runtime-fg)]">
           {label}
         </h3>
+        {hasInlineContent ? inlineContent : null}
         {hasToggle ? (
           <StudioRuntimeToggle
             ariaLabel={toggleAriaLabel ?? String(label)}
@@ -43,7 +48,9 @@ export function StudioRuntimeGlobalInputCard({
       <div
         className={cn(
           "grid transition-[grid-template-rows] duration-300 ease-in-out",
-          showContent && hasContent ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          showContent && hasContent && !hasInlineContent
+            ? "grid-rows-[1fr]"
+            : "grid-rows-[0fr]",
         )}
       >
         <div className="overflow-hidden">
