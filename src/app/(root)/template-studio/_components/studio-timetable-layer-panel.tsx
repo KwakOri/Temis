@@ -241,6 +241,9 @@ export function StudioTimetableLayerPanel({
       summary={`${composition.rootObjectIds.length} placed objects`}
       title="Timetable Layers"
     >
+      <div className="px-3 pb-2 text-[10px] font-semibold leading-relaxed text-[var(--fg3)]">
+        Select a day card to edit Position / Rotate.
+      </div>
       {getStudioLayerPanelOrder(composition.rootObjectIds).map((objectId) =>
         renderObject(objectId),
       )}

@@ -79,6 +79,7 @@ import {
   type StudioTextWrapMode,
 } from "@/utils/template-studio/text-wrap";
 import { getStudioFontWeightOptions } from "@/utils/template-studio/web-fonts";
+import { getStudioDateFormatMode } from "@/utils/template-studio/date-template";
 import {
   getStudioImageBorderRadius,
   getStudioImageObjectPosition,
@@ -509,7 +510,7 @@ export const buildThumbnailInspectorSections = ({
               {isWeekDatesBinding &&
               selectedNode.binding?.kind === "builtinField" ? (
                 <StudioWeekDatesFormatControls
-                  mode="single"
+                  mode={getStudioDateFormatMode(selectedNode.binding.fieldId)!}
                   format={selectedNode.binding.dateRangeFormat}
                   template={selectedNode.binding.dateRangeTemplate}
                   onChange={(value) =>

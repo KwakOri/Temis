@@ -181,6 +181,44 @@ export interface StudioTemplatePersistence {
   /** 이미 저장해 둔 것을 그대로 본다. */
   openSavedPreview: () => void;
 }
+
+export type StudioAutoLoadResult =
+  | { kind: "not-found"; message: string }
+  | { kind: "load-failed"; message: string }
+  | { kind: "empty" }
+  | {
+      kind: "replace";
+      document: StudioTemplateDocument;
+      runtimeValues: StudioRuntimeValues;
+      message: string;
+    };
+
+export const resolveStudioAutoLoad = (
+  remoteTemplate: StudioRemoteTemplateSnapshot | null | undefined,
+  hasRemoteTemplateLoadError: boolean,
+): StudioAutoLoadResult => {
+  if (hasRemoteTemplateLoadError) {
+    return { kind: "load-failed", message: "Database load failed" };
+  }
+  if (!remoteTemplate) {
+    return { kind: "not-found", message: "Database template not found" };
+  }
+
+  const source = remoteTemplate.draft ?? remoteTemplate.document;
+  if (!source) {
+    return { kind: "empty" };
+  }
+
+  return {
+    kind: "replace",
+    document: source.document,
+    runtimeValues: source.runtimeValues,
+    message: remoteTemplate.draft
+      ? "Loaded database draft"
+      : "Loaded published document",
+  };
+};
+
 /**
  * 원격 문서 한 벌을 다루는 규칙.
  *
@@ -830,30 +868,30 @@ export function useStudioTemplatePersistence({
       return;
     }
     autoLoadedTemplateIdRef.current = initialTemplateId;
-    const remoteTemplate = getRemoteTemplate();
-    if (!remoteTemplate || hasRemoteTemplateLoadError) {
-      const message = hasRemoteTemplateLoadError
-        ? "Database load failed"
-        : "Database template not found";
+    const loadResult = resolveStudioAutoLoad(
+      getRemoteTemplate(),
+      hasRemoteTemplateLoadError,
+    );
+    if (loadResult.kind === "not-found" || loadResult.kind === "load-failed") {
       clearOperationState();
-      onStatusMessage(message);
-      onOperationResult?.({ operation: "load", ok: false, message });
+      onStatusMessage(loadResult.message);
+      onOperationResult?.({
+        operation: "load",
+        ok: false,
+        message: loadResult.message,
+      });
       return;
     }
-    const source = remoteTemplate.draft ?? remoteTemplate.document;
-    if (!source) {
-      const message = "Database template is empty";
+
+    if (loadResult.kind === "empty") {
       clearOperationState();
-      onStatusMessage(message);
-      onOperationResult?.({ operation: "load", ok: false, message });
       return;
     }
+
     onReplaceDocument(
-      source.document,
-      source.runtimeValues,
-      remoteTemplate.draft
-        ? "Loaded database draft"
-        : "Loaded published document",
+      loadResult.document,
+      loadResult.runtimeValues,
+      loadResult.message,
     );
     clearOperationState();
   }, [

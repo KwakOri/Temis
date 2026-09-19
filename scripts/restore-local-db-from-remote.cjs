@@ -4,6 +4,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
+const { ensureLocalTestAdmin } = require("./ensure-local-test-admin.cjs");
 
 const rootDir = path.resolve(__dirname, "..");
 const supabaseDir = path.join(rootDir, "supabase");
@@ -75,25 +76,25 @@ function main(options) {
   fs.chmodSync(restoreDir, 0o700);
   const dumpFilePath = path.join(restoreDir, "remote-data.sql");
 
-  console.log("[db:restore] 1/7 Creating remote data dump...");
+  console.log("[db:restore] 1/8 Creating remote data dump...");
   dumpRemoteData(context, dumpFilePath);
 
   if (options.freshLocal) {
     console.log(
-      `[db:restore] 2/7 Replacing local DB volume ${context.localDbVolume}...`,
+      `[db:restore] 2/8 Replacing local DB volume ${context.localDbVolume}...`,
     );
     replaceLocalDb(context);
   } else {
     console.log(
-      "[db:restore] 2/7 Reusing the existing local DB volume (use --fresh-local to replace it)...",
+      "[db:restore] 2/8 Reusing the existing local DB volume (use --fresh-local to replace it)...",
     );
   }
 
-  console.log("[db:restore] 3/7 Starting local Supabase...");
+  console.log("[db:restore] 3/8 Starting local Supabase...");
   const localConnection = startLocalSupabase(context);
 
   console.log(
-    `[db:restore] 4/7 Resetting local DB to migration ${remoteMigrationVersion}...`,
+    `[db:restore] 4/8 Resetting local DB to migration ${remoteMigrationVersion}...`,
   );
   resetLocalDbToVersion(remoteMigrationVersion);
 
@@ -129,7 +130,7 @@ function main(options) {
   }
 
   console.log(
-    `[db:restore] 5/7 Importing ${existingTableNames.length} remote table(s)...`,
+    `[db:restore] 5/8 Importing ${existingTableNames.length} remote table(s)...`,
   );
   truncateLocalTables(localConnection.dbUrl, existingTableNames);
   runCommand(
@@ -146,7 +147,7 @@ function main(options) {
     { captureStdout: true },
   );
 
-  console.log("[db:restore] 6/7 Applying pending local migrations...");
+  console.log("[db:restore] 6/8 Applying pending local migrations...");
   runCommand(
     "supabase",
     ["migration", "up", "--local", "--yes", "--workdir", rootDir],
@@ -154,7 +155,10 @@ function main(options) {
   );
   syncLocalDerivedData(localConnection.dbUrl);
 
-  console.log("[db:restore] 7/7 Verifying restored local DB...");
+  console.log("[db:restore] 7/8 Ensuring local test admin...");
+  ensureLocalTestAdmin(localConnection.dbUrl);
+
+  console.log("[db:restore] 8/8 Verifying restored local DB...");
   verifyRestoredLocalDb(localConnection.dbUrl, localMigrationVersions.at(-1));
 
   console.log(

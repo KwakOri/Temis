@@ -47,7 +47,7 @@ export function StudioRuntimeToggle({
         aria-checked={checked}
         aria-label={ariaLabel}
         className={cn(
-          "relative h-7 w-16 shrink-0 rounded-full p-0.5 transition",
+          "relative h-7 w-16 shrink-0 cursor-pointer rounded-full p-0.5 transition",
           checked
             ? "bg-[var(--runtime-primary)] shadow-[inset_0_1px_3px_rgba(0,0,0,0.2)]"
             : "bg-[var(--runtime-input-bg)] shadow-[inset_0_2px_5px_rgba(0,0,0,0.22),inset_0_1px_2px_rgba(0,0,0,0.12)]",

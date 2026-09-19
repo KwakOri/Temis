@@ -12,6 +12,7 @@ import type {
   StudioTimetableCompositionObject,
 } from "../src/types/template-studio";
 import { STUDIO_PRESET_DEFINITIONS } from "../src/utils/template-studio/preset-registry";
+import { STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL } from "../src/utils/template-studio/preset-inputs";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
 import {
   ensureStudioTimetableComposition,
@@ -233,6 +234,17 @@ assert.ok(userImageObject, "사용자 이미지 객체가 만들어진다.");
 assert.ok(
   userImageObject.assetSlots?.asset?.inputId,
   "사용자 이미지 자리가 입력에 연결된다.",
+);
+assert.equal(
+  profileDocument.inputs[userImageObject.assetSlots?.asset?.inputId ?? ""]
+    ?.label,
+  STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL,
+  "새 프로필 블록 입력의 기본 라벨은 프로필 이미지다.",
+);
+assert.equal(
+  userImageObject?.style.borderRadius,
+  0,
+  "새 프로필 사용자 이미지는 기본적으로 둥글지 않다.",
 );
 
 // 시간표 도메인이 없으면 넣지 않는다.

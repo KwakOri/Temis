@@ -20,11 +20,27 @@ export const STUDIO_ARTIST_PROFILE_TEXT_PLACEHOLDER =
   "Write artist or profile text";
 export const STUDIO_WEEKLY_MEMO_BACKGROUND_INPUT_LABEL =
   "Weekly Memo Background";
-export const STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL = "Profile Block Image";
+export const STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL = "프로필 이미지";
+export const STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LEGACY_LABEL =
+  "Profile Block Image";
 export const STUDIO_PROFILE_BLOCK_FRAME_INPUT_LABEL = "Profile Block Frame";
 export const STUDIO_ARTIST_PROFILE_TEXT_ASSET_INPUT_LABEL =
   "Artist / Profile Text Asset";
 export const STUDIO_TOP_OBJECT_IMAGE_INPUT_LABEL = "Top Object Image";
+
+const STUDIO_PROFILE_BLOCK_IMAGE_MATCHING_LABELS = new Set([
+  normalizeInputLabel(STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL),
+  normalizeInputLabel(STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LEGACY_LABEL),
+]);
+
+export const isStudioProfileBlockImageInput = (
+  input: StudioInputDefinition,
+): boolean =>
+  input.type === "image" &&
+  input.scope === "global" &&
+  STUDIO_PROFILE_BLOCK_IMAGE_MATCHING_LABELS.has(
+    normalizeInputLabel(input.label),
+  );
 
 const STUDIO_TIMETABLE_VARIANT_INPUT_LABELS: Partial<
   Record<StudioTimetableObjectPresetId, string>

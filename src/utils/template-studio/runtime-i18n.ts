@@ -24,6 +24,16 @@ export interface StudioRuntimeCopy {
   saveImage: string;
   savingImage: string;
   saveImageFailed: string;
+  imageSaveTitle: string;
+  imageSaveSectionTitle: string;
+  imageSaveDescription: string;
+  imageSizeHd: string;
+  imageSizeFullHd: string;
+  imageSize4k: string;
+  imageSizeOriginal: string;
+  selectedImageSize: string;
+  imageResolution: string;
+  saveImageAction: string;
   save: string;
   saving: string;
   saveFailed: string;
@@ -51,6 +61,9 @@ export interface StudioRuntimeCopy {
   weekNotSet: string;
   weekRuntimeDescription: string;
   upload: string;
+  changeImage: string;
+  removeImage: string;
+  imageRemovalFailed: string;
   imageTooLarge: string;
   imageStorageFailed: string;
   imageQuotaExceeded: string;
@@ -104,6 +117,17 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     saveImage: "이미지로 저장",
     savingImage: "저장 중...",
     saveImageFailed: "이미지를 저장하지 못했습니다.",
+    imageSaveTitle: "시간표 저장",
+    imageSaveSectionTitle: "이미지 저장",
+    imageSaveDescription:
+      "저장할 이미지의 해상도를 선택하세요. 모든 크기는 원본 비율을 유지하여 저장됩니다.",
+    imageSizeHd: "HD",
+    imageSizeFullHd: "Full HD",
+    imageSize4k: "4K",
+    imageSizeOriginal: "원본",
+    selectedImageSize: "선택된 크기",
+    imageResolution: "해상도",
+    saveImageAction: "저장하기",
     save: "저장",
     saving: "저장 중...",
     saveFailed: "저장하지 못했습니다.",
@@ -130,7 +154,10 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     nextWeek: "다음 주",
     weekNotSet: "날짜 미설정",
     weekRuntimeDescription: "미리보기에서 표시할 주를 선택합니다",
-    upload: "새 이미지 업로드",
+    upload: "업로드",
+    changeImage: "수정",
+    removeImage: "삭제",
+    imageRemovalFailed: "이미지를 제거하지 못했습니다.",
     imageTooLarge: "이미지 파일은 20MB를 넘을 수 없습니다.",
     imageStorageFailed: "이미지를 이 브라우저에 저장하지 못했습니다.",
     imageQuotaExceeded:
@@ -185,6 +212,17 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     saveImage: "Save as image",
     savingImage: "Saving...",
     saveImageFailed: "Could not save the image.",
+    imageSaveTitle: "Save timetable",
+    imageSaveSectionTitle: "Save image",
+    imageSaveDescription:
+      "Choose the image resolution. Every option keeps the original aspect ratio.",
+    imageSizeHd: "HD",
+    imageSizeFullHd: "Full HD",
+    imageSize4k: "4K",
+    imageSizeOriginal: "Original",
+    selectedImageSize: "Selected size",
+    imageResolution: "Resolution",
+    saveImageAction: "Save image",
     save: "Save",
     saving: "Saving...",
     saveFailed: "Could not save.",
@@ -211,7 +249,10 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     nextWeek: "Next week",
     weekNotSet: "Not set",
     weekRuntimeDescription: "Choose the week shown in this preview",
-    upload: "Upload new image",
+    upload: "Upload",
+    changeImage: "Edit",
+    removeImage: "Delete",
+    imageRemovalFailed: "Could not remove the image.",
     imageTooLarge: "Image files can't be larger than 20MB.",
     imageStorageFailed: "Could not save this image in this browser.",
     imageQuotaExceeded: "Not enough browser storage space to save this image.",
@@ -265,6 +306,17 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     saveImage: "画像として保存",
     savingImage: "保存中...",
     saveImageFailed: "画像を保存できませんでした。",
+    imageSaveTitle: "時間割を保存",
+    imageSaveSectionTitle: "画像を保存",
+    imageSaveDescription:
+      "保存する画像の解像度を選択してください。すべてのサイズで元の比率を維持します。",
+    imageSizeHd: "HD",
+    imageSizeFullHd: "Full HD",
+    imageSize4k: "4K",
+    imageSizeOriginal: "オリジナル",
+    selectedImageSize: "選択したサイズ",
+    imageResolution: "解像度",
+    saveImageAction: "保存する",
     save: "保存",
     saving: "保存中...",
     saveFailed: "保存できませんでした。",
@@ -291,7 +343,10 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     nextWeek: "次の週",
     weekNotSet: "日付未設定",
     weekRuntimeDescription: "プレビューに表示する週を選択します",
-    upload: "新しい画像をアップロード",
+    upload: "アップロード",
+    changeImage: "編集",
+    removeImage: "削除",
+    imageRemovalFailed: "画像を削除できませんでした。",
     imageTooLarge: "画像ファイルは20MBを超えることはできません。",
     imageStorageFailed: "この画像をブラウザに保存できませんでした。",
     imageQuotaExceeded:

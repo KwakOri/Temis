@@ -30,6 +30,7 @@ const formatTimePart = (value: number) => value.toString().padStart(2, "0");
 interface StudioRuntimeTimePickerProps {
   id?: string;
   label: string;
+  hideLabel?: boolean;
   hourLabel: string;
   minuteLabel: string;
   value: string;
@@ -40,6 +41,7 @@ interface StudioRuntimeTimePickerProps {
 export function StudioRuntimeTimePicker({
   id,
   label,
+  hideLabel = false,
   hourLabel,
   minuteLabel,
   value,
@@ -112,7 +114,10 @@ export function StudioRuntimeTimePicker({
 
   return (
     <div className="grid gap-1.5">
-      <label className={studioRuntimeLabelClass} htmlFor={controlId}>
+      <label
+        className={cn(studioRuntimeLabelClass, hideLabel && "sr-only")}
+        htmlFor={controlId}
+      >
         {label}
       </label>
 

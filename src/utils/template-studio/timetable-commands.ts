@@ -188,13 +188,21 @@ export const applyStudioTimetableObjectOffset = (
 export const setStudioTimetableDayOffset = (
   layout: StudioTimetableDayCardsLayout,
   dayId: StudioTimetableDayId,
-  offset: { left: number; top: number },
+  offset: { left: number; top: number; rotateDeg?: number },
 ): void => {
+  const currentOffset = layout.dayOffsets?.[dayId];
   layout.dayOffsets = {
     ...layout.dayOffsets,
     [dayId]: {
       left: roundStudioCoordinate(offset.left),
       top: roundStudioCoordinate(offset.top),
+      ...(offset.rotateDeg !== undefined || currentOffset?.rotateDeg !== undefined
+        ? {
+            rotateDeg: roundStudioCoordinate(
+              offset.rotateDeg ?? currentOffset?.rotateDeg ?? 0,
+            ),
+          }
+        : {}),
     },
   };
 };
@@ -212,9 +220,9 @@ export const setStudioTimetableDayOffset = (
  */
 export const planStudioTimetableDayCardOffset = (
   dayGeometry: { left: number; top: number },
-  currentOffset: { left: number; top: number },
-  nextPosition: { left?: number; top?: number },
-): { left: number; top: number } => {
+  currentOffset: { left: number; top: number; rotateDeg?: number },
+  nextPosition: { left?: number; top?: number; rotateDeg?: number },
+): { left: number; top: number; rotateDeg?: number } => {
   const baseLeft = dayGeometry.left - currentOffset.left;
   const baseTop = dayGeometry.top - currentOffset.top;
   return {
@@ -226,6 +234,9 @@ export const planStudioTimetableDayCardOffset = (
       nextPosition.top !== undefined
         ? nextPosition.top - baseTop
         : currentOffset.top,
+    rotateDeg: roundStudioCoordinate(
+      nextPosition.rotateDeg ?? currentOffset.rotateDeg ?? 0,
+    ),
   };
 };
 /**

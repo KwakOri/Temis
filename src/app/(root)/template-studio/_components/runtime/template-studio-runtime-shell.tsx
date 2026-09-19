@@ -1,6 +1,6 @@
 "use client";
 
-import { domToPng } from "modern-screenshot";
+import { domToBlob } from "modern-screenshot";
 import React, {
   useCallback,
   useEffect,
@@ -13,6 +13,11 @@ import type {
   StudioRuntimeValues,
   StudioTemplateDocument,
 } from "@/types/template-studio";
+import {
+  downloadStudioPng,
+  resizeStudioPng,
+  sanitizeStudioExportFileName,
+} from "@/utils/template-studio/png-export";
 import {
   getStudioRuntimeCopy,
   isStudioRuntimeLocale,
@@ -30,6 +35,7 @@ import {
   StudioTimetablePreview,
 } from "../studio-timetable-preview";
 import { TemplateStudioRuntimeForm } from "./template-studio-runtime-form";
+import StudioRuntimeImageSaveModal from "./ui/studio-runtime-image-save-modal";
 
 interface TemplateStudioRuntimeShellProps {
   document: StudioTemplateDocument;
@@ -65,6 +71,7 @@ export function TemplateStudioRuntimeShell({
   );
   const [locale, setLocale] = useState<StudioRuntimeLocale>("en");
   const [isSavingImage, setIsSavingImage] = useState(false);
+  const [isImageSaveModalOpen, setIsImageSaveModalOpen] = useState(false);
   const [isSavingValues, setIsSavingValues] = useState(false);
   const timetable = document.domains?.timetable;
   const copy = getStudioRuntimeCopy(locale);
@@ -159,59 +166,62 @@ export function TemplateStudioRuntimeShell({
     }
   };
 
-  const savePreviewImage = useCallback(async () => {
-    const element = previewContentRef.current;
-    if (!element || isSavingImage) return;
-
-    setIsSavingImage(true);
-    try {
-      // 폰트가 준비되기 전에 캡처하면 fallback 폰트가 결과 이미지에 굳는다. 화면에는
-      // 제대로 보이므로 사용자는 내려받은 파일을 열어 보고서야 알게 된다.
-      if (window.document.fonts) {
-        await window.document.fonts.ready;
+  const savePreviewImage = useCallback(
+    async (targetWidth: number, targetHeight: number) => {
+      const element = previewContentRef.current;
+      if (!element) {
+        throw new Error("저장할 미리보기 영역을 찾지 못했습니다.");
       }
+      if (isSavingImage) return;
 
-      /**
-       * 래스터라이저는 `modern-screenshot` 하나로 둔다.
-       *
-       * Phase 0A 스파이크가 표준으로 정한 것이고, 시간표 카드와 같은 조건으로 재 봤을 때
-       * `html-to-image`보다 화면과 더 잘 맞거나 같았다. 어긋난 장면은 자동 크기 글자가
-       * 상자 높이를 거의 채우는 쪽이었다. 두 줄짜리 제목과 높이가 빡빡한 부제목이다.
-       * 화면에서는 아무 문제가 없고 내려받은 파일에서만 드러나므로 눈에 띄기까지 오래 걸린다.
-       *
-       * 옵션 대응: `pixelRatio` → `scale`, `cacheBust` → `fetch.bypassingCache`.
-       */
-      const dataUrl = await domToPng(element, {
-        fetch: { bypassingCache: true },
-        height: previewSize.height,
-        scale: 1,
-        style: {
-          transform: "none",
-        },
-        width: previewSize.width,
-      });
-      const safeName =
-        displayName
-          .trim()
-          .replace(/[^a-zA-Z0-9가-힣ぁ-んァ-ン一-龯_-]+/g, "-")
-          .replace(/^-+|-+$/g, "") || "timetable";
-      const link = window.document.createElement("a");
-      link.download = `${safeName}.png`;
-      link.href = dataUrl;
-      link.click();
-    } catch (error) {
-      console.error("Template Studio preview image export failed", error);
-      window.alert(copy.saveImageFailed);
-    } finally {
-      setIsSavingImage(false);
-    }
-  }, [
-    copy.saveImageFailed,
-    displayName,
-    isSavingImage,
-    previewSize.height,
-    previewSize.width,
-  ]);
+      setIsSavingImage(true);
+      try {
+        // 폰트가 준비되기 전에 캡처하면 fallback 폰트가 결과 이미지에 굳는다. 화면에는
+        // 제대로 보이므로 사용자는 내려받은 파일을 열어 보고서야 알게 된다.
+        if (window.document.fonts) {
+          await window.document.fonts.ready;
+        }
+
+        /**
+         * 래스터라이저는 `modern-screenshot` 하나로 둔다.
+         *
+         * Phase 0A 스파이크가 표준으로 정한 것이고, 시간표 카드와 같은 조건으로 재 봤을 때
+         * `html-to-image`보다 화면과 더 잘 맞거나 같았다. 어긋난 장면은 자동 크기 글자가
+         * 상자 높이를 거의 채우는 쪽이었다. 두 줄짜리 제목과 높이가 빡빡한 부제목이다.
+         * 화면에서는 아무 문제가 없고 내려받은 파일에서만 드러나므로 눈에 띄기까지 오래 걸린다.
+         *
+         * 옵션 대응: `pixelRatio` → `scale`, `cacheBust` → `fetch.bypassingCache`.
+         */
+        const originalBlob = await domToBlob(element, {
+          fetch: { bypassingCache: true },
+          height: previewSize.height,
+          scale: 1,
+          style: {
+            transform: "none",
+          },
+          width: previewSize.width,
+        });
+        const downloadBlob =
+          targetWidth === previewSize.width &&
+          targetHeight === previewSize.height
+            ? originalBlob
+            : await resizeStudioPng(originalBlob, targetWidth, targetHeight);
+        const fileName = `${sanitizeStudioExportFileName(displayName)}-${targetWidth}x${targetHeight}.png`;
+        downloadStudioPng(downloadBlob, fileName);
+      } catch (error) {
+        console.error("Template Studio preview image export failed", error);
+        throw error;
+      } finally {
+        setIsSavingImage(false);
+      }
+    },
+    [displayName, isSavingImage, previewSize.height, previewSize.width],
+  );
+
+  const openImageSaveModal = useCallback(() => {
+    if (isSavingImage) return;
+    setIsImageSaveModalOpen(true);
+  }, [isSavingImage]);
 
   const saveValues = useCallback(async () => {
     if (!onSaveValues || isSavingValues) return;
@@ -281,7 +291,7 @@ export function TemplateStudioRuntimeShell({
           templateId={templateId}
           onReset={resetRuntimeValues}
           onSaveImage={() => {
-            void savePreviewImage();
+            openImageSaveModal();
           }}
           onSaveValues={
             onSaveValues
@@ -292,6 +302,13 @@ export function TemplateStudioRuntimeShell({
           }
         />
       </div>
+      <StudioRuntimeImageSaveModal
+        isOpen={isImageSaveModalOpen}
+        locale={locale}
+        onClose={() => setIsImageSaveModalOpen(false)}
+        onSave={savePreviewImage}
+        templateSize={previewSize}
+      />
     </main>
   );
 }

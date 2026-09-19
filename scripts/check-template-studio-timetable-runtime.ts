@@ -27,6 +27,59 @@ const initialValues = createStudioInitialRuntimeValues(document);
 const initialEntry = initialValues.timetable.entriesByDay[dayId]?.[0];
 assert.ok(initialEntry);
 
+assert.equal(
+  resolveStudioBuiltinFieldValue(
+    document,
+    initialValues,
+    "week.start_date",
+    {},
+    { dateRangeFormat: "day" },
+  ),
+  "01",
+  "timetable week.start_date must use the single-date resolver.",
+);
+assert.equal(
+  resolveStudioBuiltinFieldValue(
+    document,
+    initialValues,
+    "week.end_date",
+    {},
+    {
+      dateRangeFormat: "custom",
+      dateRangeTemplate: "${YYYY}/${MM}/${DD} (${weekdayShort})",
+    },
+  ),
+  "2026/07/07 (Tue)",
+  "timetable week.end_date must resolve a custom single-date template.",
+);
+const invalidTimetableWeekStartFormatDocument = structuredClone(document);
+invalidTimetableWeekStartFormatDocument.graph.nodes.node_i9.binding = {
+  kind: "builtinField",
+  fieldId: "week.start_date",
+  dateRangeFormat: "split",
+};
+assert.ok(
+  validateStudioDocument(invalidTimetableWeekStartFormatDocument).some(
+    (diagnostic) =>
+      diagnostic.id === "binding-date-range-format-invalid:node_i9",
+  ),
+  "timetable week.start_date must validate single-date format identifiers.",
+);
+const validTimetableWeekEndFormatDocument = structuredClone(document);
+validTimetableWeekEndFormatDocument.graph.nodes.node_i9.binding = {
+  kind: "builtinField",
+  fieldId: "week.end_date",
+  dateRangeFormat: "weekday",
+};
+assert.equal(
+  validateStudioDocument(validTimetableWeekEndFormatDocument).some(
+    (diagnostic) =>
+      diagnostic.id === "binding-date-range-format-invalid:node_i9",
+  ),
+  false,
+  "timetable week.end_date must accept single-date format identifiers.",
+);
+
 assert.equal(getStudioTimetableEffectiveMaxEntriesPerDay(document), 1);
 assert.equal(
   getStudioTimetableAddEntryDisabledReason(document, initialValues, dayId),

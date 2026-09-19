@@ -51,6 +51,7 @@ import {
   useSyncTemplateStudioAssets,
   useTemplateStudioTemplate,
 } from "@/hooks/query/useTemplateStudio";
+import { TemplateStudioService } from "@/services/templateStudioService";
 import { cn } from "@/lib/utils";
 import {
   StudioBuiltinFieldId,
@@ -186,6 +187,8 @@ import {
 } from "@/utils/template-studio/variant-style-propagation";
 import {} from "@/utils/template-studio/text-wrap";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
+import { applyStudioFigmaGridCandidate } from "@/utils/template-studio/figma-import/figma-component-import";
+import { applyStudioFigmaReviewEdits } from "@/utils/template-studio/figma-import/figma-review-edits";
 import { getStudioCustomFontFamilies } from "@/utils/template-studio/web-fonts";
 
 import {
@@ -240,6 +243,11 @@ import { StudioTimetableDayPanel } from "./studio-timetable-day-panel";
 import { StudioTimetableLayerPanel } from "./studio-timetable-layer-panel";
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
 import { StudioSettingsModal } from "./studio-settings-modal";
+import {
+  applyStudioFigmaReviewPatch,
+  type ImportCandidate,
+  type ReviewPatch,
+} from "@/components/studio/settings/studio-figma-component-import";
 import {
   getStudioTimetableDayCardGeometry,
   getStudioTimetableDayCardGeometries,
@@ -636,6 +644,16 @@ export function TemplateStudioClient({
   const [shortcutMessage, setShortcutMessage] = useState<string | null>(null);
   const [persistenceOperation, setPersistenceOperation] =
     useState<StudioPersistenceOperationState | null>(null);
+  const [figmaUrl, setFigmaUrl] = useState("");
+  const [figmaCandidates, setFigmaCandidates] = useState<ImportCandidate[]>([]);
+  const [selectedFigmaCandidateId, setSelectedFigmaCandidateId] = useState<string | null>(null);
+  const [figmaAnalysisPending, setFigmaAnalysisPending] = useState(false);
+  const [figmaImportPending, setFigmaImportPending] = useState(false);
+  const [figmaErrorMessage, setFigmaErrorMessage] = useState<string | null>(null);
+  const [figmaStatusMessage, setFigmaStatusMessage] = useState<string | null>(null);
+  const [figmaBindingTouchedSourceNodeIds, setFigmaBindingTouchedSourceNodeIds] =
+    useState<Record<string, boolean>>({});
+  const figmaAnalysisSequenceRef = useRef(0);
   const [operationToast, setOperationToast] =
     useState<StudioPersistenceOperationResult | null>(null);
   const [remoteTemplateId, setRemoteTemplateId] = useState<string | null>(
@@ -962,22 +980,30 @@ export function TemplateStudioClient({
       timetableComposition.objects[selectedTimetableLayerId];
 
     if (isStudioPlacedTimetableCompositionObject(compositionObject)) {
-      return resolveStudioTimetableObjectGeometry(
-        timetableComposition,
-        compositionObject.id,
-        getStudioTimetablePreviewSize(timetable),
-      );
+      return {
+        ...resolveStudioTimetableObjectGeometry(
+          timetableComposition,
+          compositionObject.id,
+          getStudioTimetablePreviewSize(timetable),
+        ),
+        rotateDeg: compositionObject.style.rotateDeg ?? 0,
+      };
     }
 
     if (selectedTimetableLayerId === STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID) {
-      return getStudioTimetableDayCardsBounds(
-        layout,
-        timetableDays,
-        (dayId) =>
-          getStudioTimetableEntriesForDay(document, runtimeValues, dayId)
-            .length,
-        getTimetableEntryCardSizeForDay,
-      );
+      return {
+        ...getStudioTimetableDayCardsBounds(
+          layout,
+          timetableDays,
+          (dayId) =>
+            getStudioTimetableEntriesForDay(document, runtimeValues, dayId)
+              .length,
+          getTimetableEntryCardSizeForDay,
+        ),
+        rotateDeg:
+          timetableComposition.objects[STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID]
+            ?.style.rotateDeg ?? 0,
+      };
     }
 
     if (!selectedTimetableLayerId.startsWith("day-card:")) return null;
@@ -989,7 +1015,7 @@ export function TemplateStudioClient({
     const dayIndex = timetableDays.findIndex((day) => day.id === dayId);
     if (dayIndex < 0) return null;
 
-    return (
+    const geometry =
       getStudioTimetableDayCardGeometries(
         layout,
         timetableDays,
@@ -1004,8 +1030,11 @@ export function TemplateStudioClient({
         dayIndex,
         getStudioTimetableEntriesForDay(document, runtimeValues, dayId).length,
         getTimetableEntryCardSizeForDay(dayId),
-      )
-    );
+      );
+    return {
+      ...geometry,
+      rotateDeg: layout.dayOffsets?.[dayId]?.rotateDeg ?? 0,
+    };
   }, [
     document,
     runtimeValues,
@@ -1014,6 +1043,20 @@ export function TemplateStudioClient({
     getTimetableEntryCardSizeForDay,
     timetableDays,
   ]);
+  const selectedTimetableLayerRotation = useMemo(() => {
+    const timetable = document.domains?.timetable;
+    if (!timetable || !selectedTimetableLayerId) return 0;
+
+    const compositionObject = timetableComposition.objects[selectedTimetableLayerId];
+    if (compositionObject) return Number(compositionObject.style.rotateDeg ?? 0);
+
+    if (!selectedTimetableLayerId.startsWith("day-card:")) return 0;
+    const dayId = selectedTimetableLayerId.replace(
+      /^day-card:/,
+      "",
+    ) as StudioTimetableDayId;
+    return Number(getStudioTimetableDayCardsLayout(timetable).dayOffsets?.[dayId]?.rotateDeg ?? 0);
+  }, [document, selectedTimetableLayerId, timetableComposition]);
   const statusOptions = useMemo(
     () => getStudioAvailableTimetableStatuses(document),
     [document],
@@ -1444,6 +1487,126 @@ export function TemplateStudioClient({
     },
     [captureHistory, setDocument, studioStore],
   );
+
+  const analyzeFigmaGrid = useCallback(async () => {
+    if (isRemoteSyncing || !figmaUrl.trim()) return;
+    const requestSequence = ++figmaAnalysisSequenceRef.current;
+    const requestedUrl = figmaUrl.trim();
+    setFigmaBindingTouchedSourceNodeIds({});
+    setFigmaAnalysisPending(true);
+    setFigmaErrorMessage(null);
+    setFigmaStatusMessage(null);
+    try {
+      const response = await TemplateStudioService.analyzeFigmaGridComponent(requestedUrl);
+      if (figmaAnalysisSequenceRef.current !== requestSequence) return;
+      setFigmaCandidates(response.candidates);
+      setSelectedFigmaCandidateId(response.candidates.length === 1 ? response.candidates[0]!.candidateId : null);
+      setFigmaStatusMessage(response.warnings[0] ?? `${response.candidates.length}개 후보를 분석했습니다.`);
+    } catch {
+      if (figmaAnalysisSequenceRef.current !== requestSequence) return;
+      setFigmaCandidates([]);
+      setSelectedFigmaCandidateId(null);
+      setFigmaErrorMessage("Figma 컴포넌트를 분석하지 못했습니다. 링크와 권한을 확인해 주세요.");
+    } finally {
+      if (figmaAnalysisSequenceRef.current === requestSequence) {
+        setFigmaAnalysisPending(false);
+      }
+    }
+  }, [figmaUrl, isRemoteSyncing]);
+
+  const clearFigmaImportState = useCallback(() => {
+    figmaAnalysisSequenceRef.current += 1;
+    setFigmaUrl("");
+    setFigmaCandidates([]);
+    setSelectedFigmaCandidateId(null);
+    setFigmaErrorMessage(null);
+    setFigmaStatusMessage(null);
+    setFigmaBindingTouchedSourceNodeIds({});
+    setFigmaAnalysisPending(false);
+    setFigmaImportPending(false);
+  }, []);
+
+  const handleFigmaUrlChange = useCallback((nextUrl: string) => {
+    figmaAnalysisSequenceRef.current += 1;
+    setFigmaUrl(nextUrl);
+    setFigmaCandidates([]);
+    setSelectedFigmaCandidateId(null);
+    setFigmaErrorMessage(null);
+    setFigmaStatusMessage(null);
+    setFigmaBindingTouchedSourceNodeIds({});
+    setFigmaAnalysisPending(false);
+  }, []);
+
+  const recordFigmaBindingChange = useCallback((statusOrSourceNodeId: string, sourceNodeId?: string) => {
+    const status = sourceNodeId ? statusOrSourceNodeId as "online" | "offline" : "online";
+    const touchedSourceNodeId = sourceNodeId ?? statusOrSourceNodeId;
+    const touchedKey = `${status}:${touchedSourceNodeId}`;
+    setFigmaBindingTouchedSourceNodeIds((current) =>
+      current[touchedKey]
+        ? current
+        : { ...current, [touchedKey]: true },
+    );
+  }, []);
+
+  const updateFigmaReview = useCallback(
+    (statusOrSourceNodeId: string, sourceNodeIdOrPatch: string | ReviewPatch, maybePatch?: ReviewPatch) => {
+      const status = typeof sourceNodeIdOrPatch === "string"
+        ? statusOrSourceNodeId as "online" | "offline"
+        : "online";
+      const sourceNodeId = typeof sourceNodeIdOrPatch === "string"
+        ? sourceNodeIdOrPatch
+        : statusOrSourceNodeId;
+      const patch = typeof sourceNodeIdOrPatch === "string" ? maybePatch ?? {} : sourceNodeIdOrPatch;
+      setFigmaCandidates((currentCandidates) =>
+        currentCandidates.map((candidate) =>
+          applyStudioFigmaReviewPatch(candidate, status, sourceNodeId, patch),
+        ),
+      );
+    },
+    [],
+  );
+
+  const importFigmaCandidate = useCallback(() => {
+    if (isRemoteSyncing || figmaAnalysisPending || figmaImportPending) return;
+    const selectedCandidate = figmaCandidates.find(
+      (candidate) => candidate.candidateId === selectedFigmaCandidateId,
+    );
+    if (!selectedCandidate) {
+      setFigmaErrorMessage("추가할 후보를 먼저 선택해 주세요.");
+      return;
+    }
+
+    setFigmaImportPending(true);
+    setFigmaErrorMessage(null);
+    const candidateWithEdits = applyStudioFigmaReviewEdits(selectedCandidate, figmaBindingTouchedSourceNodeIds);
+    const nextDocument = cloneDocument(studioStore.getState().document);
+    const importResult = applyStudioFigmaGridCandidate(nextDocument, candidateWithEdits);
+    if (importResult.ok) {
+      applyStudioTimetableComponentFrames(nextDocument);
+      captureHistory();
+      setDocument(nextDocument);
+      setSelectedCardComponentId(importResult.componentId);
+      clearFigmaImportState();
+      setFigmaStatusMessage("새 컴포넌트 세트를 추가했습니다. 요일에는 아직 할당되지 않았습니다.");
+      showShortcutStatus("Imported new component set");
+    } else {
+      setFigmaErrorMessage(importResult.reason ?? "Figma 컴포넌트를 추가하지 못했습니다.");
+      setFigmaImportPending(false);
+    }
+  }, [
+    clearFigmaImportState,
+    figmaAnalysisPending,
+    figmaCandidates,
+    figmaBindingTouchedSourceNodeIds,
+    figmaImportPending,
+    isRemoteSyncing,
+    captureHistory,
+    selectedFigmaCandidateId,
+    setDocument,
+    setSelectedCardComponentId,
+    showShortcutStatus,
+    studioStore,
+  ]);
 
   const updateNode = useCallback(
     (
@@ -2698,6 +2861,7 @@ export function TemplateStudioClient({
       renderPreviewInputs: renderRuntimePreviewInputs,
       selectedLayerId: selectedTimetableLayerId,
       selectedLayerLabel: selectedTimetableLayerLabel,
+      selectedLayerRotation: selectedTimetableLayerRotation,
       selection: timetableSelection,
       onAssignComponentSet: assignComponentSetToSelectedDay,
       onToggleFitParent: toggleTimetableObjectFitParent,
@@ -3288,7 +3452,10 @@ export function TemplateStudioClient({
               onCardsCanvasChange={updateCardCanvasSize}
               onCardsGuideRemove={removeCardsGuide}
               onCardsGuideUpload={uploadCardsGuide}
-              onClose={() => setSettingsOpen(false)}
+              onClose={() => {
+                clearFigmaImportState();
+                setSettingsOpen(false);
+              }}
               onExportJson={exportStudioJson}
               onImportJson={() => jsonImportInputRef.current?.click()}
               onReloadTemplate={() => {
@@ -3300,6 +3467,23 @@ export function TemplateStudioClient({
               onTimetableGuideRemove={removeTimetableGuide}
               onTimetableGuideUpload={uploadTimetableGuide}
               onWebFontsChange={updateWebFonts}
+              figmaImport={{
+                candidates: figmaCandidates,
+                errorMessage: figmaErrorMessage,
+                figmaUrl,
+                isAnalyzing: figmaAnalysisPending,
+                isImporting: figmaImportPending,
+                isRemoteSyncing,
+                selectedCandidateId: selectedFigmaCandidateId,
+                statusMessage: figmaStatusMessage,
+                onAnalyze: () => void analyzeFigmaGrid(),
+                onCancel: clearFigmaImportState,
+                onCandidateSelect: setSelectedFigmaCandidateId,
+                onBindingChange: recordFigmaBindingChange,
+                onReviewChange: updateFigmaReview,
+                onUrlChange: handleFigmaUrlChange,
+                onConfirm: importFigmaCandidate,
+              }}
             />
             {stylePropagationOpen ? (
               <StudioApplyStyleDialog

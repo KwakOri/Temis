@@ -449,6 +449,80 @@ assert.ok(
   "묶인 노드는 어떤 입력에 묶였는지 보여준다.",
 );
 
+const dateBindingDocument = createDocument();
+dateBindingDocument.graph.nodes.text.binding = {
+  kind: "builtinField",
+  fieldId: "day.date",
+  dateRangeFormat: "day",
+} as StudioGraphNode["binding"];
+const dateBindingMarkup = markupOf(
+  findSection(
+    build(dateBindingDocument, dateBindingDocument.graph.nodes.text).sections,
+    "binding:",
+  ),
+);
+assert.ok(
+  dateBindingMarkup.includes("Date Format") &&
+    dateBindingMarkup.includes("${DD}"),
+  "day.date 바인딩에는 단일 날짜 포맷과 템플릿 편집이 나타난다.",
+);
+
+const weekRangeBindingDocument = createDocument();
+weekRangeBindingDocument.graph.nodes.text.binding = {
+  kind: "builtinField",
+  fieldId: "week.date_range",
+} as StudioGraphNode["binding"];
+const weekRangeBindingMarkup = markupOf(
+  findSection(
+    build(weekRangeBindingDocument, weekRangeBindingDocument.graph.nodes.text)
+      .sections,
+    "binding:",
+  ),
+);
+assert.ok(
+  weekRangeBindingMarkup.includes("Date Format") &&
+    weekRangeBindingMarkup.includes("${start.YYYY}") &&
+    weekRangeBindingMarkup.includes("Split lines"),
+  "week.date_range 바인딩에는 기간 프리셋과 start/end 토큰이 나타난다.",
+);
+
+const weekStartBindingDocument = createDocument();
+weekStartBindingDocument.graph.nodes.text.binding = {
+  kind: "builtinField",
+  fieldId: "week.start_date",
+} as StudioGraphNode["binding"];
+const weekStartBindingMarkup = markupOf(
+  findSection(
+    build(weekStartBindingDocument, weekStartBindingDocument.graph.nodes.text)
+      .sections,
+    "binding:",
+  ),
+);
+assert.ok(
+  weekStartBindingMarkup.includes("Date Format") &&
+    weekStartBindingMarkup.includes("${YYYY}") &&
+    weekStartBindingMarkup.includes("2026.07.01"),
+  "week.start_date 바인딩에는 단일 날짜 프리셋과 토큰이 나타난다.",
+);
+
+for (const fieldId of ["day.label", "entry.time"] as const) {
+  const nonDateDocument = createDocument();
+  nonDateDocument.graph.nodes.text.binding = {
+    kind: "builtinField",
+    fieldId,
+  } as StudioGraphNode["binding"];
+  const nonDateMarkup = markupOf(
+    findSection(
+      build(nonDateDocument, nonDateDocument.graph.nodes.text).sections,
+      "binding:",
+    ),
+  );
+  assert.ok(
+    !nonDateMarkup.includes("Date Format"),
+    `${fieldId} 바인딩에는 날짜 포맷 컨트롤이 나타나지 않는다.`,
+  );
+}
+
 // --- 글꼴 ---
 
 const typographyMarkup = markupOf(

@@ -58,8 +58,10 @@ import {
   STUDIO_TEXT_WRAP_MODE_STYLE_KEY,
 } from "@/utils/template-studio/text-wrap";
 import { getStudioFontWeightOptions } from "@/utils/template-studio/web-fonts";
+import { getStudioDateFormatMode } from "@/utils/template-studio/date-template";
 
 import { StudioDayLabelFormatField } from "./studio-day-label-format-field";
+import { StudioWeekDatesFormatControls } from "./studio-timetable-object-inspector-controls";
 import { StudioHexColorPicker } from "@/components/studio/inspector/studio-hex-color-picker";
 
 /** 카드 노드 인스펙터가 쓰는 섹션 키. */
@@ -518,28 +520,58 @@ export const buildStudioCardNodeInspectorSections = ({
                       </span>
                     </div>
                     {selectedNode.binding?.kind === "builtinField" ? (
-                      <StudioDayLabelFormatField
-                        fieldId={selectedNode.binding.fieldId}
-                        value={selectedNode.binding.dayLabelFormat}
-                        onChange={(dayLabelFormat) =>
-                          updateNode(selectedNode.id, (node) => {
-                            if (node.binding?.kind !== "builtinField") return;
+                      <>
+                        <StudioDayLabelFormatField
+                          fieldId={selectedNode.binding.fieldId}
+                          value={selectedNode.binding.dayLabelFormat}
+                          onChange={(dayLabelFormat) =>
+                            updateNode(selectedNode.id, (node) => {
+                              if (node.binding?.kind !== "builtinField") return;
 
-                            const normalizedFormat =
-                              normalizeStudioDayLabelFormat(dayLabelFormat);
-                            node.binding =
-                              normalizedFormat === "default"
-                                ? {
-                                    kind: "builtinField",
-                                    fieldId: node.binding.fieldId,
-                                  }
-                                : {
-                                    ...node.binding,
-                                    dayLabelFormat: normalizedFormat,
-                                  };
-                          })
-                        }
-                      />
+                              const normalizedFormat =
+                                normalizeStudioDayLabelFormat(dayLabelFormat);
+                              node.binding =
+                                normalizedFormat === "default"
+                                  ? {
+                                      kind: "builtinField",
+                                      fieldId: node.binding.fieldId,
+                                    }
+                                  : {
+                                      ...node.binding,
+                                      dayLabelFormat: normalizedFormat,
+                                    };
+                            })
+                          }
+                        />
+                        {getStudioDateFormatMode(
+                          selectedNode.binding.fieldId,
+                        ) ? (
+                          <StudioWeekDatesFormatControls
+                            mode={getStudioDateFormatMode(
+                              selectedNode.binding.fieldId,
+                            )!}
+                            format={
+                              selectedNode.binding.dateRangeFormat ?? "short"
+                            }
+                            template={selectedNode.binding.dateRangeTemplate}
+                            onChange={({ format, template }) =>
+                              updateNode(selectedNode.id, (node) => {
+                                if (
+                                  node.binding?.kind !== "builtinField" ||
+                                  !getStudioDateFormatMode(node.binding.fieldId)
+                                ) {
+                                  return;
+                                }
+                                node.binding = {
+                                  ...node.binding,
+                                  dateRangeFormat: format,
+                                  dateRangeTemplate: template,
+                                };
+                              })
+                            }
+                          />
+                        ) : null}
+                      </>
                     ) : null}
                   </>
                 ) : selectedNodeBoundInput ? (

@@ -627,7 +627,11 @@ export function useTimetableObjectCommands({
           planStudioTimetableDayCardOffset(
             dayGeometry,
             currentOffset,
-            nextPosition,
+            {
+              left: nextPosition.left,
+              top: nextPosition.top,
+              rotateDeg: nextPosition.rotateDeg,
+            },
           ),
         );
         timetable.dayCardsLayout = layout;

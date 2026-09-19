@@ -27,8 +27,10 @@ import {
   getStudioRuntimeWeekStartDate,
   shiftStudioRuntimeWeek,
 } from "../src/utils/template-studio/runtime-week";
+import { STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL } from "../src/utils/template-studio/preset-inputs";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
 import { ensureStudioTimetableCapabilityStatus } from "../src/utils/template-studio/timetable-capabilities";
+import { validateStudioDocument } from "../src/utils/template-studio/validator";
 import {
   addStudioTimetableEntry,
   setStudioTimetableDayBaseStatus,
@@ -88,11 +90,20 @@ assert.match(singleEntryMarkup, /aria-label="Runtime form sections"/);
 assert.match(singleEntryMarkup, />Timetable</);
 assert.match(singleEntryMarkup, />Weekly timetable</);
 assert.match(singleEntryMarkup, />Save as image</);
-assert.match(singleEntryMarkup, />Reset</);
+assert.match(
+  singleEntryMarkup,
+  /lucide-rotate-ccw/,
+  "The reset action must render its reset icon.",
+);
 assert.match(singleEntryMarkup, /aria-label="Previous week"/);
 assert.match(singleEntryMarkup, /aria-label="Next week"/);
 assert.match(singleEntryMarkup, />7\/1</);
 assert.match(singleEntryMarkup, /aria-label="Monday Guerrilla"/);
+assert.match(
+  singleEntryMarkup,
+  /class="[^"]*cursor-pointer[^"]*"[^>]*role="switch"/,
+  "Studio runtime toggles must show a pointer cursor when enabled.",
+);
 assert.equal(
   countOccurrences(singleEntryMarkup, 'title="Guerrilla OFF"'),
   timetable.dayIds.length,
@@ -276,6 +287,45 @@ assert.equal(
   resolveStudioBuiltinFieldValue(
     document,
     nextWeekValues,
+    "day.date",
+    { dayId },
+    { dateRangeFormat: "day" },
+  ),
+  "08",
+  "day.date must support the single-date day-only format.",
+);
+assert.equal(
+  resolveStudioTextBinding(
+    document,
+    nextWeekValues,
+    {
+      kind: "builtinField",
+      fieldId: "day.date",
+      dateRangeFormat: "custom",
+      dateRangeTemplate: "${D}일 (${weekdayShort})",
+    },
+    { dayId },
+  ),
+  "8일 (Wed)",
+  "day.date must resolve a custom single-date template through bindings.",
+);
+const invalidDayDateFormatDocument = structuredClone(document);
+invalidDayDateFormatDocument.graph.nodes.node_i9.binding = {
+  kind: "builtinField",
+  fieldId: "day.date",
+  dateRangeFormat: "unknown",
+};
+assert.ok(
+  validateStudioDocument(invalidDayDateFormatDocument).some(
+    (diagnostic) =>
+      diagnostic.id === "binding-date-range-format-invalid:node_i9",
+  ),
+  "day.date must validate date format identifiers.",
+);
+assert.equal(
+  resolveStudioBuiltinFieldValue(
+    document,
+    nextWeekValues,
     "day.label",
     { dayId },
     { dayLabelFormat: "koreanLong" },
@@ -340,7 +390,8 @@ groupedDocument.inputs.profile_image = {
   id: "profile_image",
   type: "image",
   scope: "global",
-  label: "Profile Image",
+  label: STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL,
+  defaultUrl: "https://example.com/default-profile.png",
 };
 const groupedComposition = groupedDocument.domains?.timetable?.composition;
 assert.ok(groupedComposition);
@@ -376,7 +427,7 @@ groupedComposition.objects["artist-text-object"] = {
 };
 
 const globalGroups = getStudioRuntimeGlobalInputGroups(groupedDocument);
-assert.equal(globalGroups[0]?.label, "Profile Image");
+assert.equal(globalGroups[0]?.label, STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL);
 const artistGroup = globalGroups.find((group) => group.label === "Artist");
 assert.ok(artistGroup);
 assert.equal(artistGroup.toggleInput?.id, "artist_status");
@@ -396,7 +447,7 @@ assert.deepEqual(
 assert.ok(
   globalGroups.some(
     (group) =>
-      group.label === "Profile Image" &&
+      group.label === STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL &&
       group.contentInputs[0]?.id === "profile_image",
   ),
 );
@@ -411,9 +462,25 @@ const groupedMarkup = renderForm(
 );
 assert.equal(countOccurrences(groupedMarkup, ">Artist</h3>"), 1);
 assert.equal(countOccurrences(groupedMarkup, ">Weekly Memo</h3>"), 1);
-assert.equal(countOccurrences(groupedMarkup, ">Profile Image</h3>"), 1);
-assert.match(groupedMarkup, />Upload new image</);
+assert.equal(
+  countOccurrences(
+    groupedMarkup,
+    `>${STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL}</h3>`,
+  ),
+  1,
+);
+assert.match(groupedMarkup, />Upload</);
 assert.doesNotMatch(groupedMarkup, /Paste profile image URL/);
+
+const registeredImageValues = createStudioInitialRuntimeValues(groupedDocument);
+registeredImageValues.global.profile_image = "blob:registered-profile-image";
+const registeredImageMarkup = renderForm(
+  groupedDocument,
+  registeredImageValues,
+);
+assert.match(registeredImageMarkup, />Edit</);
+assert.match(registeredImageMarkup, />Delete</);
+assert.doesNotMatch(registeredImageMarkup, />Upload</);
 
 const shellMarkup = renderToStaticMarkup(
   <TemplateStudioRuntimeShell

@@ -101,6 +101,26 @@ export type StudioTimetableDayCardGeometry = {
   height: number;
 };
 
+export const getStudioTimetableRotatedRectangleBounds = (
+  rectangle: StudioTimetableDayCardGeometry,
+  rotateDeg = 0,
+): StudioTimetableDayCardGeometry => {
+  const radians = (rotateDeg * Math.PI) / 180;
+  const width =
+    Math.abs(rectangle.width * Math.cos(radians)) +
+    Math.abs(rectangle.height * Math.sin(radians));
+  const height =
+    Math.abs(rectangle.width * Math.sin(radians)) +
+    Math.abs(rectangle.height * Math.cos(radians));
+
+  return {
+    left: rectangle.left + (rectangle.width - width) / 2,
+    top: rectangle.top + (rectangle.height - height) / 2,
+    width,
+    height,
+  };
+};
+
 export type StudioTimetableEntryCardSize = {
   width: number;
   height: number;
@@ -622,15 +642,13 @@ export const getStudioTimetableDayCardsBounds = (
     | StudioTimetableEntryCardSize
     | StudioTimetableEntryCardSizeResolver = getFallbackEntryCardSize(layout),
 ) => {
-  const geometries = Object.values(
-    getStudioTimetableDayCardGeometries(
-      layout,
-      days,
-      getEntryCount,
-      entryCardSizeOrResolver,
-    ),
+  const geometries = getStudioTimetableDayCardGeometries(
+    layout,
+    days,
+    getEntryCount,
+    entryCardSizeOrResolver,
   );
-  if (geometries.length === 0) {
+  if (Object.keys(geometries).length === 0) {
     const entryCardSize = resolveEntryCardSize(
       layout,
       "",
@@ -644,13 +662,19 @@ export const getStudioTimetableDayCardsBounds = (
     };
   }
 
-  const left = Math.min(...geometries.map((geometry) => geometry.left));
-  const top = Math.min(...geometries.map((geometry) => geometry.top));
+  const visualGeometries = Object.entries(geometries).map(([dayId, geometry]) =>
+    getStudioTimetableRotatedRectangleBounds(
+      geometry,
+      layout.dayOffsets?.[dayId]?.rotateDeg ?? 0,
+    ),
+  );
+  const left = Math.min(...visualGeometries.map((geometry) => geometry.left));
+  const top = Math.min(...visualGeometries.map((geometry) => geometry.top));
   const right = Math.max(
-    ...geometries.map((geometry) => geometry.left + geometry.width),
+    ...visualGeometries.map((geometry) => geometry.left + geometry.width),
   );
   const bottom = Math.max(
-    ...geometries.map((geometry) => geometry.top + geometry.height),
+    ...visualGeometries.map((geometry) => geometry.top + geometry.height),
   );
 
   return {
@@ -916,6 +940,10 @@ export function StudioTimetablePreview({
               top: dayGeometry.top - dayCardsBounds.top,
               width: dayGeometry.width,
               height: dayGeometry.height,
+              transform: `rotate(${Number(
+                dayCardsLayout.dayOffsets?.[day.id]?.rotateDeg ?? 0,
+              )}deg)`,
+              transformOrigin: "center",
               outline: selected ? "8px solid rgba(59, 130, 246, 0.85)" : "none",
               outlineOffset: 8,
             }}
