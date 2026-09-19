@@ -26,6 +26,7 @@ import {
   getStudioRuntimeWeekEndDate,
   getStudioRuntimeWeekStartDate,
   shiftStudioRuntimeWeek,
+  withStudioCurrentRuntimeWeekStartDate,
 } from "../src/utils/template-studio/runtime-week";
 import { STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL } from "../src/utils/template-studio/preset-inputs";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
@@ -85,6 +86,19 @@ const renderForm = (
   );
 
 const initialValues = createStudioInitialRuntimeValues(document);
+const initialWeekStartDate = getStudioRuntimeWeekStartDate(
+  document,
+  initialValues,
+);
+assert.ok(initialWeekStartDate);
+const staleWeekValues = structuredClone(initialValues);
+staleWeekValues.timetable.weekStartDate = "2026-07-01";
+assert.equal(
+  withStudioCurrentRuntimeWeekStartDate(document, staleWeekValues).timetable
+    .weekStartDate,
+  initialWeekStartDate,
+  "A refresh must ignore a previously stored timetable week date.",
+);
 const singleEntryMarkup = renderForm(document, initialValues);
 assert.match(singleEntryMarkup, /aria-label="Runtime form sections"/);
 assert.match(singleEntryMarkup, />Timetable</);
@@ -97,7 +111,12 @@ assert.match(
 );
 assert.match(singleEntryMarkup, /aria-label="Previous week"/);
 assert.match(singleEntryMarkup, /aria-label="Next week"/);
-assert.match(singleEntryMarkup, />7\/1</);
+assert.match(
+  singleEntryMarkup,
+  new RegExp(
+    `>${formatStudioRuntimeWeekStartDate({ startDate: initialWeekStartDate, fallback: "Not set" })}`,
+  ),
+);
 assert.match(singleEntryMarkup, /aria-label="Monday Guerrilla"/);
 assert.match(
   singleEntryMarkup,
@@ -269,19 +288,28 @@ assert.equal(
 );
 
 const nextWeekValues = shiftStudioRuntimeWeek(document, initialValues, 1);
+const nextWeekStartDate = getStudioRuntimeWeekStartDate(
+  document,
+  nextWeekValues,
+);
+const nextWeekEndDate = getStudioRuntimeWeekEndDate(document, nextWeekValues);
+assert.ok(nextWeekStartDate);
+assert.ok(nextWeekEndDate);
+const [nextYear, nextMonth, nextDay] = nextWeekStartDate.split("-");
+const [, nextEndMonth, nextEndDay] = nextWeekEndDate.split("-");
 assert.equal(
   getStudioRuntimeWeekStartDate(document, nextWeekValues),
-  "2026-07-08",
+  nextWeekStartDate,
 );
 assert.equal(
   getStudioRuntimeWeekEndDate(document, nextWeekValues),
-  "2026-07-14",
+  nextWeekEndDate,
 );
 assert.equal(
   resolveStudioBuiltinFieldValue(document, nextWeekValues, "day.date", {
     dayId,
   }),
-  "07.08",
+  `${nextMonth}.${nextDay}`,
 );
 assert.equal(
   resolveStudioBuiltinFieldValue(
@@ -291,7 +319,7 @@ assert.equal(
     { dayId },
     { dateRangeFormat: "day" },
   ),
-  "08",
+  nextDay,
   "day.date must support the single-date day-only format.",
 );
 assert.equal(
@@ -306,7 +334,7 @@ assert.equal(
     },
     { dayId },
   ),
-  "8일 (Wed)",
+  `${Number(nextDay)}일 (Mon)`,
   "day.date must resolve a custom single-date template through bindings.",
 );
 const invalidDayDateFormatDocument = structuredClone(document);
@@ -347,7 +375,7 @@ assert.equal(
 );
 assert.equal(
   resolveStudioBuiltinFieldValue(document, nextWeekValues, "week.date_range"),
-  "2026.07.08 - 07.14",
+  `${nextYear}.${nextMonth}.${nextDay} - ${nextEndMonth}.${nextEndDay}`,
 );
 
 const groupedDocument = structuredClone(document);

@@ -30,6 +30,7 @@ import {
   getStudioRuntimeGlobalInputGroups,
   getStudioRuntimeOnOffOptionValues,
 } from "@/utils/template-studio/runtime-global-input-groups";
+import { getStudioRuntimeInputMultiline } from "@/utils/template-studio/runtime-input-presentation";
 import { isStudioTimetableStatusAvailable } from "@/utils/template-studio/timetable-capabilities";
 import {
   findStudioArtistProfileTextInput,
@@ -688,7 +689,11 @@ export function TemplateStudioRuntimeForm({
           ? copy.weeklyMemoPlaceholder
           : input.placeholder;
 
-      if (input.multiline) {
+      const isMultiline = isArtistInput
+        ? getStudioRuntimeInputMultiline(document, runtimeValues, input)
+        : Boolean(input.multiline);
+
+      if (isMultiline) {
         return (
           <StudioRuntimeField
             control="textarea"

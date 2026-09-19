@@ -4,9 +4,16 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { StudioTimetablePreview } from "../src/app/(root)/template-studio/_components/studio-timetable-preview";
 import { cloneStudioComponentVariant } from "../src/utils/template-studio/component-variants";
-import { createStudioInitialRuntimeValues } from "../src/utils/template-studio/input-values";
+import {
+  createStudioInitialRuntimeValues,
+  setStudioRuntimeInputValue,
+} from "../src/utils/template-studio/input-values";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
 import { ensureStudioTimetableCapabilityStatus } from "../src/utils/template-studio/timetable-capabilities";
+import {
+  createStudioProfileBlockPresetObjects,
+  getStudioTimetableComposition,
+} from "../src/utils/template-studio/timetable-composition";
 import {
   addStudioTimetableEntry,
   setStudioTimetableEntryField,
@@ -68,6 +75,81 @@ assert.equal(
   markup.includes("scale("),
   false,
   "Timetable runtime must not scale a full card per entry.",
+);
+
+const profileDocument = createSampleStudioDocument();
+const profileTimetable = profileDocument.domains!.timetable!;
+const profileComposition = getStudioTimetableComposition(profileTimetable);
+const profileInputId = "profile-image-input";
+const dummyProfileImage = profileDocument.assets.asset_a1.src;
+profileDocument.inputs[profileInputId] = {
+  id: profileInputId,
+  type: "image",
+  scope: "global",
+  label: "프로필 이미지",
+  defaultUrl: dummyProfileImage,
+};
+const profileObjects = createStudioProfileBlockPresetObjects(
+  profileComposition,
+  {
+    inputId: profileInputId,
+    backPlateAssetId: "asset_b2",
+    frameAssetId: "asset_c3",
+  },
+);
+[profileObjects.group, ...profileObjects.children].forEach((object) => {
+  profileComposition.objects[object.id] = object;
+});
+profileComposition.rootObjectIds.push(profileObjects.group.id);
+profileTimetable.composition = profileComposition;
+
+const initialProfileValues = createStudioInitialRuntimeValues(profileDocument);
+const authoringProfileMarkup = renderToStaticMarkup(
+  <StudioTimetablePreview
+    document={profileDocument}
+    runtimeValues={initialProfileValues}
+    variantMode="authoring"
+  />,
+);
+assert.equal(
+  authoringProfileMarkup.includes(dummyProfileImage),
+  true,
+  "The profile dummy image must remain visible in the authoring canvas.",
+);
+
+const runtimeProfileMarkup = renderToStaticMarkup(
+  <StudioTimetablePreview
+    document={profileDocument}
+    runtimeValues={initialProfileValues}
+  />,
+);
+assert.equal(
+  runtimeProfileMarkup.includes(dummyProfileImage),
+  false,
+  "The profile dummy image must be hidden from the runtime preview.",
+);
+assert.doesNotMatch(
+  runtimeProfileMarkup,
+  />user_image_object<\/div>/,
+  "The empty runtime profile slot must not render an editor placeholder label.",
+);
+
+const uploadedProfileValues = setStudioRuntimeInputValue(
+  profileDocument,
+  initialProfileValues,
+  profileInputId,
+  "https://example.com/uploaded-profile.png",
+);
+const uploadedProfileMarkup = renderToStaticMarkup(
+  <StudioTimetablePreview
+    document={profileDocument}
+    runtimeValues={uploadedProfileValues}
+  />,
+);
+assert.match(
+  uploadedProfileMarkup,
+  /https:\/\/example\.com\/uploaded-profile\.png/,
+  "A user-provided profile image must remain visible in the runtime preview.",
 );
 
 console.log("Template Studio Entry Group renderer checks passed.");

@@ -142,6 +142,9 @@ export const resolveStudioTextBinding = (
         dayLabelFormat: binding.dayLabelFormat,
         dateRangeFormat: binding.dateRangeFormat,
         dateRangeTemplate: binding.dateRangeTemplate,
+        timeFormat: binding.timeFormat,
+        timeAmText: binding.timeAmText,
+        timePmText: binding.timePmText,
       },
     );
   }

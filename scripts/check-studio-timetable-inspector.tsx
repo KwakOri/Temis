@@ -322,6 +322,32 @@ assert.ok(
   "요일 필드에는 주간 날짜 표기 편집이 없다.",
 );
 
+const timeBuiltinMarkup = markupOf(
+  findSection(
+    build("t", {
+      objects: [
+        createObject("t", {
+          kind: "text",
+          binding: {
+            kind: "builtinField",
+            fieldId: "entry.time",
+            timeFormat: "half",
+            timeAmText: "아침",
+            timePmText: "오후",
+          },
+        } as never),
+      ],
+    }),
+    "input:Text",
+  ),
+);
+assert.ok(
+  timeBuiltinMarkup.includes("Time Format") &&
+    timeBuiltinMarkup.includes('value="아침"') &&
+    timeBuiltinMarkup.includes('value="오후"'),
+  "시간표 time 필드에는 시간 형식과 AM/PM 사용자 문구 편집이 나타난다.",
+);
+
 // 주간 날짜 객체는 날짜 표기까지 함께 편집한다.
 const weekDatesMarkup = markupOf(
   findSection(

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import { resolveStudioBuiltinFieldValue } from "../src/utils/template-studio/builtin-fields";
+import { resolveStudioTextBinding } from "../src/utils/template-studio/binding-resolver";
 import { createStudioInitialRuntimeValues } from "../src/utils/template-studio/input-values";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
 import { migrateStudioTemplateDocument } from "../src/utils/template-studio/migrations";
@@ -26,6 +27,15 @@ assert.ok(dayId);
 const initialValues = createStudioInitialRuntimeValues(document);
 const initialEntry = initialValues.timetable.entriesByDay[dayId]?.[0];
 assert.ok(initialEntry);
+const initialWeekStartDate = initialValues.timetable.weekStartDate;
+assert.ok(initialWeekStartDate);
+const initialWeekEndDate = new Date(`${initialWeekStartDate}T00:00:00Z`);
+initialWeekEndDate.setUTCDate(initialWeekEndDate.getUTCDate() + 6);
+const initialWeekEndIsoDate = initialWeekEndDate.toISOString().slice(0, 10);
+const initialWeekEndWeekday = new Intl.DateTimeFormat("en-US", {
+  timeZone: "UTC",
+  weekday: "short",
+}).format(initialWeekEndDate);
 
 assert.equal(
   resolveStudioBuiltinFieldValue(
@@ -35,7 +45,7 @@ assert.equal(
     {},
     { dateRangeFormat: "day" },
   ),
-  "01",
+  initialWeekStartDate.slice(8, 10),
   "timetable week.start_date must use the single-date resolver.",
 );
 assert.equal(
@@ -49,7 +59,7 @@ assert.equal(
       dateRangeTemplate: "${YYYY}/${MM}/${DD} (${weekdayShort})",
     },
   ),
-  "2026/07/07 (Tue)",
+  `${initialWeekEndIsoDate.slice(0, 4)}/${initialWeekEndIsoDate.slice(5, 7)}/${initialWeekEndIsoDate.slice(8, 10)} (${initialWeekEndWeekday})`,
   "timetable week.end_date must resolve a custom single-date template.",
 );
 const invalidTimetableWeekStartFormatDocument = structuredClone(document);
@@ -78,6 +88,18 @@ assert.equal(
   ),
   false,
   "timetable week.end_date must accept single-date format identifiers.",
+);
+const invalidTimeFormatDocument = structuredClone(document);
+invalidTimeFormatDocument.graph.nodes.node_i9.binding = {
+  kind: "builtinField",
+  fieldId: "entry.time",
+  timeFormat: "unknown" as never,
+};
+assert.ok(
+  validateStudioDocument(invalidTimeFormatDocument).some(
+    (diagnostic) => diagnostic.id === "binding-time-format-invalid:node_i9",
+  ),
+  "entry.time must validate its time format identifier.",
 );
 
 assert.equal(getStudioTimetableEffectiveMaxEntriesPerDay(document), 1);
@@ -249,6 +271,33 @@ assert.equal(
     entryIndex: 0,
   }),
   "18:30",
+);
+assert.equal(
+  resolveStudioBuiltinFieldValue(
+    document,
+    withTime,
+    "entry.time",
+    { dayId, entryIndex: 0 },
+    { timeFormat: "half", timeAmText: "아침", timePmText: "오후" },
+  ),
+  "오후 06:30",
+  "12-hour time formatting must support custom AM/PM text.",
+);
+assert.equal(
+  resolveStudioTextBinding(
+    document,
+    withTime,
+    {
+      kind: "builtinField",
+      fieldId: "entry.time",
+      timeFormat: "full",
+      timeAmText: "아침",
+      timePmText: "오후",
+    },
+    { dayId, entryIndex: 0 },
+  ),
+  "18:30",
+  "24-hour time formatting must omit half-day text.",
 );
 
 const withGuerrilla = setStudioTimetableEntryGuerrilla(

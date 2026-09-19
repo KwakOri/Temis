@@ -10,6 +10,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { createHash } from "crypto";
 
 let cachedR2Client: S3Client | null = null;
 
@@ -166,6 +167,19 @@ export async function createPresignedUploadUrl(
 ): Promise<UploadFileResult & { uploadUrl: string }> {
   const fileKey = createFileKey(fileName, folder);
 
+  return createPresignedUploadUrlForKey(fileKey, mimeType, expiresIn);
+}
+
+/**
+ * 지정한 키에 브라우저가 직접 업로드할 수 있는 presigned PUT URL을
+ * 생성합니다. 콘텐츠 해시 기반의 canonical asset처럼 키를 호출자가 정해야
+ * 하는 경우에 사용합니다.
+ */
+export async function createPresignedUploadUrlForKey(
+  fileKey: string,
+  mimeType: string,
+  expiresIn = 5 * 60,
+): Promise<UploadFileResult & { uploadUrl: string }> {
   try {
     const command = new PutObjectCommand({
       Bucket: getR2BucketName(),
@@ -183,6 +197,50 @@ export async function createPresignedUploadUrl(
   } catch (error) {
     console.error("R2 presigned URL 생성 실패:", error);
     throw new Error("파일 업로드 URL 생성에 실패했습니다.");
+  }
+}
+
+/**
+ * R2 객체의 실제 바이트를 읽어 SHA-256을 계산합니다.
+ *
+ * Presigned PUT 뒤 metadata만 받는 경로에서도 클라이언트가 보낸 hash를
+ * authoritative 값으로 신뢰하지 않도록 서버에서 한 번 더 검증할 때 씁니다.
+ */
+export async function getFileContentHashFromR2(
+  fileKey: string,
+): Promise<string> {
+  try {
+    const response = await getR2Client().send(
+      new GetObjectCommand({
+        Bucket: getR2BucketName(),
+        Key: fileKey,
+      }),
+    );
+
+    if (!response.Body) {
+      throw new Error("R2 object body is empty.");
+    }
+
+    const hash = createHash("sha256");
+    if (response.Body instanceof ReadableStream) {
+      const reader = response.Body.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) hash.update(value);
+      }
+    } else {
+      for await (const chunk of response.Body as AsyncIterable<
+        Uint8Array | string
+      >) {
+        hash.update(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+      }
+    }
+
+    return hash.digest("hex");
+  } catch (error) {
+    console.error("R2 객체 hash 조회 실패:", error);
+    throw new Error("업로드된 파일 내용을 확인할 수 없습니다.");
   }
 }
 

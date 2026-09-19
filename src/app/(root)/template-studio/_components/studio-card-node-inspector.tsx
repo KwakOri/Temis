@@ -36,6 +36,7 @@ import {
 import {
   getStudioAvailableBuiltinFields,
   getStudioBuiltinField,
+  isStudioTimeBuiltinField,
   normalizeStudioDayLabelFormat,
 } from "@/utils/template-studio/builtin-fields";
 import {
@@ -61,7 +62,10 @@ import { getStudioFontWeightOptions } from "@/utils/template-studio/web-fonts";
 import { getStudioDateFormatMode } from "@/utils/template-studio/date-template";
 
 import { StudioDayLabelFormatField } from "./studio-day-label-format-field";
-import { StudioWeekDatesFormatControls } from "./studio-timetable-object-inspector-controls";
+import {
+  StudioTimeFormatControls,
+  StudioWeekDatesFormatControls,
+} from "./studio-timetable-object-inspector-controls";
 import { StudioHexColorPicker } from "@/components/studio/inspector/studio-hex-color-picker";
 
 /** 카드 노드 인스펙터가 쓰는 섹션 키. */
@@ -571,6 +575,28 @@ export const buildStudioCardNodeInspectorSections = ({
                             }
                           />
                         ) : null}
+                        {isStudioTimeBuiltinField(
+                          selectedNode.binding.fieldId,
+                        ) ? (
+                          <StudioTimeFormatControls
+                            format={selectedNode.binding.timeFormat}
+                            amText={selectedNode.binding.timeAmText}
+                            pmText={selectedNode.binding.timePmText}
+                            onChange={({ format, amText, pmText }) =>
+                              updateNode(selectedNode.id, (node) => {
+                                if (node.binding?.kind !== "builtinField") {
+                                  return;
+                                }
+                                node.binding = {
+                                  ...node.binding,
+                                  timeFormat: format,
+                                  timeAmText: amText,
+                                  timePmText: pmText,
+                                };
+                              })
+                            }
+                          />
+                        ) : null}
                       </>
                     ) : null}
                   </>
@@ -691,6 +717,14 @@ export const buildStudioCardNodeInspectorSections = ({
                 options={selectedFontWeightOptions}
                 value={styleRecord.fontWeight ?? 700}
                 onChange={(value) => updateStyle("fontWeight", value)}
+              />
+              <StudioNumberField
+                label="Line height"
+                value={Number(
+                  styleRecord.lineHeight ??
+                    (selectedNode.type === "flexibleText" ? 1.08 : 1.2),
+                )}
+                onChange={(value) => updateStyle("lineHeight", value)}
               />
             </div>
             <StudioTextAlignmentField

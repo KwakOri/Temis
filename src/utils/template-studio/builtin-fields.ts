@@ -2,6 +2,7 @@ import {
   StudioBuiltinFieldDefinition,
   StudioBuiltinFieldId,
   StudioDayLabelFormat,
+  StudioTimeFormat,
   StudioTimetableDayDefinition,
   StudioRuntimeValues,
   StudioTemplateDocument,
@@ -21,6 +22,7 @@ import {
 } from "@/utils/template-studio/input-values";
 import { getThumbnailWeekDatesInputId } from "@/utils/thumbnail-studio/week-dates";
 import { isStudioTimetableCapabilityEnabled } from "@/utils/template-studio/timetable-capabilities";
+import { formatTime } from "@/utils/time-formatter";
 
 export const STUDIO_BUILTIN_FIELDS: StudioBuiltinFieldDefinition[] = [
   {
@@ -246,6 +248,31 @@ export const isStudioDayLabelBuiltinField = (
   fieldId: StudioBuiltinFieldId,
 ): boolean => fieldId === "day.label" || fieldId === "day.short_label";
 
+export const isStudioTimeBuiltinField = (
+  fieldId: StudioBuiltinFieldId,
+): boolean => fieldId === "entry.time";
+
+export const STUDIO_TIME_FORMAT_OPTIONS: Array<{
+  value: StudioTimeFormat;
+  label: string;
+}> = [
+  { value: "full", label: "24-hour · 09:00" },
+  { value: "half", label: "12-hour · AM 09:00" },
+];
+
+export const STUDIO_TIME_DEFAULT_FORMAT: StudioTimeFormat = "full";
+export const STUDIO_TIME_DEFAULT_AM_TEXT = "AM";
+export const STUDIO_TIME_DEFAULT_PM_TEXT = "PM";
+
+export const normalizeStudioTimeFormat = (
+  value: StudioTimeFormat | null | undefined,
+): StudioTimeFormat => (value === "half" ? "half" : STUDIO_TIME_DEFAULT_FORMAT);
+
+export const normalizeStudioTimeText = (
+  value: string | null | undefined,
+  fallback: string,
+): string => (typeof value === "string" ? value : fallback);
+
 export const normalizeStudioDayLabelFormat = (
   value: StudioDayLabelFormat | null | undefined,
 ): StudioDayLabelFormat =>
@@ -285,6 +312,9 @@ export interface StudioBuiltinFieldResolveOptions {
   dayLabelFormat?: StudioDayLabelFormat;
   dateRangeFormat?: string;
   dateRangeTemplate?: string;
+  timeFormat?: StudioTimeFormat;
+  timeAmText?: string;
+  timePmText?: string;
 }
 
 const getThumbnailWeekDateSource = (
@@ -462,7 +492,23 @@ export const resolveStudioBuiltinFieldValue = (
   if (fieldId === "entry.sub_title")
     return entry?.subTitle ?? "서브타이틀 적는 곳";
   if (fieldId === "entry.time") {
-    return entry?.isGuerrilla ? "게릴라" : (entry?.time ?? "09:00");
+    if (entry?.isGuerrilla) return "게릴라";
+
+    return formatTime(
+      entry?.time ?? "09:00",
+      normalizeStudioTimeFormat(options.timeFormat),
+      true,
+      {
+        am: normalizeStudioTimeText(
+          options.timeAmText,
+          STUDIO_TIME_DEFAULT_AM_TEXT,
+        ),
+        pm: normalizeStudioTimeText(
+          options.timePmText,
+          STUDIO_TIME_DEFAULT_PM_TEXT,
+        ),
+      },
+    );
   }
   if (fieldId === "entry.status") return entry?.statusId ?? "";
   if (fieldId === "entry.status_label")
