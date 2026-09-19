@@ -33,7 +33,9 @@ When the user clicks Preview from the editor:
 1. Ensure a remote template exists.
 2. Compare local document assets with remote asset metadata.
 3. For unchanged assets, do not upload image bytes. Persist only document/runtime metadata as needed.
-4. For changed or new assets, upload the changed image bytes to R2, then upsert Supabase asset metadata.
+4. For changed or new assets, obtain a presigned R2 URL, upload the changed image
+   bytes directly from the browser, then send only verified asset metadata to the
+   server for the Supabase registry upsert.
 5. For removed assets, remove references from the draft document. R2 deletion should stay cleanup-based, not immediate, because old revisions may still reference old files.
 6. Save the current document/runtime values to the remote draft.
 7. Open:

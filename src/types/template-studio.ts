@@ -33,6 +33,8 @@ export type StudioDayLabelFormat =
   | "koreanLong"
   | "koreanShort";
 
+export type StudioTimeFormat = "half" | "full";
+
 /**
  * 제품과 문서 도메인 종류.
  *
@@ -77,6 +79,7 @@ export type StudioTimetableObjectPresetId =
   | "profileBlock"
   | "artistProfileText"
   | "topObject";
+export type StudioTimetableObjectVariantMode = "toggle" | "always";
 export type StudioSemanticPresetScope = "cards" | "timetable";
 export type StudioSemanticKey =
   | "dayCardContainers"
@@ -250,6 +253,9 @@ export type StudioBinding =
       dayLabelFormat?: StudioDayLabelFormat;
       dateRangeFormat?: string;
       dateRangeTemplate?: string;
+      timeFormat?: StudioTimeFormat;
+      timeAmText?: string;
+      timePmText?: string;
     }
   | { kind: "staticAsset"; assetId: StudioAssetId }
   | { kind: "inputImage"; inputId: StudioInputId }
@@ -495,6 +501,8 @@ export interface StudioTimetableObjectVariantSet {
   options: StudioTimetableObjectVariantOption[];
   defaultValue: string;
   activeValue?: string;
+  /** Whether runtime users can toggle the states or the On state is forced. */
+  mode?: StudioTimetableObjectVariantMode;
   inputId?: StudioInputId | null;
   rootByValue: Record<string, StudioTimetableCompositionObjectId | null>;
 }

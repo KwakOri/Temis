@@ -5,6 +5,10 @@ import {
 import { createStudioInitialRuntimeValues } from "@/utils/template-studio/input-values";
 import { ensureStudioIndependentStatusVariants } from "@/utils/template-studio/status-variants";
 import { createStudioStatusCardBackgroundExceptionMeta } from "@/utils/template-studio/status-card-background";
+import {
+  getStudioNearestPastMonday,
+  shiftStudioIsoDate,
+} from "@/utils/template-studio/runtime-week";
 
 const svgDataUrl = (svg: string): string =>
   `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
@@ -56,8 +60,15 @@ const ensureIndependentSampleVariants = (
   return document;
 };
 
-export const createSampleStudioDocument = (): StudioTemplateDocument =>
-  ensureIndependentSampleVariants({
+export const createSampleStudioDocument = (): StudioTemplateDocument => {
+  const weekStartDate = getStudioNearestPastMonday();
+  const weekEndDate = shiftStudioIsoDate(weekStartDate, 6) ?? weekStartDate;
+  const dayDates = Array.from(
+    { length: 7 },
+    (_, index) => shiftStudioIsoDate(weekStartDate, index) ?? weekStartDate,
+  );
+
+  return ensureIndependentSampleVariants({
     schema: "studio_template_document",
     version: 7,
     metadata: {
@@ -319,8 +330,8 @@ export const createSampleStudioDocument = (): StudioTemplateDocument =>
           backgroundColor: "#eef2f7",
         },
         week: {
-          startDate: "2026-07-01",
-          endDate: "2026-07-07",
+          startDate: weekStartDate,
+          endDate: weekEndDate,
         },
         capabilities: {
           multi: { enabled: false },
@@ -333,49 +344,49 @@ export const createSampleStudioDocument = (): StudioTemplateDocument =>
             id: "mon",
             label: "Monday",
             shortLabel: "Mon",
-            date: "2026-07-01",
+            date: dayDates[0],
             order: 0,
           },
           tue: {
             id: "tue",
             label: "Tuesday",
             shortLabel: "Tue",
-            date: "2026-07-02",
+            date: dayDates[1],
             order: 1,
           },
           wed: {
             id: "wed",
             label: "Wednesday",
             shortLabel: "Wed",
-            date: "2026-07-03",
+            date: dayDates[2],
             order: 2,
           },
           thu: {
             id: "thu",
             label: "Thursday",
             shortLabel: "Thu",
-            date: "2026-07-04",
+            date: dayDates[3],
             order: 3,
           },
           fri: {
             id: "fri",
             label: "Friday",
             shortLabel: "Fri",
-            date: "2026-07-05",
+            date: dayDates[4],
             order: 4,
           },
           sat: {
             id: "sat",
             label: "Saturday",
             shortLabel: "Sat",
-            date: "2026-07-06",
+            date: dayDates[5],
             order: 5,
           },
           sun: {
             id: "sun",
             label: "Sunday",
             shortLabel: "Sun",
-            date: "2026-07-07",
+            date: dayDates[6],
             order: 6,
           },
         },
@@ -466,3 +477,4 @@ export const createSampleStudioDocument = (): StudioTemplateDocument =>
       },
     },
   });
+};

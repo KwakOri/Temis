@@ -7,6 +7,7 @@ import {
   StudioFontWeightField,
   StudioLineBreakField,
   StudioNumberField,
+  StudioTextField,
   StudioTextAlignmentField,
 } from "@/components/studio/inspector/studio-inspector-fields";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,14 @@ import type {
   StudioTemplateDocument,
   StudioTimetableCompositionObject,
 } from "@/types/template-studio";
+import {
+  STUDIO_TIME_DEFAULT_AM_TEXT,
+  STUDIO_TIME_DEFAULT_PM_TEXT,
+  STUDIO_TIME_FORMAT_OPTIONS,
+  normalizeStudioTimeFormat,
+  normalizeStudioTimeText,
+} from "@/utils/template-studio/builtin-fields";
+import type { StudioTimeFormat } from "@/types/template-studio";
 import {
   getStudioDateFormatPreset,
   getStudioDateFormatPresetValue,
@@ -68,6 +77,17 @@ export interface StudioWeekDatesFormatControlsProps {
   template?: string;
   mode?: StudioDateFormatMode;
   onChange: (value: { format: string; template: string }) => void;
+}
+
+export interface StudioTimeFormatControlsProps {
+  format?: StudioTimeFormat;
+  amText?: string;
+  pmText?: string;
+  onChange: (value: {
+    format: StudioTimeFormat;
+    amText: string;
+    pmText: string;
+  }) => void;
 }
 
 /** Timetable 기간과 Thumbnail 단일 날짜가 공유하는 형식 편집 컨트롤. */
@@ -167,6 +187,70 @@ export function StudioTimetableWeekDatesFormatControls({
         };
       }),
   });
+}
+
+/** 시간 필드의 12/24시간 표기와 AM/PM 대체 문구를 편집한다. */
+export function StudioTimeFormatControls({
+  format,
+  amText,
+  pmText,
+  onChange,
+}: StudioTimeFormatControlsProps) {
+  const normalizedFormat = normalizeStudioTimeFormat(format);
+  const normalizedAmText = normalizeStudioTimeText(
+    amText,
+    STUDIO_TIME_DEFAULT_AM_TEXT,
+  );
+  const normalizedPmText = normalizeStudioTimeText(
+    pmText,
+    STUDIO_TIME_DEFAULT_PM_TEXT,
+  );
+
+  const update = (patch: Partial<StudioTimeFormatControlsProps>) =>
+    onChange({
+      format: patch.format ?? normalizedFormat,
+      amText: patch.amText ?? normalizedAmText,
+      pmText: patch.pmText ?? normalizedPmText,
+    });
+
+  return (
+    <div className="grid gap-2">
+      <label className={FIELD_LABEL_CLASS}>
+        <span>Time Format</span>
+        <select
+          className={SELECT_CLASS}
+          value={normalizedFormat}
+          onChange={(event) =>
+            update({
+              format: normalizeStudioTimeFormat(
+                event.currentTarget.value as StudioTimeFormat,
+              ),
+            })
+          }
+        >
+          {STUDIO_TIME_FORMAT_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      {normalizedFormat === "half" ? (
+        <div className="grid grid-cols-2 gap-2">
+          <StudioTextField
+            label="AM Text"
+            value={normalizedAmText}
+            onChange={(value) => update({ amText: value })}
+          />
+          <StudioTextField
+            label="PM Text"
+            value={normalizedPmText}
+            onChange={(value) => update({ pmText: value })}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 /** 이미지를 감출 때 위치 선택도 함께 잠근다. */
@@ -409,6 +493,10 @@ export function StudioTimetableObjectVariantControls({
   const variantSet = object.variantSet;
   if (!variantSet) return null;
 
+  const isTopObject =
+    object.presetId === "topObject" ||
+    object.meta?.exception?.semanticKey === "topObject";
+  const variantMode = variantSet.mode === "always" ? "always" : "toggle";
   const activeValue = variantSet.activeValue ?? variantSet.defaultValue;
   const activeLabel =
     variantSet.options.find((option) => option.value === activeValue)?.label ??
@@ -416,32 +504,72 @@ export function StudioTimetableObjectVariantControls({
 
   return (
     <div className="grid gap-2">
-      <div className="grid grid-cols-2 gap-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-1">
-        {variantSet.options.map((option) => (
-          <button
-            className={cn(
-              "h-8 rounded-md text-xs font-bold transition",
-              option.value === activeValue
-                ? "bg-[var(--accent)] text-white"
-                : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
-            )}
-            key={option.value}
-            type="button"
-            onClick={() =>
+      {isTopObject ? (
+        <label className={FIELD_LABEL_CLASS}>
+          <span>Runtime Mode</span>
+          <select
+            className={SELECT_CLASS}
+            value={variantMode}
+            onChange={(event) => {
+              const mode = event.currentTarget.value as "toggle" | "always";
               onUpdateObject((currentObject) => {
-                setStudioTimetableObjectActiveVariantValue(
-                  currentObject,
-                  option.value,
-                );
-              })
-            }
+                if (!currentObject.variantSet) return;
+                const onValue = currentObject.variantSet.options.some(
+                  (option) => option.value === "on",
+                )
+                  ? "on"
+                  : currentObject.variantSet.defaultValue;
+                currentObject.variantSet = {
+                  ...currentObject.variantSet,
+                  mode: mode === "always" ? "always" : "toggle",
+                  activeValue:
+                    mode === "always"
+                      ? onValue
+                      : (currentObject.variantSet.activeValue ?? onValue),
+                };
+              });
+            }}
           >
-            {option.label}
-          </button>
-        ))}
-      </div>
+            <option value="toggle">On / Off</option>
+            <option value="always">Always On</option>
+          </select>
+        </label>
+      ) : null}
+      {variantMode === "toggle" ? (
+        <div className="grid grid-cols-2 gap-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-1">
+          {variantSet.options.map((option) => (
+            <button
+              className={cn(
+                "h-8 rounded-md text-xs font-bold transition",
+                option.value === activeValue
+                  ? "bg-[var(--accent)] text-white"
+                  : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
+              )}
+              key={option.value}
+              type="button"
+              onClick={() =>
+                onUpdateObject((currentObject) => {
+                  setStudioTimetableObjectActiveVariantValue(
+                    currentObject,
+                    option.value,
+                  );
+                })
+              }
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-2 text-[11px] font-semibold text-[var(--fg2)]">
+          Always On · the preview toggle is hidden.
+        </div>
+      )}
       <div className="rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-2 text-[11px] font-semibold text-[var(--fg2)]">
-        Editing state: <span className="text-[var(--fg)]">{activeLabel}</span>
+        Editing state:{" "}
+        <span className="text-[var(--fg)]">
+          {variantMode === "always" ? "On" : activeLabel}
+        </span>
       </div>
     </div>
   );

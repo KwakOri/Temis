@@ -30,6 +30,7 @@ import {
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
 import { StudioRuntimePreviewWorkspace } from "@/components/studio/runtime/studio-runtime-preview-workspace";
 import { useStudioRuntimeViewport } from "@/components/studio/runtime/use-studio-runtime-viewport";
+import { withStudioCurrentRuntimeWeekStartDate } from "@/utils/template-studio/runtime-week";
 import {
   getStudioTimetablePreviewSize,
   StudioTimetablePreview,
@@ -56,6 +57,15 @@ const cloneRuntimeValues = (
 ): StudioRuntimeValues =>
   JSON.parse(JSON.stringify(runtimeValues)) as StudioRuntimeValues;
 
+const createSessionRuntimeValues = (
+  document: StudioTemplateDocument,
+  runtimeValues: StudioRuntimeValues,
+): StudioRuntimeValues =>
+  withStudioCurrentRuntimeWeekStartDate(
+    document,
+    cloneRuntimeValues(runtimeValues),
+  );
+
 export function TemplateStudioRuntimeShell({
   document,
   initialRuntimeValues,
@@ -67,7 +77,7 @@ export function TemplateStudioRuntimeShell({
 }: TemplateStudioRuntimeShellProps) {
   const previewContentRef = useRef<HTMLDivElement | null>(null);
   const [runtimeValues, setRuntimeValues] = useState<StudioRuntimeValues>(() =>
-    cloneRuntimeValues(initialRuntimeValues),
+    createSessionRuntimeValues(document, initialRuntimeValues),
   );
   const [locale, setLocale] = useState<StudioRuntimeLocale>("en");
   const [isSavingImage, setIsSavingImage] = useState(false);
@@ -139,11 +149,15 @@ export function TemplateStudioRuntimeShell({
   }, []);
 
   useEffect(() => {
-    setRuntimeValues(cloneRuntimeValues(initialRuntimeValues));
-  }, [initialRuntimeValues]);
+    setRuntimeValues(
+      createSessionRuntimeValues(document, initialRuntimeValues),
+    );
+  }, [document, initialRuntimeValues]);
 
   const resetRuntimeValues = () => {
-    setRuntimeValues(cloneRuntimeValues(initialRuntimeValues));
+    setRuntimeValues(
+      createSessionRuntimeValues(document, initialRuntimeValues),
+    );
   };
 
   const updateLocale = (nextLocale: StudioRuntimeLocale) => {

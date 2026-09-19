@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 
 import { signJWT } from "../src/lib/auth/jwt";
 import { supabaseAdminServer } from "../src/lib/supabase-admin-server";
@@ -9,6 +10,10 @@ import {
   createInitialStudioRuntimeValues,
   createSampleStudioDocument,
 } from "../src/utils/template-studio/sample-document";
+import {
+  getStudioDataImageMetadata,
+  parseStudioDataImageUrl,
+} from "../src/utils/template-studio/asset-sync";
 
 const LOCAL_ADMIN_USER_ID = 9000001;
 const LOCAL_ADMIN_EMAIL = "admin@temis.com";
@@ -151,7 +156,8 @@ const main = async () => {
   const [
     templateRoutes,
     templateDetailRoutes,
-    assetUploadRoutes,
+    assetPresignRoutes,
+    assetSyncRoutes,
     draftRoutes,
     publishRoutes,
     publishedPreviewRoutes,
@@ -159,7 +165,8 @@ const main = async () => {
   ] = await Promise.all([
     import("../src/app/api/admin/template-studio/templates/route"),
     import("../src/app/api/admin/template-studio/templates/[id]/route"),
-    import("../src/app/api/admin/template-studio/templates/[id]/assets/upload/route"),
+    import("../src/app/api/admin/template-studio/templates/[id]/assets/presign/route"),
+    import("../src/app/api/admin/template-studio/templates/[id]/assets/sync/route"),
     import("../src/app/api/admin/template-studio/templates/[id]/draft/route"),
     import("../src/app/api/admin/template-studio/templates/[id]/publish/route"),
     import("../src/app/api/template-studio/templates/[id]/preview/route"),
@@ -256,7 +263,70 @@ const main = async () => {
     document.metadata.name = "Template Studio API Check";
     const runtimeValues = createInitialStudioRuntimeValues(document);
 
-    const uploadResponse = await callRoute<{
+    const metadataAssets = await Promise.all(
+      Object.values(document.assets).map(async (asset) => {
+        const metadata = await getStudioDataImageMetadata(asset.src);
+        if (!metadata?.contentHash) {
+          throw new Error(`Could not calculate hash for ${asset.id}.`);
+        }
+        return {
+          assetId: asset.id,
+          label: asset.label,
+          contentHash: metadata.contentHash,
+          mimeType: metadata.mimeType,
+          byteSize: metadata.byteSize,
+        };
+      }),
+    );
+
+    const presignResponse = await callRoute<{
+      success: boolean;
+      assets: Array<{
+        assetId: string;
+        storagePath: string;
+        publicUrl: string;
+        uploadUrl: string;
+        headers: Record<string, string>;
+      }>;
+    }>(
+      "presign assets",
+      assetPresignRoutes.POST,
+      createRequest(
+        `${routeBaseUrl}/api/admin/template-studio/templates/${templateId}/assets/presign`,
+        token,
+        {
+          method: "POST",
+          body: JSON.stringify({ assets: metadataAssets }),
+        },
+      ),
+      context,
+    );
+    assert(presignResponse.success, "Asset presign response was not success.");
+    assert(
+      presignResponse.assets.length === metadataAssets.length,
+      "Asset presign response did not include every document asset.",
+    );
+
+    const presignedAssetsById = new Map(
+      presignResponse.assets.map((asset) => [asset.assetId, asset]),
+    );
+    for (const asset of Object.values(document.assets)) {
+      const presignedAsset = presignedAssetsById.get(asset.id);
+      const parsed = parseStudioDataImageUrl(asset.src);
+      assert(presignedAsset, `Presigned asset missing for ${asset.id}.`);
+      assert(parsed, `Could not parse asset ${asset.id}.`);
+      const putResponse = await fetch(presignedAsset.uploadUrl, {
+        method: "PUT",
+        headers: presignedAsset.headers,
+        body: parsed.buffer,
+      });
+      assert(
+        putResponse.ok,
+        `R2 PUT failed for ${asset.id}: ${putResponse.status}`,
+      );
+    }
+
+    const syncResponse = await callRoute<{
       success: boolean;
       assets: Array<{
         id: string;
@@ -270,32 +340,33 @@ const main = async () => {
         uploaded: boolean;
       }>;
     }>(
-      "upload assets",
-      assetUploadRoutes.POST,
+      "sync asset metadata",
+      assetSyncRoutes.POST,
       createRequest(
-        `${routeBaseUrl}/api/admin/template-studio/templates/${templateId}/assets/upload`,
+        `${routeBaseUrl}/api/admin/template-studio/templates/${templateId}/assets/sync`,
         token,
         {
           method: "POST",
           body: JSON.stringify({
-            assets: Object.values(document.assets).map((asset) => ({
-              assetId: asset.id,
-              label: asset.label,
-              src: asset.src,
-            })),
+            assets: metadataAssets,
+            attemptId: randomUUID(),
+            operation: "save_draft",
           }),
         },
       ),
       context,
     );
-    assert(uploadResponse.success, "Asset upload response was not success.");
     assert(
-      uploadResponse.assets.length === Object.keys(document.assets).length,
-      "Asset upload response did not include every document asset.",
+      syncResponse.success,
+      "Asset metadata sync response was not success.",
+    );
+    assert(
+      syncResponse.assets.length === Object.keys(document.assets).length,
+      "Asset metadata sync response did not include every document asset.",
     );
 
     const uploadedAssetsById = new Map(
-      uploadResponse.assets.map((asset) => [asset.id, asset]),
+      syncResponse.assets.map((asset) => [asset.id, asset]),
     );
     Object.keys(document.assets).forEach((assetId) => {
       const uploadedAsset = uploadedAssetsById.get(assetId);

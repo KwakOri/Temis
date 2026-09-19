@@ -767,6 +767,17 @@ const resolveTimetableAssetSlot = (
   return slot.assetId ? (document.assets[slot.assetId] ?? null) : null;
 };
 
+const isStudioProfileImageDefaultAsset = (
+  document: StudioTemplateDocument,
+  slot: StudioAssetSlot | undefined,
+  asset: StudioAsset | null,
+) => {
+  if (!slot?.inputId || !asset?.src) return false;
+
+  const input = document.inputs[slot.inputId];
+  return input?.type === "image" && input.defaultUrl === asset.src;
+};
+
 const getTimetableCssOpacity = (value: unknown): number => {
   const parsedValue = Number(value ?? 1);
   if (!Number.isFinite(parsedValue)) return 1;
@@ -1147,6 +1158,11 @@ export function StudioTimetablePreview({
       runtimeValues,
       profileImageSlot,
     );
+    const renderAsset =
+      variantMode === "runtime" &&
+      isStudioProfileImageDefaultAsset(document, profileImageSlot, asset)
+        ? null
+        : asset;
     const frameAsset = resolveTimetableAssetSlot(
       document,
       runtimeValues,
@@ -1170,20 +1186,20 @@ export function StudioTimetablePreview({
           onSelectLayer?.(object.id);
         }}
       >
-        {asset?.src ? (
+        {renderAsset?.src ? (
           // eslint-disable-next-line @next/next/no-img-element -- Timetable preset assets are plain template asset URLs.
           <img
-            alt={asset.label}
+            alt={renderAsset.label}
             className="absolute inset-0 h-full w-full"
             draggable={false}
-            src={asset.src}
+            src={renderAsset.src}
             style={{ objectFit: profileImageSlot?.fit ?? "cover" }}
           />
-        ) : (
+        ) : variantMode === "authoring" ? (
           <div className="absolute inset-0 flex h-full w-full items-center justify-center text-[48px] font-extrabold text-slate-400">
             Profile
           </div>
-        )}
+        ) : null}
         {frameAsset?.src ? (
           // eslint-disable-next-line @next/next/no-img-element -- Timetable preset frame assets are plain template asset URLs.
           <img
@@ -1252,6 +1268,13 @@ export function StudioTimetablePreview({
     const selected = selectedLayerId === object.id;
     const assetSlot = object.assetSlots?.asset;
     const asset = resolveTimetableAssetSlot(document, runtimeValues, assetSlot);
+    const isProfileUserImage = object.profileRole === "userImage";
+    const renderAsset =
+      variantMode === "runtime" &&
+      isProfileUserImage &&
+      isStudioProfileImageDefaultAsset(document, assetSlot, asset)
+        ? null
+        : asset;
 
     return (
       <div
@@ -1270,20 +1293,20 @@ export function StudioTimetablePreview({
           onSelectLayer?.(object.id);
         }}
       >
-        {asset?.src ? (
+        {renderAsset?.src ? (
           // eslint-disable-next-line @next/next/no-img-element -- Timetable composition images use template asset and runtime input URLs.
           <img
-            alt={asset.label}
+            alt={renderAsset.label}
             className="pointer-events-none absolute inset-0 h-full w-full"
             draggable={false}
-            src={asset.src}
+            src={renderAsset.src}
             style={{ objectFit: assetSlot?.fit ?? "contain" }}
           />
-        ) : (
+        ) : variantMode === "authoring" || !isProfileUserImage ? (
           <div className="pointer-events-none absolute inset-0 flex h-full w-full items-center justify-center border border-dashed border-slate-300 bg-slate-200/40 px-4 text-center text-[28px] font-bold text-slate-400">
             {object.label}
           </div>
-        )}
+        ) : null}
       </div>
     );
   };

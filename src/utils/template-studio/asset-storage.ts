@@ -1,5 +1,16 @@
 const trimSlashes = (value: string): string => value.replace(/^\/+|\/+$/g, "");
 
+const TEMPLATE_STUDIO_ASSET_MIME_EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/svg+xml": "svg",
+  "image/webp": "webp",
+};
+
+export const getTemplateStudioAssetExtension = (
+  mimeType: string,
+): string | null => TEMPLATE_STUDIO_ASSET_MIME_EXTENSIONS[mimeType] ?? null;
+
 /**
  * Base R2 prefix for canonical (published) Template Studio assets. Shared by
  * the asset sync route (which writes under it) and template deletion (which
@@ -45,3 +56,19 @@ export const buildTemplateStudioAssetTemplatePrefix = (
     templateId,
     "template",
   )}`;
+
+export const buildTemplateStudioAssetKey = ({
+  templateId,
+  assetId,
+  contentHash,
+  extension,
+}: {
+  templateId: string;
+  assetId: string;
+  contentHash: string;
+  extension: string;
+}): string =>
+  `${buildTemplateStudioAssetTemplatePrefix(templateId)}/assets/${sanitizeTemplateStudioPathSegment(
+    assetId,
+    "asset",
+  )}/${contentHash}.${extension}`;

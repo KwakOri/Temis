@@ -12,6 +12,18 @@ const formatIsoDateParts = (
 ): string | null =>
   parts ? `${parts.year}-${parts.month}-${parts.day}` : null;
 
+/** Return today's date or the closest Monday before it, formatted as local ISO. */
+export const getStudioNearestPastMonday = (date = new Date()): string => {
+  const monday = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const daysSinceMonday = (monday.getDay() + 6) % 7;
+  monday.setDate(monday.getDate() - daysSinceMonday);
+
+  const year = monday.getFullYear();
+  const month = String(monday.getMonth() + 1).padStart(2, "0");
+  const day = String(monday.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 export const shiftStudioIsoDate = (
   value: string | undefined,
   dayDelta: number,
@@ -25,8 +37,7 @@ export const getStudioRuntimeWeekStartDate = (
   const runtimeDate = values.timetable.weekStartDate;
   if (parseStudioIsoDateParts(runtimeDate)) return runtimeDate ?? null;
 
-  const documentDate = document.domains?.timetable?.week?.startDate;
-  return parseStudioIsoDateParts(documentDate) ? (documentDate ?? null) : null;
+  return document.domains?.timetable ? getStudioNearestPastMonday() : null;
 };
 
 export const getStudioRuntimeWeekEndDate = (
@@ -53,6 +64,23 @@ export const setStudioRuntimeWeekStartDate = (
       weekStartDate,
     },
   };
+};
+
+/**
+ * Start each browser/editor session at the current week regardless of the
+ * document or previously saved runtime date.
+ */
+export const withStudioCurrentRuntimeWeekStartDate = (
+  document: StudioTemplateDocument,
+  values: StudioRuntimeValues,
+  date = new Date(),
+): StudioRuntimeValues => {
+  if (!document.domains?.timetable) return values;
+
+  return setStudioRuntimeWeekStartDate(
+    values,
+    getStudioNearestPastMonday(date),
+  );
 };
 
 export const shiftStudioRuntimeWeek = (

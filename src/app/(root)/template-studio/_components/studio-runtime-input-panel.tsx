@@ -32,6 +32,7 @@ export const getStudioRuntimeInputKey = (
 export interface StudioRuntimeInputFieldProps {
   input: StudioInputDefinition;
   runtimeValues: StudioRuntimeValues;
+  multiline?: boolean;
   /** 어느 요일·일정의 값을 고칠지. 비우면 전체 공통 값이다. */
   context?: StudioRuntimeContext;
   onChange: (
@@ -61,6 +62,7 @@ export interface StudioRuntimeInputFieldProps {
 export function StudioRuntimeInputField({
   input,
   runtimeValues,
+  multiline,
   context = {},
   onChange,
   onRequestImageCrop,
@@ -68,7 +70,7 @@ export function StudioRuntimeInputField({
   const value = getStudioRuntimeInputValue(input, runtimeValues, context);
 
   if (input.type === "text") {
-    if (input.multiline) {
+    if (multiline ?? input.multiline) {
       return (
         <StudioTextareaField
           label={input.label}
@@ -150,6 +152,7 @@ export interface StudioRuntimeInputGroupsProps {
     entry: StudioInputDefinition[];
   };
   runtimeValues: StudioRuntimeValues;
+  getTextInputMultiline?: (input: StudioInputDefinition) => boolean | undefined;
   activeDayId: string | null;
   activeEntryIndex: number;
   /** 지금 고른 일정. 없으면 일정 범위 입력을 보여 주지 않는다. */
@@ -177,6 +180,7 @@ export interface StudioRuntimeInputGroupsProps {
 export function StudioRuntimeInputGroups({
   inputsByScope,
   runtimeValues,
+  getTextInputMultiline,
   activeDayId,
   activeEntryIndex,
   activeEntry,
@@ -201,6 +205,7 @@ export function StudioRuntimeInputGroups({
               context={context}
               input={input}
               key={getStudioRuntimeInputKey(input, context)}
+              multiline={getTextInputMultiline?.(input)}
               runtimeValues={runtimeValues}
               onChange={onChangeInput}
               onRequestImageCrop={onRequestImageCrop}
@@ -249,6 +254,7 @@ export interface StudioRuntimeInputPanelProps extends StudioRuntimeInputGroupsPr
 export function StudioRuntimeInputPanel({
   inputsByScope,
   runtimeValues,
+  getTextInputMultiline,
   days,
   activeDayId,
   activeEntries,
@@ -323,6 +329,7 @@ export function StudioRuntimeInputPanel({
         activeEntryIndex={activeEntryIndex}
         inputsByScope={inputsByScope}
         runtimeValues={runtimeValues}
+        getTextInputMultiline={getTextInputMultiline}
         onChangeInput={onChangeInput}
         onRequestImageCrop={onRequestImageCrop}
       />

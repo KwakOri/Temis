@@ -172,6 +172,11 @@ import {
   resolveStudioTimetableComponentVariant,
   validateStudioRuntimeValuesForDocument,
 } from "@/utils/template-studio/timetable-runtime";
+import { getStudioRuntimeSuppressedInputIds } from "@/utils/template-studio/runtime-global-input-groups";
+import { getStudioRuntimeInputMultiline } from "@/utils/template-studio/runtime-input-presentation";
+import {
+  withStudioCurrentRuntimeWeekStartDate,
+} from "@/utils/template-studio/runtime-week";
 import { applyStudioTimetableComponentFrames } from "@/utils/template-studio/entry-groups";
 import {
   getStudioAvailableTimetableStatuses,
@@ -529,11 +534,10 @@ export function TemplateStudioClient({
     null,
   );
   if (!studioStoreRef.current) {
+    const initialDocument = createSampleStudioDocument();
     studioStoreRef.current = createStudioEditorStore<TemplateStudioView>({
-      document: createSampleStudioDocument(),
-      runtimeValues: createInitialStudioRuntimeValues(
-        createSampleStudioDocument(),
-      ),
+      document: initialDocument,
+      runtimeValues: createInitialStudioRuntimeValues(initialDocument),
       selectedNodeIds: ["node_c3"],
       selectedRuntimeDayId: "mon",
       view: {
@@ -711,14 +715,19 @@ export function TemplateStudioClient({
     () => inputs.filter((input) => input.scope === inputScopeFilter),
     [inputScopeFilter, inputs],
   );
-  const runtimeInputsByScope = useMemo(
-    () => ({
-      global: getStudioInputsForScope(document, "global"),
-      day: getStudioInputsForScope(document, "day"),
-      entry: getStudioInputsForScope(document, "entry"),
-    }),
-    [document],
-  );
+  const runtimeInputsByScope = useMemo(() => {
+    const suppressedInputIds = getStudioRuntimeSuppressedInputIds(document);
+    const filterSuppressedInputs = (scope: "global" | "day" | "entry") =>
+      getStudioInputsForScope(document, scope).filter(
+        (input) => !suppressedInputIds.has(input.id),
+      );
+
+    return {
+      global: filterSuppressedInputs("global"),
+      day: filterSuppressedInputs("day"),
+      entry: filterSuppressedInputs("entry"),
+    };
+  }, [document]);
   const timetableDays = useMemo(() => {
     const timetable = document.domains?.timetable;
     if (!timetable) return [];
@@ -1370,9 +1379,12 @@ export function TemplateStudioClient({
       message: string,
     ) => {
       const normalizedRuntimeValues =
-        normalizeRuntimeValuesForTimetableCapabilities(
-          cloneRuntimeValues(nextRuntimeValues),
-          getStudioTimetableCapabilities(nextDocument.domains?.timetable),
+        withStudioCurrentRuntimeWeekStartDate(
+          nextDocument,
+          normalizeRuntimeValuesForTimetableCapabilities(
+            cloneRuntimeValues(nextRuntimeValues),
+            getStudioTimetableCapabilities(nextDocument.domains?.timetable),
+          ),
         );
       const nextSelectedNodeId = nextDocument.graph.rootNodeIds[0] ?? null;
       const nextSelectedInputId = Object.keys(nextDocument.inputs)[0] ?? null;
@@ -2498,6 +2510,9 @@ export function TemplateStudioClient({
       activeEntry={activeRuntimeEntry}
       activeEntryIndex={activeRuntimeEntryIndex}
       days={timetableDays}
+      getTextInputMultiline={(input) =>
+        getStudioRuntimeInputMultiline(document, runtimeValues, input)
+      }
       inputsByScope={runtimeInputsByScope}
       runtimeValues={runtimeValues}
       onChangeInput={updateRuntimeInputValue}
@@ -2643,6 +2658,11 @@ export function TemplateStudioClient({
       </button>
       <StudioRuntimeInputField
         input={input}
+        multiline={getStudioRuntimeInputMultiline(
+          document,
+          runtimeValues,
+          input,
+        )}
         runtimeValues={runtimeValues}
         onChange={updateRuntimeInputValue}
         onRequestImageCrop={requestRuntimeImageCrop}

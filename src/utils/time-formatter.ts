@@ -5,6 +5,11 @@
 
 export type TimeFormat = "half" | "full";
 
+export interface TimeHalfTextOptions {
+  am?: string;
+  pm?: string;
+}
+
 /**
  * Formats time string according to specified format
  * @param time - Time string in "HH:MM" format (24-hour)
@@ -15,7 +20,8 @@ export type TimeFormat = "half" | "full";
 export function formatTime(
   time: string,
   format: TimeFormat = "half",
-  padZero: boolean = true
+  padZero: boolean = true,
+  halfText: TimeHalfTextOptions = {},
 ): string {
   const [hourStr, minute] = time.split(":");
   const hour = Number(hourStr);
@@ -40,12 +46,16 @@ export function formatTime(
   }
   // 12:00 (noon) stays as PM 12:00
 
-  const amPm = isAfternoon ? "PM" : "AM";
+  const amPm = (
+    isAfternoon ? (halfText.pm ?? "PM") : (halfText.am ?? "AM")
+  ).trim();
   const formattedHour = padZero
     ? displayHour.toString().padStart(2, "0")
     : displayHour.toString();
 
-  return `${amPm} ${formattedHour}:${minute}`;
+  return amPm
+    ? `${amPm} ${formattedHour}:${minute}`
+    : `${formattedHour}:${minute}`;
 }
 
 /**
@@ -57,7 +67,7 @@ export function formatTime(
  */
 export function getFormattedStreamingTime(
   time: string,
-  padZero: boolean = true
+  padZero: boolean = true,
 ): string {
   return formatTime(time, "half", padZero);
 }
@@ -70,7 +80,7 @@ export function getFormattedStreamingTime(
  */
 export function getFormatted24HourTime(
   time: string,
-  padZero: boolean = true
+  padZero: boolean = true,
 ): string {
   return formatTime(time, "full", padZero);
 }

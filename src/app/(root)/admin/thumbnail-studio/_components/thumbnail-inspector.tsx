@@ -910,7 +910,7 @@ export const buildThumbnailInspectorSections = ({
             />
             <StudioFontWeightField
               options={getStudioFontWeightOptions(document, fontFamily.value)}
-              value={primaryStyle.fontWeight}
+              value={primaryStyle.fontWeight ?? 700}
               onChange={(value) => applyStyleValue("fontWeight", value)}
             />
             <StudioNumberField
