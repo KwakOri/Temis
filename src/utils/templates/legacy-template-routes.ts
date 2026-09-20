@@ -78,6 +78,7 @@ const LEGACY_TEMPLATE_ROUTE_IDS = new Set([
   "eacb20ea-7bf3-4a2a-8f95-f03c921e1cf0",
   "ef9fa34f-47c8-4e8e-8ed4-b84ef8eae020",
   "f156601a-2c4b-479c-bec7-19aed782d812",
+  "f1ecd870-a161-4753-a726-d2c0fdf523c2",
   "f2e9ffe2-9a30-4c91-8bf8-4e6ae62db91e",
   "f697c062-844a-48c7-aad4-c05cee320c4e",
   "f8bb165b-a42b-4146-9322-64c6a2e78df5",
