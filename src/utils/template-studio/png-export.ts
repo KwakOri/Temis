@@ -132,6 +132,32 @@ const blobToDataUrl = (blob: Blob): Promise<string> =>
     reader.readAsDataURL(blob);
   });
 
+const fetchExportImageBlob = async (source: string): Promise<Blob> => {
+  try {
+    const response = await window.fetch(source, {
+      cache: "no-store",
+      credentials: "same-origin",
+      mode: "cors",
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.blob();
+  } catch (directError) {
+    // An R2 public domain can render in <img> while still rejecting the
+    // browser fetch required to embed an image in the PNG. Use the same-origin
+    // proxy as a fallback so the export does not lose that image.
+    try {
+      const response = await window.fetch(
+        `/api/template-studio/assets/image?url=${encodeURIComponent(source)}`,
+        { credentials: "same-origin" },
+      );
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return await response.blob();
+    } catch {
+      throw directError;
+    }
+  }
+};
+
 const dataUrlToBlob = (dataUrl: string): Blob => {
   const [header, encoded] = dataUrl.split(",", 2);
   if (!header || encoded === undefined) {
@@ -158,16 +184,7 @@ export const preloadStudioExportImages = async (
   await Promise.all(
     references.map(async ({ label, source }) => {
       try {
-        const response = await window.fetch(source, {
-          cache: "no-store",
-          credentials: "same-origin",
-          mode: "cors",
-        });
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const blob = await response.blob();
+        const blob = await fetchExportImageBlob(source);
         if (blob.type && !blob.type.startsWith("image/")) {
           throw new Error(`Unexpected content type: ${blob.type}`);
         }
@@ -251,15 +268,7 @@ export const renderStudioPng = async (
   const embeddedImages = await preloadStudioExportImages(element);
   const baseURI = element.ownerDocument.baseURI;
   const dataUrl = await domToPng(element, {
-    fetch: {
-      bypassingCache: true,
-      placeholderImage: "",
-      requestInit: {
-        cache: "no-store",
-        credentials: "same-origin",
-        mode: "cors",
-      },
-    },
+    fetch: { bypassingCache: true, placeholderImage: "" },
     fetchFn: async (source) =>
       embeddedImages.get(normalizeImageSource(source, baseURI)) ?? false,
     height: options.height,

@@ -93,6 +93,7 @@ const ThumbnailCoverStatus = ({
             src={coverUrl}
             alt={template.thumbnailUrl ? "대표 이미지" : "자동 미리보기"}
             className="h-full w-full object-cover"
+            draggable={false}
           />
         ) : (
           <ImageIcon className="h-4 w-4 text-gray-300" aria-hidden="true" />

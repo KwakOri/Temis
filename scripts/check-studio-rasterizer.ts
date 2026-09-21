@@ -21,6 +21,7 @@ import { join } from "node:path";
 const STUDIO_RUNTIME_SHELL =
   "src/app/(root)/template-studio/_components/runtime/template-studio-runtime-shell.tsx";
 const PNG_EXPORT = "src/utils/template-studio/png-export.ts";
+const IMAGE_PROXY = "src/app/api/template-studio/assets/image/route.ts";
 const NEXT_CONFIG = "next.config.ts";
 
 /**
@@ -54,19 +55,21 @@ const collectImportStatements = (source: string): string =>
 const shellSource = readFileSync(STUDIO_RUNTIME_SHELL, "utf8");
 const shellImports = collectImportStatements(shellSource);
 const pngExportSource = readFileSync(PNG_EXPORT, "utf8");
+const imageProxySource = readFileSync(IMAGE_PROXY, "utf8");
 const nextConfigSource = readFileSync(NEXT_CONFIG, "utf8");
 
 assert.ok(
-  shellImports.includes("modern-screenshot"),
-  "Studio 런타임 PNG는 스파이크가 표준으로 정한 modern-screenshot을 써야 한다.",
+  shellImports.includes("template-studio/png-export") &&
+    pngExportSource.includes("modern-screenshot"),
+  "Studio 런타임 PNG는 스파이크가 표준으로 정한 modern-screenshot exporter를 써야 한다.",
 );
 assert.ok(
   !shellImports.includes("html-to-image"),
   "Studio 런타임 PNG가 html-to-image로 돌아갔다. 화면에서는 문제가 없고 내려받은 파일에서만 드러난다.",
 );
 assert.ok(
-  shellSource.includes("domToPng("),
-  "modern-screenshot의 domToPng으로 캡처해야 한다.",
+  shellSource.includes("renderStudioPng("),
+  "공통 Studio PNG exporter로 캡처해야 한다.",
 );
 
 /**
@@ -80,7 +83,7 @@ assert.ok(
   "캡처 전에 document.fonts.ready를 기다려야 한다.",
 );
 assert.ok(
-  shellSource.indexOf("fonts.ready") < shellSource.indexOf("domToPng("),
+  shellSource.indexOf("fonts.ready") < shellSource.indexOf("renderStudioPng("),
   "폰트 대기가 캡처보다 먼저 와야 한다.",
 );
 
@@ -98,6 +101,16 @@ assert.ok(
   pngExportSource.includes("onCloneNode") &&
     pngExportSource.includes("preloadStudioExportImages"),
   "복제 DOM에도 외부 이미지 URL이 남지 않도록 사전 임베드 경계를 유지해야 한다.",
+);
+assert.ok(
+  pngExportSource.includes("/api/template-studio/assets/image?url=") &&
+    pngExportSource.includes("fetchExportImageBlob"),
+  "R2 이미지가 CORS 없이도 PNG에 임베드되도록 same-origin proxy fallback을 유지해야 한다.",
+);
+assert.ok(
+  imageProxySource.includes("downloadFileFromR2") &&
+    imageProxySource.includes("requested.origin !== configured.origin"),
+  "이미지 프록시는 설정된 R2 공개 origin만 서버에서 읽어야 한다.",
 );
 assert.ok(
   nextConfigSource.includes("urlPattern: /^https?.*/") &&

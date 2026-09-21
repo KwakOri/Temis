@@ -1,6 +1,5 @@
 "use client";
 
-import { domToBlob } from "modern-screenshot";
 import React, {
   useCallback,
   useEffect,
@@ -15,6 +14,7 @@ import type {
 } from "@/types/template-studio";
 import {
   downloadStudioPng,
+  renderStudioPng,
   resizeStudioPng,
   sanitizeStudioExportFileName,
 } from "@/utils/template-studio/png-export";
@@ -206,13 +206,11 @@ export function TemplateStudioRuntimeShell({
          *
          * 옵션 대응: `pixelRatio` → `scale`, `cacheBust` → `fetch.bypassingCache`.
          */
-        const originalBlob = await domToBlob(element, {
-          fetch: { bypassingCache: true },
+        const originalBlob = await renderStudioPng(element, {
           height: previewSize.height,
-          scale: 1,
-          style: {
-            transform: "none",
-          },
+          pixelRatio: 1,
+          background: document.canvas.background ?? null,
+          fileName: `${sanitizeStudioExportFileName(displayName)}.png`,
           width: previewSize.width,
         });
         const downloadBlob =
@@ -229,7 +227,13 @@ export function TemplateStudioRuntimeShell({
         setIsSavingImage(false);
       }
     },
-    [displayName, isSavingImage, previewSize.height, previewSize.width],
+    [
+      document.canvas.background,
+      displayName,
+      isSavingImage,
+      previewSize.height,
+      previewSize.width,
+    ],
   );
 
   const openImageSaveModal = useCallback(() => {
