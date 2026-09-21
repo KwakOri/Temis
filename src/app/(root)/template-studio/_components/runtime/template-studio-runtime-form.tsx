@@ -36,6 +36,8 @@ import {
   findStudioArtistProfileTextInput,
   findStudioWeeklyMemoInput,
   isStudioProfileBlockImageInput,
+  STUDIO_ARTIST_PROFILE_TEXT_PLACEHOLDER,
+  STUDIO_WEEKLY_MEMO_PLACEHOLDER,
 } from "@/utils/template-studio/preset-inputs";
 import {
   getLocalizedStudioAddEntryDisabledReason,
@@ -125,14 +127,12 @@ const createEntryId = (dayId: StudioTimetableDayId, entryCount: number) => {
 const RuntimeImageUploadAction = ({
   label,
   removeLabel,
-  localOnlyNotice,
   inline = false,
   onFileSelect,
   onRemove,
 }: {
   label: string;
   removeLabel?: string;
-  localOnlyNotice?: string;
   inline?: boolean;
   onFileSelect: (file: File) => void;
   onRemove?: () => void;
@@ -140,7 +140,7 @@ const RuntimeImageUploadAction = ({
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   return (
-    <div className={cn("grid gap-1", inline && "min-w-0")}>
+    <div className={cn("grid gap-1", inline && "shrink-0")}>
       <div
         className={cn(
           onRemove ? "grid grid-cols-2 gap-2" : "flex justify-end",
@@ -180,11 +180,6 @@ const RuntimeImageUploadAction = ({
           onFileSelect(file);
         }}
       />
-      {localOnlyNotice ? (
-        <p className="text-[11px] leading-snug text-[var(--runtime-fg-muted)]">
-          {localOnlyNotice}
-        </p>
-      ) : null}
     </div>
   );
 };
@@ -683,11 +678,19 @@ export function TemplateStudioRuntimeForm({
         isArtistInput || isWeeklyMemoInput
           ? getLocalizedStudioPresetDefaultText(copy, value)
           : value;
-      const placeholder = isArtistInput
+      const presetPlaceholder = isArtistInput
         ? copy.artistPlaceholder
         : isWeeklyMemoInput
           ? copy.weeklyMemoPlaceholder
           : input.placeholder;
+      const isPresetPlaceholder =
+        (isArtistInput &&
+          input.placeholder === STUDIO_ARTIST_PROFILE_TEXT_PLACEHOLDER) ||
+        (isWeeklyMemoInput &&
+          input.placeholder === STUDIO_WEEKLY_MEMO_PLACEHOLDER);
+      const placeholder = isPresetPlaceholder
+        ? presetPlaceholder
+        : (input.placeholder ?? presetPlaceholder);
 
       const isMultiline = isArtistInput
         ? getStudioRuntimeInputMultiline(document, runtimeValues, input)
@@ -738,9 +741,6 @@ export function TemplateStudioRuntimeForm({
                 ? copy.changeImage
                 : copy.upload
             }
-            localOnlyNotice={
-              canUseLocalImageStorage ? copy.imageLocalOnlyNotice : undefined
-            }
             onFileSelect={(file) => uploadRuntimeImage(input, file, context)}
             onRemove={
               options.allowImageRemoval && hasRuntimeImage
@@ -770,9 +770,6 @@ export function TemplateStudioRuntimeForm({
           />
           <RuntimeImageUploadAction
             label={copy.upload}
-            localOnlyNotice={
-              canUseLocalImageStorage ? copy.imageLocalOnlyNotice : undefined
-            }
             onFileSelect={(file) => uploadRuntimeImage(input, file, context)}
           />
         </div>
@@ -843,19 +840,19 @@ export function TemplateStudioRuntimeForm({
               : undefined
           }
         >
-          {inlineImageInput
-            ? null
-            : group.contentInputs.map((input) =>
-                renderInput(
-                  input,
-                  {},
-                  {
-                    hideLabel: hideContentLabels,
-                    imageUploadOnly: input.type === "image",
-                    allowImageRemoval: isStudioProfileBlockImageInput(input),
-                  },
-                ),
-              )}
+          {inlineImageInput ? null : (
+            group.contentInputs.map((input) =>
+              renderInput(
+                input,
+                {},
+                {
+                  hideLabel: hideContentLabels,
+                  imageUploadOnly: input.type === "image",
+                  allowImageRemoval: isStudioProfileBlockImageInput(input),
+                },
+              ),
+            )
+          )}
         </StudioRuntimeGlobalInputCard>
       );
     });

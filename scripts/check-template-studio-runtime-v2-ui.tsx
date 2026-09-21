@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { TemplateStudioRuntimeForm } from "../src/app/(root)/template-studio/_components/runtime/template-studio-runtime-form";
 import { TemplateStudioRuntimeShell } from "../src/app/(root)/template-studio/_components/runtime/template-studio-runtime-shell";
 import { StudioRuntimeGlobalInputCard } from "../src/app/(root)/template-studio/_components/runtime/composition/studio-runtime-global-input-card";
+import { StudioTimetablePreview } from "../src/app/(root)/template-studio/_components/studio-timetable-preview";
 import type {
   StudioRuntimeValues,
   StudioTemplateDocument,
@@ -103,7 +104,7 @@ const singleEntryMarkup = renderForm(document, initialValues);
 assert.match(singleEntryMarkup, /aria-label="Runtime form sections"/);
 assert.match(singleEntryMarkup, />Timetable</);
 assert.match(singleEntryMarkup, />Weekly timetable</);
-assert.match(singleEntryMarkup, />Save as image</);
+assert.match(singleEntryMarkup, />Download image</);
 assert.match(
   singleEntryMarkup,
   /lucide-rotate-ccw/,
@@ -261,7 +262,7 @@ assert.doesNotMatch(removedInputMarkup, /Dynamic Global Check/);
 const koreanMarkup = renderForm(document, initialValues, "ko");
 assert.match(koreanMarkup, />시간표</);
 assert.match(koreanMarkup, />주간 시간표</);
-assert.match(koreanMarkup, />이미지로 저장</);
+assert.match(koreanMarkup, />이미지 다운로드</);
 assert.match(koreanMarkup, /aria-label="이전 주"/);
 assert.match(koreanMarkup, /aria-label="월요일 온라인"/);
 assert.match(koreanMarkup, /aria-label="월요일 게릴라"/);
@@ -509,6 +510,95 @@ const registeredImageMarkup = renderForm(
 assert.match(registeredImageMarkup, />Edit</);
 assert.match(registeredImageMarkup, />Delete</);
 assert.doesNotMatch(registeredImageMarkup, />Upload</);
+
+const localImageMarkup = renderToStaticMarkup(
+  <TemplateStudioRuntimeForm
+    document={groupedDocument}
+    locale="ko"
+    runtimeValues={registeredImageValues}
+    setRuntimeValues={() => undefined}
+    onReset={() => undefined}
+    templateId="runtime-ui-check"
+    storageOwnerId="runtime-ui-owner"
+  />,
+);
+const profileCardMarkup = localImageMarkup.slice(
+  localImageMarkup.indexOf(`>${STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL}</h3>`),
+  localImageMarkup.indexOf(">Artist</h3>"),
+);
+assert.match(profileCardMarkup, />수정</);
+assert.match(profileCardMarkup, />삭제</);
+assert.doesNotMatch(localImageMarkup, /이 이미지는 이 브라우저에만 저장되며/);
+
+const profilePreviewDocument = structuredClone(groupedDocument);
+const profileComposition =
+  profilePreviewDocument.domains?.timetable?.composition;
+assert.ok(profileComposition);
+profileComposition.rootObjectIds.push("profile-image-regression");
+profileComposition.objects["profile-image-regression"] = {
+  id: "profile-image-regression",
+  kind: "image",
+  label: "user-image-placeholder-regression",
+  profileRole: "userImage",
+  style: { left: 0, top: 0, width: 100, height: 100 },
+  assetSlots: { asset: { inputId: "profile_image", fit: "cover" } },
+};
+const renderProfilePreview = (values: StudioRuntimeValues) =>
+  renderToStaticMarkup(
+    <StudioTimetablePreview
+      document={profilePreviewDocument}
+      runtimeValues={values}
+    />,
+  );
+assert.doesNotMatch(
+  renderProfilePreview(
+    createStudioInitialRuntimeValues(profilePreviewDocument),
+  ),
+  /default-profile\.png|user-image-placeholder-regression/,
+);
+assert.match(
+  renderProfilePreview(registeredImageValues),
+  /blob:registered-profile-image/,
+);
+const removedProfileValues = structuredClone(registeredImageValues);
+removedProfileValues.global.profile_image = "";
+assert.doesNotMatch(
+  renderProfilePreview(removedProfileValues),
+  /default-profile\.png|user-image-placeholder-regression|blob:registered-profile-image/,
+);
+assert.equal(getStudioRuntimeCopy("ko").save, "내용 저장");
+
+const artistInput = groupedDocument.inputs.artist_text;
+assert.equal(artistInput.type, "text");
+if (artistInput.type !== "text") throw new Error("Expected text input");
+artistInput.placeholder = "작가명 적는 곳";
+const emptyArtistValues = createStudioInitialRuntimeValues(groupedDocument);
+const renderArtistPreview = (values: StudioRuntimeValues) =>
+  renderToStaticMarkup(
+    <StudioTimetablePreview
+      document={groupedDocument}
+      runtimeValues={values}
+    />,
+  );
+assert.match(
+  renderForm(groupedDocument, emptyArtistValues, "ko"),
+  /placeholder="작가명 적는 곳"/,
+);
+assert.match(renderArtistPreview(emptyArtistValues), />작가명 적는 곳</);
+assert.equal(
+  emptyArtistValues.global.artist_text,
+  "",
+  "Placeholder must remain display-only.",
+);
+const filledArtistValues = structuredClone(emptyArtistValues);
+filledArtistValues.global.artist_text = "직접 입력한 작가명";
+assert.match(renderArtistPreview(filledArtistValues), />직접 입력한 작가명</);
+assert.doesNotMatch(
+  renderArtistPreview(filledArtistValues),
+  />작가명 적는 곳</,
+);
+artistInput.placeholder = undefined;
+assert.doesNotMatch(renderArtistPreview(emptyArtistValues), />Artist Text</);
 
 const shellMarkup = renderToStaticMarkup(
   <TemplateStudioRuntimeShell

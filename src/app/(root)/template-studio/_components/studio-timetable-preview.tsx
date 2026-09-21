@@ -736,6 +736,10 @@ const resolveTimetableObjectText = (
     runtimeValues,
     object.binding,
   );
+  if (!value && object.binding?.kind === "inputText") {
+    const input = document.inputs[object.binding.inputId];
+    return input?.type === "text" ? (input.placeholder ?? "") : "";
+  }
   return getLocalizedStudioPresetDefaultText(copy, value || object.label);
 };
 

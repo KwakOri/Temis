@@ -132,6 +132,12 @@ export const ensureStudioVariantStatusCardBackgroundAssets = (
             Boolean(node) && isStudioStatusCardBackgroundNode(node),
         )
         .forEach((node) => {
+          // Older sample cards persisted a decorative frame around the
+          // background. Remove only that default, preserving authored borders.
+          const style = node.styleId ? document.styles[node.styleId] : undefined;
+          if (style?.border === "1px solid rgba(148, 163, 184, 0.35)") {
+            delete style.border;
+          }
           const editableSlots = node.meta?.exception?.editableSlots;
           const hasLegacyStatusSlots = Object.keys(node.assetSlots ?? {}).some(
             (slotName) => slotName !== "asset",
