@@ -67,7 +67,6 @@ export interface StudioRuntimeCopy {
   imageTooLarge: string;
   imageStorageFailed: string;
   imageQuotaExceeded: string;
-  imageLocalOnlyNotice: string;
   cropImage: string;
   cropDescription: string;
   cropZoom: string;
@@ -114,9 +113,9 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     language: "언어",
     back: "뒤로가기",
     previewScale: "미리보기 배율",
-    saveImage: "이미지로 저장",
-    savingImage: "저장 중...",
-    saveImageFailed: "이미지를 저장하지 못했습니다.",
+    saveImage: "이미지 다운로드",
+    savingImage: "다운로드 중...",
+    saveImageFailed: "이미지를 다운로드하지 못했습니다.",
     imageSaveTitle: "시간표 저장",
     imageSaveSectionTitle: "이미지 저장",
     imageSaveDescription:
@@ -127,8 +126,8 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     imageSizeOriginal: "원본",
     selectedImageSize: "선택된 크기",
     imageResolution: "해상도",
-    saveImageAction: "저장하기",
-    save: "저장",
+    saveImageAction: "다운로드",
+    save: "내용 저장",
     saving: "저장 중...",
     saveFailed: "저장하지 못했습니다.",
     saved: "저장되었습니다",
@@ -162,8 +161,6 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     imageStorageFailed: "이미지를 이 브라우저에 저장하지 못했습니다.",
     imageQuotaExceeded:
       "브라우저 저장 공간이 부족해 이미지를 저장하지 못했습니다.",
-    imageLocalOnlyNotice:
-      "이 이미지는 이 브라우저에만 저장되며 사이트 데이터를 삭제하면 사라집니다.",
     cropImage: "이미지 자르기",
     cropDescription: "프로필 영역 비율에 맞춰 표시할 부분을 선택해 주세요.",
     cropZoom: "확대",
@@ -209,9 +206,9 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     language: "Language",
     back: "Back",
     previewScale: "Preview scale",
-    saveImage: "Save as image",
-    savingImage: "Saving...",
-    saveImageFailed: "Could not save the image.",
+    saveImage: "Download image",
+    savingImage: "Downloading...",
+    saveImageFailed: "Could not download the image.",
     imageSaveTitle: "Save timetable",
     imageSaveSectionTitle: "Save image",
     imageSaveDescription:
@@ -222,8 +219,8 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     imageSizeOriginal: "Original",
     selectedImageSize: "Selected size",
     imageResolution: "Resolution",
-    saveImageAction: "Save image",
-    save: "Save",
+    saveImageAction: "Download image",
+    save: "Save content",
     saving: "Saving...",
     saveFailed: "Could not save.",
     saved: "Saved",
@@ -256,8 +253,6 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     imageTooLarge: "Image files can't be larger than 20MB.",
     imageStorageFailed: "Could not save this image in this browser.",
     imageQuotaExceeded: "Not enough browser storage space to save this image.",
-    imageLocalOnlyNotice:
-      "This image is stored only in this browser and is lost if you clear site data.",
     cropImage: "Crop image",
     cropDescription: "Choose the area to display in the profile frame.",
     cropZoom: "Zoom",
@@ -303,9 +298,9 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     language: "言語",
     back: "戻る",
     previewScale: "プレビュー倍率",
-    saveImage: "画像として保存",
-    savingImage: "保存中...",
-    saveImageFailed: "画像を保存できませんでした。",
+    saveImage: "画像をダウンロード",
+    savingImage: "ダウンロード中...",
+    saveImageFailed: "画像をダウンロードできませんでした。",
     imageSaveTitle: "時間割を保存",
     imageSaveSectionTitle: "画像を保存",
     imageSaveDescription:
@@ -316,8 +311,8 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     imageSizeOriginal: "オリジナル",
     selectedImageSize: "選択したサイズ",
     imageResolution: "解像度",
-    saveImageAction: "保存する",
-    save: "保存",
+    saveImageAction: "ダウンロード",
+    save: "内容を保存",
     saving: "保存中...",
     saveFailed: "保存できませんでした。",
     saved: "保存しました",
@@ -351,8 +346,6 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     imageStorageFailed: "この画像をブラウザに保存できませんでした。",
     imageQuotaExceeded:
       "ブラウザの保存容量が不足しているため画像を保存できませんでした。",
-    imageLocalOnlyNotice:
-      "この画像はこのブラウザにのみ保存され、サイトデータを削除すると失われます。",
     cropImage: "画像を切り抜く",
     cropDescription: "プロフィール枠に表示する範囲を選択してください。",
     cropZoom: "拡大",

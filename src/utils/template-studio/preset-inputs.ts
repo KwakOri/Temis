@@ -31,6 +31,8 @@ export const STUDIO_TOP_OBJECT_IMAGE_INPUT_LABEL = "Top Object Image";
 const STUDIO_PROFILE_BLOCK_IMAGE_MATCHING_LABELS = new Set([
   normalizeInputLabel(STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL),
   normalizeInputLabel(STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LEGACY_LABEL),
+  normalizeInputLabel("Profile Image"),
+  normalizeInputLabel("User Image"),
 ]);
 
 export const isStudioProfileBlockImageInput = (
