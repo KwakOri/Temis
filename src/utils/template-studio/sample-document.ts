@@ -122,7 +122,6 @@ export const createSampleStudioDocument = (): StudioTemplateDocument => {
         height: 500,
         backgroundColor: "transparent",
         borderRadius: 24,
-        boxShadow: "0 24px 80px rgba(15, 23, 42, 0.18)",
         overflow: "hidden",
       },
       style_day_label: {
