@@ -113,7 +113,7 @@ export function StudioRuntimeTimePicker({
   };
 
   return (
-    <div className="grid gap-1.5">
+    <div className="grid min-w-0 gap-1.5">
       <label
         className={cn(studioRuntimeLabelClass, hideLabel && "sr-only")}
         htmlFor={controlId}
@@ -123,7 +123,10 @@ export function StudioRuntimeTimePicker({
 
       {isMobile ? (
         <input
-          className={studioRuntimeControlVariants({ size: "compact" })}
+          className={cn(
+            studioRuntimeControlVariants({ size: "compact" }),
+            "min-w-0",
+          )}
           disabled={disabled}
           id={controlId}
           type="time"

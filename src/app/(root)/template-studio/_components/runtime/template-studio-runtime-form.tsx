@@ -909,7 +909,7 @@ export function TemplateStudioRuntimeForm({
         showIndex={entryCount > 1}
         onRemove={() => removeEntry(dayId, entryIndex)}
       >
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_7.75rem] items-end gap-1">
           <StudioRuntimeTimePicker
             disabled={Boolean(entry.isGuerrilla)}
             hideLabel
@@ -924,7 +924,12 @@ export function TemplateStudioRuntimeForm({
           <StudioRuntimeToggle
             ariaLabel={guerrillaAriaLabel}
             checked={Boolean(entry.isGuerrilla)}
-            className="h-10"
+            className="h-10 w-[7.75rem] justify-end gap-2"
+            label={
+              <span className="whitespace-nowrap text-[11px]">
+                {copy.guerrilla}
+              </span>
+            }
             title={`${copy.guerrilla} ${entry.isGuerrilla ? "ON" : "OFF"}`}
             onCheckedChange={(isGuerrilla) =>
               updateEntryGuerrilla(dayId, entryIndex, isGuerrilla)
@@ -962,7 +967,7 @@ export function TemplateStudioRuntimeForm({
   return (
     <>
       <aside
-        className="flex h-[44vh] min-h-[320px] w-full shrink-0 flex-col border-t border-[var(--runtime-border)] bg-[var(--runtime-form-bg)] text-[var(--runtime-fg)] md:h-full md:w-[380px] md:border-l md:border-t-0"
+        className="flex h-[60vh] min-h-[320px] w-full shrink-0 flex-col border-t border-[var(--runtime-border)] bg-[var(--runtime-form-bg)] text-[var(--runtime-fg)] md:h-full md:w-[380px] md:border-l md:border-t-0"
         data-testid="template-studio-runtime-form"
       >
         <div className="flex min-h-0 flex-1 flex-col">
