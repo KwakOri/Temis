@@ -282,6 +282,7 @@ export function TemplateStudioRuntimeShell({
             </select>
           }
           previewAreaTestId="template-studio-preview-area"
+          mobilePreviewBottomAlign
           previewSize={previewSize}
           scaleLabel={copy.previewScale}
           scaleInputId="template-studio-preview-scale"

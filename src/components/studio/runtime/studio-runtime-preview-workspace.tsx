@@ -24,6 +24,7 @@ interface StudioRuntimePreviewWorkspaceProps {
   previewAreaTestId?: string;
   controlsTestId?: string;
   scaleInputId?: string;
+  mobilePreviewBottomAlign?: boolean;
 }
 
 export function StudioRuntimePreviewWorkspace({
@@ -39,8 +40,12 @@ export function StudioRuntimePreviewWorkspace({
   previewAreaTestId,
   controlsTestId,
   scaleInputId = "studio-runtime-preview-scale",
+  mobilePreviewBottomAlign = false,
 }: StudioRuntimePreviewWorkspaceProps) {
   const { viewportTransform } = viewport;
+  const previewPositionClass = mobilePreviewBottomAlign
+    ? "items-end pb-2 md:items-center md:pb-0"
+    : "items-center";
 
   return (
     <section
@@ -89,7 +94,7 @@ export function StudioRuntimePreviewWorkspace({
       </div>
 
       <div
-        className="absolute inset-0 flex items-center justify-center overflow-hidden"
+        className={`absolute inset-0 flex justify-center overflow-hidden ${previewPositionClass}`}
         style={{ touchAction: "none" }}
         onDoubleClick={viewport.fitToViewport}
         onPointerCancel={viewport.stopPanning}
