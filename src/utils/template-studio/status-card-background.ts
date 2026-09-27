@@ -134,9 +134,16 @@ export const ensureStudioVariantStatusCardBackgroundAssets = (
         .forEach((node) => {
           // Older sample cards persisted a decorative frame around the
           // background. Remove only that default, preserving authored borders.
-          const style = node.styleId ? document.styles[node.styleId] : undefined;
+          const style = node.styleId
+            ? document.styles[node.styleId]
+            : undefined;
           if (style?.border === "1px solid rgba(148, 163, 184, 0.35)") {
             delete style.border;
+          }
+          // The sample's box shadow follows the rectangular image element,
+          // leaving clipped marks around transparent corners of card artwork.
+          if (style?.boxShadow === "0 24px 80px rgba(15, 23, 42, 0.18)") {
+            delete style.boxShadow;
           }
           const editableSlots = node.meta?.exception?.editableSlots;
           const hasLegacyStatusSlots = Object.keys(node.assetSlots ?? {}).some(
