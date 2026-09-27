@@ -1,6 +1,6 @@
 "use client";
 
-import { ImageDown, X } from "lucide-react";
+import { ImageDown, LoaderCircle, X } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 
 import {
@@ -219,16 +219,31 @@ const StudioRuntimeImageSaveModal: React.FC<
         </div>
 
         <footer className="flex shrink-0 justify-end gap-3 border-t border-[var(--runtime-border)] bg-[var(--runtime-card-bg)] p-5 sm:p-6">
-          <StudioRuntimeActionButton
-            disabled={isSaving}
-            variant="secondary"
-            onClick={handleClose}
-          >
-            {copy.cancel}
-          </StudioRuntimeActionButton>
-          <StudioRuntimeActionButton disabled={isSaving} onClick={handleSave}>
-            {isSaving ? copy.savingImage : copy.saveImageAction}
-          </StudioRuntimeActionButton>
+          {isSaving ? (
+            <div
+              aria-live="polite"
+              className="flex min-h-10 w-full items-center justify-center gap-2 text-sm font-semibold text-[var(--runtime-fg-muted)]"
+              role="status"
+            >
+              <LoaderCircle
+                aria-hidden="true"
+                className="size-4 animate-spin"
+              />
+              <span>{copy.savingImage}</span>
+            </div>
+          ) : (
+            <>
+              <StudioRuntimeActionButton
+                variant="secondary"
+                onClick={handleClose}
+              >
+                {copy.cancel}
+              </StudioRuntimeActionButton>
+              <StudioRuntimeActionButton onClick={handleSave}>
+                {copy.saveImageAction}
+              </StudioRuntimeActionButton>
+            </>
+          )}
         </footer>
       </div>
     </div>
