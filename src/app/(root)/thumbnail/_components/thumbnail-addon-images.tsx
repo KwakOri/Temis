@@ -98,12 +98,11 @@ export function ThumbnailAddonImages({
       <StudioRuntimeActionButton
         fullWidth
         variant="secondary"
-        aria-label={`${input.label} 애드온 이미지 추가`}
+        aria-label={`${input.label} 이미지 추가`}
         disabled={!loaded || uploading || !imageNodes.length}
         onClick={() => fileInput.current?.click()}
       >
-        <Plus size={20} />{" "}
-        {uploading ? "이미지 추가 중…" : "애드온 이미지 추가"}
+        <Plus size={20} /> {uploading ? "이미지 추가 중…" : "이미지 추가"}
       </StudioRuntimeActionButton>
       <input
         ref={fileInput}
@@ -175,15 +174,23 @@ export function ThumbnailAddonImages({
               variant={
                 activeImage?.inputId === image.id ? "primary" : "secondary"
               }
-              aria-label="애드온 이미지 직접 배치"
+              aria-label={
+                activeImage?.inputId === image.id
+                  ? "애드온 이미지 변경 완료"
+                  : "애드온 이미지 직접 배치"
+              }
               onClick={() =>
-                onAdjustImage?.({
-                  inputId: image.id,
-                  nodeId: `${imageNodes[0].id}:${image.id}`,
-                })
+                onAdjustImage?.(
+                  activeImage?.inputId === image.id
+                    ? null
+                    : {
+                        inputId: image.id,
+                        nodeId: `${imageNodes[0].id}:${image.id}`,
+                      },
+                )
               }
             >
-              직접 배치
+              {activeImage?.inputId === image.id ? "변경 완료" : "직접 배치"}
             </StudioRuntimeActionButton>
             <StudioRuntimeActionButton
               variant="secondary"

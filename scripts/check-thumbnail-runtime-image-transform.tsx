@@ -283,14 +283,24 @@ const form = renderToStaticMarkup(
     activeImage={{ inputId: "photo1", nodeId: "copy" }}
   />,
 );
-assert.match(form, /aria-label="photo1 직접 배치" aria-pressed="true"/);
+assert.match(form, /aria-label="photo1 변경 완료"/);
+assert.doesNotMatch(form, /aria-label="photo1 배치 방식"/);
 assert.match(form, /aria-label="photo2 채우기" aria-pressed="true"/);
 assert.match(form, /aria-label="photo3 채우기" aria-pressed="true"/);
 assert.equal(
   (form.match(/aria-pressed="true"/g) ?? []).length,
-  3,
-  "Each image must have exactly one selected placement mode.",
+  2,
+  "The adjusting image shows Done; the other images retain their placement tabs.",
 );
+const finishedForm = renderToStaticMarkup(
+  <ThumbnailRuntimeForm {...formProps} />,
+);
+assert.match(
+  finishedForm,
+  /aria-label="photo1 위치 조정" aria-pressed="true"/,
+  "Finishing adjustment must preserve the manual placement mode.",
+);
+assert.doesNotMatch(finishedForm, /photo1 변경 완료|photo1 조정할 레이어/);
 assert.match(form, /<option value="copy" selected="">Copy<\/option>/);
 assert.doesNotMatch(form, / x 초점| y 초점/);
 assert.doesNotMatch(form, /이미지 자르기/);
@@ -313,7 +323,7 @@ document.inputs.photo3 = {
 const restrictedForm = renderToStaticMarkup(
   <ThumbnailRuntimeForm {...formProps} />,
 );
-assert.match(restrictedForm, /aria-label="photo3 직접 배치"[^>]*disabled=""/);
+assert.match(restrictedForm, /aria-label="photo3 위치 조정"[^>]*disabled=""/);
 assert.match(restrictedForm, /aria-label="photo3 채우기"[^>]*disabled=""/);
 assert.doesNotMatch(restrictedForm, /이미지 자르기/);
 assert.match(restrictedForm, /aria-label="photo3 이미지 선택"[^>]*disabled=""/);
@@ -337,7 +347,7 @@ assert.doesNotMatch(emptyForm, /photo1 이미지 제거/);
 assert.match(emptyForm, /photo2 이미지 제거/);
 assert.doesNotMatch(
   emptyForm,
-  /photo1 배치 방식|photo1 채우기|photo1 직접 배치|photo1 이미지 자르기|photo1 배치 재설정/,
+  /photo1 배치 방식|photo1 채우기|photo1 위치 조정|photo1 변경 완료|photo1 이미지 자르기|photo1 배치 재설정/,
 );
 
 const cropProps = {

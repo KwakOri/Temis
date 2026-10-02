@@ -415,42 +415,53 @@ export function ThumbnailRuntimeForm({
 
         {value ? (
           <div className="grid grid-cols-[minmax(0,1fr)_32px] items-center gap-2">
-            <StudioRuntimeSegmentedControl
-              ariaLabel={`${input.label} 배치 방식`}
-              className="min-w-0"
-              size="compact"
-              value={placementMode}
-              options={[
-                {
-                  id: "cover",
-                  label: "채우기",
-                  ariaLabel: `${input.label} 채우기`,
-                  disabled: !policy.allowFitChange || !imageNodes.length,
-                },
-                {
-                  id: "manual",
-                  label: "직접 배치",
-                  ariaLabel: `${input.label} 직접 배치`,
-                  disabled: !canAdjust,
-                },
-              ]}
-              onValueChange={(mode) => {
-                if (mode === "cover") fillImage(input);
-                else {
-                  setRuntimeImageOverrides((current) => ({
-                    ...current,
-                    [input.id]: {
-                      ...current[input.id],
-                      placementMode: "manual",
-                    },
-                  }));
-                  onAdjustImage?.({
-                    inputId: input.id,
-                    nodeId: imageNodes[0].id,
-                  });
-                }
-              }}
-            />
+            {isAdjusting && canAdjust ? (
+              <StudioRuntimeActionButton
+                fullWidth
+                variant="primary"
+                aria-label={`${input.label} 변경 완료`}
+                onClick={() => onAdjustImage?.(null)}
+              >
+                변경 완료
+              </StudioRuntimeActionButton>
+            ) : (
+              <StudioRuntimeSegmentedControl
+                ariaLabel={`${input.label} 배치 방식`}
+                className="min-w-0"
+                size="compact"
+                value={placementMode}
+                options={[
+                  {
+                    id: "cover",
+                    label: "채우기",
+                    ariaLabel: `${input.label} 채우기`,
+                    disabled: !policy.allowFitChange || !imageNodes.length,
+                  },
+                  {
+                    id: "manual",
+                    label: "위치 조정",
+                    ariaLabel: `${input.label} 위치 조정`,
+                    disabled: !canAdjust,
+                  },
+                ]}
+                onValueChange={(mode) => {
+                  if (mode === "cover") fillImage(input);
+                  else {
+                    setRuntimeImageOverrides((current) => ({
+                      ...current,
+                      [input.id]: {
+                        ...current[input.id],
+                        placementMode: "manual",
+                      },
+                    }));
+                    onAdjustImage?.({
+                      inputId: input.id,
+                      nodeId: imageNodes[0].id,
+                    });
+                  }
+                }}
+              />
+            )}
             <StudioRuntimeActionButton
               size="icon"
               variant="secondary"

@@ -127,6 +127,8 @@ const form = renderToStaticMarkup(
     setRuntimeImageOverrides={() => {}}
     addonImages={images.slice(0, 2)}
     setAddonImages={() => {}}
+    activeImage={{ inputId: images[0].id, nodeId: `${nodeId}:${images[0].id}` }}
+    onAdjustImage={() => {}}
     templateId="test"
     storageOwnerId="owner"
     templateName="test"
@@ -138,7 +140,10 @@ const form = renderToStaticMarkup(
   />,
 );
 assert.match(form, /data-thumbnail-user-images=/);
-assert.match(form, /애드온 이미지 추가/);
+assert.match(form, /aria-label="user_images 이미지 추가"/);
+assert.doesNotMatch(form, /애드온 이미지 추가/);
+assert.match(form, /aria-label="애드온 이미지 변경 완료"/);
+assert.match(form, /aria-label="애드온 이미지 직접 배치"/);
 assert.doesNotMatch(form, /이미지 자르기/);
 assert.equal(
   (form.match(/>채우기<\/button>/g) ?? []).length,
