@@ -143,7 +143,7 @@ const markup = renderToStaticMarkup(
   />,
 );
 
-assert.match(markup, /컴포넌트 카드 링크/);
+assert.match(markup, /Figma 프레임 또는 GRID 링크/);
 assert.match(markup, /type="url"/);
 assert.match(markup, />분석</);
 assert.match(markup, /candidate-mon/);
@@ -257,10 +257,24 @@ const importFunctionSource = clientSource.slice(
   clientSource.indexOf("const importFigmaCandidate"),
   clientSource.indexOf("const updateNode"),
 );
+const frameImportFunctionSource = importFunctionSource.slice(
+  importFunctionSource.indexOf("if (figmaFrameCandidate)"),
+  importFunctionSource.indexOf("const selectedCandidate"),
+);
+const gridImportFunctionSource = importFunctionSource.slice(
+  importFunctionSource.indexOf("const selectedCandidate"),
+);
 assert.ok(
-  importFunctionSource.indexOf("const importResult = applyStudioFigmaGridCandidate") <
-    importFunctionSource.indexOf("captureHistory();"),
-  "Failed candidate validation must happen before the history snapshot.",
+  frameImportFunctionSource.indexOf("const importResult = applyStudioFigmaFrameImport") <
+    frameImportFunctionSource.indexOf("captureHistory();") &&
+    frameImportFunctionSource.indexOf("if (!importResult.ok)") <
+    frameImportFunctionSource.indexOf("captureHistory();"),
+  "Failed frame validation must happen before the history snapshot.",
+);
+assert.ok(
+  gridImportFunctionSource.indexOf("const importResult = applyStudioFigmaGridCandidate") <
+    gridImportFunctionSource.indexOf("captureHistory();"),
+  "Failed GRID candidate validation must happen before the history snapshot.",
 );
 assert.doesNotMatch(importFunctionSource, /updateDocument\(/);
 assert.match(clientSource, /setSelectedCardComponentId\(importResult\.componentId\)/);

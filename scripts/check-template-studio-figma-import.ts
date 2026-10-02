@@ -9,6 +9,7 @@ import type {
 import type { StudioAsset } from "../src/types/template-studio";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
 import { applyStudioFigmaGridCandidate } from "../src/utils/template-studio/figma-import/figma-component-import";
+import { applyStudioFigmaFrameImport } from "../src/utils/template-studio/figma-import/figma-frame-import";
 import { ensureStudioIndependentStatusVariants } from "../src/utils/template-studio/status-variants";
 import { parseFigmaDesignUrl } from "../src/utils/template-studio/figma-import/figma-url";
 import {
@@ -37,6 +38,7 @@ import {
 } from "../src/services/server/figmaTemplateStudioService";
 import {
   groupFigmaGridPlacements,
+  inferFigmaGridOriginVariantFamily,
   inferFigmaGridOriginVariantStatus,
   inferFigmaGridVariantStatus,
   resolveFigmaOriginComponent,
@@ -251,6 +253,62 @@ assert.equal(
   }),
   "online",
 );
+for (const [variantName, expectedStatus, expectedFamily] of [
+  ["속성 1=LONG_ON", "online", "LONG"],
+  ["속성 1=LONG_OFF", "offline", "LONG"],
+  ["속성 1=SHORT_ON", "online", "SHORT"],
+  ["속성 1=SHORT_OFF", "offline", "SHORT"],
+] as const) {
+  const origin = {
+    componentId: variantName,
+    componentNodeId: variantName,
+    componentSetNodeId: "variant-set",
+    componentName: variantName,
+  };
+  assert.equal(
+    inferFigmaGridOriginVariantStatus({
+      root: { id: variantName, name: variantName, type: "COMPONENT" },
+      origin,
+    }),
+    expectedStatus,
+  );
+  assert.equal(inferFigmaGridOriginVariantFamily(origin), expectedFamily);
+}
+assert.equal(
+  inferFigmaGridOriginVariantFamily({ componentName: "Online Origin" }),
+  null,
+);
+const frameLayoutDocument = createSampleStudioDocument();
+const frameLayoutResult = applyStudioFigmaFrameImport(frameLayoutDocument, {
+  candidateId: "1555:17498",
+  label: "edit",
+  frame: { width: 4000, height: 2250 },
+  layers: [],
+  grid: {
+    sourceNodeId: "1555:17565",
+    bounds: { left: 1114, top: 523, width: 2856, height: 1549.995 },
+    zIndex: 2,
+    placements: [
+      ["1555:17566", 1183, 523, 905, 739],
+      ["1555:17567", 1114, 1358, 693.43, 714.995],
+      ["1555:17568", 1830.43, 1289, 693.43, 714.995],
+      ["1555:17569", 2546.86, 1358, 693.43, 714.995],
+      ["1555:17570", 3263.29, 1289, 693.43, 714.995],
+      ["1555:17571", 2124, 523, 905, 739],
+      ["1555:17572", 3065, 523, 905, 739],
+    ].map(([sourceNodeId, left, top, width, height]) => ({
+      sourceNodeId: String(sourceNodeId),
+      bounds: { left: Number(left), top: Number(top), width: Number(width), height: Number(height) },
+    })),
+  },
+  gridCandidates: [],
+  warnings: [],
+});
+assert.equal(frameLayoutResult.ok, true);
+const frameDayCardsLayout = frameLayoutDocument.domains!.timetable!.dayCardsLayout!;
+assert.equal(frameDayCardsLayout.columns, 4, "staggered bottom cards form one four-column row");
+assert.equal(frameDayCardsLayout.rows, 2, "small y offsets within a row do not create extra rows");
+assert.equal(frameDayCardsLayout.slots?.length, 8);
 assert.equal(
   inferFigmaGridOriginVariantStatus({
     root: { id: "origin-conflict", name: "Origin", type: "COMPONENT", componentProperties: { status: { value: "ONLINE" }, variant: { value: "OFFLINE" } } },
@@ -1396,13 +1454,13 @@ const runRouteContractChecks = async () => {
         return new Response(null, {
           headers: {
             "content-type": "image/png",
-            "content-length": String(10 * 1024 * 1024 + 1),
+            "content-length": String(50 * 1024 * 1024 + 1),
           },
         });
       }
       if (url === "https://temporary.example/stream.png") {
         const chunks = [
-          new Uint8Array(10 * 1024 * 1024),
+          new Uint8Array(50 * 1024 * 1024),
           new Uint8Array([1]),
           new Uint8Array([2]),
         ];
@@ -1448,12 +1506,20 @@ const runRouteContractChecks = async () => {
       }),
     );
     const nonGridRouteBody = await nonGridRouteResponse.text();
-    assert.equal(nonGridRouteResponse.status, 422);
+    assert.equal(nonGridRouteResponse.status, 200);
+    const nonGridRoutePayload = JSON.parse(nonGridRouteBody) as {
+      frameCandidate?: { label?: string; grid?: unknown; layers?: unknown[] };
+      candidates?: unknown[];
+    };
+    assert.equal(nonGridRoutePayload.frameCandidate?.label, "PROFILE");
+    assert.equal(nonGridRoutePayload.frameCandidate?.grid, null);
+    assert.ok((nonGridRoutePayload.frameCandidate?.layers?.length ?? 0) > 0);
+    assert.equal(nonGridRoutePayload.candidates?.length, 0);
     assert.equal(nonGridRouteBody.includes(secretToken), false);
     assert.equal(nonGridRouteBody.includes(privateFigmaUrl), false);
 
     selectedRootName = "GRID";
-    selectedRootType = "GROUP";
+    selectedRootType = "VECTOR";
     const unsupportedRootTypeResponse = await createFigmaGridAnalyzeHandler({
       requireActor: async () => ({ ok: true, userId: 1 }),
     })(
@@ -1506,7 +1572,7 @@ const runRouteContractChecks = async () => {
       discovered.candidates[0]?.assets.find((asset) => asset.sourceNodeId === "effect-leaf")?.src ?? "",
       /^data:image\/png;base64,/,
     );
-    assert.match(discovered.candidates[0]?.warnings[0] ?? "", /10 MiB/);
+    assert.match(discovered.candidates[0]?.warnings[0] ?? "", /50 MiB/);
 
     const asset = await exportFigmaNodeAsDataUrl(
       "T2VDXkMPVFa6yEl9FnVvYo",
@@ -2734,7 +2800,7 @@ const runComponentImportChecks = () => {
     const remoteAssetCandidate = createComponentImportCandidate();
     remoteAssetCandidate.component.assets[0]!.src = unsafeSource;
     const rejected = applyStudioFigmaGridCandidate(rejectedDocument, remoteAssetCandidate);
-    assert.deepEqual(rejected, { ok: false, reason: "online variant: Candidate asset source must be a supported data URL" });
+    assert.deepEqual(rejected, { ok: false, reason: "online variant: Candidate asset source must be a supported data URL or verified R2 asset" });
     assert.equal(JSON.stringify(rejectedDocument), rejectedBefore);
   }
 

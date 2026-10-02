@@ -19,7 +19,7 @@ import { createHash } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 const PREVIEW_MIME_TYPE = "image/png";
-const MAX_PREVIEW_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_PREVIEW_SIZE_BYTES = 50 * 1024 * 1024;
 const PNG_SIGNATURE = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
 ]);
@@ -151,7 +151,7 @@ export async function POST(
 
     if (file.size <= 0 || file.size > MAX_PREVIEW_SIZE_BYTES) {
       return NextResponse.json(
-        { error: "자동 미리보기 이미지 크기는 10MB 이하여야 합니다." },
+        { error: "자동 미리보기 이미지 크기는 50MB 이하여야 합니다." },
         { status: 400 },
       );
     }

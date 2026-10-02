@@ -17,6 +17,7 @@ import type {
   StudioTimetableCapabilityKey,
   StudioWebFontSource,
 } from "@/types/template-studio";
+import type { StudioFigmaFrameCandidate } from "@/types/template-studio-figma";
 import { getStudioTimetableCapabilities } from "@/utils/template-studio/timetable-capabilities";
 import {
   getStudioCardsGuide,
@@ -69,6 +70,7 @@ interface StudioSettingsModalProps {
   onWebFontsChange: (sources: StudioWebFontSource[]) => void;
   figmaImport: {
     candidates: ImportCandidate[];
+    frameCandidate?: StudioFigmaFrameCandidate | null;
     errorMessage: string | null;
     figmaUrl: string;
     isAnalyzing: boolean;

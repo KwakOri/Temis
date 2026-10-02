@@ -193,8 +193,10 @@ import {
 import {} from "@/utils/template-studio/text-wrap";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
 import { applyStudioFigmaGridCandidate } from "@/utils/template-studio/figma-import/figma-component-import";
+import { applyStudioFigmaFrameImport } from "@/utils/template-studio/figma-import/figma-frame-import";
 import { applyStudioFigmaReviewEdits } from "@/utils/template-studio/figma-import/figma-review-edits";
 import { getStudioCustomFontFamilies } from "@/utils/template-studio/web-fonts";
+import type { StudioFigmaFrameCandidate } from "@/types/template-studio-figma";
 
 import {
   clampStudioPreviewScale,
@@ -650,6 +652,7 @@ export function TemplateStudioClient({
     useState<StudioPersistenceOperationState | null>(null);
   const [figmaUrl, setFigmaUrl] = useState("");
   const [figmaCandidates, setFigmaCandidates] = useState<ImportCandidate[]>([]);
+  const [figmaFrameCandidate, setFigmaFrameCandidate] = useState<StudioFigmaFrameCandidate | null>(null);
   const [selectedFigmaCandidateId, setSelectedFigmaCandidateId] = useState<string | null>(null);
   const [figmaAnalysisPending, setFigmaAnalysisPending] = useState(false);
   const [figmaImportPending, setFigmaImportPending] = useState(false);
@@ -1433,6 +1436,7 @@ export function TemplateStudioClient({
   );
 
   const {
+    ensureTemplateId,
     exportJson: exportStudioJson,
     importJsonFile: importStudioJsonFile,
     loadRemoteTemplate,
@@ -1511,12 +1515,26 @@ export function TemplateStudioClient({
     try {
       const response = await TemplateStudioService.analyzeFigmaGridComponent(requestedUrl);
       if (figmaAnalysisSequenceRef.current !== requestSequence) return;
-      setFigmaCandidates(response.candidates);
-      setSelectedFigmaCandidateId(response.candidates.length === 1 ? response.candidates[0]!.candidateId : null);
-      setFigmaStatusMessage(response.warnings[0] ?? `${response.candidates.length}개 후보를 분석했습니다.`);
+      const frameCandidate = response.frameCandidate ?? null;
+      setFigmaFrameCandidate(frameCandidate);
+      setFigmaCandidates(frameCandidate ? [] : response.candidates);
+      setSelectedFigmaCandidateId(
+        frameCandidate
+          ? frameCandidate.candidateId
+          : response.candidates.length === 1
+            ? response.candidates[0]!.candidateId
+            : null,
+      );
+      setFigmaStatusMessage(
+        response.warnings[0] ??
+          (frameCandidate
+            ? `${frameCandidate.label} 프레임을 분석했습니다.`
+            : `${response.candidates.length}개 후보를 분석했습니다.`),
+      );
     } catch {
       if (figmaAnalysisSequenceRef.current !== requestSequence) return;
       setFigmaCandidates([]);
+      setFigmaFrameCandidate(null);
       setSelectedFigmaCandidateId(null);
       setFigmaErrorMessage("Figma 컴포넌트를 분석하지 못했습니다. 링크와 권한을 확인해 주세요.");
     } finally {
@@ -1530,6 +1548,7 @@ export function TemplateStudioClient({
     figmaAnalysisSequenceRef.current += 1;
     setFigmaUrl("");
     setFigmaCandidates([]);
+    setFigmaFrameCandidate(null);
     setSelectedFigmaCandidateId(null);
     setFigmaErrorMessage(null);
     setFigmaStatusMessage(null);
@@ -1542,6 +1561,7 @@ export function TemplateStudioClient({
     figmaAnalysisSequenceRef.current += 1;
     setFigmaUrl(nextUrl);
     setFigmaCandidates([]);
+    setFigmaFrameCandidate(null);
     setSelectedFigmaCandidateId(null);
     setFigmaErrorMessage(null);
     setFigmaStatusMessage(null);
@@ -1578,8 +1598,52 @@ export function TemplateStudioClient({
     [],
   );
 
-  const importFigmaCandidate = useCallback(() => {
+  const importFigmaCandidate = useCallback(async () => {
     if (isRemoteSyncing || figmaAnalysisPending || figmaImportPending) return;
+    if (figmaFrameCandidate) {
+      if (selectedFigmaCandidateId !== figmaFrameCandidate.candidateId) {
+        setFigmaErrorMessage("가져올 프레임을 먼저 선택해 주세요.");
+        return;
+      }
+      setFigmaImportPending(true);
+      setFigmaErrorMessage(null);
+      try {
+        const templateId = await ensureTemplateId();
+        const payload = await TemplateStudioService.importFigmaFrame(
+          figmaUrl.trim(),
+          templateId,
+        );
+        const nextDocument = cloneDocument(studioStore.getState().document);
+        const importResult = applyStudioFigmaFrameImport(nextDocument, payload);
+        if (!importResult.ok) {
+          setFigmaErrorMessage(importResult.reason);
+          setFigmaImportPending(false);
+          return;
+        }
+        applyStudioTimetableComponentFrames(nextDocument);
+        captureHistory();
+        setDocument(nextDocument);
+        setWorkspaceMode("timetable");
+        setPanelMode("layers");
+        setSelectedTimetableLayerId(STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID);
+        clearFigmaImportState();
+        const warningCount = importResult.warnings.length;
+        setFigmaStatusMessage(
+          warningCount > 0
+            ? `전체 프레임을 적용했습니다. ${importResult.warnings[0]}`
+            : "전체 프레임 배치를 적용했습니다.",
+        );
+        showShortcutStatus("Imported Figma frame layout");
+      } catch (error) {
+        setFigmaErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Figma 프레임을 가져오지 못했습니다.",
+        );
+        setFigmaImportPending(false);
+      }
+      return;
+    }
     const selectedCandidate = figmaCandidates.find(
       (candidate) => candidate.candidateId === selectedFigmaCandidateId,
     );
@@ -1607,15 +1671,21 @@ export function TemplateStudioClient({
     }
   }, [
     clearFigmaImportState,
+    ensureTemplateId,
+    figmaFrameCandidate,
+    figmaUrl,
     figmaAnalysisPending,
     figmaCandidates,
     figmaBindingTouchedSourceNodeIds,
     figmaImportPending,
     isRemoteSyncing,
     captureHistory,
+    setPanelMode,
     selectedFigmaCandidateId,
     setDocument,
     setSelectedCardComponentId,
+    setSelectedTimetableLayerId,
+    setWorkspaceMode,
     showShortcutStatus,
     studioStore,
   ]);
@@ -3489,6 +3559,7 @@ export function TemplateStudioClient({
               onWebFontsChange={updateWebFonts}
               figmaImport={{
                 candidates: figmaCandidates,
+                frameCandidate: figmaFrameCandidate,
                 errorMessage: figmaErrorMessage,
                 figmaUrl,
                 isAnalyzing: figmaAnalysisPending,

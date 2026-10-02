@@ -11,7 +11,10 @@ import type {
   StudioTemplateDocument,
   StudioTemplateKind,
 } from "@/types/template-studio";
-import type { StudioFigmaAnalyzeResponse } from "@/types/template-studio-figma";
+import type {
+  StudioFigmaAnalyzeResponse,
+  StudioFigmaFrameImportPayload,
+} from "@/types/template-studio-figma";
 import type {
   TemplateStudioDocumentSummary,
   TemplateStudioSaveOperation,
@@ -268,6 +271,25 @@ export class TemplateStudioService {
       throw new Error("Figma 컴포넌트 분석 결과를 확인하지 못했습니다.");
     }
     return result as StudioFigmaAnalyzeResponse;
+  }
+
+  static async importFigmaFrame(
+    figmaUrl: string,
+    templateId: string,
+  ): Promise<StudioFigmaFrameImportPayload> {
+    const response = await fetch("/api/admin/template-studio/figma/import-frame", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ figmaUrl, templateId }),
+    });
+    const result = await parseJsonResponse<{
+      success: boolean;
+      payload: StudioFigmaFrameImportPayload;
+    }>(response, "Figma 프레임을 가져오지 못했습니다.");
+    if (!result.success || !result.payload) {
+      throw new Error("Figma 프레임 가져오기 결과를 확인하지 못했습니다.");
+    }
+    return result.payload;
   }
 
   static async listTemplates(

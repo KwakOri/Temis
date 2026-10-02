@@ -133,6 +133,45 @@ export interface StudioFigmaGridOriginCandidate {
   warnings: string[];
 }
 
+export interface StudioFigmaFrameLayerSummary {
+  sourceNodeId: string;
+  label: string;
+  bounds: { left: number; top: number; width: number; height: number };
+  zIndex: number;
+}
+
+export interface StudioFigmaFrameCandidate {
+  candidateId: string;
+  label: string;
+  frame: { width: number; height: number };
+  layers: StudioFigmaFrameLayerSummary[];
+  grid: {
+    sourceNodeId: string;
+    bounds: { left: number; top: number; width: number; height: number };
+    zIndex: number;
+    placements: Array<{
+      sourceNodeId: string;
+      bounds: { left: number; top: number; width: number; height: number };
+      rotateDeg?: number;
+    }>;
+  } | null;
+  warnings: string[];
+}
+
+export interface StudioFigmaFrameImportLayer extends StudioFigmaFrameLayerSummary {
+  asset: StudioAsset;
+}
+
+export interface StudioFigmaFrameImportPayload {
+  candidateId: string;
+  label: string;
+  frame: { width: number; height: number };
+  layers: StudioFigmaFrameImportLayer[];
+  grid: StudioFigmaFrameCandidate["grid"];
+  gridCandidates: StudioFigmaGridOriginCandidate[];
+  warnings: string[];
+}
+
 export interface FigmaNodeResponse {
   node: FigmaNormalizedNode;
   components: Record<string, {
@@ -235,5 +274,6 @@ export interface FigmaGridCandidateSource {
 export interface StudioFigmaAnalyzeResponse {
   success: true;
   candidates: Array<StudioFigmaGridCandidate | StudioFigmaGridOriginCandidate>;
+  frameCandidate?: StudioFigmaFrameCandidate;
   warnings: string[];
 }
