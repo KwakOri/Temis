@@ -10,7 +10,6 @@ import React, {
 } from "react";
 
 import type {
-  StudioImageFit,
   StudioImageInputDefinition,
   StudioInputDefinition,
   StudioRuntimeValues,
@@ -35,7 +34,6 @@ import {
 import {
   formatStudioImageObjectPosition,
   getStudioImageObjectPosition,
-  parseStudioImageObjectPosition,
 } from "@/utils/thumbnail-studio/image-object-position";
 import {
   getThumbnailStudioInputGroups,
@@ -49,10 +47,11 @@ import { StudioRuntimeField } from "@/components/studio/runtime/ui/studio-runtim
 import { StudioRuntimeSegmentedControl } from "@/components/studio/runtime/ui/studio-runtime-segmented-control";
 import { StudioRuntimeImageCropModal } from "@/app/(root)/template-studio/_components/runtime/ui/studio-runtime-image-crop-modal";
 
-interface ThumbnailRuntimeImageOverride {
-  fit?: StudioImageFit;
-  objectPosition?: string;
-}
+import {
+  getThumbnailRuntimeImageNodes,
+  type StudioRuntimeImageOverride,
+  type StudioRuntimeImageOverrides,
+} from "@/utils/thumbnail-studio/runtime-image-transform";
 
 interface PendingCrop {
   input: StudioImageInputDefinition;
@@ -66,10 +65,14 @@ interface ThumbnailRuntimeFormProps {
   initialRuntimeValues: StudioRuntimeValues;
   runtimeValues: StudioRuntimeValues;
   setRuntimeValues: React.Dispatch<React.SetStateAction<StudioRuntimeValues>>;
-  runtimeImageOverrides: Record<string, ThumbnailRuntimeImageOverride>;
+  runtimeImageOverrides: StudioRuntimeImageOverrides;
   setRuntimeImageOverrides: React.Dispatch<
-    React.SetStateAction<Record<string, ThumbnailRuntimeImageOverride>>
+    React.SetStateAction<StudioRuntimeImageOverrides>
   >;
+  activeImage?: { inputId: string; nodeId: string } | null;
+  onAdjustImage?: (target: { inputId: string; nodeId: string } | null) => void;
+  onResetImageAdjustment?: (inputId: string) => void;
+  onScaleImage?: (factor: number) => void;
   templateId: string;
   storageOwnerId: string;
   templateName: string;
@@ -112,7 +115,7 @@ const getCropSize = (
 const getDefaultImageOverride = (
   document: StudioTemplateDocument,
   inputId: string,
-): ThumbnailRuntimeImageOverride => {
+): StudioRuntimeImageOverride => {
   const node = Object.values(document.graph.nodes).find(
     (candidate) =>
       candidate.type === "image" &&
@@ -135,6 +138,10 @@ export function ThumbnailRuntimeForm({
   setRuntimeValues,
   runtimeImageOverrides,
   setRuntimeImageOverrides,
+  activeImage,
+  onAdjustImage,
+  onResetImageAdjustment,
+  onScaleImage,
   templateId,
   storageOwnerId,
   templateName,
@@ -247,6 +254,7 @@ export function ThumbnailRuntimeForm({
       const url = URL.createObjectURL(blob);
       replaceObjectUrl(input.id, url);
       updateValue(input, url);
+      onResetImageAdjustment?.(input.id);
     } catch (uploadError) {
       console.error("Thumbnail runtime image upload failed", uploadError);
       setError("이미지를 준비하지 못했습니다. 다시 시도해 주세요.");
@@ -266,6 +274,7 @@ export function ThumbnailRuntimeForm({
     }
     replaceObjectUrl(input.id, null);
     updateValue(input, getStudioInputDefaultValue(input));
+    onResetImageAdjustment?.(input.id);
   };
 
   const resetAll = () => {
@@ -280,6 +289,7 @@ export function ThumbnailRuntimeForm({
     });
     setRuntimeValues(initialRuntimeValues);
     setRuntimeImageOverrides({});
+    onAdjustImage?.(null);
     setError(null);
     onReset();
   };
@@ -290,9 +300,14 @@ export function ThumbnailRuntimeForm({
     const currentOverride =
       runtimeImageOverrides[input.id] ??
       getDefaultImageOverride(document, input.id);
-    const position = parseStudioImageObjectPosition(
-      currentOverride.objectPosition,
-    );
+    const imageNodes = getThumbnailRuntimeImageNodes(document, input.id);
+    const isAdjusting = activeImage?.inputId === input.id;
+    const adjustmentLabel =
+      policy.allowFitChange && policy.allowFocusChange
+        ? "위치·크기·회전 조정"
+        : policy.allowFitChange
+          ? "크기 조정"
+          : "위치 조정";
     const cropSize = getCropSize(document, input.id);
 
     return (
@@ -370,50 +385,103 @@ export function ThumbnailRuntimeForm({
               onValueChange={(fit) =>
                 setRuntimeImageOverrides((current) => ({
                   ...current,
-                  [input.id]: { ...currentOverride, fit },
+                  [input.id]: {
+                    ...current[input.id],
+                    fit,
+                    transforms: undefined,
+                  },
                 }))
               }
             />
           </div>
         ) : null}
 
-        {policy.allowFocusChange ? (
+        {onAdjustImage &&
+        imageNodes.length > 0 &&
+        (policy.allowFitChange || policy.allowFocusChange) ? (
           <div className="grid gap-2 rounded-xl border border-[var(--runtime-border)] p-3">
-            <p className="text-[11px] font-bold text-[var(--runtime-fg-muted)]">
-              초점
-            </p>
-            {(["x", "y"] as const).map((axis) => (
-              <label
-                className="grid grid-cols-[32px_1fr_40px] items-center gap-2 text-[10px] font-bold text-[var(--runtime-fg-muted)]"
-                key={axis}
-              >
-                <span>{axis.toUpperCase()}</span>
-                <input
-                  aria-label={`${input.label} ${axis} 초점`}
-                  className="accent-[var(--runtime-primary)]"
-                  max={100}
-                  min={0}
-                  type="range"
-                  value={position[axis]}
-                  onChange={(event) => {
-                    const next = {
-                      ...position,
-                      [axis]: Number(event.currentTarget.value),
-                    };
-                    setRuntimeImageOverrides((current) => ({
-                      ...current,
-                      [input.id]: {
-                        ...currentOverride,
-                        objectPosition: formatStudioImageObjectPosition(next),
-                      },
-                    }));
-                  }}
-                />
-                <span className="text-right tabular-nums">
-                  {Math.round(position[axis])}%
-                </span>
-              </label>
-            ))}
+            <StudioRuntimeActionButton
+              fullWidth
+              aria-label={`${input.label} ${isAdjusting ? "조정 완료" : adjustmentLabel}`}
+              disabled={!value}
+              variant={isAdjusting ? "primary" : "secondary"}
+              onClick={() =>
+                onAdjustImage(
+                  isAdjusting
+                    ? null
+                    : { inputId: input.id, nodeId: imageNodes[0].id },
+                )
+              }
+            >
+              {isAdjusting ? "조정 완료" : adjustmentLabel}
+            </StudioRuntimeActionButton>
+            {isAdjusting ? (
+              <>
+                {imageNodes.length > 1 ? (
+                  <label className="grid gap-1 text-[11px] font-bold text-[var(--runtime-fg-muted)]">
+                    조정할 레이어
+                    <select
+                      aria-label={`${input.label} 조정할 레이어`}
+                      className="rounded-lg border border-[var(--runtime-border)] bg-[var(--runtime-input-bg)] p-2 text-[var(--runtime-fg)]"
+                      value={activeImage.nodeId}
+                      onChange={(event) =>
+                        onAdjustImage({
+                          inputId: input.id,
+                          nodeId: event.currentTarget.value,
+                        })
+                      }
+                    >
+                      {imageNodes.map((node) => (
+                        <option key={node.id} value={node.id}>
+                          {node.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+                <p className="text-[11px] text-[var(--runtime-fg-muted)]">
+                  {policy.allowFocusChange
+                    ? "이미지를 끌어서 이동하세요. "
+                    : ""}
+                  {policy.allowFitChange
+                    ? "사각형 손잡이로 비율을 유지하며 크기를 조절하세요. "
+                    : ""}
+                  {policy.allowFitChange && policy.allowFocusChange
+                    ? "위쪽 원형 손잡이로 회전할 수 있습니다."
+                    : ""}
+                </p>
+                {policy.allowFitChange && onScaleImage ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <StudioRuntimeActionButton
+                      size="compact"
+                      variant="secondary"
+                      aria-label={`${input.label} 이미지 축소`}
+                      onClick={() => onScaleImage(0.9)}
+                    >
+                      작게 −
+                    </StudioRuntimeActionButton>
+                    <StudioRuntimeActionButton
+                      size="compact"
+                      variant="secondary"
+                      aria-label={`${input.label} 이미지 확대`}
+                      onClick={() => onScaleImage(1.1)}
+                    >
+                      크게 +
+                    </StudioRuntimeActionButton>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+            <StudioRuntimeActionButton
+              fullWidth
+              size="compact"
+              variant="secondary"
+              aria-label={`${input.label} 배치 초기화`}
+              disabled={!runtimeImageOverrides[input.id]}
+              onClick={() => onResetImageAdjustment?.(input.id)}
+            >
+              배치 초기화
+            </StudioRuntimeActionButton>
           </div>
         ) : null}
 
@@ -588,6 +656,7 @@ export function ThumbnailRuntimeForm({
                 const url = URL.createObjectURL(blob);
                 replaceObjectUrl(input.id, url);
                 updateValue(input, url);
+                onResetImageAdjustment?.(input.id);
                 setPendingCrop(null);
               })
               .catch(() => setError("자른 이미지를 저장하지 못했습니다."));

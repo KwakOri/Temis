@@ -23,6 +23,18 @@ import {
 import { getStudioRuntimeInputValue } from "@/utils/template-studio/input-values";
 import { getThumbnailStudioInputDefinitions } from "@/utils/thumbnail-studio/input-order";
 import { ThumbnailRuntimeForm } from "./thumbnail-runtime-form";
+import { StudioRuntimeImageTransformOverlay } from "@/components/studio/runtime/studio-runtime-image-transform-overlay";
+import {
+  fromRuntimeImageTransform,
+  getRuntimeImageFitGeometry,
+  toRuntimeImageTransform,
+  type StudioRuntimeImageOverrides,
+} from "@/utils/thumbnail-studio/runtime-image-transform";
+import {
+  formatStudioImageObjectPosition,
+  getStudioImageObjectPosition,
+} from "@/utils/thumbnail-studio/image-object-position";
+import { getStudioImageInputPolicy } from "@/utils/thumbnail-studio/image-input-policy";
 
 interface ThumbnailRuntimeShellProps {
   document: StudioTemplateDocument;
@@ -57,12 +69,103 @@ export function ThumbnailRuntimeShell({
   const [runtimeValues, setRuntimeValues] = useState(() =>
     cloneRuntimeValues(initialRuntimeValues),
   );
-  const [runtimeImageOverrides, setRuntimeImageOverrides] = useState<
-    Record<
-      string,
-      { fit?: "cover" | "contain" | "fill"; objectPosition?: string }
-    >
-  >({});
+  const [runtimeImageOverrides, setRuntimeImageOverrides] =
+    useState<StudioRuntimeImageOverrides>({});
+  const [activeImage, setActiveImage] = useState<{
+    inputId: string;
+    nodeId: string;
+  } | null>(null);
+  const activeImageInput = activeImage
+    ? document.inputs[activeImage.inputId]
+    : undefined;
+  const resetImageAdjustment = (inputId: string) => {
+    setRuntimeImageOverrides((current) => {
+      const next = { ...current };
+      delete next[inputId];
+      return next;
+    });
+    setActiveImage((current) =>
+      current?.inputId === inputId ? null : current,
+    );
+  };
+  const scaleActiveImage = (factor: number) => {
+    if (
+      !activeImage ||
+      activeImageInput?.type !== "image" ||
+      !getStudioImageInputPolicy(activeImageInput.policy).allowFitChange
+    )
+      return;
+    const slot = Array.from(
+      exportRootRef.current?.querySelectorAll<HTMLElement>(
+        "[data-studio-image-slot]",
+      ) ?? [],
+    ).find((element) => element.dataset.studioImageSlot === activeImage.nodeId);
+    const image = slot?.querySelector("img");
+    if (
+      !slot ||
+      !image?.naturalWidth ||
+      !slot.offsetWidth ||
+      !slot.offsetHeight
+    )
+      return;
+    const node = document.graph.nodes[activeImage.nodeId];
+    if (!node) return;
+    const size = { width: slot.offsetWidth, height: slot.offsetHeight };
+    setRuntimeImageOverrides((current) => {
+      const override = current[activeImage.inputId];
+      const transform = override?.transforms?.[activeImage.nodeId];
+      const geometry = transform
+        ? fromRuntimeImageTransform(transform, size)
+        : getRuntimeImageFitGeometry({
+            ...size,
+            naturalWidth: image.naturalWidth,
+            naturalHeight: image.naturalHeight,
+            fit: override?.fit ?? node.fit ?? "cover",
+            objectPosition:
+              override?.objectPosition ??
+              formatStudioImageObjectPosition(
+                getStudioImageObjectPosition(
+                  node.styleId ? document.styles[node.styleId] : undefined,
+                ),
+              ),
+          });
+      const multiplier = Math.max(
+        factor,
+        4 / geometry.width,
+        4 / geometry.height,
+      );
+      const next = {
+        ...geometry,
+        width: geometry.width * multiplier,
+        height: geometry.height * multiplier,
+      };
+      next.left += (geometry.width - next.width) / 2;
+      next.top += (geometry.height - next.height) / 2;
+      return {
+        ...current,
+        [activeImage.inputId]: {
+          ...override,
+          transforms: {
+            ...override?.transforms,
+            [activeImage.nodeId]: toRuntimeImageTransform(
+              next,
+              size,
+              transform?.rotateDeg ?? 0,
+            ),
+          },
+        },
+      };
+    });
+  };
+
+  useEffect(() => {
+    if (!activeImage) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setActiveImage(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeImage]);
   const [isExporting, setIsExporting] = useState(false);
   const [readiness, setReadiness] = useState<RenderReadiness>({
     fontsReady: false,
@@ -74,6 +177,7 @@ export function ThumbnailRuntimeShell({
   useEffect(() => {
     setRuntimeValues(cloneRuntimeValues(initialRuntimeValues));
     setRuntimeImageOverrides({});
+    setActiveImage(null);
   }, [document, initialRuntimeValues, revisionNo]);
 
   const previewSize = useMemo(
@@ -139,7 +243,7 @@ export function ThumbnailRuntimeShell({
         image.removeEventListener("load", updateImages);
       });
     };
-  }, [runtimeImageOverrides, runtimeValues]);
+  }, [document, runtimeValues]);
 
   const handleFontLoadStateChange = useCallback(
     (state: StudioWebFontLoadState) => {
@@ -215,6 +319,7 @@ export function ThumbnailRuntimeShell({
   const resetRuntime = () => {
     setRuntimeValues(cloneRuntimeValues(initialRuntimeValues));
     setRuntimeImageOverrides({});
+    setActiveImage(null);
   };
 
   return (
@@ -236,6 +341,33 @@ export function ThumbnailRuntimeShell({
             runtimeImageOverrides={runtimeImageOverrides}
             runtimeValues={runtimeValues}
           />
+          {activeImage && activeImageInput?.type === "image" ? (
+            <StudioRuntimeImageTransformOverlay
+              key={`${activeImage.inputId}:${activeImage.nodeId}`}
+              document={document}
+              inputId={activeImage.inputId}
+              nodeId={activeImage.nodeId}
+              imageSrc={getStudioRuntimeInputValue(
+                activeImageInput,
+                runtimeValues,
+              )}
+              exportRootRef={exportRootRef}
+              viewportTransform={viewport.viewportTransform}
+              override={runtimeImageOverrides[activeImage.inputId]}
+              onChange={(transform) =>
+                setRuntimeImageOverrides((current) => ({
+                  ...current,
+                  [activeImage.inputId]: {
+                    ...current[activeImage.inputId],
+                    transforms: {
+                      ...current[activeImage.inputId]?.transforms,
+                      [activeImage.nodeId]: transform,
+                    },
+                  },
+                }))
+              }
+            />
+          ) : null}
         </StudioRuntimePreviewWorkspace>
         <ThumbnailRuntimeForm
           document={document}
@@ -244,6 +376,10 @@ export function ThumbnailRuntimeShell({
           runtimeValues={runtimeValues}
           setRuntimeImageOverrides={setRuntimeImageOverrides}
           setRuntimeValues={setRuntimeValues}
+          activeImage={activeImage}
+          onAdjustImage={setActiveImage}
+          onResetImageAdjustment={resetImageAdjustment}
+          onScaleImage={scaleActiveImage}
           storageOwnerId={storageOwnerId}
           templateId={templateId}
           templateName={templateName}

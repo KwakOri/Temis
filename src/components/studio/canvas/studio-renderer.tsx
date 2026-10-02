@@ -7,7 +7,6 @@ import {
   StudioAsset,
   StudioAssetSlot,
   StudioGraphNode,
-  StudioImageFit,
   StudioRuntimeValues,
   StudioStyleRecord,
   StudioTemplateDocument,
@@ -36,6 +35,7 @@ import {
 } from "@/utils/thumbnail-studio/shape-fill";
 import { StudioWebFontLoader } from "@/components/studio/canvas/studio-web-font-loader";
 import { StudioText } from "@/components/studio/text/studio-text";
+import type { StudioRuntimeImageOverrides } from "@/utils/thumbnail-studio/runtime-image-transform";
 
 interface StudioRendererProps {
   document: StudioTemplateDocument;
@@ -60,10 +60,7 @@ interface StudioRendererProps {
     event?: React.MouseEvent<HTMLDivElement>,
   ) => void;
   /** Runtime-only image controls. The document itself remains immutable. */
-  runtimeImageOverrides?: Record<
-    string,
-    { fit?: StudioImageFit; objectPosition?: string }
-  >;
+  runtimeImageOverrides?: StudioRuntimeImageOverrides;
   backgroundOverride?: string | null;
   onFontLoadStateChange?: (
     state: import("./studio-web-font-loader").StudioWebFontLoadState,
@@ -259,27 +256,55 @@ export function StudioRenderer({
         const runtimeImageOverride = imageInputId
           ? runtimeImageOverrides?.[imageInputId]
           : undefined;
+        const imageTransform = runtimeImageOverride?.transforms?.[node.id];
+        const image = asset?.src ? (
+          // eslint-disable-next-line @next/next/no-img-element -- Runtime images use local blob URLs or document assets.
+          <img
+            alt={asset.label}
+            className="h-full w-full"
+            draggable={false}
+            src={asset.src}
+            data-studio-runtime-image={imageInputId ?? undefined}
+            style={
+              imageTransform
+                ? {
+                    position: "absolute",
+                    left: `${imageTransform.left * 100}%`,
+                    top: `${imageTransform.top * 100}%`,
+                    width: `${imageTransform.width * 100}%`,
+                    height: `${imageTransform.height * 100}%`,
+                    maxWidth: "none",
+                    objectFit: "fill",
+                    transform: `rotate(${imageTransform.rotateDeg}deg)`,
+                    transformOrigin: "center",
+                  }
+                : {
+                    objectFit: runtimeImageOverride?.fit ?? node.fit ?? "cover",
+                    objectPosition:
+                      runtimeImageOverride?.objectPosition ??
+                      formatStudioImageObjectPosition(objectPosition),
+                    borderRadius: getStudioImageBorderRadius(styleRecord),
+                  }
+            }
+          />
+        ) : null;
 
         return (
           <div key={node.id} {...commonProps}>
-            {asset?.src ? (
-              // eslint-disable-next-line @next/next/no-img-element -- Runtime image inputs are plain URL/data sources in Template Studio.
-              <img
-                alt={asset.label}
-                className="h-full w-full"
-                draggable={false}
-                src={asset.src}
-                style={{
-                  objectFit: node.fit ?? "cover",
-                  objectPosition: runtimeImageOverride?.objectPosition
-                    ? runtimeImageOverride.objectPosition
-                    : formatStudioImageObjectPosition(objectPosition),
-                  ...(runtimeImageOverride?.fit
-                    ? { objectFit: runtimeImageOverride.fit }
-                    : {}),
-                  borderRadius: getStudioImageBorderRadius(styleRecord),
-                }}
-              />
+            {image ? (
+              imageInputId ? (
+                <div
+                  data-studio-image-slot={node.id}
+                  className="absolute inset-0 overflow-hidden"
+                  style={{
+                    borderRadius: getStudioImageBorderRadius(styleRecord),
+                  }}
+                >
+                  {image}
+                </div>
+              ) : (
+                image
+              )
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-slate-100 text-xs font-semibold text-slate-400">
                 No image
