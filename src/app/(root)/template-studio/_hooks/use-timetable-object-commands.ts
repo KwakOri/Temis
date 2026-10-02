@@ -568,8 +568,10 @@ export function useTimetableObjectCommands({
         const target = resolveStudioTimetableLayerTarget(layerId);
 
         if (target.kind === "dayCards") {
-          layout.left = roundStudioCoordinate(nextPosition.left ?? layout.left);
-          layout.top = roundStudioCoordinate(nextPosition.top ?? layout.top);
+          layout.left = layout.gridPreset === "custom"
+            ? 0 : roundStudioCoordinate(nextPosition.left ?? layout.left);
+          layout.top = layout.gridPreset === "custom"
+            ? 0 : roundStudioCoordinate(nextPosition.top ?? layout.top);
 
           const dayCardsObject = composition.objects[layerId];
           if (dayCardsObject && nextPosition.rotateDeg !== undefined) {
@@ -679,6 +681,7 @@ export function useTimetableObjectCommands({
           const target = resolveStudioTimetableLayerTarget(layerId);
 
           if (target.kind === "dayCards") {
+            if (layout.gridPreset === "custom") return;
             layout.left = roundStudioCoordinate(layout.left + delta.deltaX);
             layout.top = roundStudioCoordinate(layout.top + delta.deltaY);
             timetable.dayCardsLayout = layout;

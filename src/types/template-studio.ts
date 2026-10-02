@@ -491,6 +491,7 @@ export interface StudioTimetableDayCardsLayout {
   entryPreviewWidth: number;
   entryPreviewHeight: number;
   entryGap: number;
+  /** Custom: absolute canvas X/Y. Grid presets: offsets from automatic positions. */
   dayOffsets?: Record<StudioTimetableDayId, StudioTimetableDayCardOffset>;
 }
 

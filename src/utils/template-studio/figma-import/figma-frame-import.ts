@@ -143,11 +143,9 @@ const setImportedGridLayout = (
     assignedDays.add(day.id);
     const componentId = componentIdByPlacementId.get(placement.sourceNodeId);
     if (componentId) day.componentId = componentId;
-    const baselineLeft = grid.bounds.left + placement.column * (dayWidth + columnGap);
-    const baselineTop = grid.bounds.top + placement.row * (placementHeight + rowGap);
     dayOffsets[day.id] = {
-      left: placement.bounds.left - baselineLeft,
-      top: placement.bounds.top - baselineTop,
+      left: placement.bounds.left,
+      top: placement.bounds.top,
       ...(placement.rotateDeg !== undefined ? { rotateDeg: placement.rotateDeg } : {}),
     };
   });
@@ -181,8 +179,8 @@ const setImportedGridLayout = (
       entryPreviewHeight: placementHeight,
       entryGap: 0,
     }),
-    left: grid.bounds.left,
-    top: grid.bounds.top,
+    left: 0,
+    top: 0,
     dayWidth,
     gridPreset: "custom",
     columns,

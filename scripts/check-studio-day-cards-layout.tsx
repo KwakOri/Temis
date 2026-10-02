@@ -1,7 +1,7 @@
 /**
  * 요일 카드 배치 컨트롤의 기준선 가드.
  *
- * 프리셋을 고르면 자리 지도를 지우고, 사용자 지정일 때만 지도를 만든다. 3x3은
+ * Custom은 캔버스 원점부터 절대 좌표로 배치하고, 격자 옵션을 숨긴다. 3x3은
  * 빈 칸 두 개를 고르는 방식으로만 남는 칸을 정한다. 이 규칙이 깨지면 화면의
  * 격자와 문서의 자리 지도가 어긋난다.
  */
@@ -97,24 +97,10 @@ assert.ok(
 const customMarkup = markupOf(
   createLayout({ gridPreset: "custom", columns: 3, rows: 3 }),
 );
-assert.ok(
-  customMarkup.indexOf("Slot Map") < customMarkup.indexOf("Card Transforms"),
-  "사용자 지정에서는 Slot Map 바로 아래에 카드 변환을 보여준다.",
-);
-assert.ok(
-  customMarkup.includes("Slot Map"),
-  "사용자 지정에서는 자리 지도를 보여준다.",
-);
-assert.ok(
-  customMarkup.includes("<span>Columns</span>") &&
-    customMarkup.includes("<span>Rows</span>"),
-  "사용자 지정에서는 칸 수를 직접 정한다.",
-);
-assert.equal(
-  (customMarkup.match(/>Empty<\/option>/g) ?? []).length,
-  9,
-  "자리 지도는 칸 수만큼 선택을 만든다.",
-);
+assert.ok(customMarkup.includes("Card Transforms"));
+assert.ok(customMarkup.includes("canvas origin (0, 0)"));
+assert.ok(customMarkup.includes("<span>X</span>") && customMarkup.includes("<span>Y</span>"));
+assert.doesNotMatch(customMarkup, /Slot Map|Columns|Rows|Gap X|Gap Y|Fill Order|Remainder|Offset X|Offset Y/);
 
 const threeByThreeMarkup = markupOf(
   createLayout({ gridPreset: "3x3", columns: 3, rows: 3 }),
@@ -180,20 +166,6 @@ const toPreset = (
   return nextLayout;
 };
 
-type SelectElement = React.ReactElement<{
-  onChange?: (event: unknown) => void;
-  children?: React.ReactNode;
-}>;
-
-const findSelects = (node: React.ReactNode): SelectElement[] => {
-  if (Array.isArray(node)) return node.flatMap(findSelects);
-  if (!React.isValidElement(node)) return [];
-
-  const selects: SelectElement[] =
-    node.type === "select" ? [node as SelectElement] : [];
-  return [...selects, ...findSelects((node.props as { children?: React.ReactNode }).children)];
-};
-
 assert.ok(
   gridPresetSelect(createLayout()) !== null,
   "격자 프리셋 선택을 찾을 수 있다.",
@@ -204,10 +176,10 @@ const toCustom = toPreset(
   "custom",
 );
 assert.equal(toCustom.gridPreset, "custom");
-assert.ok(
-  Array.isArray(toCustom.slots) && toCustom.slots.length > 0,
-  "사용자 지정으로 바꾸면 지금 요일 순서로 자리 지도를 만들어 준다.",
-);
+assert.equal(toCustom.slots, undefined, "Custom does not use a slot map");
+assert.equal(toCustom.left, 0);
+assert.equal(toCustom.top, 0);
+assert.deepEqual(toCustom.dayOffsets, {}, "Custom starts all cards at the canvas origin");
 
 const toPresetFromCustom = toPreset(
   createLayout({
@@ -248,39 +220,14 @@ const cardTransformFixture = {
   tue: { left: -7, top: 3, rotateDeg: -12 },
 } as StudioTimetableDayCardsLayout["dayOffsets"];
 
-const customSlotMapLayout = createLayout({
-  gridPreset: "custom",
-  columns: 3,
-  rows: 3,
-  slots: ["mon", "tue", null],
-  dayOffsets: cardTransformFixture,
-});
-const customSlotMapElement = StudioTimetableDayCardsLayoutControls({
-  days: DAYS,
-  layout: customSlotMapLayout,
-  onUpdateLayout: (recipe) => recipe(customSlotMapLayout),
-});
-const customSlotSelects = findSelects(customSlotMapElement);
-const firstSlotSelect = customSlotSelects.at(-9 + 2);
-assert.ok(firstSlotSelect, "사용자 지정 자리 지도의 실제 select를 찾을 수 있다.");
-firstSlotSelect?.props.onChange?.({ currentTarget: { value: "wed" } });
-assert.deepEqual(
-  customSlotMapLayout.slots?.slice(0, 3),
-  ["mon", "tue", "wed"],
-  "실제 자리 지도 select를 바꾸면 해당 슬롯이 갱신된다.",
-);
-assert.deepEqual(
-  customSlotMapLayout.dayOffsets,
-  cardTransformFixture,
-  "자리 지도를 바꿔도 day ID별 Offset X/Y/Rotate는 그대로 보존된다.",
-);
+assert.deepEqual(toPreset(createLayout({ gridPreset: "custom", dayOffsets: cardTransformFixture }), "custom").dayOffsets, cardTransformFixture, "reselecting Custom preserves edited absolute coordinates");
 
 for (const gridPreset of cardTransformPresets) {
   const presetMarkup = markupOf(createLayout({ gridPreset }));
   assert.ok(
     presetMarkup.includes("Card Transforms") &&
-      presetMarkup.includes("Offset X") &&
-      presetMarkup.includes("Offset Y") &&
+      presetMarkup.includes(gridPreset === "custom" ? "<span>X</span>" : "Offset X") &&
+      presetMarkup.includes(gridPreset === "custom" ? "<span>Y</span>" : "Offset Y") &&
       presetMarkup.includes("Rotate"),
     `${gridPreset} 프리셋에서도 카드 변환 필드를 렌더링한다.`,
   );
@@ -291,7 +238,7 @@ for (const gridPreset of cardTransformPresets) {
   );
   assert.deepEqual(
     presetLayout.dayOffsets,
-    cardTransformFixture,
+    gridPreset === "custom" ? {} : cardTransformFixture,
     `${gridPreset} 프리셋으로 바꿔도 day ID별 카드 변환을 보존한다.`,
   );
 }

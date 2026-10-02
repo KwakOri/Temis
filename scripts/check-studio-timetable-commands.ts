@@ -580,7 +580,7 @@ assert.equal(
   "아무것도 없는 자리에서는 잡을 것이 없다.",
 );
 
-const runTimetableDayCardHookIntegration = (): {
+const runTimetableDayCardHookIntegration = (custom = false): {
   rotateDeg: number | undefined;
   left: number;
   top: number;
@@ -589,6 +589,7 @@ const runTimetableDayCardHookIntegration = (): {
   const runtimeValues = createInitialStudioRuntimeValues(document);
   const timetable = document.domains?.timetable;
   if (!timetable) throw new Error("sample document has no timetable");
+  if (custom) timetable.dayCardsLayout = { ...timetable.dayCardsLayout!, gridPreset: "custom", left: 0, top: 0 };
 
   const HookProbe = () => {
     const commands = useTimetableObjectCommands({
@@ -621,6 +622,13 @@ const runTimetableDayCardHookIntegration = (): {
       onRestoreSelection: () => {},
     });
 
+    if (custom) {
+      commands.updateLayerPosition("day-card:mon", {left: 100, top: 200});
+      commands.moveCanvasLayer("day-cards", {deltaX: 50, deltaY: 75});
+      commands.updateLayerPosition("day-cards", {left: 90, top: 110});
+      assert.equal(timetable.dayCardsLayout?.left, 0);
+      assert.equal(timetable.dayCardsLayout?.top, 0);
+    }
     commands.updateLayerPosition("day-card:mon", { rotateDeg: 17 });
     commands.moveCanvasLayer("day-card:mon", { deltaX: 5, deltaY: 6 });
     return null;
@@ -643,4 +651,5 @@ assert.equal(
 );
 assert.equal(hookIntegrationResult.left, 5, "실제 hook drag 경로가 X 보정을 저장한다.");
 assert.equal(hookIntegrationResult.top, 6, "실제 hook drag 경로가 Y 보정을 저장한다.");
+assert.deepEqual(runTimetableDayCardHookIntegration(true), {left: 105, top: 206, rotateDeg: 17}, "Custom positions and drag deltas are absolute and preserve rotation");
 console.log("Studio timetable command baseline checks passed.");

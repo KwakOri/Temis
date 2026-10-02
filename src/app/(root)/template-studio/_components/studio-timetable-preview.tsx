@@ -457,6 +457,18 @@ export const getStudioTimetableDayCardGeometry = (
   ),
 ) => {
   const offset = layout.dayOffsets?.[dayId] ?? { left: 0, top: 0 };
+  if (layout.gridPreset === "custom") {
+    return {
+      left: offset.left,
+      top: offset.top,
+      width: entryCardSize.width,
+      height: getStudioTimetableDayCardHeight(
+        layout,
+        entryCount,
+        entryCardSize,
+      ),
+    };
+  }
   const position = getDayCardGridPosition(
     layout,
     dayId,
@@ -528,6 +540,20 @@ export const getStudioTimetableDayCardGeometries = (
     | StudioTimetableEntryCardSize
     | StudioTimetableEntryCardSizeResolver = getFallbackEntryCardSize(layout),
 ): Record<StudioTimetableDayId, StudioTimetableDayCardGeometry> => {
+  if (layout.gridPreset === "custom") {
+    return Object.fromEntries(
+      days.map((day, index) => [
+        day.id,
+        getStudioTimetableDayCardGeometry(
+          layout,
+          day.id,
+          index,
+          getEntryCount(day.id),
+          resolveEntryCardSize(layout, day.id, entryCardSizeOrResolver),
+        ),
+      ]),
+    );
+  }
   const columnWidths = Array.from({ length: layout.columns ?? 1 }, () => 0);
   const rowHeights = Array.from({ length: layout.rows ?? 1 }, () => 0);
   const explicitPositions = new Map<
@@ -641,7 +667,15 @@ export const getStudioTimetableDayCardsBounds = (
   entryCardSizeOrResolver:
     | StudioTimetableEntryCardSize
     | StudioTimetableEntryCardSizeResolver = getFallbackEntryCardSize(layout),
+  canvasSize = STUDIO_TIMETABLE_DEFAULT_CANVAS_SIZE,
 ) => {
+  if (layout.gridPreset === "custom")
+    return {
+      left: 0,
+      top: 0,
+      width: canvasSize.width,
+      height: canvasSize.height,
+    };
   const geometries = getStudioTimetableDayCardGeometries(
     layout,
     days,
@@ -900,6 +934,7 @@ export function StudioTimetablePreview({
     days,
     getPreviewEntryCount,
     getEntryCardSize,
+    previewSize,
   );
 
   const renderDayCardsObject = () => (

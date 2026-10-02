@@ -309,6 +309,12 @@ const frameDayCardsLayout = frameLayoutDocument.domains!.timetable!.dayCardsLayo
 assert.equal(frameDayCardsLayout.columns, 4, "staggered bottom cards form one four-column row");
 assert.equal(frameDayCardsLayout.rows, 2, "small y offsets within a row do not create extra rows");
 assert.equal(frameDayCardsLayout.slots?.length, 8);
+assert.equal(frameDayCardsLayout.left, 0);
+assert.equal(frameDayCardsLayout.top, 0);
+const frameDayIds = frameLayoutDocument.domains!.timetable!.dayIds;
+assert.deepEqual(frameDayCardsLayout.dayOffsets?.[frameDayIds[0]!], {left: 1183, top: 523});
+assert.deepEqual(frameDayCardsLayout.dayOffsets?.[frameDayIds[1]!], {left: 2124, top: 523});
+
 assert.equal(
   inferFigmaGridOriginVariantStatus({
     root: { id: "origin-conflict", name: "Origin", type: "COMPONENT", componentProperties: { status: { value: "ONLINE" }, variant: { value: "OFFLINE" } } },

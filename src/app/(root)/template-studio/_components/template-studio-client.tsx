@@ -1011,6 +1011,7 @@ export function TemplateStudioClient({
             getStudioTimetableEntriesForDay(document, runtimeValues, dayId)
               .length,
           getTimetableEntryCardSizeForDay,
+          getStudioTimetablePreviewSize(timetable),
         ),
         rotateDeg:
           timetableComposition.objects[STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID]
