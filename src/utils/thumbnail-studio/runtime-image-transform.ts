@@ -5,6 +5,7 @@ import type {
 } from "@/types/template-studio";
 import type { StudioResizeGeometry } from "@/utils/template-studio/transform-commands";
 import { parseStudioImageObjectPosition } from "./image-object-position";
+import { getStudioImageInputPolicy } from "./image-input-policy";
 
 /** Image geometry in fractions of its fixed template slot. */
 export interface StudioRuntimeImageTransform extends StudioResizeGeometry {
@@ -12,8 +13,13 @@ export interface StudioRuntimeImageTransform extends StudioResizeGeometry {
 }
 
 export interface StudioRuntimeImageOverride {
+  /** Persist an explicitly removed preset background, including template defaults. */
+  removed?: boolean;
+  placementMode?: "cover" | "manual";
   fit?: StudioImageFit;
   objectPosition?: string;
+  /** Source pixel size, also available when preserving an image's original size. */
+  intrinsicSize?: { width: number; height: number };
   transforms?: Record<string, StudioRuntimeImageTransform>;
 }
 
@@ -21,6 +27,26 @@ export type StudioRuntimeImageOverrides = Record<
   string,
   StudioRuntimeImageOverride
 >;
+
+export const getThumbnailRuntimeImagePlacementMode = (
+  override?: StudioRuntimeImageOverride,
+) => override?.placementMode ?? (override?.transforms ? "manual" : "cover");
+
+export const createThumbnailRuntimeImageOverrides = (
+  document: StudioTemplateDocument,
+): StudioRuntimeImageOverrides =>
+  Object.fromEntries(
+    Object.values(document.inputs)
+      .filter(
+        (input) =>
+          input.type === "image" &&
+          getStudioImageInputPolicy(input.policy).allowFitChange,
+      )
+      .map((input) => [
+        input.id,
+        { placementMode: "cover", fit: "cover", objectPosition: "50% 50%" },
+      ]),
+  );
 
 /** Only visible image bindings are targets; backgrounds and template decorations are excluded. */
 export const getThumbnailRuntimeImageNodes = (
@@ -49,7 +75,7 @@ export const getThumbnailRuntimeImageNodes = (
     return false;
   });
 
-/** The visible image rectangle produced by CSS object-fit/object-position. */
+/** Initial image rectangle: original uploaded pixels, or the template's object-fit/object-position. */
 export const getRuntimeImageFitGeometry = ({
   width,
   height,
@@ -57,6 +83,7 @@ export const getRuntimeImageFitGeometry = ({
   naturalHeight,
   fit,
   objectPosition,
+  intrinsicSize,
 }: {
   width: number;
   height: number;
@@ -64,7 +91,16 @@ export const getRuntimeImageFitGeometry = ({
   naturalHeight: number;
   fit: StudioImageFit;
   objectPosition?: string;
+  intrinsicSize?: { width: number; height: number };
 }): StudioResizeGeometry => {
+  if (intrinsicSize) {
+    return {
+      left: (width - intrinsicSize.width) / 2,
+      top: (height - intrinsicSize.height) / 2,
+      width: intrinsicSize.width,
+      height: intrinsicSize.height,
+    };
+  }
   const position = parseStudioImageObjectPosition(objectPosition);
   const ratio =
     fit === "cover"

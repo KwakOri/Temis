@@ -145,6 +145,7 @@ export function StudioRuntimeImageTransformOverlay({
     : getRuntimeImageFitGeometry({
         ...measurement,
         fit: override?.fit ?? node.fit ?? "cover",
+        intrinsicSize: override?.fit ? undefined : override?.intrinsicSize,
         objectPosition:
           override?.objectPosition ??
           formatStudioImageObjectPosition(

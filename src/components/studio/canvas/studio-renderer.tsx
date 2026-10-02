@@ -257,6 +257,9 @@ export function StudioRenderer({
           ? runtimeImageOverrides?.[imageInputId]
           : undefined;
         const imageTransform = runtimeImageOverride?.transforms?.[node.id];
+        const intrinsicSize = runtimeImageOverride?.fit
+          ? undefined
+          : runtimeImageOverride?.intrinsicSize;
         const image = asset?.src ? (
           // eslint-disable-next-line @next/next/no-img-element -- Runtime images use local blob URLs or document assets.
           <img
@@ -278,13 +281,25 @@ export function StudioRenderer({
                     transform: `rotate(${imageTransform.rotateDeg}deg)`,
                     transformOrigin: "center",
                   }
-                : {
-                    objectFit: runtimeImageOverride?.fit ?? node.fit ?? "cover",
-                    objectPosition:
-                      runtimeImageOverride?.objectPosition ??
-                      formatStudioImageObjectPosition(objectPosition),
-                    borderRadius: getStudioImageBorderRadius(styleRecord),
-                  }
+                : intrinsicSize
+                  ? {
+                      position: "absolute",
+                      left: "50%",
+                      top: "50%",
+                      width: intrinsicSize.width,
+                      height: intrinsicSize.height,
+                      maxWidth: "none",
+                      objectFit: "fill",
+                      transform: "translate(-50%, -50%)",
+                    }
+                  : {
+                      objectFit:
+                        runtimeImageOverride?.fit ?? node.fit ?? "cover",
+                      objectPosition:
+                        runtimeImageOverride?.objectPosition ??
+                        formatStudioImageObjectPosition(objectPosition),
+                      borderRadius: getStudioImageBorderRadius(styleRecord),
+                    }
             }
           />
         ) : null;

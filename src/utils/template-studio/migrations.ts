@@ -1,3 +1,4 @@
+import { upgradeThumbnailUserImages } from "@/utils/thumbnail-studio/user-images";
 import type {
   StudioBinding,
   StudioTemplateDocument,
@@ -160,6 +161,8 @@ export const migrateStudioTemplateDocument = (
   }
 
   if (document.metadata.kind === "thumbnail") {
+    if (upgradeThumbnailUserImages(document))
+      warnings.push("Upgraded USER_IMAGE to user_images preset.");
     const weekDates = document.domains?.thumbnail?.weekDates as
       (Record<string, unknown> & { locale?: string }) | undefined;
     const legacyDateInputId =

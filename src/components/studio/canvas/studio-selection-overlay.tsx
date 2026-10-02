@@ -96,11 +96,25 @@ export function StudioSelectionOverlay({
     handleSize,
     handleTargetSize / Math.max(scale, 0.2),
   );
-  const handleTarget = (
+  const handleTarget = (handle?: StudioResizeHandle) => (
     <span
       aria-hidden="true"
-      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-      style={{ width: targetSize, height: targetSize }}
+      className="absolute"
+      style={{
+        width: targetSize,
+        height: targetSize,
+        // Keep enlarged hit areas outside the image so small images remain draggable.
+        left: handle?.includes("w")
+          ? handleSize - targetSize
+          : handle?.includes("e")
+            ? 0
+            : (handleSize - targetSize) / 2,
+        top: handle?.startsWith("n")
+          ? handleSize - targetSize
+          : handle?.startsWith("s")
+            ? 0
+            : (handleSize - targetSize) / 2,
+      }}
     />
   );
   const dragStateRef = useRef<{
@@ -200,11 +214,14 @@ export function StudioSelectionOverlay({
         }}
       >
         {onMove ? (
-          <div
+          <button
+            type="button"
+            aria-label="이미지 이동"
             className="pointer-events-auto absolute inset-0 cursor-move"
             data-studio-image-move="true"
             style={{ touchAction: "none" }}
             onDoubleClick={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
             onPointerDown={(event) =>
               beginPointerDrag(event, ({ deltaX, deltaY }) => {
                 const delta = localDelta(deltaX, deltaY);
@@ -273,7 +290,7 @@ export function StudioSelectionOverlay({
                         )
                       }
                     >
-                      {handleTarget}
+                      {handleTarget(handle)}
                     </button>
                   );
                 })
@@ -327,7 +344,7 @@ export function StudioSelectionOverlay({
                   });
                 }}
               >
-                {handleTarget}
+                {handleTarget()}
               </button>
             ) : null}
           </>

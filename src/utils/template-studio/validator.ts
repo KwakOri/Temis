@@ -2393,6 +2393,23 @@ const validateStudioInputPresentation = (
 ): StudioDiagnostic[] => {
   const diagnostics: StudioDiagnostic[] = [];
   const presentation = input.presentation;
+  const preset = (input as { preset?: unknown }).preset;
+  if (
+    preset !== undefined &&
+    (preset !== "user_images" ||
+      input.type !== "image" ||
+      document.metadata.kind !== "thumbnail" ||
+      input.scope !== "global")
+  ) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `input-preset-invalid:${input.id}`,
+        "Invalid image preset",
+        "user_images is only supported by global thumbnail image inputs.",
+      ),
+    );
+  }
 
   if (presentation?.order !== undefined) {
     if (

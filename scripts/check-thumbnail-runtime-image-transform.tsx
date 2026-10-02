@@ -5,7 +5,10 @@ import { StudioExportRoot } from "../src/components/studio/runtime/studio-export
 import { ThumbnailRuntimeForm } from "../src/app/(root)/thumbnail/_components/thumbnail-runtime-form";
 import { createThumbnailStudioDocument } from "../src/utils/thumbnail-studio/document-factory";
 import { createThumbnailStudioPreviewValues } from "../src/utils/thumbnail-studio/input-preview";
+import { setStudioRuntimeInputValue } from "../src/utils/template-studio/input-values";
 import {
+  createThumbnailRuntimeImageOverrides,
+  getThumbnailRuntimeImagePlacementMode,
   fromRuntimeImageTransform,
   getRuntimeImageFitGeometry,
   getThumbnailRuntimeImageNodes,
@@ -18,6 +21,26 @@ import {
 } from "../src/utils/template-studio/transform-commands";
 
 const slot = { width: 400, height: 200 };
+for (const intrinsicSize of [
+  { width: 120, height: 80 },
+  { width: 1200, height: 800 },
+]) {
+  assert.deepEqual(
+    getRuntimeImageFitGeometry({
+      ...slot,
+      naturalWidth: intrinsicSize.width,
+      naturalHeight: intrinsicSize.height,
+      fit: "cover",
+      intrinsicSize,
+    }),
+    {
+      left: (slot.width - intrinsicSize.width) / 2,
+      top: (slot.height - intrinsicSize.height) / 2,
+      ...intrinsicSize,
+    },
+    "uploaded image must keep its original pixels, whether smaller or larger than the slot",
+  );
+}
 assert.deepEqual(
   getRuntimeImageFitGeometry({
     ...slot,
@@ -167,7 +190,46 @@ assert.deepEqual(
 );
 
 const original = JSON.stringify(document);
+const defaultOverrides = createThumbnailRuntimeImageOverrides(document);
+assert.equal(defaultOverrides.photo1.fit, "cover");
+assert.equal(
+  getThumbnailRuntimeImagePlacementMode(defaultOverrides.photo1),
+  "cover",
+);
+assert.equal(getThumbnailRuntimeImagePlacementMode(), "cover");
+assert.equal(
+  getThumbnailRuntimeImagePlacementMode({ placementMode: "manual" }),
+  "manual",
+);
 const runtimeValues = createThumbnailStudioPreviewValues(document);
+const intrinsicMarkup = renderToStaticMarkup(
+  <StudioExportRoot
+    document={document}
+    runtimeValues={runtimeValues}
+    runtimeImageOverrides={{
+      photo1: { intrinsicSize: { width: 120, height: 80 } },
+    }}
+  />,
+);
+assert.match(
+  intrinsicMarkup,
+  /left:50%;top:50%;width:120px;height:80px[^\"]*translate\(-50%, -50%\)/,
+);
+const fittedMarkup = renderToStaticMarkup(
+  <StudioExportRoot
+    document={document}
+    runtimeValues={runtimeValues}
+    runtimeImageOverrides={{
+      photo1: {
+        intrinsicSize: { width: 120, height: 80 },
+        fit: "cover",
+        objectPosition: "50% 50%",
+      },
+    }}
+  />,
+);
+assert.match(fittedMarkup, /object-fit:cover;object-position:50% 50%/);
+assert.doesNotMatch(fittedMarkup, /width:120px;height:80px/);
 const overrides = { photo1: { transforms: { photo1: transform } } };
 const markup = renderToStaticMarkup(
   <StudioExportRoot
@@ -220,16 +282,28 @@ const form = renderToStaticMarkup(
     activeImage={{ inputId: "photo1", nodeId: "copy" }}
   />,
 );
-assert.match(form, /photo1 조정 완료/);
-assert.match(form, /photo2 위치·크기·회전 조정/);
-assert.match(form, /photo3 위치·크기·회전 조정/);
+assert.match(form, /aria-label="photo1 직접 배치" aria-pressed="true"/);
+assert.match(form, /aria-label="photo2 채우기" aria-pressed="true"/);
+assert.match(form, /aria-label="photo3 채우기" aria-pressed="true"/);
+assert.equal(
+  (form.match(/aria-pressed="true"/g) ?? []).length,
+  3,
+  "Each image must have exactly one selected placement mode.",
+);
 assert.match(form, /<option value="copy" selected="">Copy<\/option>/);
 assert.doesNotMatch(form, / x 초점| y 초점/);
+assert.doesNotMatch(form, /이미지 자르기/);
+assert.match(form, /photo1 배치 재설정/);
+assert.doesNotMatch(form, /맞춰 넣기|늘이기/);
+assert.doesNotMatch(form, /기본값 복원|사각형 손잡이로/);
+assert.match(form, /photo1 이미지 선택/);
+assert.match(form, /photo1 이미지 제거/);
+assert.doesNotMatch(form, />(EDIT|CROP|FIT)<\/button>/);
 document.inputs.photo3 = {
   ...document.inputs.photo3,
   type: "image",
   policy: {
-    allowReplace: true,
+    allowReplace: false,
     allowFitChange: false,
     allowFocusChange: false,
     allowCrop: false,
@@ -238,6 +312,31 @@ document.inputs.photo3 = {
 const restrictedForm = renderToStaticMarkup(
   <ThumbnailRuntimeForm {...formProps} />,
 );
-assert.doesNotMatch(restrictedForm, /photo3 위치·크기·회전 조정/);
+assert.match(restrictedForm, /aria-label="photo3 직접 배치"[^>]*disabled=""/);
+assert.match(restrictedForm, /aria-label="photo3 채우기"[^>]*disabled=""/);
+assert.doesNotMatch(restrictedForm, /이미지 자르기/);
+assert.match(restrictedForm, /aria-label="photo3 이미지 선택"[^>]*disabled=""/);
+assert.doesNotMatch(restrictedForm, /photo3 이미지 제거/);
+assert.equal(
+  createThumbnailRuntimeImageOverrides(document).photo3,
+  undefined,
+  "Locked inputs must retain their authored placement.",
+);
+
+const emptyValues = setStudioRuntimeInputValue(
+  document,
+  runtimeValues,
+  "photo1",
+  "",
+);
+const emptyForm = renderToStaticMarkup(
+  <ThumbnailRuntimeForm {...formProps} runtimeValues={emptyValues} />,
+);
+assert.doesNotMatch(emptyForm, /photo1 이미지 제거/);
+assert.match(emptyForm, /photo2 이미지 제거/);
+assert.doesNotMatch(
+  emptyForm,
+  /photo1 배치 방식|photo1 채우기|photo1 직접 배치|photo1 이미지 자르기|photo1 배치 재설정/,
+);
 
 console.log("Thumbnail runtime image transform checks passed.");

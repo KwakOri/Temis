@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
+import { applyThumbnailUserImagesPreset } from "@/utils/thumbnail-studio/user-images";
 
 import type {
   StudioGraphNodeType,
@@ -197,6 +198,7 @@ export interface ThumbnailNodeCommands {
     value: { format: string; template: string },
   ) => void;
   addWeekDates: () => void;
+  addUserImages: () => void;
   createInputFromNode: (nodeId: string) => string | null;
   bindNodeToInput: (nodeId: string, inputId: string) => void;
   setSelectTextOutput: (nodeId: string, output: "label" | "value") => void;
@@ -882,6 +884,15 @@ export function useThumbnailNodeCommands({
     ],
   );
 
+  const addUserImages = useCallback(() => {
+    let nodeId = "";
+    updateDocument((draft) => {
+      nodeId = applyThumbnailUserImagesPreset(draft, getSelectedNodeId());
+    });
+    selectSingleNode(nodeId);
+    onStatusMessage("Added user_images preset");
+  }, [getSelectedNodeId, updateDocument, selectSingleNode, onStatusMessage]);
+
   const addWeekDates = useCallback(() => {
     const document = getDocument();
     const selectedNodeId = getSelectedNodeId();
@@ -1503,6 +1514,7 @@ export function useThumbnailNodeCommands({
       setStaticBinding,
       setWeekDateFormatting,
       addWeekDates,
+      addUserImages,
       createInputFromNode,
       bindNodeToInput,
       setSelectTextOutput,
@@ -1553,6 +1565,7 @@ export function useThumbnailNodeCommands({
       setStaticBinding,
       setWeekDateFormatting,
       addWeekDates,
+      addUserImages,
       createInputFromNode,
       bindNodeToInput,
       setSelectTextOutput,

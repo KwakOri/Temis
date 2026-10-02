@@ -352,6 +352,8 @@ export interface StudioTextInputDefinition extends StudioInputBase {
 
 export interface StudioImageInputDefinition extends StudioInputBase {
   type: "image";
+  /** A fixed thumbnail object containing a background and ordered addon images. */
+  preset?: "user_images";
   defaultUrl?: string;
   placeholder?: string;
   policy?: StudioImageInputPolicy;

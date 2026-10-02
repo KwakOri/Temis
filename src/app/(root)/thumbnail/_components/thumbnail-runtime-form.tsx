@@ -1,6 +1,7 @@
 "use client";
 
-import { Download, RotateCcw, Upload } from "lucide-react";
+import { cva } from "class-variance-authority";
+import { Download, RotateCcw, Trash2, Upload } from "lucide-react";
 import React, {
   useCallback,
   useEffect,
@@ -13,7 +14,6 @@ import type {
   StudioImageInputDefinition,
   StudioInputDefinition,
   StudioRuntimeValues,
-  StudioStyleRecord,
   StudioTemplateDocument,
 } from "@/types/template-studio";
 import {
@@ -21,20 +21,18 @@ import {
   getStudioRuntimeImage,
   putStudioRuntimeImage,
 } from "@/services/browser/templateStudioRuntimeImageStorage";
-import { convertStudioRuntimeImageFileToPngBlob } from "@/utils/template-studio/runtime-image-blob";
+import {
+  convertStudioRuntimeImageFileToPngBlob,
+  getStudioRuntimeImageBlobSize,
+} from "@/utils/template-studio/runtime-image-blob";
 import {
   ALLOWED_RUNTIME_IMAGE_SOURCE_MIME_TYPES,
   MAX_RUNTIME_IMAGE_SOURCE_BYTES,
 } from "@/utils/template-studio/runtime-image-storage-constants";
 import {
-  getStudioInputDefaultValue,
   getStudioRuntimeInputValue,
   setStudioRuntimeInputValue,
 } from "@/utils/template-studio/input-values";
-import {
-  formatStudioImageObjectPosition,
-  getStudioImageObjectPosition,
-} from "@/utils/thumbnail-studio/image-object-position";
 import {
   getThumbnailStudioInputGroups,
   getThumbnailStudioInputDefinitions,
@@ -45,20 +43,30 @@ import { StudioRuntimeActionButton } from "@/components/studio/runtime/ui/studio
 import { StudioRuntimeCard } from "@/components/studio/runtime/ui/studio-runtime-card";
 import { StudioRuntimeField } from "@/components/studio/runtime/ui/studio-runtime-field";
 import { StudioRuntimeSegmentedControl } from "@/components/studio/runtime/ui/studio-runtime-segmented-control";
-import { StudioRuntimeImageCropModal } from "@/app/(root)/template-studio/_components/runtime/ui/studio-runtime-image-crop-modal";
+import { ThumbnailAddonImages } from "./thumbnail-addon-images";
+import {
+  isThumbnailUserImagesInput,
+  type ThumbnailAddonImage,
+} from "@/utils/thumbnail-studio/user-images";
 
 import {
+  createThumbnailRuntimeImageOverrides,
+  getThumbnailRuntimeImagePlacementMode,
   getThumbnailRuntimeImageNodes,
-  type StudioRuntimeImageOverride,
   type StudioRuntimeImageOverrides,
 } from "@/utils/thumbnail-studio/runtime-image-transform";
 
-interface PendingCrop {
-  input: StudioImageInputDefinition;
-  imageSrc: string;
-  width: number;
-  height: number;
-}
+const uploadOverlayVariants = cva(
+  "pointer-events-none absolute inset-0 flex items-center justify-center gap-2 text-xs font-semibold transition-opacity",
+  {
+    variants: {
+      hasImage: {
+        true: "bg-[var(--runtime-input-bg)]/85 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100",
+        false: "text-[var(--runtime-fg-muted)]",
+      },
+    },
+  },
+);
 
 interface ThumbnailRuntimeFormProps {
   document: StudioTemplateDocument;
@@ -71,8 +79,15 @@ interface ThumbnailRuntimeFormProps {
   >;
   activeImage?: { inputId: string; nodeId: string } | null;
   onAdjustImage?: (target: { inputId: string; nodeId: string } | null) => void;
-  onResetImageAdjustment?: (inputId: string) => void;
+  onResetImageAdjustment?: (
+    inputId: string,
+    preserveIntrinsicSize?: boolean,
+  ) => void;
   onScaleImage?: (factor: number) => void;
+  addonImages?: ThumbnailAddonImage[];
+  setAddonImages?: React.Dispatch<React.SetStateAction<ThumbnailAddonImage[]>>;
+  addonsLoaded?: boolean;
+  imageStorageError?: string | null;
   templateId: string;
   storageOwnerId: string;
   templateName: string;
@@ -86,51 +101,6 @@ interface ThumbnailRuntimeFormProps {
 
 const imageContext = { scope: "global" as const };
 
-const getImageNodeStyle = (
-  document: StudioTemplateDocument,
-  inputId: string,
-): StudioStyleRecord | undefined => {
-  const node = Object.values(document.graph.nodes).find(
-    (candidate) =>
-      candidate.type === "image" &&
-      candidate.binding?.kind === "inputImage" &&
-      candidate.binding.inputId === inputId,
-  );
-  return node?.styleId ? document.styles[node.styleId] : undefined;
-};
-
-const getCropSize = (
-  document: StudioTemplateDocument,
-  inputId: string,
-): { width: number; height: number } => {
-  const style = getImageNodeStyle(document, inputId);
-  const width = typeof style?.width === "number" ? style.width : 400;
-  const height = typeof style?.height === "number" ? style.height : 400;
-  return {
-    width: Math.max(1, Math.round(width)),
-    height: Math.max(1, Math.round(height)),
-  };
-};
-
-const getDefaultImageOverride = (
-  document: StudioTemplateDocument,
-  inputId: string,
-): StudioRuntimeImageOverride => {
-  const node = Object.values(document.graph.nodes).find(
-    (candidate) =>
-      candidate.type === "image" &&
-      candidate.binding?.kind === "inputImage" &&
-      candidate.binding.inputId === inputId,
-  );
-  const style = node?.styleId ? document.styles[node.styleId] : undefined;
-  return {
-    fit: node?.fit ?? "cover",
-    objectPosition: formatStudioImageObjectPosition(
-      getStudioImageObjectPosition(style),
-    ),
-  };
-};
-
 export function ThumbnailRuntimeForm({
   document,
   initialRuntimeValues,
@@ -142,6 +112,10 @@ export function ThumbnailRuntimeForm({
   onAdjustImage,
   onResetImageAdjustment,
   onScaleImage,
+  addonImages = [],
+  setAddonImages,
+  addonsLoaded = true,
+  imageStorageError,
   templateId,
   storageOwnerId,
   templateName,
@@ -160,11 +134,19 @@ export function ThumbnailRuntimeForm({
     [document],
   );
   const groups = useMemo(
-    () => getThumbnailStudioInputGroups(document),
+    () =>
+      getThumbnailStudioInputGroups(document)
+        .map((group) => ({
+          ...group,
+          inputs: group.inputs.filter(
+            (input) => !isThumbnailUserImagesInput(input),
+          ),
+        }))
+        .filter((group) => group.inputs.length > 0),
     [document],
   );
   const objectUrlsRef = useRef<Map<string, string>>(new Map());
-  const [pendingCrop, setPendingCrop] = useState<PendingCrop | null>(null);
+  const imageFileInputsRef = useRef<Map<string, HTMLInputElement>>(new Map());
   const [error, setError] = useState<string | null>(null);
 
   const replaceObjectUrl = useCallback(
@@ -190,11 +172,23 @@ export function ThumbnailRuntimeForm({
             context: imageContext,
           });
           if (!record || cancelled) return;
+          const intrinsicSize = await getStudioRuntimeImageBlobSize(
+            record.blob,
+          );
+          if (cancelled) return;
           const url = URL.createObjectURL(record.blob);
           replaceObjectUrl(input.id, url);
           setRuntimeValues((current) =>
             setStudioRuntimeInputValue(document, current, input.id, url),
           );
+          setRuntimeImageOverrides((current) => ({
+            ...current,
+            [input.id]: {
+              ...createThumbnailRuntimeImageOverrides(document)[input.id],
+              ...current[input.id],
+              intrinsicSize,
+            },
+          }));
         } catch {
           // A missing or unavailable local image falls back to the document default.
         }
@@ -209,6 +203,7 @@ export function ThumbnailRuntimeForm({
     imageInputs,
     replaceObjectUrl,
     setRuntimeValues,
+    setRuntimeImageOverrides,
     storageOwnerId,
     templateId,
   ]);
@@ -227,6 +222,41 @@ export function ThumbnailRuntimeForm({
     );
   };
 
+  const commitImage = async (input: StudioImageInputDefinition, blob: Blob) => {
+    const intrinsicSize = await getStudioRuntimeImageBlobSize(blob);
+    await putStudioRuntimeImage(
+      {
+        userId: storageOwnerId,
+        templateId,
+        inputId: input.id,
+        context: imageContext,
+      },
+      blob,
+    );
+    const url = URL.createObjectURL(blob);
+    replaceObjectUrl(input.id, url);
+    updateValue(input, url);
+    onResetImageAdjustment?.(input.id, false);
+    setRuntimeImageOverrides((current) => ({
+      ...current,
+      [input.id]: {
+        ...createThumbnailRuntimeImageOverrides(document)[input.id],
+        intrinsicSize,
+      },
+    }));
+  };
+
+  const fillImage = (input: StudioImageInputDefinition) => {
+    onResetImageAdjustment?.(input.id);
+    setRuntimeImageOverrides((current) => ({
+      ...current,
+      [input.id]: {
+        ...createThumbnailRuntimeImageOverrides(document)[input.id],
+        intrinsicSize: current[input.id]?.intrinsicSize,
+      },
+    }));
+  };
+
   const uploadImage = async (input: StudioImageInputDefinition, file: File) => {
     setError(null);
     const policy = getStudioImageInputPolicy(input.policy);
@@ -242,26 +272,16 @@ export function ThumbnailRuntimeForm({
 
     try {
       const blob = await convertStudioRuntimeImageFileToPngBlob(file);
-      await putStudioRuntimeImage(
-        {
-          userId: storageOwnerId,
-          templateId,
-          inputId: input.id,
-          context: imageContext,
-        },
-        blob,
-      );
-      const url = URL.createObjectURL(blob);
-      replaceObjectUrl(input.id, url);
-      updateValue(input, url);
-      onResetImageAdjustment?.(input.id);
+      await commitImage(input, blob);
     } catch (uploadError) {
       console.error("Thumbnail runtime image upload failed", uploadError);
       setError("이미지를 준비하지 못했습니다. 다시 시도해 주세요.");
     }
   };
 
-  const resetImage = async (input: StudioImageInputDefinition) => {
+  const removeImage = async (input: StudioImageInputDefinition) => {
+    if (!getStudioImageInputPolicy(input.policy).allowReplace) return;
+    setError(null);
     try {
       await deleteStudioRuntimeImage({
         userId: storageOwnerId,
@@ -270,11 +290,18 @@ export function ThumbnailRuntimeForm({
         context: imageContext,
       });
     } catch {
-      // The default value is still restored in runtime state.
+      setError("이미지를 제거하지 못했습니다. 다시 시도해 주세요.");
+      return;
     }
     replaceObjectUrl(input.id, null);
-    updateValue(input, getStudioInputDefaultValue(input));
-    onResetImageAdjustment?.(input.id);
+    updateValue(input, "");
+    onResetImageAdjustment?.(input.id, false);
+    setRuntimeImageOverrides((current) => {
+      const next = { ...current };
+      if (isThumbnailUserImagesInput(input)) next[input.id] = { removed: true };
+      else delete next[input.id];
+      return next;
+    });
   };
 
   const resetAll = () => {
@@ -287,28 +314,29 @@ export function ThumbnailRuntimeForm({
       }).catch(() => undefined);
       replaceObjectUrl(input.id, null);
     });
+    setAddonImages?.([]);
     setRuntimeValues(initialRuntimeValues);
-    setRuntimeImageOverrides({});
+    setRuntimeImageOverrides(createThumbnailRuntimeImageOverrides(document));
     onAdjustImage?.(null);
     setError(null);
     onReset();
   };
 
   const renderImageInput = (input: StudioImageInputDefinition) => {
-    const value = getStudioRuntimeInputValue(input, runtimeValues);
+    const value = runtimeImageOverrides[input.id]?.removed
+      ? ""
+      : getStudioRuntimeInputValue(input, runtimeValues);
     const policy = getStudioImageInputPolicy(input.policy);
-    const currentOverride =
-      runtimeImageOverrides[input.id] ??
-      getDefaultImageOverride(document, input.id);
     const imageNodes = getThumbnailRuntimeImageNodes(document, input.id);
     const isAdjusting = activeImage?.inputId === input.id;
-    const adjustmentLabel =
-      policy.allowFitChange && policy.allowFocusChange
-        ? "위치·크기·회전 조정"
-        : policy.allowFitChange
-          ? "크기 조정"
-          : "위치 조정";
-    const cropSize = getCropSize(document, input.id);
+    const placementMode = getThumbnailRuntimeImagePlacementMode(
+      runtimeImageOverrides[input.id],
+    );
+    const canAdjust = Boolean(
+      onAdjustImage &&
+      imageNodes.length > 0 &&
+      (policy.allowFitChange || policy.allowFocusChange),
+    );
 
     return (
       <div className="grid gap-3" key={input.id}>
@@ -320,101 +348,124 @@ export function ThumbnailRuntimeForm({
                 <span className="ml-1 text-rose-500">*</span>
               ) : null}
             </p>
-            {input.presentation?.helpText ? (
-              <p className="mt-1 text-[11px] font-medium text-[var(--runtime-fg-muted)]">
-                {input.presentation.helpText}
-              </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {input.required && !value.trim() ? (
+              <span className="text-[10px] font-bold text-rose-500">필수</span>
             ) : null}
           </div>
-          {input.required && !value.trim() ? (
-            <span className="text-[10px] font-bold text-rose-500">필수</span>
+        </div>
+
+        <div className="relative">
+          <StudioRuntimeActionButton
+            fullWidth
+            aria-label={`${input.label} 이미지 선택`}
+            className="group relative h-36 overflow-hidden rounded-xl border-dashed border-[var(--runtime-border-strong)] bg-[var(--runtime-input-bg)] p-0 enabled:cursor-pointer enabled:hover:border-[var(--runtime-primary)] focus-visible:border-[var(--runtime-primary)]"
+            disabled={!policy.allowReplace}
+            variant="secondary"
+            onClick={() => imageFileInputsRef.current.get(input.id)?.click()}
+          >
+            {value ? (
+              // eslint-disable-next-line @next/next/no-img-element -- Runtime image values are local blob URLs or document asset URLs.
+              <img
+                alt=""
+                className="h-full w-full object-contain"
+                src={value}
+              />
+            ) : null}
+            {policy.allowReplace ? (
+              <span
+                className={uploadOverlayVariants({ hasImage: Boolean(value) })}
+              >
+                <Upload size={16} aria-hidden="true" /> 이미지 선택
+              </span>
+            ) : !value ? (
+              <span className="text-xs text-[var(--runtime-fg-muted)]">
+                이미지가 없습니다.
+              </span>
+            ) : null}
+          </StudioRuntimeActionButton>
+          {value && policy.allowReplace ? (
+            <StudioRuntimeActionButton
+              aria-label={`${input.label} 이미지 제거`}
+              className="absolute right-2 top-2"
+              size="icon"
+              variant="secondary"
+              onClick={() => void removeImage(input)}
+            >
+              <Trash2 size={14} aria-hidden="true" />
+            </StudioRuntimeActionButton>
           ) : null}
+          <input
+            ref={(element) => {
+              if (element) imageFileInputsRef.current.set(input.id, element);
+              else imageFileInputsRef.current.delete(input.id);
+            }}
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            className="hidden"
+            disabled={!policy.allowReplace}
+            type="file"
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              event.currentTarget.value = "";
+              if (file) void uploadImage(input, file);
+            }}
+          />
         </div>
 
         {value ? (
-          // eslint-disable-next-line @next/next/no-img-element -- Runtime image values are local blob URLs or document asset URLs.
-          <img
-            alt=""
-            className="max-h-36 w-full rounded-xl border border-[var(--runtime-border)] bg-[var(--runtime-input-bg)] object-contain"
-            src={value}
-          />
-        ) : (
-          <div className="rounded-xl border border-dashed border-[var(--runtime-border-strong)] px-3 py-6 text-center text-xs font-semibold text-[var(--runtime-fg-muted)]">
-            이미지가 없습니다.
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-2">
-          <label className="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--runtime-border)] bg-[var(--runtime-card-bg)] text-xs font-bold hover:border-[var(--runtime-border-strong)]">
-            <Upload size={14} /> 이미지 선택
-            <input
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              className="hidden"
-              disabled={!policy.allowReplace}
-              type="file"
-              onChange={(event) => {
-                const file = event.currentTarget.files?.[0];
-                event.currentTarget.value = "";
-                if (file) void uploadImage(input, file);
+          <div className="grid grid-cols-[minmax(0,1fr)_32px] items-center gap-2">
+            <StudioRuntimeSegmentedControl
+              ariaLabel={`${input.label} 배치 방식`}
+              className="min-w-0"
+              size="compact"
+              value={placementMode}
+              options={[
+                {
+                  id: "cover",
+                  label: "채우기",
+                  ariaLabel: `${input.label} 채우기`,
+                  disabled: !policy.allowFitChange || !imageNodes.length,
+                },
+                {
+                  id: "manual",
+                  label: "직접 배치",
+                  ariaLabel: `${input.label} 직접 배치`,
+                  disabled: !canAdjust,
+                },
+              ]}
+              onValueChange={(mode) => {
+                if (mode === "cover") fillImage(input);
+                else {
+                  setRuntimeImageOverrides((current) => ({
+                    ...current,
+                    [input.id]: {
+                      ...current[input.id],
+                      placementMode: "manual",
+                    },
+                  }));
+                  onAdjustImage?.({
+                    inputId: input.id,
+                    nodeId: imageNodes[0].id,
+                  });
+                }
               }}
             />
-          </label>
-          <StudioRuntimeActionButton
-            disabled={!value || value === getStudioInputDefaultValue(input)}
-            size="compact"
-            variant="secondary"
-            onClick={() => void resetImage(input)}
-          >
-            기본값 복원
-          </StudioRuntimeActionButton>
-        </div>
-
-        {policy.allowFitChange ? (
-          <div className="grid gap-1.5">
-            <p className="text-[11px] font-bold text-[var(--runtime-fg-muted)]">
-              맞춤
-            </p>
-            <StudioRuntimeSegmentedControl
-              ariaLabel={`${input.label} 맞춤`}
-              options={[
-                { id: "cover" as const, label: "채우기" },
-                { id: "contain" as const, label: "맞춰 넣기" },
-                { id: "fill" as const, label: "늘이기" },
-              ]}
-              value={currentOverride.fit ?? "cover"}
-              onValueChange={(fit) =>
-                setRuntimeImageOverrides((current) => ({
-                  ...current,
-                  [input.id]: {
-                    ...current[input.id],
-                    fit,
-                    transforms: undefined,
-                  },
-                }))
-              }
-            />
+            <StudioRuntimeActionButton
+              size="icon"
+              variant="secondary"
+              aria-label={`${input.label} 배치 재설정`}
+              title="배치 재설정"
+              disabled={!policy.allowFitChange && !canAdjust}
+              onClick={() => fillImage(input)}
+            >
+              <RotateCcw size={14} aria-hidden="true" />
+            </StudioRuntimeActionButton>
           </div>
         ) : null}
 
-        {onAdjustImage &&
-        imageNodes.length > 0 &&
-        (policy.allowFitChange || policy.allowFocusChange) ? (
-          <div className="grid gap-2 rounded-xl border border-[var(--runtime-border)] p-3">
-            <StudioRuntimeActionButton
-              fullWidth
-              aria-label={`${input.label} ${isAdjusting ? "조정 완료" : adjustmentLabel}`}
-              disabled={!value}
-              variant={isAdjusting ? "primary" : "secondary"}
-              onClick={() =>
-                onAdjustImage(
-                  isAdjusting
-                    ? null
-                    : { inputId: input.id, nodeId: imageNodes[0].id },
-                )
-              }
-            >
-              {isAdjusting ? "조정 완료" : adjustmentLabel}
-            </StudioRuntimeActionButton>
+        {value && isAdjusting && canAdjust && onAdjustImage ? (
+          <div className="grid gap-2">
             {isAdjusting ? (
               <>
                 {imageNodes.length > 1 ? (
@@ -439,17 +490,6 @@ export function ThumbnailRuntimeForm({
                     </select>
                   </label>
                 ) : null}
-                <p className="text-[11px] text-[var(--runtime-fg-muted)]">
-                  {policy.allowFocusChange
-                    ? "이미지를 끌어서 이동하세요. "
-                    : ""}
-                  {policy.allowFitChange
-                    ? "사각형 손잡이로 비율을 유지하며 크기를 조절하세요. "
-                    : ""}
-                  {policy.allowFitChange && policy.allowFocusChange
-                    ? "위쪽 원형 손잡이로 회전할 수 있습니다."
-                    : ""}
-                </p>
                 {policy.allowFitChange && onScaleImage ? (
                   <div className="grid grid-cols-2 gap-2">
                     <StudioRuntimeActionButton
@@ -472,41 +512,7 @@ export function ThumbnailRuntimeForm({
                 ) : null}
               </>
             ) : null}
-            <StudioRuntimeActionButton
-              fullWidth
-              size="compact"
-              variant="secondary"
-              aria-label={`${input.label} 배치 초기화`}
-              disabled={!runtimeImageOverrides[input.id]}
-              onClick={() => onResetImageAdjustment?.(input.id)}
-            >
-              배치 초기화
-            </StudioRuntimeActionButton>
           </div>
-        ) : null}
-
-        {policy.allowCrop && value ? (
-          <StudioRuntimeActionButton
-            fullWidth
-            size="compact"
-            variant="secondary"
-            onClick={() =>
-              setPendingCrop({
-                input,
-                imageSrc: value,
-                width: cropSize.width,
-                height: cropSize.height,
-              })
-            }
-          >
-            자르기 ({cropSize.width} × {cropSize.height})
-          </StudioRuntimeActionButton>
-        ) : null}
-
-        {policy.recommendedAspectRatio ? (
-          <p className="text-[10px] font-medium text-[var(--runtime-fg-subtle)]">
-            권장 비율 {policy.recommendedAspectRatio.toFixed(3)}:1
-          </p>
         ) : null}
       </div>
     );
@@ -624,10 +630,39 @@ export function ThumbnailRuntimeForm({
             </div>
           </StudioRuntimeCard>
         ))}
-        {groups.length === 0 ? (
+        {imageInputs.filter(isThumbnailUserImagesInput).map((input) => (
+          <StudioRuntimeCard className="grid gap-4" key={`preset:${input.id}`}>
+            <h3 className="text-[11px] font-black uppercase tracking-[0.08em] text-[var(--runtime-fg-muted)]">
+              이미지
+            </h3>
+            {setAddonImages ? (
+              <ThumbnailAddonImages
+                input={input}
+                document={document}
+                images={addonImages}
+                setImages={setAddonImages}
+                setOverrides={setRuntimeImageOverrides}
+                activeImage={activeImage}
+                onAdjustImage={onAdjustImage}
+                onScaleImage={onScaleImage}
+                loaded={addonsLoaded}
+              >
+                {renderImageInput(input)}
+              </ThumbnailAddonImages>
+            ) : (
+              renderImageInput(input)
+            )}
+          </StudioRuntimeCard>
+        ))}
+        {groups.length === 0 && imageInputs.length === 0 ? (
           <StudioRuntimeCard className="text-sm font-semibold text-[var(--runtime-fg-muted)]">
             공개된 입력 필드가 없습니다.
           </StudioRuntimeCard>
+        ) : null}
+        {imageStorageError ? (
+          <p role="alert" className="text-xs font-bold text-rose-500">
+            {imageStorageError}
+          </p>
         ) : null}
         {error ? (
           <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
@@ -635,35 +670,6 @@ export function ThumbnailRuntimeForm({
           </p>
         ) : null}
       </div>
-      {pendingCrop ? (
-        <StudioRuntimeImageCropModal
-          imageSrc={pendingCrop.imageSrc}
-          locale="ko"
-          targetHeight={pendingCrop.height}
-          targetWidth={pendingCrop.width}
-          onApply={(blob) => {
-            const input = pendingCrop.input;
-            void putStudioRuntimeImage(
-              {
-                userId: storageOwnerId,
-                templateId,
-                inputId: input.id,
-                context: imageContext,
-              },
-              blob,
-            )
-              .then(() => {
-                const url = URL.createObjectURL(blob);
-                replaceObjectUrl(input.id, url);
-                updateValue(input, url);
-                onResetImageAdjustment?.(input.id);
-                setPendingCrop(null);
-              })
-              .catch(() => setError("자른 이미지를 저장하지 못했습니다."));
-          }}
-          onCancel={() => setPendingCrop(null)}
-        />
-      ) : null}
     </StudioRuntimeFormShell>
   );
 }
