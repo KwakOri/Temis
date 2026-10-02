@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   fitStudioCropFrame,
   getStudioContainRect,
+  getStudioCropOutputSize,
   resizeStudioCropFrame,
 } from "../src/utils/template-studio/crop-resize";
 import { getStudioRuntimeProfileImageCropTarget } from "../src/utils/template-studio/runtime-image-crop";
@@ -39,6 +40,34 @@ assert.deepEqual(
     200,
   ),
   { width: 452, height: 300 },
+);
+
+assert.deepEqual(
+  getStudioCropOutputSize(
+    { width: 360, height: 720 },
+    { width: 808, height: 508 },
+    false,
+  ),
+  { width: 360, height: 720 },
+  "Free crop output must preserve the selected pixels and aspect ratio.",
+);
+assert.deepEqual(
+  getStudioCropOutputSize(
+    { width: 360, height: 720 },
+    { width: 808, height: 508 },
+    true,
+  ),
+  { width: 808, height: 508 },
+  "Fixed profile crops must retain the template's output size.",
+);
+assert.deepEqual(
+  getStudioCropOutputSize(
+    { width: 20000, height: 4000 },
+    { width: 808, height: 508 },
+    false,
+  ),
+  { width: 10000, height: 2000 },
+  "The output size limit must scale both free crop dimensions together.",
 );
 
 assert.deepEqual(

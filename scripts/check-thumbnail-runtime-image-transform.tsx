@@ -3,6 +3,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { StudioExportRoot } from "../src/components/studio/runtime/studio-export-root";
 import { ThumbnailRuntimeForm } from "../src/app/(root)/thumbnail/_components/thumbnail-runtime-form";
+import { StudioRuntimeImageCropModal } from "../src/app/(root)/template-studio/_components/runtime/ui/studio-runtime-image-crop-modal";
 import { createThumbnailStudioDocument } from "../src/utils/thumbnail-studio/document-factory";
 import { createThumbnailStudioPreviewValues } from "../src/utils/thumbnail-studio/input-preview";
 import { setStudioRuntimeInputValue } from "../src/utils/template-studio/input-values";
@@ -338,5 +339,28 @@ assert.doesNotMatch(
   emptyForm,
   /photo1 배치 방식|photo1 채우기|photo1 직접 배치|photo1 이미지 자르기|photo1 배치 재설정/,
 );
+
+const cropProps = {
+  imageSrc: "data:image/png;base64,photo",
+  locale: "ko" as const,
+  targetWidth: 808,
+  targetHeight: 508,
+  onCancel: () => {},
+  onApply: () => {},
+};
+const fixedCrop = renderToStaticMarkup(
+  <StudioRuntimeImageCropModal {...cropProps} />,
+);
+assert.match(
+  fixedCrop,
+  /크롭 비율과 출력 크기는 에디터의 프로필 영역으로 고정됩니다/,
+);
+assert.doesNotMatch(fixedCrop, /자유 비율/);
+const freeCrop = renderToStaticMarkup(
+  <StudioRuntimeImageCropModal {...cropProps} allowFreeCrop />,
+);
+assert.match(freeCrop, /자유 비율/);
+assert.match(freeCrop, /저장 크기/);
+assert.doesNotMatch(freeCrop, /프로필 영역 비율|고정됩니다/);
 
 console.log("Thumbnail runtime image transform checks passed.");

@@ -5,6 +5,22 @@ export interface StudioCropFrameSize {
 
 export type StudioCropResizeEdge = "left" | "right" | "top" | "bottom";
 
+/** Free crops retain the selected source pixels instead of stretching to a slot. */
+export const getStudioCropOutputSize = (
+  selectedSize: StudioCropFrameSize,
+  targetSize: StudioCropFrameSize,
+  isAspectLocked: boolean,
+): StudioCropFrameSize => {
+  const size = isAspectLocked ? targetSize : selectedSize;
+  const width = Math.max(1, size.width);
+  const height = Math.max(1, size.height);
+  const scale = isAspectLocked ? 1 : Math.min(1, 10000 / width, 10000 / height);
+  return {
+    width: Math.min(10000, Math.max(1, Math.round(width * scale))),
+    height: Math.min(10000, Math.max(1, Math.round(height * scale))),
+  };
+};
+
 export const STUDIO_CROP_FRAME_INSET = 24;
 export const STUDIO_CROP_FRAME_MIN_SIZE = 80;
 

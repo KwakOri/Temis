@@ -72,6 +72,9 @@ export interface StudioRuntimeCopy {
   cropZoom: string;
   cropRotation: string;
   cropTargetFrame: string;
+  cropOutputSize: string;
+  cropAspectLocked: string;
+  cropAspectFree: string;
   cropTargetDescription: string;
   cropResetView: string;
   cropApply: string;
@@ -166,6 +169,9 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     cropZoom: "확대",
     cropRotation: "회전",
     cropTargetFrame: "프로필 영역",
+    cropOutputSize: "저장 크기",
+    cropAspectLocked: "비율 고정",
+    cropAspectFree: "자유 비율",
     cropTargetDescription:
       "크롭 비율과 출력 크기는 에디터의 프로필 영역으로 고정됩니다.",
     cropResetView: "보기 초기화",
@@ -258,6 +264,9 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     cropZoom: "Zoom",
     cropRotation: "Rotation",
     cropTargetFrame: "Profile frame",
+    cropOutputSize: "Output size",
+    cropAspectLocked: "Locked ratio",
+    cropAspectFree: "Free ratio",
     cropTargetDescription:
       "The crop ratio and output size are fixed to the profile frame authored in the editor.",
     cropResetView: "Reset view",
@@ -351,6 +360,9 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     cropZoom: "拡大",
     cropRotation: "回転",
     cropTargetFrame: "プロフィール枠",
+    cropOutputSize: "保存サイズ",
+    cropAspectLocked: "比率固定",
+    cropAspectFree: "自由比率",
     cropTargetDescription:
       "切り抜き比率と出力サイズはエディターのプロフィール枠に固定されます。",
     cropResetView: "表示をリセット",
