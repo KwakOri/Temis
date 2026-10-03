@@ -46,10 +46,10 @@ export function useThumbnailUserImages(
               document.inputs[image.inputId] ?? { type: "" },
             ),
           )
-          .map((image) => {
+          .map((image, index) => {
             const src = URL.createObjectURL(image.blob);
             urls.current.add(src);
-            return { ...image, src };
+            return { ...image, name: image.name || `이미지 ${index + 1}`, src };
           });
         setImages(restored);
         if (record)
@@ -76,6 +76,7 @@ export function useThumbnailUserImages(
       images: images.map((image) => ({
         id: image.id,
         inputId: image.inputId,
+        name: image.name,
         blob: image.blob,
         intrinsicSize: image.intrinsicSize,
       })),

@@ -9,6 +9,7 @@ import {
   applyThumbnailUserImagesPreset,
   expandThumbnailUserImages,
   moveThumbnailAddonImage,
+  reorderThumbnailAddonImage,
   upgradeThumbnailUserImages,
   type ThumbnailAddonImage,
 } from "../src/utils/thumbnail-studio/user-images";
@@ -64,6 +65,7 @@ values.global[inputId] = "https://example.test/background.png";
 const images: ThumbnailAddonImage[] = Array.from({ length: 60 }, (_, i) => ({
   id: `addon-${i}`,
   inputId,
+  name: `레이어 ${i + 1}`,
   src: `https://example.test/${i}.png`,
   blob: new Blob(),
   intrinsicSize: { width: 120 + i, height: 80 + i },
@@ -116,6 +118,36 @@ assert.equal(
   "addons cannot move below the background",
 );
 assert.equal(moveThumbnailAddonImage(images, "missing", 1), images);
+const dragged = reorderThumbnailAddonImage(images, "addon-0", "addon-4");
+assert.deepEqual(
+  dragged.slice(0, 5).map((image) => image.id),
+  ["addon-1", "addon-2", "addon-3", "addon-4", "addon-0"],
+);
+assert.equal(dragged[4].name, "레이어 1", "reordering retains layer names");
+const otherGroup = { ...images[0], id: "other-group", inputId: "other" };
+const interleaved = [images[0], otherGroup, images[1], images[2]];
+assert.deepEqual(
+  reorderThumbnailAddonImage(interleaved, images[0].id, images[2].id),
+  [images[1], otherGroup, images[2], images[0]],
+);
+assert.equal(
+  reorderThumbnailAddonImage(interleaved, images[0].id, otherGroup.id),
+  interleaved,
+  "cannot drag into another authored group",
+);
+assert.equal(
+  reorderThumbnailAddonImage(images, images[0].id, inputId),
+  images,
+  "background is never a reorder target",
+);
+assert.equal(
+  reorderThumbnailAddonImage(images, "missing", images[0].id),
+  images,
+);
+assert.equal(
+  expanded.document.graph.nodes[`${nodeId}:addon-0`].label,
+  "레이어 1",
+);
 
 const form = renderToStaticMarkup(
   <ThumbnailRuntimeForm
@@ -143,7 +175,14 @@ assert.match(form, /data-thumbnail-user-images=/);
 assert.match(form, /aria-label="user_images 이미지 추가"/);
 assert.doesNotMatch(form, /애드온 이미지 추가/);
 assert.match(form, /aria-label="애드온 이미지 변경 완료"/);
-assert.match(form, /aria-label="애드온 이미지 직접 배치"/);
+assert.match(form, /aria-label="애드온 이미지 위치 조정"/);
+assert.match(form, /aria-label="레이어 1 레이어 순서 변경"/);
+assert.match(form, /aria-label="레이어 1 레이어 이름 변경"/);
+assert.match(form, /aria-label="레이어 1 레이어 메뉴"/);
+assert.doesNotMatch(
+  form,
+  /애드온 이미지 앞으로|애드온 이미지 뒤로|직접 배치|h-28 w-full/,
+);
 assert.doesNotMatch(form, /이미지 자르기/);
 assert.equal(
   (form.match(/>채우기<\/button>/g) ?? []).length,

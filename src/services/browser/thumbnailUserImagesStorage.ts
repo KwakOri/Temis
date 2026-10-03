@@ -3,6 +3,7 @@ import type { StudioRuntimeImageOverrides } from "@/utils/thumbnail-studio/runti
 export interface StoredThumbnailAddon {
   id: string;
   inputId: string;
+  name?: string;
   blob: Blob;
   intrinsicSize: { width: number; height: number };
 }

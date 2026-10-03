@@ -13,6 +13,7 @@ import type { StudioRuntimeImageOverrides } from "./runtime-image-transform";
 export interface ThumbnailAddonImage {
   id: string;
   inputId: string;
+  name?: string;
   src: string;
   blob: Blob;
   intrinsicSize: { width: number; height: number };
@@ -126,6 +127,27 @@ export const moveThumbnailAddonImage = (
   return next;
 };
 
+/** Reorder only siblings, leaving other authored image groups in their own slots. */
+export const reorderThumbnailAddonImage = (
+  images: ThumbnailAddonImage[],
+  id: string,
+  targetId: string,
+): ThumbnailAddonImage[] => {
+  const image = images.find((item) => item.id === id);
+  const target = images.find((item) => item.id === targetId);
+  if (!image || !target || image === target || image.inputId !== target.inputId)
+    return images;
+  const siblings = images.filter((item) => item.inputId === image.inputId);
+  const from = siblings.indexOf(image);
+  const to = siblings.indexOf(target);
+  siblings.splice(from, 1);
+  siblings.splice(to, 0, image);
+  let index = 0;
+  return images.map((item) =>
+    item.inputId === image.inputId ? siblings[index++] : item,
+  );
+};
+
 /** Runtime expansion stays inside the authored layer's stacking context. Never persist this graph. */
 export const expandThumbnailUserImages = (
   document: StudioTemplateDocument,
@@ -160,10 +182,14 @@ export const expandThumbnailUserImages = (
       overflow: "hidden",
     };
     const layers = [
-      { id: inputId, nodeId: backgroundId },
+      { id: inputId, nodeId: backgroundId, name: undefined },
       ...images
         .filter((image) => image.inputId === inputId)
-        .map((image) => ({ id: image.id, nodeId: `${node.id}:${image.id}` })),
+        .map((image) => ({
+          id: image.id,
+          nodeId: `${node.id}:${image.id}`,
+          name: image.name,
+        })),
     ];
     expanded.graph.nodes[node.id] = {
       ...node,
@@ -187,7 +213,8 @@ export const expandThumbnailUserImages = (
         hidden:
           layer.id === inputId &&
           !getStudioRuntimeInputValue(expanded.inputs[inputId], values),
-        label: layer.id === inputId ? "배경 이미지" : "애드온 이미지",
+        label:
+          layer.id === inputId ? "배경 이미지" : layer.name || "애드온 이미지",
         parentId: node.id,
         childIds: [],
         styleId,
@@ -212,7 +239,7 @@ export const expandThumbnailUserImages = (
         id: image.id,
         type: "image",
         scope: "global",
-        label: "애드온 이미지",
+        label: image.name || "애드온 이미지",
         policy: {
           allowFitChange: true,
           allowFocusChange: true,

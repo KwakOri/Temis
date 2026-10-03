@@ -464,6 +464,7 @@ export function ThumbnailRuntimeForm({
             )}
             <StudioRuntimeActionButton
               size="icon"
+              className="h-10"
               variant="secondary"
               aria-label={`${input.label} 배치 재설정`}
               title="배치 재설정"
