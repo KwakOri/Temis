@@ -148,6 +148,27 @@ export const reorderThumbnailAddonImage = (
   );
 };
 
+/** Before/after refer to the top-first layer panel; stored stacking order is bottom-first. */
+export const dropThumbnailAddonImage = (
+  images: ThumbnailAddonImage[],
+  id: string,
+  targetId: string,
+  position: "before" | "after",
+): ThumbnailAddonImage[] => {
+  const image = images.find((item) => item.id === id);
+  const target = images.find((item) => item.id === targetId);
+  if (!image || !target || image === target || image.inputId !== target.inputId)
+    return images;
+  const siblings = images.filter((item) => item.inputId === image.inputId);
+  const next = siblings.filter((item) => item !== image);
+  next.splice(next.indexOf(target) + (position === "before" ? 1 : 0), 0, image);
+  if (next.every((item, index) => item === siblings[index])) return images;
+  let index = 0;
+  return images.map((item) =>
+    item.inputId === image.inputId ? next[index++] : item,
+  );
+};
+
 /** Runtime expansion stays inside the authored layer's stacking context. Never persist this graph. */
 export const expandThumbnailUserImages = (
   document: StudioTemplateDocument,

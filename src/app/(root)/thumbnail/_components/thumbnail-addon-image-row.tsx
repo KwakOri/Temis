@@ -62,7 +62,7 @@ export function ThumbnailAddonImageRow({
     <div
       className={cn(
         "grid grid-cols-[20px_minmax(0,1fr)] items-center gap-2 rounded-xl border border-[var(--runtime-border)] p-2",
-        dragging && "border-[var(--runtime-primary)] opacity-70",
+        dragging && "border-dashed border-[var(--runtime-primary)] opacity-25",
       )}
       data-thumbnail-addon={image.id}
     >

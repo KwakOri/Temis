@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { Plus } from "lucide-react";
 import type {
@@ -22,11 +22,11 @@ import {
 } from "@/utils/thumbnail-studio/runtime-image-transform";
 import {
   moveThumbnailAddonImage,
-  reorderThumbnailAddonImage,
   type ThumbnailAddonImage,
 } from "@/utils/thumbnail-studio/user-images";
 
 import { ThumbnailAddonImageRow } from "./thumbnail-addon-image-row";
+import { useThumbnailAddonReorder } from "./use-thumbnail-addon-reorder";
 
 interface Props {
   input: StudioImageInputDefinition;
@@ -55,56 +55,10 @@ export function ThumbnailAddonImages({
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
-  const dragCleanup = useRef<(() => void) | null>(null);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  useEffect(() => () => dragCleanup.current?.(), []);
-  const startReorder = (
-    event: React.PointerEvent<HTMLButtonElement>,
-    id: string,
-  ) => {
-    if (event.button !== 0) return;
-    event.preventDefault();
-    dragCleanup.current?.();
-    setDraggingId(id);
-    const move = (pointer: PointerEvent) => {
-      if (pointer.pointerId !== event.pointerId) return;
-      const rows = Array.from(
-        listRef.current?.querySelectorAll<HTMLElement>(
-          "[data-thumbnail-addon]",
-        ) ?? [],
-      );
-      const from = rows.findIndex((row) => row.dataset.thumbnailAddon === id);
-      const to = rows.findIndex((row) => {
-        const rect = row.getBoundingClientRect();
-        return pointer.clientY >= rect.top && pointer.clientY <= rect.bottom;
-      });
-      if (from < 0 || to < 0 || from === to) return;
-      const rect = rows[to].getBoundingClientRect();
-      if (
-        to > from
-          ? pointer.clientY < rect.top + rect.height / 2
-          : pointer.clientY > rect.top + rect.height / 2
-      )
-        return;
-      const targetId = rows[to].dataset.thumbnailAddon!;
-      setImages((current) => reorderThumbnailAddonImage(current, id, targetId));
-    };
-    const stop = (pointer: PointerEvent) => {
-      if (pointer.pointerId !== event.pointerId) return;
-      dragCleanup.current?.();
-      setDraggingId(null);
-    };
-    const cleanup = () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", stop);
-      window.removeEventListener("pointercancel", stop);
-      dragCleanup.current = null;
-    };
-    dragCleanup.current = cleanup;
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", stop);
-    window.addEventListener("pointercancel", stop);
-  };
+  const { draggingId, startReorder } = useThumbnailAddonReorder(
+    listRef,
+    setImages,
+  );
   const siblings = images.filter((image) => image.inputId === input.id);
   const imageNodes = getThumbnailRuntimeImageNodes(document, input.id);
   const upload = async (file: File) => {

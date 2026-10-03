@@ -10,6 +10,7 @@ import {
   expandThumbnailUserImages,
   moveThumbnailAddonImage,
   reorderThumbnailAddonImage,
+  dropThumbnailAddonImage,
   upgradeThumbnailUserImages,
   type ThumbnailAddonImage,
 } from "../src/utils/thumbnail-studio/user-images";
@@ -143,6 +144,48 @@ assert.equal(
 assert.equal(
   reorderThumbnailAddonImage(images, "missing", images[0].id),
   images,
+);
+const stack = images.slice(0, 3);
+const panelOrder = (items: ThumbnailAddonImage[]) =>
+  items.map((image) => image.id).reverse();
+assert.deepEqual(
+  panelOrder(dropThumbnailAddonImage(stack, "addon-2", "addon-1", "after")),
+  ["addon-1", "addon-2", "addon-0"],
+);
+assert.deepEqual(
+  panelOrder(dropThumbnailAddonImage(stack, "addon-0", "addon-2", "before")),
+  ["addon-0", "addon-2", "addon-1"],
+);
+assert.deepEqual(
+  panelOrder(dropThumbnailAddonImage(stack, "addon-0", "addon-2", "after")),
+  ["addon-2", "addon-0", "addon-1"],
+);
+assert.deepEqual(
+  panelOrder(dropThumbnailAddonImage(stack, "addon-1", "addon-0", "after")),
+  ["addon-2", "addon-0", "addon-1"],
+);
+assert.equal(
+  dropThumbnailAddonImage(stack, "addon-2", "addon-1", "before"),
+  stack,
+  "dropping back into the original position is a no-op",
+);
+assert.equal(
+  dropThumbnailAddonImage(interleaved, images[0].id, otherGroup.id, "before"),
+  interleaved,
+  "drop target must belong to the same authored image group",
+);
+assert.equal(
+  dropThumbnailAddonImage(stack, "addon-0", inputId, "after"),
+  stack,
+  "the background cannot be a drop target",
+);
+assert.deepEqual(
+  dropThumbnailAddonImage(interleaved, images[0].id, images[2].id, "after"),
+  [images[1], otherGroup, images[0], images[2]],
+);
+assert.deepEqual(
+  dropThumbnailAddonImage(interleaved, images[0].id, images[2].id, "before"),
+  [images[1], otherGroup, images[2], images[0]],
 );
 assert.equal(
   expanded.document.graph.nodes[`${nodeId}:addon-0`].label,
