@@ -186,8 +186,15 @@ assert.doesNotMatch(
 assert.doesNotMatch(form, /이미지 자르기/);
 assert.equal(
   (form.match(/>채우기<\/button>/g) ?? []).length,
-  1,
-  "only the background has a fill button",
+  0,
+  "background fill is automatic instead of a separate action",
+);
+assert.match(form, /data-thumbnail-background-row/);
+assert.match(form, /aria-label="배경 이미지 위치 조정"/);
+assert.match(form, /aria-label="배경 이미지 레이어 메뉴"/);
+assert.doesNotMatch(
+  form,
+  /user_images 이미지 제거|user_images 배치 재설정|>user_images<|>USER_IMAGE</,
 );
 assert.ok(
   form.indexOf("main_title") < form.indexOf("data-thumbnail-user-images"),

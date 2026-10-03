@@ -44,6 +44,7 @@ import { StudioRuntimeCard } from "@/components/studio/runtime/ui/studio-runtime
 import { StudioRuntimeField } from "@/components/studio/runtime/ui/studio-runtime-field";
 import { StudioRuntimeSegmentedControl } from "@/components/studio/runtime/ui/studio-runtime-segmented-control";
 import { ThumbnailAddonImages } from "./thumbnail-addon-images";
+import { ThumbnailBackgroundImageRow } from "./thumbnail-background-image-row";
 import {
   isThumbnailUserImagesInput,
   type ThumbnailAddonImage,
@@ -335,6 +336,33 @@ export function ThumbnailRuntimeForm({
       imageNodes.length > 0 &&
       (policy.allowFitChange || policy.allowFocusChange),
     );
+
+    if (isThumbnailUserImagesInput(input)) {
+      return (
+        <ThumbnailBackgroundImageRow
+          key={input.id}
+          value={value}
+          isAdjusting={isAdjusting}
+          canAdjust={canAdjust}
+          allowReplace={Boolean(policy.allowReplace)}
+          allowReset={Boolean(policy.allowFitChange || canAdjust)}
+          required={Boolean(input.required)}
+          onUpload={(file) => void uploadImage(input, file)}
+          onReset={() => fillImage(input)}
+          onRemove={() => void removeImage(input)}
+          onAdjust={() => {
+            if (isAdjusting) onAdjustImage?.(null);
+            else {
+              setRuntimeImageOverrides((current) => ({
+                ...current,
+                [input.id]: { ...current[input.id], placementMode: "manual" },
+              }));
+              onAdjustImage?.({ inputId: input.id, nodeId: imageNodes[0].id });
+            }
+          }}
+        />
+      );
+    }
 
     return (
       <div className="grid gap-3" key={input.id}>
