@@ -35,14 +35,16 @@ try {
   }
   const sql = `
 CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role;
-CREATE TABLE public.users(id integer PRIMARY KEY);
+CREATE TABLE public.users(id bigint PRIMARY KEY);
 CREATE TABLE public.templates(id uuid PRIMARY KEY);
 CREATE TABLE public.team_templates(id uuid PRIMARY KEY);
 CREATE TABLE public.thumbnails(id uuid PRIMARY KEY);
-INSERT INTO users VALUES(1);
+INSERT INTO users VALUES(1),(3000000000);
 INSERT INTO templates VALUES('00000000-0000-4000-8000-000000000001');
 INSERT INTO team_templates VALUES('00000000-0000-4000-8000-000000000001');
+BEGIN;
 ${readFileSync(path.join(__dirname, "../supabase/migrations/20261004000000_create_legacy_template_assets.sql"), "utf8")}
+COMMIT;
 DO $$ DECLARE a uuid; b uuid; v uuid; foreign_v uuid; r uuid; restored uuid;
 BEGIN
  INSERT INTO legacy_template_asset_sets(template_id,expected_slots) VALUES('00000000-0000-4000-8000-000000000001','{"first":["profileBG","onlineCard"]}') RETURNING id INTO a;
@@ -51,7 +53,8 @@ BEGIN
  VALUES(a,repeat('a',64),repeat('b',64),'legacy-template-assets/local/a.png','image/png',100,1,1,'camelName.PNG') RETURNING id INTO v;
  INSERT INTO legacy_template_asset_versions(asset_set_id,asset_id,content_hash,storage_path,mime_type,byte_size,width,height,original_filename)
  VALUES(b,repeat('a',64),repeat('b',64),'legacy-template-assets/local/b.png','image/png',100,1,1,'camelName.PNG') RETURNING id INTO foreign_v;
- r := apply_legacy_template_asset_revision(a,NULL,jsonb_build_object('first',jsonb_build_object('profileBG',v,'onlineCard',v)),1,'initial','local');
+ r := apply_legacy_template_asset_revision(a,NULL,jsonb_build_object('first',jsonb_build_object('profileBG',v,'onlineCard',v)),3000000000,'initial','local');
+ IF (SELECT created_by FROM legacy_template_asset_revisions WHERE id=r) <> 3000000000 THEN RAISE EXCEPTION 'bigint actor was truncated'; END IF;
  BEGIN PERFORM apply_legacy_template_asset_revision(a,NULL,jsonb_build_object('first',jsonb_build_object('profileBG',v,'onlineCard',v)),1);
    RAISE EXCEPTION 'conflict was accepted'; EXCEPTION WHEN serialization_failure THEN NULL; END;
  BEGIN PERFORM apply_legacy_template_asset_revision(a,r,jsonb_build_object('first',jsonb_build_object('profileBG',foreign_v,'onlineCard',v)),1);
@@ -62,7 +65,7 @@ BEGIN
  IF restored = r OR (SELECT count(*) FROM legacy_template_asset_revisions WHERE asset_set_id=a) <> 2 THEN RAISE EXCEPTION 'history overwritten'; END IF;
  BEGIN UPDATE legacy_template_asset_sets SET active_revision_id=restored WHERE id=b;
    RAISE EXCEPTION 'foreign active revision was accepted'; EXCEPTION WHEN foreign_key_violation THEN NULL; END;
- IF has_table_privilege('anon','legacy_template_asset_sets','SELECT') OR has_table_privilege('authenticated','legacy_template_asset_versions','INSERT') OR has_table_privilege('service_role','legacy_template_asset_versions','UPDATE') OR has_function_privilege('anon','apply_legacy_template_asset_revision(uuid,uuid,jsonb,integer,text,text)','EXECUTE') THEN RAISE EXCEPTION 'unsafe privileges'; END IF;
+ IF has_table_privilege('anon','legacy_template_asset_sets','SELECT') OR has_table_privilege('authenticated','legacy_template_asset_versions','INSERT') OR has_table_privilege('service_role','legacy_template_asset_versions','UPDATE') OR has_function_privilege('anon','apply_legacy_template_asset_revision(uuid,uuid,jsonb,bigint,text,text)','EXECUTE') THEN RAISE EXCEPTION 'unsafe privileges'; END IF;
 END $$;
 `;
   if (docker) {

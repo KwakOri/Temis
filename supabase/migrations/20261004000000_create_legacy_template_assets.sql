@@ -1,4 +1,8 @@
 -- Legacy layout remains in code. Only image bindings and immutable revisions live here.
+-- Supabase applies this file transactionally; do not wait indefinitely for parent locks.
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '60s';
+
 CREATE TABLE public.legacy_template_asset_sets (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   template_id uuid UNIQUE REFERENCES public.templates(id) ON DELETE RESTRICT,
@@ -21,7 +25,7 @@ CREATE TABLE public.legacy_template_asset_versions (
   byte_size bigint NOT NULL CHECK (byte_size BETWEEN 1 AND 33554432),
   width integer NOT NULL CHECK (width > 0), height integer NOT NULL CHECK (height > 0),
   original_filename text NOT NULL,
-  created_by integer REFERENCES public.users(id), created_at timestamptz NOT NULL DEFAULT now(),
+  created_by bigint REFERENCES public.users(id), created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE(asset_set_id, asset_id, content_hash), UNIQUE(asset_set_id, id)
 );
 CREATE TABLE public.legacy_template_asset_revisions (
@@ -29,7 +33,7 @@ CREATE TABLE public.legacy_template_asset_revisions (
   asset_set_id uuid NOT NULL REFERENCES public.legacy_template_asset_sets(id) ON DELETE RESTRICT,
   revision_no integer NOT NULL CHECK (revision_no > 0),
   bindings jsonb NOT NULL CHECK (jsonb_typeof(bindings) = 'object'),
-  note text NOT NULL DEFAULT '', created_by integer REFERENCES public.users(id),
+  note text NOT NULL DEFAULT '', created_by bigint REFERENCES public.users(id),
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE(asset_set_id, revision_no), UNIQUE(asset_set_id, id)
 );
@@ -46,7 +50,7 @@ GRANT SELECT, INSERT, UPDATE ON public.legacy_template_asset_sets TO service_rol
 GRANT SELECT, INSERT ON public.legacy_template_asset_versions, public.legacy_template_asset_revisions TO service_role;
 
 CREATE FUNCTION public.apply_legacy_template_asset_revision(
-  p_set_id uuid, p_expected_revision_id uuid, p_bindings jsonb, p_actor_id integer,
+  p_set_id uuid, p_expected_revision_id uuid, p_bindings jsonb, p_actor_id bigint,
   p_note text DEFAULT '', p_mode text DEFAULT 'r2'
 ) RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
@@ -80,5 +84,5 @@ BEGIN
   UPDATE public.legacy_template_asset_sets SET active_revision_id = revision_id, mode = p_mode, updated_at = now() WHERE id = s.id;
   RETURN revision_id;
 END $$;
-REVOKE ALL ON FUNCTION public.apply_legacy_template_asset_revision(uuid,uuid,jsonb,integer,text,text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.apply_legacy_template_asset_revision(uuid,uuid,jsonb,integer,text,text) TO service_role;
+REVOKE ALL ON FUNCTION public.apply_legacy_template_asset_revision(uuid,uuid,jsonb,bigint,text,text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.apply_legacy_template_asset_revision(uuid,uuid,jsonb,bigint,text,text) TO service_role;
