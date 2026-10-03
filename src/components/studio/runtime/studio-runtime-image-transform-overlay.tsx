@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useLayoutEffect, useState } from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
 import type { StudioTemplateDocument } from "@/types/template-studio";
 import { StudioSelectionOverlay } from "@/components/studio/canvas/studio-selection-overlay";
+import { isSameThumbnailImageTransform } from "@/utils/thumbnail-studio/image-placement-history";
 import { getStudioImageInputPolicy } from "@/utils/thumbnail-studio/image-input-policy";
 import {
   formatStudioImageObjectPosition,
@@ -61,6 +62,9 @@ interface Props {
   viewportTransform: { x: number; y: number; scale: number };
   override?: StudioRuntimeImageOverride;
   onChange: (transform: StudioRuntimeImageTransform) => void;
+  onTransformStart?: () => void;
+  onTransformEnd?: () => void;
+  onTransformCancel?: () => void;
 }
 
 export function StudioRuntimeImageTransformOverlay({
@@ -72,7 +76,14 @@ export function StudioRuntimeImageTransformOverlay({
   viewportTransform,
   override,
   onChange,
+  onTransformStart,
+  onTransformEnd,
+  onTransformCancel,
 }: Props) {
+  const gesture = useRef<{
+    before: StudioRuntimeImageTransform;
+    latest: StudioRuntimeImageTransform;
+  } | null>(null);
   const [measurement, setMeasurement] = useState<Measurement | null>(null);
   const node = getThumbnailRuntimeImageNodes(document, inputId).find(
     (candidate) => candidate.id === nodeId,
@@ -157,8 +168,16 @@ export function StudioRuntimeImageTransformOverlay({
   const rotateDeg = transform?.rotateDeg ?? 0;
   const matrix = measurement.matrix;
   const inverse = measurement.screenMatrix.inverse();
+  const emitTransform = (next: StudioRuntimeImageTransform) => {
+    const previous =
+      gesture.current?.latest ??
+      toRuntimeImageTransform(geometry, measurement, rotateDeg);
+    if (isSameThumbnailImageTransform(previous, next)) return;
+    if (gesture.current) gesture.current.latest = next;
+    onChange(next);
+  };
   const updateGeometry = (next: typeof geometry) =>
-    onChange(
+    emitTransform(
       toRuntimeImageTransform(
         policy.allowFocusChange
           ? next
@@ -198,9 +217,37 @@ export function StudioRuntimeImageTransformOverlay({
           deltaY: inverse.b * deltaX + inverse.d * deltaY,
         })}
         onMove={policy.allowFocusChange ? updateGeometry : undefined}
+        onTransformStart={() => {
+          const before = toRuntimeImageTransform(
+            geometry,
+            measurement,
+            rotateDeg,
+          );
+          gesture.current = { before, latest: before };
+          onTransformStart?.();
+        }}
+        onTransformEnd={() => {
+          const current = gesture.current;
+          gesture.current = null;
+          if (
+            current &&
+            isSameThumbnailImageTransform(current.before, current.latest) &&
+            onTransformCancel
+          )
+            onTransformCancel();
+          else onTransformEnd?.();
+        }}
+        onTransformCancel={
+          onTransformCancel
+            ? () => {
+                gesture.current = null;
+                onTransformCancel();
+              }
+            : undefined
+        }
         onResize={updateGeometry}
         onRotate={(angle) =>
-          onChange(toRuntimeImageTransform(geometry, measurement, angle))
+          emitTransform(toRuntimeImageTransform(geometry, measurement, angle))
         }
       />
     </div>

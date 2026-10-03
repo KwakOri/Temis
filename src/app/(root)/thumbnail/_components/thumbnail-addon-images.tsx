@@ -36,6 +36,12 @@ interface Props {
   setOverrides: Dispatch<SetStateAction<StudioRuntimeImageOverrides>>;
   activeImage?: { inputId: string; nodeId: string } | null;
   onAdjustImage?: (target: { inputId: string; nodeId: string } | null) => void;
+  onImageAssetsChange?: () => void;
+  changeImagePlacement?: (
+    action: (
+      current: StudioRuntimeImageOverrides,
+    ) => StudioRuntimeImageOverrides,
+  ) => void;
   loaded: boolean;
   children: React.ReactNode;
 }
@@ -48,6 +54,8 @@ export function ThumbnailAddonImages({
   setOverrides,
   activeImage,
   onAdjustImage,
+  onImageAssetsChange,
+  changeImagePlacement,
   loaded,
   children,
 }: Props) {
@@ -76,6 +84,7 @@ export function ThumbnailAddonImages({
       const intrinsicSize = await getStudioRuntimeImageBlobSize(blob);
       const id = `addon_${crypto.randomUUID()}`;
       const src = URL.createObjectURL(blob);
+      onImageAssetsChange?.();
       setImages((current) => [
         ...current,
         {
@@ -98,6 +107,7 @@ export function ThumbnailAddonImages({
     }
   };
   const remove = (id: string) => {
+    onImageAssetsChange?.();
     if (activeImage?.inputId === id) onAdjustImage?.(null);
     setImages((current) => current.filter((image) => image.id !== id));
     setOverrides((current) => {
@@ -152,7 +162,7 @@ export function ThumbnailAddonImages({
             }
             onAdjustImage={onAdjustImage}
             onReset={() =>
-              setOverrides((current) => ({
+              (changeImagePlacement ?? setOverrides)((current) => ({
                 ...current,
                 [image.id]: {
                   placementMode: "manual",

@@ -90,6 +90,7 @@
     "check:studio:thumbnail-shell": "tsx scripts/check-studio-thumbnail-shell.tsx",
     "check:thumbnail-studio:user-images": "node --import tsx scripts/check-thumbnail-user-images.tsx",
     "check:thumbnail-studio:runtime-image-transform": "node --import tsx scripts/check-thumbnail-runtime-image-transform.tsx",
+    "check:thumbnail-studio:image-history": "node --import tsx scripts/check-thumbnail-image-history.ts",
     "check:thumbnail-studio:runtime": "tsx scripts/check-thumbnail-studio-runtime.ts",
     "check:thumbnail-studio:placeholder-data": "tsx scripts/check-thumbnail-placeholder-data.ts",
     "check:thumbnail-studio:order-grants": "tsx scripts/check-thumbnail-order-grants.ts",

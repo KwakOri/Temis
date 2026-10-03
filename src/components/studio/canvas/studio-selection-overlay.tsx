@@ -44,6 +44,8 @@ export interface StudioSelectionOverlayProps {
   onResize?: (geometry: StudioResizeGeometry) => void;
   onRotate?: (rotateDeg: number) => void;
   onTransformEnd?: () => void;
+  /** Runtime gestures can be cancelled without recording an undo step. */
+  onTransformCancel?: () => void;
 }
 
 const HANDLE_CURSOR: Record<StudioResizeHandle, string> = {
@@ -89,6 +91,7 @@ export function StudioSelectionOverlay({
   onResize,
   onRotate,
   onTransformEnd,
+  onTransformCancel,
 }: StudioSelectionOverlayProps) {
   const handleSize = Math.max(6, Math.round(9 / Math.max(scale, 0.2)));
   const borderWidth = Math.max(1, 1 / Math.max(scale, 0.2));
@@ -122,8 +125,8 @@ export function StudioSelectionOverlay({
     startClientX: number;
     startClientY: number;
   } | null>(null);
-  const cleanupDragRef = useRef<(() => void) | null>(null);
-  useEffect(() => () => cleanupDragRef.current?.(), []);
+  const cleanupDragRef = useRef<((cancelled?: boolean) => void) | null>(null);
+  useEffect(() => () => cleanupDragRef.current?.(true), []);
   const localDelta = (deltaX: number, deltaY: number) =>
     pointerDeltaToLocal
       ? pointerDeltaToLocal({ deltaX, deltaY })
@@ -144,7 +147,7 @@ export function StudioSelectionOverlay({
       // 캔버스 밀기와 객체 옮기기로 번지지 않게 여기서 끊는다.
       event.preventDefault();
       event.stopPropagation();
-      cleanupDragRef.current?.();
+      cleanupDragRef.current?.(true);
 
       const startClientX = event.clientX;
       const startClientY = event.clientY;
@@ -168,23 +171,36 @@ export function StudioSelectionOverlay({
 
       const handlePointerUp = (upEvent: PointerEvent) => {
         if (dragStateRef.current?.pointerId !== upEvent.pointerId) return;
-        cleanupDragRef.current?.();
-        onTransformEnd?.();
+        cleanupDragRef.current?.(
+          upEvent.type === "pointercancel" && Boolean(onTransformCancel),
+        );
       };
 
-      cleanupDragRef.current = () => {
+      const handleKeyDown = (keyEvent: KeyboardEvent) => {
+        if (keyEvent.key !== "Escape" || !onTransformCancel) return;
+        keyEvent.preventDefault();
+        keyEvent.stopPropagation();
+        cleanupDragRef.current?.(true);
+      };
+
+      cleanupDragRef.current = (cancelled = false) => {
         dragStateRef.current = null;
         window.removeEventListener("pointermove", handlePointerMove);
         window.removeEventListener("pointerup", handlePointerUp);
         window.removeEventListener("pointercancel", handlePointerUp);
+        window.removeEventListener("keydown", handleKeyDown, true);
         cleanupDragRef.current = null;
+        if (cancelled) onTransformCancel?.();
+        else onTransformEnd?.();
       };
 
       window.addEventListener("pointermove", handlePointerMove);
       window.addEventListener("pointerup", handlePointerUp);
       window.addEventListener("pointercancel", handlePointerUp);
+      if (onTransformCancel)
+        window.addEventListener("keydown", handleKeyDown, true);
     },
-    [onTransformEnd, onTransformStart],
+    [onTransformCancel, onTransformEnd, onTransformStart],
   );
 
   return (

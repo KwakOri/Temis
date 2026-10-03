@@ -24,6 +24,7 @@ import { getStudioRuntimeInputValue } from "@/utils/template-studio/input-values
 import { getThumbnailStudioInputDefinitions } from "@/utils/thumbnail-studio/input-order";
 import { ThumbnailRuntimeForm } from "./thumbnail-runtime-form";
 import { useThumbnailUserImages } from "./use-thumbnail-user-images";
+import { useThumbnailImageHistory } from "./use-thumbnail-image-history";
 import {
   expandThumbnailUserImages,
   isThumbnailUserImagesInput,
@@ -67,10 +68,14 @@ export function ThumbnailRuntimeShell({
   const [runtimeValues, setRuntimeValues] = useState(() =>
     cloneRuntimeValues(initialRuntimeValues),
   );
-  const [runtimeImageOverrides, setRuntimeImageOverrides] =
-    useState<StudioRuntimeImageOverrides>(() =>
-      createThumbnailRuntimeImageOverrides(document),
-    );
+  const imageHistory = useThumbnailImageHistory(() =>
+    createThumbnailRuntimeImageOverrides(document),
+  );
+  const {
+    overrides: runtimeImageOverrides,
+    setOverrides: setRuntimeImageOverrides,
+    clear: clearImageHistory,
+  } = imageHistory;
   const [activeImage, setActiveImage] = useState<{
     inputId: string;
     nodeId: string;
@@ -132,14 +137,22 @@ export function ThumbnailRuntimeShell({
     inputId: string,
     preserveIntrinsicSize = true,
   ) => {
-    setRuntimeImageOverrides((current) => {
+    const reset = (current: StudioRuntimeImageOverrides) => {
       const next = { ...current };
       const intrinsicSize = current[inputId]?.intrinsicSize;
-      if (preserveIntrinsicSize && intrinsicSize)
-        next[inputId] = { intrinsicSize };
-      else delete next[inputId];
+      if (preserveIntrinsicSize) {
+        next[inputId] = {
+          ...createThumbnailRuntimeImageOverrides(document)[inputId],
+          ...(intrinsicSize ? { intrinsicSize } : {}),
+        };
+      } else delete next[inputId];
       return next;
-    });
+    };
+    if (preserveIntrinsicSize) imageHistory.changePlacement(reset);
+    else {
+      clearImageHistory();
+      setRuntimeImageOverrides(reset);
+    }
     setActiveImage((current) =>
       current?.inputId === inputId ? null : current,
     );
@@ -162,10 +175,24 @@ export function ThumbnailRuntimeShell({
   });
 
   useEffect(() => {
+    clearImageHistory();
     setRuntimeValues(cloneRuntimeValues(initialRuntimeValues));
     setRuntimeImageOverrides(createThumbnailRuntimeImageOverrides(document));
     setActiveImage(null);
-  }, [document, initialRuntimeValues, revisionNo]);
+  }, [
+    document,
+    initialRuntimeValues,
+    revisionNo,
+    storageOwnerId,
+    templateId,
+    clearImageHistory,
+    setRuntimeImageOverrides,
+  ]);
+
+  useEffect(() => {
+    // Loading placements from IndexedDB establishes the baseline, not an edit.
+    clearImageHistory();
+  }, [addons.loaded, clearImageHistory]);
 
   const previewSize = useMemo(
     () => ({ width: document.canvas.width, height: document.canvas.height }),
@@ -306,6 +333,7 @@ export function ThumbnailRuntimeShell({
   };
 
   const resetRuntime = () => {
+    clearImageHistory();
     setRuntimeValues(cloneRuntimeValues(initialRuntimeValues));
     setRuntimeImageOverrides(createThumbnailRuntimeImageOverrides(document));
     setActiveImage(null);
@@ -343,11 +371,15 @@ export function ThumbnailRuntimeShell({
               exportRootRef={exportRootRef}
               viewportTransform={viewport.viewportTransform}
               override={expanded.runtimeImageOverrides[activeImage.inputId]}
+              onTransformStart={imageHistory.begin}
+              onTransformEnd={imageHistory.finish}
+              onTransformCancel={imageHistory.cancel}
               onChange={(transform) =>
                 setRuntimeImageOverrides((current) => ({
                   ...current,
                   [activeImage.inputId]: {
                     ...current[activeImage.inputId],
+                    placementMode: "manual",
                     transforms: {
                       ...current[activeImage.inputId]?.transforms,
                       [activeImage.nodeId]: transform,
@@ -368,6 +400,8 @@ export function ThumbnailRuntimeShell({
           activeImage={activeImage}
           onAdjustImage={setActiveImage}
           onResetImageAdjustment={resetImageAdjustment}
+          onImageAssetsChange={clearImageHistory}
+          changeImagePlacement={imageHistory.changePlacement}
           addonImages={addons.images}
           setAddonImages={addons.setImages}
           addonsLoaded={addons.loaded}

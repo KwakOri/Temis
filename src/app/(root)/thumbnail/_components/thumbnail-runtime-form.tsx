@@ -84,6 +84,12 @@ interface ThumbnailRuntimeFormProps {
     inputId: string,
     preserveIntrinsicSize?: boolean,
   ) => void;
+  onImageAssetsChange?: () => void;
+  changeImagePlacement?: (
+    action: (
+      current: StudioRuntimeImageOverrides,
+    ) => StudioRuntimeImageOverrides,
+  ) => void;
   addonImages?: ThumbnailAddonImage[];
   setAddonImages?: React.Dispatch<React.SetStateAction<ThumbnailAddonImage[]>>;
   addonsLoaded?: boolean;
@@ -111,6 +117,8 @@ export function ThumbnailRuntimeForm({
   activeImage,
   onAdjustImage,
   onResetImageAdjustment,
+  onImageAssetsChange,
+  changeImagePlacement,
   addonImages = [],
   setAddonImages,
   addonsLoaded = true,
@@ -246,7 +254,10 @@ export function ThumbnailRuntimeForm({
   };
 
   const fillImage = (input: StudioImageInputDefinition) => {
-    onResetImageAdjustment?.(input.id);
+    if (onResetImageAdjustment) {
+      onResetImageAdjustment(input.id);
+      return;
+    }
     setRuntimeImageOverrides((current) => ({
       ...current,
       [input.id]: {
@@ -353,10 +364,6 @@ export function ThumbnailRuntimeForm({
           onAdjust={() => {
             if (isAdjusting) onAdjustImage?.(null);
             else {
-              setRuntimeImageOverrides((current) => ({
-                ...current,
-                [input.id]: { ...current[input.id], placementMode: "manual" },
-              }));
               onAdjustImage?.({ inputId: input.id, nodeId: imageNodes[0].id });
             }
           }}
@@ -473,13 +480,6 @@ export function ThumbnailRuntimeForm({
                 onValueChange={(mode) => {
                   if (mode === "cover") fillImage(input);
                   else {
-                    setRuntimeImageOverrides((current) => ({
-                      ...current,
-                      [input.id]: {
-                        ...current[input.id],
-                        placementMode: "manual",
-                      },
-                    }));
                     onAdjustImage?.({
                       inputId: input.id,
                       nodeId: imageNodes[0].id,
@@ -658,6 +658,8 @@ export function ThumbnailRuntimeForm({
                 setOverrides={setRuntimeImageOverrides}
                 activeImage={activeImage}
                 onAdjustImage={onAdjustImage}
+                onImageAssetsChange={onImageAssetsChange}
+                changeImagePlacement={changeImagePlacement}
                 loaded={addonsLoaded}
               >
                 {renderImageInput(input)}
