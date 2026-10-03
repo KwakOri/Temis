@@ -27,7 +27,8 @@ npm run check:legacy-assets:inventory
 - `--strict`는 차단 항목, 미확인 부모, 동적 참조 등 검토할 대상이 남으면 실패한다.
 
 registry migration, 업로드/검증 서비스, 관리자 화면, 레거시 resolver와 PNG 처리를 구현했다.
-운영 업로드와 원격 DB 변경은 아직 수행하지 않았다. 구현 완료는 운영 데이터 이관 완료를 의미하지 않는다.
+운영 이미지 업로드는 아직 수행하지 않았다. 2026-10-04 사용자 승인 후 운영 DB에 신규
+에셋 schema만 반영했다. 구현/schema 반영 완료는 운영 데이터 이관 완료를 의미하지 않는다.
 
 ## 조사 결과와 검증
 
@@ -43,7 +44,8 @@ registry migration, 업로드/검증 서비스, 관리자 화면, 레거시 reso
 
 inventory/계약/API fixture, 원본 키/조건/레이아웃 보존, lint와 TypeScript 검사가 통과했다.
 Docker의 network-none 임시 PostgreSQL에서 FK, 권한, 원자적 적용/복원 검사도 통과했다.
-사용자 로컬 DB와 원격 DB에는 migration을 적용하지 않았다. production build는 수행하지 않았다.
+사용자 로컬 DB에는 migration을 적용하지 않았다. 원격 적용 결과는 아래 운영 반영 기록을 참고한다.
+production build는 수행하지 않았다.
 브라우저에서 관리자 업로드/후보 미리보기/적용/복원과 desktop/mobile 레이아웃을 확인했다.
 CORS 없는 원격 이미지에서 프록시를 거쳐 1280x720 PNG 생성과 루트 배경 픽셀을 검증했다.
 실제 R2 테스트는 사용자 승인 하에 verification 경로에만 파일을 생성하고 삭제한다.
@@ -82,8 +84,8 @@ npm run lint
 ## 운영 전환
 
 1. 부모 catalog, 누락 파일/정적 참조/동적 선택을 검토한다.
-2. 별도 승인 후 `20261004000000_create_legacy_template_assets.sql`을 대상 DB에 적용한다.
-   원격 대상은 temis ref `ajlgjdwkjyayrnocdfpj`이며 temis 계정 토큰만 사용한다.
+2. `20261004000000_create_legacy_template_assets.sql`은 별도 승인 후 운영에 적용 완료했다.
+   대상은 temis ref `ajlgjdwkjyayrnocdfpj`이며 temis 계정 토큰만 사용했다.
 3. 기존 R2 환경 변수와 `LEGACY_TEMPLATE_ASSET_ENV`를 설정한다. staging/production은 다른
    env 경로를 사용한다. 공개 URL에는 custom domain 또는 공개 bucket 도메인을 설정한다.
 4. 단일 템플릿 dry-run을 확인하고 초기 파일/바인딩을 이관한다. `--apply`는 DB/R2를 변경하므로
@@ -105,6 +107,41 @@ npm run migrate:legacy-assets -- --owner-kind timetable --template-id <uuid> --a
 운영 미참조 버전 삭제, 템플릿 외 이미지 이관, 원본 파일 제거는 이번 구현에 포함하지 않았다.
 완료되지 않은 presigned 업로드는 staging 경로에 남을 수 있으므로
 `legacy-template-asset-uploads/<env>/`에 만료 lifecycle 정책을 설정한다.
+
+## 운영 DB 반영 기록 (2026-10-04 JST)
+
+- 승인 범위: 신규 에셋 schema migration만 적용. 이미지 업로드/seed/R2 활성화는 제외.
+- 대상: `ajlgjdwkjyayrnocdfpj`, 계정: `SB_TOKEN_TEMIS`를 사용하는 `sbt` helper.
+- 적용 소스: `77f29452`, migration: `20261004000000_create_legacy_template_assets.sql`.
+- 적용 직전 migration list와 두 차례 dry-run에서 이번 파일 한 개만 대상임을 확인했다.
+- 읽기 전용 사전 감사: 같은 이름의 에셋 테이블/함수 없음. 부모 세 템플릿의 ID는 uuid,
+  운영 `users.id`는 bigint이므로 새 작성자 컬럼과 새 함수 인자를 bigint로 맞췄다.
+  기존 사용자 테이블은 수정하지 않았다. 큰 작성자 ID `3000000000`의 격리 DB 검사도 통과했다.
+- `sbt db push --linked --yes` 성공, 사후 migration list는 구현 브랜치와 운영이 일치한다.
+- 사후 읽기 전용 감사: 신규 테이블 3개 RLS 활성화, anon/authenticated 테이블 접근 불가,
+  함수 실행은 service_role만 허용. versions/revisions의 service_role UPDATE/DELETE도 불가.
+- 신규 데이터 행 수: sets 0, versions 0, revisions 0. 데이터 이관이나 기존 데이터 DML은 실행하지 않았다.
+- 애플리케이션 배포, runtime flag 활성화, bucket CORS 변경도 실행하지 않았다.
+- 적용 확인 시각: `2026-10-03T21:13:51Z` (JST 2026-10-04 06:13).
+
+```sh
+# 모두 이 문서 상단의 별도 워크트리 루트에서 실행
+sbt link --project-ref ajlgjdwkjyayrnocdfpj
+sbt db push --linked --dry-run
+sbt db push --linked --yes
+sbt migration list --linked
+```
+
+실행 중 CLI v2.84.2가 두 `SET LOCAL`에 대해 `25P01` 경고를 출력했다.
+schema 적용과 사후 검증은 성공했으나 운영에서 lock/statement timeout이 보장됐다고 보고하지 않는다.
+이미 반영된 migration 파일은 이 경고를 숨기기 위해 다시 수정하거나 재실행하지 않았다.
+향후 DDL 작업은 실행 도구에 맞는 명시적 transaction/connection timeout을 별도로 검증한다.
+적용된 migration에는 기존 부모 테이블의 컬럼 변경/데이터 변경/삭제 SQL이 없다.
+
+사용자 테스트용 원래 브랜치에는 이 신규 migration 파일이 아직 없다.
+그 체크아웃의 로컬/원격 migration 비교에 remote-only 항목이 나오는 것은 예상된 상태다.
+후속 운영 DB 작업은 구현 브랜치 또는 이 변경을 병합한 브랜치에서 실행하며,
+이를 해결하기 위해 migration repair/원격 rollback을 하지 않는다.
 
 ## R2 CORS
 
