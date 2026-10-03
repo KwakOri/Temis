@@ -2,16 +2,19 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
+import { loadEnvConfig } from "@next/env";
 import {
   createLegacyAssetInventory,
   OWNER_KINDS,
   type OwnerKind,
+  type CatalogEntry,
+  type InventoryAsset,
 } from "./lib/legacy-template-asset-inventory";
 import {
   legacyAssetStoragePath,
   parseLegacyAssetUpload,
 } from "../src/utils/legacy-template-assets/contracts";
-import { uploadFileToR2Key } from "../src/lib/r2";
+import { downloadFileFromR2, uploadFileToR2Key } from "../src/lib/r2";
 
 const args = process.argv.slice(2);
 const value = (flag: string) => args[args.indexOf(flag) + 1];
@@ -22,10 +25,24 @@ const known = new Set([
   "--all",
   "--reviewed",
   "--activate",
+  "--env-dir",
+  "--catalog",
+  "--skip-blocked",
+  "--concurrency",
+  "--selection",
 ]);
 for (let i = 0; i < args.length; i++) {
   if (!known.has(args[i])) throw new Error("알 수 없는 인수입니다.");
-  if (["--owner-kind", "--template-id"].includes(args[i])) {
+  if (
+    [
+      "--owner-kind",
+      "--template-id",
+      "--env-dir",
+      "--catalog",
+      "--concurrency",
+      "--selection",
+    ].includes(args[i])
+  ) {
     if (!args[i + 1] || args[i + 1].startsWith("--"))
       throw new Error("인수 값이 필요합니다.");
     i++;
@@ -46,10 +63,53 @@ if (
 )
   throw new Error("실제 이관은 종류와 ID 또는 --all을 명시해야 합니다.");
 const root = path.resolve(__dirname, "..");
+const concurrency = args.includes("--concurrency")
+  ? Number(value("--concurrency"))
+  : 1;
+if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 4)
+  throw new Error("concurrency는 1~4여야 합니다.");
+const catalog: CatalogEntry[] | undefined = args.includes("--catalog")
+  ? JSON.parse(readFileSync(value("--catalog"), "utf8"))
+  : undefined;
+if (
+  args.includes("--catalog") &&
+  (!Array.isArray(catalog) ||
+    !catalog.every(
+      (row) =>
+        OWNER_KINDS.includes(row.ownerKind) &&
+        typeof row.templateId === "string",
+    ))
+)
+  throw new Error("유효한 catalog가 필요합니다.");
 const inventory = createLegacyAssetInventory(root, {
   ownerKind: kind,
   templateId,
+  catalog,
 });
+const selection: CatalogEntry[] | undefined = args.includes("--selection")
+  ? JSON.parse(readFileSync(value("--selection"), "utf8"))
+  : undefined;
+if (
+  args.includes("--selection") &&
+  (!Array.isArray(selection) ||
+    !selection.length ||
+    !selection.every((row) =>
+      inventory.templates.some(
+        (t) => t.ownerKind === row.ownerKind && t.templateId === row.templateId,
+      ),
+    ))
+)
+  throw new Error("selection에는 조사된 템플릿 ID만 지정해야 합니다.");
+const templates = selection
+  ? inventory.templates.filter((t) =>
+      selection.some(
+        (row) =>
+          row.ownerKind === t.ownerKind && row.templateId === t.templateId,
+      ),
+    )
+  : inventory.templates;
+if ((kind || templateId) && !inventory.templates.length)
+  throw new Error("일치하는 템플릿이 없습니다.");
 const columns = {
   timetable: "template_id",
   team_timetable: "team_template_id",
@@ -67,7 +127,8 @@ async function main() {
         {
           dryRun: true,
           summary: inventory.summary,
-          templates: inventory.templates.map((item) => ({
+          selectedTemplates: templates.length,
+          templates: templates.map((item) => ({
             ownerKind: item.ownerKind,
             templateId: item.templateId,
             issues: item.issues,
@@ -83,6 +144,11 @@ async function main() {
     );
     return;
   }
+  if (args.includes("--env-dir"))
+    loadEnvConfig(path.resolve(value("--env-dir")), true, {
+      info: () => {},
+      error: () => {},
+    });
   const environment = process.env.LEGACY_TEMPLATE_ASSET_ENV;
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SECRET_KEY;
@@ -99,7 +165,19 @@ async function main() {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   let failures = 0;
-  for (const template of inventory.templates) {
+  let completed = 0;
+  let skipped = 0;
+  for (const template of templates) {
+    if (
+      args.includes("--skip-blocked") &&
+      template.issues.some((issue) => issue.code !== "UNBOUND_IMAGE")
+    ) {
+      skipped++;
+      console.log(
+        `${template.ownerKind}/${template.templateId}: 조사 경고로 보류`,
+      );
+      continue;
+    }
     try {
       const referenced = new Set(
         Object.values(template.bindings).flatMap((slots) =>
@@ -145,6 +223,7 @@ async function main() {
         .maybeSingle();
       if (set.error) throw new Error("에셋 스키마를 조회하지 못했습니다.");
       if (set.data?.active_revision_id) {
+        skipped++;
         console.log(
           `${template.ownerKind}/${template.templateId}: 기존 이력 유지 (건너뜀)`,
         );
@@ -166,7 +245,10 @@ async function main() {
       }
       if (set.error || !set.data)
         throw new Error("에셋 세트를 생성하지 못했습니다.");
-      if (set.data.active_revision_id) continue;
+      if (set.data.active_revision_id) {
+        skipped++;
+        continue;
+      }
       if (
         JSON.stringify(set.data.expected_slots) !== JSON.stringify(expected)
       ) {
@@ -180,7 +262,7 @@ async function main() {
           throw new Error("기존 슬롯 계약과 현재 코드가 다릅니다.");
       }
       const versionIds = new Map<string, string>();
-      for (const asset of assets) {
+      const processAsset = async (asset: InventoryAsset) => {
         const upload = parseLegacyAssetUpload({
           assetId: asset.assetId,
           contentHash: asset.contentHash,
@@ -213,6 +295,16 @@ async function main() {
         if (version.error) throw new Error("버전을 조회하지 못했습니다.");
         if (!version.data) {
           await uploadFileToR2Key(bytes, storagePath, asset.mimeType);
+          const downloaded = await downloadFileFromR2(
+            storagePath,
+            32 * 1024 * 1024,
+          );
+          if (
+            downloaded.buffer.length !== bytes.length ||
+            createHash("sha256").update(downloaded.buffer).digest("hex") !==
+              asset.contentHash
+          )
+            throw new Error("R2 바이트 검증에 실패했습니다.");
           version = await client
             .from("legacy_template_asset_versions")
             .insert({
@@ -240,7 +332,25 @@ async function main() {
         if (version.error || !version.data)
           throw new Error("버전을 저장하지 못했습니다.");
         versionIds.set(asset.assetId, version.data.id);
-      }
+      };
+      let nextAsset = 0;
+      let assetFailed = false;
+      const worker = async () => {
+        while (!assetFailed && nextAsset < assets.length) {
+          const asset = assets[nextAsset++];
+          try {
+            await processAsset(asset);
+          } catch (error) {
+            assetFailed = true;
+            throw error;
+          }
+        }
+      };
+      const workers = await Promise.allSettled(
+        Array.from({ length: Math.min(concurrency, assets.length) }, worker),
+      );
+      const rejected = workers.find((result) => result.status === "rejected");
+      if (rejected?.status === "rejected") throw rejected.reason;
       const bindings = Object.fromEntries(
         Object.entries(template.bindings).map(([theme, slots]) => [
           theme,
@@ -269,6 +379,7 @@ async function main() {
       console.log(
         `${template.ownerKind}/${template.templateId}: ${assets.length}개 이관 완료`,
       );
+      completed++;
     } catch (error) {
       failures++;
       console.error(
@@ -276,6 +387,15 @@ async function main() {
       );
     }
   }
+  console.log(
+    JSON.stringify({
+      completed,
+      skipped,
+      failures,
+      environment,
+      activated: args.includes("--activate"),
+    }),
+  );
   if (failures) process.exitCode = 1;
 }
 main().catch(() => {

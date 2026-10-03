@@ -20,6 +20,7 @@
     "lint": "next lint",
     "inventory:legacy-assets": "node --import tsx scripts/inventory-legacy-template-assets.ts",
     "check:legacy-assets:inventory": "node --import tsx scripts/check-legacy-template-asset-inventory.ts",
+    "check:legacy-assets:migration": "node --import tsx scripts/check-legacy-template-assets-migration.ts",
     "migrate:legacy-assets": "node --import tsx scripts/migrate-legacy-template-assets.ts",
     "check:legacy-assets": "node --import tsx scripts/check-legacy-template-assets.ts",
     "check:legacy-assets:db": "node scripts/check-legacy-template-assets-db.cjs",

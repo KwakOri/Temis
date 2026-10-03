@@ -27,8 +27,9 @@ npm run check:legacy-assets:inventory
 - `--strict`는 차단 항목, 미확인 부모, 동적 참조 등 검토할 대상이 남으면 실패한다.
 
 registry migration, 업로드/검증 서비스, 관리자 화면, 레거시 resolver와 PNG 처리를 구현했다.
-운영 이미지 업로드는 아직 수행하지 않았다. 2026-10-04 사용자 승인 후 운영 DB에 신규
-에셋 schema만 반영했다. 구현/schema 반영 완료는 운영 데이터 이관 완료를 의미하지 않는다.
+2026-10-04 사용자 승인 후 운영 DB에 신규 schema를 반영했고, 후속 승인으로 96개 템플릿의
+이미지 887개를 production R2 경로에 업로드하고 DB에 등록했다. 초기 revision은 모두 local이다.
+앱 배포와 runtime 활성화는 하지 않았다. [데이터 이관 기록](./legacy-template-r2-assets-migration-report.md)을 참고한다.
 
 ## 조사 결과와 검증
 
@@ -41,6 +42,9 @@ registry migration, 업로드/검증 서비스, 관리자 화면, 레거시 reso
 `aedc0cce-62ac-469e-932f-8598b5c36d58`, `c7ef5b16-45e6-497a-b163-b0715a065263`,
 `f1ecd870-a161-4753-a726-d2c0fdf523c2`다. 이는 운영 catalog 확인이 아니다.
 템플릿 외 146개 이미지(public/샘플/공통 등)는 조사만 했으며 resolver에 연결하지 않았다.
+후속 운영 catalog 읽기 전용 대조에서는 99개 폴더 모두의 부모가 확인됐다.
+정적 참조 경고 29개 중 미사용 함수/미연결 모듈 등의 26개를 검토 후 등록했고,
+원본 파일 또는 실제 렌더 참조가 잘못된 3개 템플릿은 이관하지 않았다.
 
 inventory/계약/API fixture, 원본 키/조건/레이아웃 보존, lint와 TypeScript 검사가 통과했다.
 Docker의 network-none 임시 PostgreSQL에서 FK, 권한, 원자적 적용/복원 검사도 통과했다.
@@ -53,12 +57,16 @@ CORS 없는 원격 이미지에서 프록시를 거쳐 1280x720 PNG 생성과 �
 1280x720 PNG 배경 픽셀 `[21,27,50,255]` 일치를 확인했다. 테스트 객체 2개는 모두 삭제했다.
 `http://127.0.0.1:3108` 브라우저 PUT은 실패했다. 해당 개발 origin의 CORS를 확인/허용해야 한다.
 화면 표시와 PNG 성공이 관리 화면 브라우저 업로드의 CORS 성공을 의미하지 않는다.
+실제 운영 DB/R2를 연결한 읽기 전용 브라우저 검증에서도 관리자 96개 목록, 대표 템플릿의
+이미지 5개 로딩, desktop/mobile 화면, 원격 이미지 표시와 1280x720 PNG 픽셀 일치를 확인했다.
+현재 R2 키의 bucket CORS 조회는 AccessDenied(403)이며 정책 변경은 실행하지 못했다.
 
 ```sh
 npm run check:legacy-assets:inventory
 npm run check:legacy-assets -- --base-ref 5e8dd916
 npm run check:legacy-assets:api
 npm run check:legacy-assets:db -- --docker
+npm run check:legacy-assets:migration
 npx tsc --noEmit --pretty false --incremental false
 npm run lint
 ```
@@ -103,6 +111,10 @@ npm run migrate:legacy-assets -- --owner-kind timetable --template-id <uuid> --a
 ```
 
 경고가 있는 템플릿은 사전 검토 후에만 `--reviewed`를 사용한다.
+`--catalog`로 부모 snapshot을 지정하고 `--skip-blocked`로 경고 항목을 보류할 수 있다.
+검토 완료한 템플릿만 `--selection <JSON>`으로 지정해 `--reviewed`와 함께 실행한다.
+`--env-dir`은 apply 실행 시 기존 설정을 메모리에 읽으며 설정 파일을 복사하지 않는다.
+`--concurrency 1~4`는 템플릿 내 파일 작업 수를 제한하며, 업로드 후 전체 바이트 해시를 검증한다.
 재실행은 기존 버전을 재사용하며 이미 active revision이 있으면 덮어쓰지 않는다.
 운영 미참조 버전 삭제, 템플릿 외 이미지 이관, 원본 파일 제거는 이번 구현에 포함하지 않았다.
 완료되지 않은 presigned 업로드는 staging 경로에 남을 수 있으므로
