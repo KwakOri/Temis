@@ -83,7 +83,6 @@ interface ThumbnailRuntimeFormProps {
     inputId: string,
     preserveIntrinsicSize?: boolean,
   ) => void;
-  onScaleImage?: (factor: number) => void;
   addonImages?: ThumbnailAddonImage[];
   setAddonImages?: React.Dispatch<React.SetStateAction<ThumbnailAddonImage[]>>;
   addonsLoaded?: boolean;
@@ -111,7 +110,6 @@ export function ThumbnailRuntimeForm({
   activeImage,
   onAdjustImage,
   onResetImageAdjustment,
-  onScaleImage,
   addonImages = [],
   setAddonImages,
   addonsLoaded = true,
@@ -476,55 +474,31 @@ export function ThumbnailRuntimeForm({
           </div>
         ) : null}
 
-        {value && isAdjusting && canAdjust && onAdjustImage ? (
-          <div className="grid gap-2">
-            {isAdjusting ? (
-              <>
-                {imageNodes.length > 1 ? (
-                  <label className="grid gap-1 text-[11px] font-bold text-[var(--runtime-fg-muted)]">
-                    조정할 레이어
-                    <select
-                      aria-label={`${input.label} 조정할 레이어`}
-                      className="rounded-lg border border-[var(--runtime-border)] bg-[var(--runtime-input-bg)] p-2 text-[var(--runtime-fg)]"
-                      value={activeImage.nodeId}
-                      onChange={(event) =>
-                        onAdjustImage({
-                          inputId: input.id,
-                          nodeId: event.currentTarget.value,
-                        })
-                      }
-                    >
-                      {imageNodes.map((node) => (
-                        <option key={node.id} value={node.id}>
-                          {node.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
-                {policy.allowFitChange && onScaleImage ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    <StudioRuntimeActionButton
-                      size="compact"
-                      variant="secondary"
-                      aria-label={`${input.label} 이미지 축소`}
-                      onClick={() => onScaleImage(0.9)}
-                    >
-                      작게 −
-                    </StudioRuntimeActionButton>
-                    <StudioRuntimeActionButton
-                      size="compact"
-                      variant="secondary"
-                      aria-label={`${input.label} 이미지 확대`}
-                      onClick={() => onScaleImage(1.1)}
-                    >
-                      크게 +
-                    </StudioRuntimeActionButton>
-                  </div>
-                ) : null}
-              </>
-            ) : null}
-          </div>
+        {value &&
+        isAdjusting &&
+        canAdjust &&
+        onAdjustImage &&
+        imageNodes.length > 1 ? (
+          <label className="grid gap-1 text-[11px] font-bold text-[var(--runtime-fg-muted)]">
+            조정할 레이어
+            <select
+              aria-label={`${input.label} 조정할 레이어`}
+              className="rounded-lg border border-[var(--runtime-border)] bg-[var(--runtime-input-bg)] p-2 text-[var(--runtime-fg)]"
+              value={activeImage.nodeId}
+              onChange={(event) =>
+                onAdjustImage({
+                  inputId: input.id,
+                  nodeId: event.currentTarget.value,
+                })
+              }
+            >
+              {imageNodes.map((node) => (
+                <option key={node.id} value={node.id}>
+                  {node.label}
+                </option>
+              ))}
+            </select>
+          </label>
         ) : null}
       </div>
     );
@@ -656,7 +630,6 @@ export function ThumbnailRuntimeForm({
                 setOverrides={setRuntimeImageOverrides}
                 activeImage={activeImage}
                 onAdjustImage={onAdjustImage}
-                onScaleImage={onScaleImage}
                 loaded={addonsLoaded}
               >
                 {renderImageInput(input)}

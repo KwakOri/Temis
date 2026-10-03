@@ -36,7 +36,6 @@ interface Props {
   setOverrides: Dispatch<SetStateAction<StudioRuntimeImageOverrides>>;
   activeImage?: { inputId: string; nodeId: string } | null;
   onAdjustImage?: (target: { inputId: string; nodeId: string } | null) => void;
-  onScaleImage?: (factor: number) => void;
   loaded: boolean;
   children: React.ReactNode;
 }
@@ -49,7 +48,6 @@ export function ThumbnailAddonImages({
   setOverrides,
   activeImage,
   onAdjustImage,
-  onScaleImage,
   loaded,
   children,
 }: Props) {
@@ -199,7 +197,6 @@ export function ThumbnailAddonImages({
               )
             }
             onAdjustImage={onAdjustImage}
-            onScaleImage={onScaleImage}
             onReset={() =>
               setOverrides((current) => ({
                 ...current,

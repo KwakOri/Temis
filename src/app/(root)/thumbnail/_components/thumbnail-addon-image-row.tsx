@@ -18,7 +18,6 @@ interface Props {
   onReorderStart: (event: React.PointerEvent<HTMLButtonElement>) => void;
   onMove: (delta: -1 | 1) => void;
   onAdjustImage?: (target: ImageTarget | null) => void;
-  onScaleImage?: (factor: number) => void;
   onReset: () => void;
   onRemove: () => void;
 }
@@ -33,7 +32,6 @@ export function ThumbnailAddonImageRow({
   onReorderStart,
   onMove,
   onAdjustImage,
-  onScaleImage,
   onReset,
   onRemove,
 }: Props) {
@@ -257,44 +255,24 @@ export function ThumbnailAddonImageRow({
       >
         {isAdjusting ? "변경 완료" : "위치 조정"}
       </StudioRuntimeActionButton>
-      {isAdjusting ? (
-        <div className="grid gap-2">
-          {imageNodes.length > 1 ? (
-            <select
-              aria-label="애드온 이미지 조정할 레이어"
-              value={activeImage.nodeId}
-              className="rounded-lg border border-[var(--runtime-border)] bg-[var(--runtime-input-bg)] p-2 text-xs"
-              onChange={(event) =>
-                onAdjustImage?.({
-                  inputId: image.id,
-                  nodeId: event.currentTarget.value,
-                })
-              }
-            >
-              {imageNodes.map((node) => (
-                <option key={node.id} value={`${node.id}:${image.id}`}>
-                  {node.label}
-                </option>
-              ))}
-            </select>
-          ) : null}
-          <div className="grid grid-cols-2 gap-2">
-            <StudioRuntimeActionButton
-              size="compact"
-              variant="secondary"
-              onClick={() => onScaleImage?.(0.9)}
-            >
-              작게 −
-            </StudioRuntimeActionButton>
-            <StudioRuntimeActionButton
-              size="compact"
-              variant="secondary"
-              onClick={() => onScaleImage?.(1.1)}
-            >
-              크게 +
-            </StudioRuntimeActionButton>
-          </div>
-        </div>
+      {isAdjusting && imageNodes.length > 1 ? (
+        <select
+          aria-label="애드온 이미지 조정할 레이어"
+          value={activeImage.nodeId}
+          className="rounded-lg border border-[var(--runtime-border)] bg-[var(--runtime-input-bg)] p-2 text-xs"
+          onChange={(event) =>
+            onAdjustImage?.({
+              inputId: image.id,
+              nodeId: event.currentTarget.value,
+            })
+          }
+        >
+          {imageNodes.map((node) => (
+            <option key={node.id} value={`${node.id}:${image.id}`}>
+              {node.label}
+            </option>
+          ))}
+        </select>
       ) : null}
     </div>
   );

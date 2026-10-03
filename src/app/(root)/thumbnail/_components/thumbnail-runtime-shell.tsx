@@ -31,16 +31,8 @@ import {
 import { StudioRuntimeImageTransformOverlay } from "@/components/studio/runtime/studio-runtime-image-transform-overlay";
 import {
   createThumbnailRuntimeImageOverrides,
-  fromRuntimeImageTransform,
-  getRuntimeImageFitGeometry,
-  toRuntimeImageTransform,
   type StudioRuntimeImageOverrides,
 } from "@/utils/thumbnail-studio/runtime-image-transform";
-import {
-  formatStudioImageObjectPosition,
-  getStudioImageObjectPosition,
-} from "@/utils/thumbnail-studio/image-object-position";
-import { getStudioImageInputPolicy } from "@/utils/thumbnail-studio/image-input-policy";
 
 interface ThumbnailRuntimeShellProps {
   document: StudioTemplateDocument;
@@ -151,76 +143,6 @@ export function ThumbnailRuntimeShell({
     setActiveImage((current) =>
       current?.inputId === inputId ? null : current,
     );
-  };
-  const scaleActiveImage = (factor: number) => {
-    if (
-      !activeImage ||
-      activeImageInput?.type !== "image" ||
-      !getStudioImageInputPolicy(activeImageInput.policy).allowFitChange
-    )
-      return;
-    const slot = Array.from(
-      exportRootRef.current?.querySelectorAll<HTMLElement>(
-        "[data-studio-image-slot]",
-      ) ?? [],
-    ).find((element) => element.dataset.studioImageSlot === activeNodeId);
-    const image = slot?.querySelector("img");
-    if (
-      !slot ||
-      !image?.naturalWidth ||
-      !slot.offsetWidth ||
-      !slot.offsetHeight
-    )
-      return;
-    const node = runtimeDocument.graph.nodes[activeNodeId ?? ""];
-    if (!node) return;
-    const size = { width: slot.offsetWidth, height: slot.offsetHeight };
-    setRuntimeImageOverrides((current) => {
-      const override = current[activeImage.inputId];
-      const transform = override?.transforms?.[activeImage.nodeId];
-      const geometry = transform
-        ? fromRuntimeImageTransform(transform, size)
-        : getRuntimeImageFitGeometry({
-            ...size,
-            naturalWidth: image.naturalWidth,
-            naturalHeight: image.naturalHeight,
-            fit: override?.fit ?? node.fit ?? "cover",
-            intrinsicSize: override?.fit ? undefined : override?.intrinsicSize,
-            objectPosition:
-              override?.objectPosition ??
-              formatStudioImageObjectPosition(
-                getStudioImageObjectPosition(
-                  node.styleId ? document.styles[node.styleId] : undefined,
-                ),
-              ),
-          });
-      const multiplier = Math.max(
-        factor,
-        4 / geometry.width,
-        4 / geometry.height,
-      );
-      const next = {
-        ...geometry,
-        width: geometry.width * multiplier,
-        height: geometry.height * multiplier,
-      };
-      next.left += (geometry.width - next.width) / 2;
-      next.top += (geometry.height - next.height) / 2;
-      return {
-        ...current,
-        [activeImage.inputId]: {
-          ...override,
-          transforms: {
-            ...override?.transforms,
-            [activeImage.nodeId]: toRuntimeImageTransform(
-              next,
-              size,
-              transform?.rotateDeg ?? 0,
-            ),
-          },
-        },
-      };
-    });
   };
 
   useEffect(() => {
@@ -446,7 +368,6 @@ export function ThumbnailRuntimeShell({
           activeImage={activeImage}
           onAdjustImage={setActiveImage}
           onResetImageAdjustment={resetImageAdjustment}
-          onScaleImage={scaleActiveImage}
           addonImages={addons.images}
           setAddonImages={addons.setImages}
           addonsLoaded={addons.loaded}
