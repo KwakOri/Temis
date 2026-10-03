@@ -1,0 +1,284 @@
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { createClient } from "@supabase/supabase-js";
+import {
+  createLegacyAssetInventory,
+  OWNER_KINDS,
+  type OwnerKind,
+} from "./lib/legacy-template-asset-inventory";
+import {
+  legacyAssetStoragePath,
+  parseLegacyAssetUpload,
+} from "../src/utils/legacy-template-assets/contracts";
+import { uploadFileToR2Key } from "../src/lib/r2";
+
+const args = process.argv.slice(2);
+const value = (flag: string) => args[args.indexOf(flag) + 1];
+const known = new Set([
+  "--owner-kind",
+  "--template-id",
+  "--apply",
+  "--all",
+  "--reviewed",
+  "--activate",
+]);
+for (let i = 0; i < args.length; i++) {
+  if (!known.has(args[i])) throw new Error("알 수 없는 인수입니다.");
+  if (["--owner-kind", "--template-id"].includes(args[i])) {
+    if (!args[i + 1] || args[i + 1].startsWith("--"))
+      throw new Error("인수 값이 필요합니다.");
+    i++;
+  }
+}
+const kind = args.includes("--owner-kind")
+  ? (value("--owner-kind") as OwnerKind)
+  : undefined;
+const templateId = args.includes("--template-id")
+  ? value("--template-id")
+  : undefined;
+if (kind && !OWNER_KINDS.includes(kind))
+  throw new Error("유효한 owner-kind가 필요합니다.");
+if (
+  args.includes("--apply") &&
+  !(kind && templateId) &&
+  !args.includes("--all")
+)
+  throw new Error("실제 이관은 종류와 ID 또는 --all을 명시해야 합니다.");
+const root = path.resolve(__dirname, "..");
+const inventory = createLegacyAssetInventory(root, {
+  ownerKind: kind,
+  templateId,
+});
+const columns = {
+  timetable: "template_id",
+  team_timetable: "team_template_id",
+  thumbnail: "thumbnail_id",
+};
+const parents = {
+  timetable: "templates",
+  team_timetable: "team_templates",
+  thumbnail: "thumbnails",
+};
+async function main() {
+  if (!args.includes("--apply")) {
+    console.log(
+      JSON.stringify(
+        {
+          dryRun: true,
+          summary: inventory.summary,
+          templates: inventory.templates.map((item) => ({
+            ownerKind: item.ownerKind,
+            templateId: item.templateId,
+            issues: item.issues,
+            slots: Object.values(item.bindings).reduce(
+              (sum, slots) => sum + Object.keys(slots).length,
+              0,
+            ),
+          })),
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+  const environment = process.env.LEGACY_TEMPLATE_ASSET_ENV;
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SECRET_KEY;
+  if (!environment || !url || !key?.startsWith("sb_secret_"))
+    throw new Error("DB와 에셋 환경 설정이 필요합니다.");
+  const host = new URL(url).hostname;
+  if (
+    !["localhost", "127.0.0.1", "ajlgjdwkjyayrnocdfpj.supabase.co"].includes(
+      host,
+    )
+  )
+    throw new Error("Temis 또는 로컬 DB에서만 이관할 수 있습니다.");
+  const client = createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  let failures = 0;
+  for (const template of inventory.templates) {
+    try {
+      const referenced = new Set(
+        Object.values(template.bindings).flatMap((slots) =>
+          Object.values(slots),
+        ),
+      );
+      if (
+        template.issues.some((issue) => issue.code !== "UNBOUND_IMAGE") &&
+        !args.includes("--reviewed")
+      )
+        throw new Error(
+          "에셋 조사 경고를 검토한 뒤 --reviewed로 다시 실행해 주세요.",
+        );
+      const assets = template.assets.filter(
+        (asset) => asset.exists && !asset.readError,
+      );
+      if (
+        [...referenced].some(
+          (id) => !assets.some((asset) => asset.assetId === id),
+        )
+      )
+        throw new Error("슬롯에서 사용하는 파일이 누락되었습니다.");
+      let parentQuery = client
+        .from(parents[template.ownerKind])
+        .select("id")
+        .eq("id", template.templateId);
+      if (template.ownerKind === "timetable")
+        parentQuery = parentQuery.eq("template_engine", "legacy");
+      const parent = await parentQuery.maybeSingle();
+      if (parent.error || !parent.data)
+        throw new Error("연결할 부모 템플릿이 없습니다.");
+      const expected = Object.fromEntries(
+        Object.entries(template.bindings).map(([theme, slots]) => [
+          theme,
+          Object.keys(slots),
+        ]),
+      );
+      const column = columns[template.ownerKind];
+      let set = await client
+        .from("legacy_template_asset_sets")
+        .select("*")
+        .eq(column, template.templateId)
+        .maybeSingle();
+      if (set.error) throw new Error("에셋 스키마를 조회하지 못했습니다.");
+      if (set.data?.active_revision_id) {
+        console.log(
+          `${template.ownerKind}/${template.templateId}: 기존 이력 유지 (건너뜀)`,
+        );
+        continue;
+      }
+      if (!set.data) {
+        const created = await client
+          .from("legacy_template_asset_sets")
+          .insert({ [column]: template.templateId, expected_slots: expected })
+          .select("*")
+          .single();
+        if (created.error?.code === "23505")
+          set = await client
+            .from("legacy_template_asset_sets")
+            .select("*")
+            .eq(column, template.templateId)
+            .maybeSingle();
+        else set = created;
+      }
+      if (set.error || !set.data)
+        throw new Error("에셋 세트를 생성하지 못했습니다.");
+      if (set.data.active_revision_id) continue;
+      if (
+        JSON.stringify(set.data.expected_slots) !== JSON.stringify(expected)
+      ) {
+        const sorted = (object: Record<string, string[]>) =>
+          JSON.stringify(
+            Object.entries(object)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([theme, keys]) => [theme, [...keys].sort()]),
+          );
+        if (sorted(set.data.expected_slots) !== sorted(expected))
+          throw new Error("기존 슬롯 계약과 현재 코드가 다릅니다.");
+      }
+      const versionIds = new Map<string, string>();
+      for (const asset of assets) {
+        const upload = parseLegacyAssetUpload({
+          assetId: asset.assetId,
+          contentHash: asset.contentHash,
+          mimeType: asset.mimeType,
+          byteSize: asset.byteSize,
+          originalFilename: asset.originalFilename,
+        });
+        const storagePath = legacyAssetStoragePath(
+          template,
+          environment,
+          upload,
+        );
+        const bytes = readFileSync(path.join(root, asset.file));
+        if (
+          !asset.width ||
+          !asset.height ||
+          asset.width * asset.height > 80_000_000 ||
+          createHash("sha256").update(bytes).digest("hex") !== asset.contentHash
+        )
+          throw new Error(
+            "조사 이후 이미지가 변경되었거나 해상도가 유효하지 않습니다.",
+          );
+        let version = await client
+          .from("legacy_template_asset_versions")
+          .select("id")
+          .eq("asset_set_id", set.data.id)
+          .eq("asset_id", asset.assetId)
+          .eq("content_hash", asset.contentHash)
+          .maybeSingle();
+        if (version.error) throw new Error("버전을 조회하지 못했습니다.");
+        if (!version.data) {
+          await uploadFileToR2Key(bytes, storagePath, asset.mimeType);
+          version = await client
+            .from("legacy_template_asset_versions")
+            .insert({
+              asset_set_id: set.data.id,
+              asset_id: asset.assetId,
+              content_hash: asset.contentHash,
+              storage_path: storagePath,
+              mime_type: asset.mimeType,
+              byte_size: bytes.length,
+              width: asset.width,
+              height: asset.height,
+              original_filename: asset.originalFilename,
+            })
+            .select("id")
+            .single();
+          if (version.error?.code === "23505")
+            version = await client
+              .from("legacy_template_asset_versions")
+              .select("id")
+              .eq("asset_set_id", set.data.id)
+              .eq("asset_id", asset.assetId)
+              .eq("content_hash", asset.contentHash)
+              .maybeSingle();
+        }
+        if (version.error || !version.data)
+          throw new Error("버전을 저장하지 못했습니다.");
+        versionIds.set(asset.assetId, version.data.id);
+      }
+      const bindings = Object.fromEntries(
+        Object.entries(template.bindings).map(([theme, slots]) => [
+          theme,
+          Object.fromEntries(
+            Object.entries(slots).map(([slot, assetId]) => [
+              slot,
+              versionIds.get(assetId),
+            ]),
+          ),
+        ]),
+      );
+      const applied = await client.rpc("apply_legacy_template_asset_revision", {
+        p_set_id: set.data.id,
+        p_expected_revision_id: null,
+        p_bindings: bindings,
+        p_actor_id: null,
+        p_note: "초기 에셋 이관",
+        p_mode: args.includes("--activate") ? "r2" : "local",
+      });
+      if (applied.error)
+        throw new Error(
+          applied.error.code === "40001"
+            ? "동시 이관이 완료되어 기존 이력을 유지합니다."
+            : "초기 이력을 저장하지 못했습니다.",
+        );
+      console.log(
+        `${template.ownerKind}/${template.templateId}: ${assets.length}개 이관 완료`,
+      );
+    } catch (error) {
+      failures++;
+      console.error(
+        `${template.ownerKind}/${template.templateId}: ${error instanceof Error ? error.message : "실패"}`,
+      );
+    }
+  }
+  if (failures) process.exitCode = 1;
+}
+main().catch(() => {
+  console.error("에셋 이관을 완료하지 못했습니다.");
+  process.exitCode = 1;
+});

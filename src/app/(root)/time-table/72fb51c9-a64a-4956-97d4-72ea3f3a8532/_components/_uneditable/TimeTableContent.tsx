@@ -1,3 +1,5 @@
+"use client";
+
 import { useTimeTableData, useTimeTableUI } from '@/contexts/TimeTableContext';
 import React from 'react';
 
@@ -6,12 +8,13 @@ import { TDefaultCard, TPlaceholders } from '@/types/time-table/data';
 import { TTheme } from '@/types/time-table/theme';
 import { isGuideEnabled } from '@/utils/time-table/data';
 
-import { Imgs } from '../../_img/imgs';
+import { Imgs as LocalImgs } from '../../_img/imgs';
 import { templateSize } from '../../_settings/settings';
 import ProfileImageSection, { ProfileText } from '../ProfileImageContainer';
 import TimeTableGrid from '../TimeTableGrid';
 import TimeTableMemo from '../TimeTableMemo';
 import TimeTableTopObject from '../TimeTableTopObject';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 export interface TimeTableContentProps {
   currentTheme: TTheme;
@@ -24,6 +27,7 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
   data,
   placeholders,
 }) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const { imageSrc, weekDates, profileText, isMemoTextVisible, memoText } =
     useTimeTableData();
   const { scale, isProfileTextVisible } = useTimeTableUI();

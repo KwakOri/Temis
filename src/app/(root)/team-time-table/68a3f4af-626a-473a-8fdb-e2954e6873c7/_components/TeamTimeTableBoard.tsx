@@ -1,6 +1,10 @@
-import { Imgs } from '../_img/imgs';
+"use client";
+
+import { Imgs as LocalImgs } from '../_img/imgs';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 const TeamTimeTableBoard = () => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{

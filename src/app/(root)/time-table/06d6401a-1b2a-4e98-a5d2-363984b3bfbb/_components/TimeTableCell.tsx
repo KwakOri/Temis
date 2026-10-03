@@ -1,3 +1,5 @@
+"use client";
+
 import React, { CSSProperties, PropsWithChildren } from 'react';
 
 import AutoResizeText from '@/components/AutoResizeTextCard/AutoResizeText';
@@ -6,7 +8,7 @@ import { TTheme } from '@/types/time-table/theme';
 import { padZero } from '@/utils/date-formatter';
 import { formatTime } from '@/utils/time-formatter';
 import { weekdays } from '@/utils/time-table/data';
-import { Imgs } from '../_img/imgs';
+import { Imgs as LocalImgs } from '../_img/imgs';
 import { placeholders } from '../_settings/general';
 import {
   BASE_COLORS,
@@ -15,6 +17,7 @@ import {
   MAX_FONT_SIZES,
   weekdayOption,
 } from '../_settings/settings';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 type SelectProps = 'option_01' | 'option_02';
 
@@ -284,6 +287,7 @@ interface OnlineCardBGProps {
 }
 
 const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -306,6 +310,7 @@ const OfflineCard = ({
   day,
   currentTheme,
 }: OfflineCardProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{

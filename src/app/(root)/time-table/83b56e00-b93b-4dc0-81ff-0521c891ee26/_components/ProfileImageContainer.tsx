@@ -1,9 +1,11 @@
+"use client";
+
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import ProfileImage from "@/components/TimeTable/ProfileImage";
 import { TTheme } from "@/types/time-table/theme";
-import Image from "next/image";
+
 import React from "react";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import {
   colors,
   fontOption,
@@ -14,6 +16,7 @@ import {
   profileImageWidth,
   profileTextInfo,
 } from "../_settings/settings";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface ProfileTextProps {
   profileText: string;
@@ -80,6 +83,7 @@ const ProfileImageContainer: React.FC<ProfileImageProps> = ({
   profileTextPlaceholder,
   isProfileTextVisible,
 }) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const formattedImageSrc = imageSrc
     ? imageSrc.startsWith("/")
       ? imageSrc
@@ -115,7 +119,7 @@ const ProfileImageContainer: React.FC<ProfileImageProps> = ({
           zIndex: profileImageInfo.arrange === "onTop" ? 10 : 20,
         }}
       >
-        <Image
+        <img
           src={Imgs[currentTheme]["profile"].src}
           alt="preview"
           className="w-full h-full object-cover"

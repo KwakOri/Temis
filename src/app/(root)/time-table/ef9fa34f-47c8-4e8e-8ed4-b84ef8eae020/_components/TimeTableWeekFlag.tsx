@@ -1,5 +1,7 @@
+"use client";
+
 import { TTheme } from "@/types/time-table/theme";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import {
   colors,
   fontOption,
@@ -8,6 +10,7 @@ import {
   weekFlagCardHeight,
   weekFlagCardWidth,
 } from "../_settings/settings";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface TimeTableWeekFlagProps {
   currentTheme: TTheme;
@@ -18,6 +21,7 @@ const TimeTableWeekFlag = ({
   currentTheme,
   weekDates,
 }: TimeTableWeekFlagProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const splitDigits = (num: number) =>
     num.toString().padStart(2, "0").split("");
 

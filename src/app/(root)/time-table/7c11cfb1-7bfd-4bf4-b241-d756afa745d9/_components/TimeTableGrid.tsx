@@ -1,10 +1,13 @@
+"use client";
+
 import React from "react";
 
 import { TTheme } from "@/types/time-table/theme";
 
 import { TDefaultCard } from "@/types/time-table/data";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import TimeTableCell from "./TimeTableCell";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface TimeTableGridProps {
   data: TDefaultCard[];
@@ -17,6 +20,7 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
   weekDates,
   currentTheme,
 }) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <>
       <div

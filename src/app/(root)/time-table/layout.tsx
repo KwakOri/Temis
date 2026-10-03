@@ -1,6 +1,7 @@
 'use client';
 
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { LegacyTemplateAssetsRoute } from "@/contexts/LegacyTemplateAssetsContext";
 import TemplateProtectedRoute from "@/components/auth/TemplateProtectedRoute";
 import { PropsWithChildren } from "react";
 import { usePathname } from "next/navigation";
@@ -16,7 +17,7 @@ const TimeTableLayout = ({ children }: PropsWithChildren) => {
     if (templateId) {
       return (
         <TemplateProtectedRoute templateId={templateId}>
-          {children}
+          <LegacyTemplateAssetsRoute ownerKind="timetable">{children}</LegacyTemplateAssetsRoute>
         </TemplateProtectedRoute>
       );
     }

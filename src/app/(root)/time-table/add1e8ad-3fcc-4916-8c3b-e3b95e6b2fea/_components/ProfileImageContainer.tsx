@@ -1,7 +1,9 @@
+"use client";
+
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { TTheme } from "@/types/time-table/theme";
 import { PropsWithChildren } from "react";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import {
   colors,
   fontOption,
@@ -11,6 +13,7 @@ import {
   profileImageInfo,
   profileImageWidth,
 } from "../_settings/settings";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface ProfileBackPlateProps {
   currentTheme?: TTheme;
@@ -35,6 +38,7 @@ interface ProfileImageSectionProps {
 }
 
 const ProfileBackPlate = ({ currentTheme }: ProfileBackPlateProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -78,6 +82,7 @@ const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
 };
 
 const ProfileFrame = () => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{

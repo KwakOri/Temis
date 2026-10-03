@@ -1,8 +1,11 @@
+"use client";
+
 import { AutoResizeText } from '@/components/AutoResizeTextCard';
 import { useTimeTableData } from '@/contexts/TimeTableContext';
 import { TTheme } from '@/types/time-table/theme';
-import { Imgs } from '../_img/imgs';
+import { Imgs as LocalImgs } from '../_img/imgs';
 import { COMP_FONTS } from '../_settings/settings';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface TimeTableWeekFlagProps {
   currentTheme: TTheme;
@@ -14,6 +17,7 @@ const TimeTableWeekFlag = ({
   currentTheme,
   weekDates,
 }: TimeTableWeekFlagProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const { isMemoTextVisible, memoText } = useTimeTableData();
 
   return (
