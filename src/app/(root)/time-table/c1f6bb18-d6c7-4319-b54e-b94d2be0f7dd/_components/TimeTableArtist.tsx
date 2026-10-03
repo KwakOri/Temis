@@ -50,7 +50,7 @@ const TimeTableArtist = ({
       </div>
       <img
         className="object-cover w-full h-full"
-        src={Imgs['first']['artist'].src.replace('./', '/')}
+        src={Imgs['first']['artist'].src}
         draggable={false}
         alt="memo"
       />

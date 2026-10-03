@@ -203,7 +203,7 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs['first'][dayAssetName].src.replace('./', '/')}
+        src={Imgs['first'][dayAssetName].src}
         alt="online"
       />
     </div>
@@ -220,7 +220,7 @@ const CardOverlay = ({ day }: OnlineCardBGProps) => {
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs['first']['online_overlay'].src.replace('./', '/')}
+        src={Imgs['first']['online_overlay'].src}
         alt="online"
       />
     </div>
@@ -236,7 +236,7 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
       key={day}
     >
       <img
-        src={Imgs[currentTheme || 'first']['offline'].src.replace('./', '/')}
+        src={Imgs[currentTheme || 'first']['offline'].src}
         alt="offline"
         style={{
           ...CARD_SIZES.OFFLINE,
@@ -284,7 +284,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         {time.isOffline && (
           <img
             className="absolute inset-0 z-30"
-            src={Imgs['first']['offline'].src.replace('./', '/')}
+            src={Imgs['first']['offline'].src}
             alt="online"
           />
         )}

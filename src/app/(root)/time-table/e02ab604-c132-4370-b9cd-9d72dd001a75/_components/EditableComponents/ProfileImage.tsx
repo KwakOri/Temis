@@ -60,7 +60,7 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
         }}
       >
         <Image
-          src={Imgs[currentTheme]["profile"].src.replace("./", "/")}
+          src={Imgs[currentTheme]["profile"].src}
           alt="preview"
           className="w-full h-full object-cover"
           width={profileFrameWidth}

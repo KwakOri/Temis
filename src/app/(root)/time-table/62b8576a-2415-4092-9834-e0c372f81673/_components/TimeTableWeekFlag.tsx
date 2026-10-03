@@ -42,7 +42,7 @@ const TimeTableWeekFlag = ({
       </p>
 
       <img
-        src={Imgs["first"]["week_dates"].src.replace("./", "/")}
+        src={Imgs["first"]["week_dates"].src}
         alt="week flag"
         className="absolute inset-0 z-20"
       />

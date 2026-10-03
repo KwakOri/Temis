@@ -26,7 +26,7 @@ const ProfileBackPlate = () => {
       }}
     >
       <img
-        src={Imgs['first']['profile_board'].src.replace('./', '/')}
+        src={Imgs['first']['profile_board'].src}
         alt="profile_board"
         className="object-cover"
         draggable={false}
@@ -67,7 +67,7 @@ const ProfileFrame = () => {
       }}
     >
       <img
-        src={Imgs['first']['profile_frame'].src.replace('./', '/')}
+        src={Imgs['first']['profile_frame'].src}
         alt="frame"
         className="object-cover"
         draggable={false}

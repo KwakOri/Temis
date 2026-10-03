@@ -169,10 +169,7 @@ const CardBG = ({ day, isOffline }: OnlineCardBGProps) => {
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs["first"][isOffline ? "offline" : "online"].src.replace(
-          "./",
-          "/"
-        )}
+        src={Imgs["first"][isOffline ? "offline" : "online"].src}
         alt="online"
       />
     </div>
@@ -191,7 +188,7 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
       key={day}
     >
       <img
-        src={Imgs[currentTheme || "first"]["offline"].src.replace("./", "/")}
+        src={Imgs[currentTheme || "first"]["offline"].src}
         alt="offline"
         style={{
           width: offlineCardWidth,

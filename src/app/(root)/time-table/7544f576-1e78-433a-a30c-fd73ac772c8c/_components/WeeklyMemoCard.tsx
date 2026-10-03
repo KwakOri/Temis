@@ -43,7 +43,7 @@ const WeeklyMemoCard = () => {
           </div>
           <img
             className="absolute inset-0 z-10"
-            src={Imgs["first"]["weekly_memo"].src.replace("./", "/")}
+            src={Imgs["first"]["weekly_memo"].src}
             alt="memo"
           />
         </div>

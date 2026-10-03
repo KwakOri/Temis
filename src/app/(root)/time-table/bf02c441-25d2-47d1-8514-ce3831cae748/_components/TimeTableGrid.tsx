@@ -48,7 +48,7 @@ const ProfileMemo = () => {
           >
             <img
               className="object-cover w-full h-full"
-              src={Imgs['first']['memo'].src.replace('./', '/')}
+              src={Imgs['first']['memo'].src}
               alt="memo"
             />
           </div>

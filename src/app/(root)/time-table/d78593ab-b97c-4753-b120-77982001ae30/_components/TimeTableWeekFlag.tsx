@@ -89,7 +89,7 @@ const TimeTableWeekFlag = ({
       </div>
       <img
         className="object-cover w-full h-full"
-        src={Imgs['first']['week_dates'].src.replace('./', '/')}
+        src={Imgs['first']['week_dates'].src}
         draggable={false}
         alt="memo"
       />

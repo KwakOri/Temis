@@ -57,7 +57,7 @@ const ProfileFrame = () => {
       }}
     >
       <img
-        src={Imgs['first']['profile'].src.replace('./', '/')}
+        src={Imgs['first']['profile'].src}
         alt="frame"
         className="object-cover"
         draggable={false}

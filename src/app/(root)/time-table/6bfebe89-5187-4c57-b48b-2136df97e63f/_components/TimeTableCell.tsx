@@ -380,7 +380,7 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
           width: cellStyle[day as dayProps].width,
           height: cellStyle[day as dayProps].height,
         }}
-        src={Imgs[currentTheme || "first"][days[day]].src.replace("./", "/")}
+        src={Imgs[currentTheme || "first"][days[day]].src}
         alt="offline"
       />
     </div>

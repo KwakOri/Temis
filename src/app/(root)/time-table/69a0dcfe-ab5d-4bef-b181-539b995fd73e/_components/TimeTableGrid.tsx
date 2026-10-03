@@ -53,7 +53,7 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
       >
         <img
           className="object-cover w-full h-full pointer-events-none"
-          src={Imgs["first"]["schedule"].src.replace("./", "/")}
+          src={Imgs["first"]["schedule"].src}
           alt="online"
         />
       </div>

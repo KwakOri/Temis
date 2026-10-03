@@ -271,7 +271,7 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs["first"][cardName].src.replace("./", "/")}
+        src={Imgs["first"][cardName].src}
         alt="online"
       />
     </div>
@@ -305,7 +305,7 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
       className="-z-10"
     >
       <img
-        src={Imgs[currentTheme || "first"]["offline"].src.replace("./", "/")}
+        src={Imgs[currentTheme || "first"]["offline"].src}
         alt="offline"
         style={{
           ...CARD_SIZES.OFFLINE,
@@ -326,10 +326,7 @@ const OfflineFrame = ({ day, currentTheme }: OfflineCardProps) => {
       className="absolute inset-0 z-30"
     >
       <img
-        src={Imgs[currentTheme || "first"]["offline_frame"].src.replace(
-          "./",
-          "/",
-        )}
+        src={Imgs[currentTheme || "first"]["offline_frame"].src}
         alt="offline"
         style={{
           ...CARD_SIZES.OFFLINE,

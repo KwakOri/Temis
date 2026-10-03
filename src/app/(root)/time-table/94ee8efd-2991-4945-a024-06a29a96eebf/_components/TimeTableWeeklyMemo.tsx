@@ -38,7 +38,7 @@ const TimeTableWeeklyMemo = () => {
 
             <img
               className="object-cover w-full h-full"
-              src={Imgs['first']['memo'].src.replace('./', '/')}
+              src={Imgs['first']['memo'].src}
               draggable={false}
               alt="memo"
             />

@@ -32,7 +32,7 @@ const ProfileImageContainer: React.FC<ProfileImageProps> = ({
     ? imageSrc.startsWith("/")
       ? imageSrc
       : imageSrc.replace("./", "/")
-    : Imgs[currentTheme]["placeholder"].src.replace("./", "/");
+    : Imgs[currentTheme]["placeholder"].src;
 
   return (
     <div
@@ -46,7 +46,7 @@ const ProfileImageContainer: React.FC<ProfileImageProps> = ({
         }}
       >
         <img
-          src={Imgs[currentTheme]["profile"].src.replace("./", "/")}
+          src={Imgs[currentTheme]["profile"].src}
           alt="preview"
           className="absolute inset-0"
           draggable={false}

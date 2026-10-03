@@ -47,7 +47,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         key={time.day}
       >
         <img
-          src={Imgs[currentTheme]["offline"].src.replace("./", "/")}
+          src={Imgs[currentTheme]["offline"].src}
           alt="offline"
           style={{
             width: 228,
@@ -149,7 +149,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         </div>
         <img
           className="absolute inset-0 -z-10"
-          src={Imgs[currentTheme]["online"].src.replace("./", "/")}
+          src={Imgs[currentTheme]["online"].src}
           alt="online"
         />
       </div>

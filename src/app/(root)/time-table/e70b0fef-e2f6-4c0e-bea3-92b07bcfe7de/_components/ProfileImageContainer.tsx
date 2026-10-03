@@ -50,7 +50,7 @@ const ProfileBackPlate = ({ currentTheme }: ProfileBackPlateProps) => {
       }}
     >
       <Image
-        src={Imgs[currentTheme || "first"]["profileBG"].src.replace("./", "/")}
+        src={Imgs[currentTheme || "first"]["profileBG"].src}
         alt="profileBG"
         className="object-cover"
         draggable={false}
@@ -97,7 +97,7 @@ const ProfileFrame = () => {
       }}
     >
       <Image
-        src={Imgs["first"]["profileFrame"].src.replace("./", "/")}
+        src={Imgs["first"]["profileFrame"].src}
         alt="frame"
         className="object-cover"
         fill

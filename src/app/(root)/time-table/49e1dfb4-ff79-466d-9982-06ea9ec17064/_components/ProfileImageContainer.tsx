@@ -35,7 +35,7 @@ const ProfileBackPlate = ({ currentTheme }: ProfileBackPlateProps) => {
       className="absolute inset-0"
     >
       <img
-        src={Imgs[currentTheme || "first"]["profileBG"].src.replace("./", "/")}
+        src={Imgs[currentTheme || "first"]["profileBG"].src}
         alt="profileBG"
         className="object-cover w-full h-full"
         draggable={false}
@@ -78,7 +78,7 @@ const ProfileFrame = () => {
       }}
     >
       <img
-        src={Imgs["first"]["profileFrame"].src.replace("./", "/")}
+        src={Imgs["first"]["profileFrame"].src}
         alt="frame"
         className="object-cover"
         draggable={false}

@@ -49,7 +49,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       >
         <Image
           className="pointer-events-none"
-          src={Imgs[currentTheme]["offline"].src.replace("./", "/")}
+          src={Imgs[currentTheme]["offline"].src}
           alt="offline"
           width={offlineCardWidth}
           height={offlineCardHeight}
@@ -140,7 +140,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       </div>
       <Image
         className="absolute top-0 left-0 -z-10"
-        src={Imgs[currentTheme]["online"].src.replace("./", "/")}
+        src={Imgs[currentTheme]["online"].src}
         alt="online"
         width={onlineCardWidth}
         height={onlineCardHeight}

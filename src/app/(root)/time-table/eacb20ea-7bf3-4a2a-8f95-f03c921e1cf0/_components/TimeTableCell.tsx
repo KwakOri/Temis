@@ -593,7 +593,7 @@ const OnlineCardBG = ({
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs['first'][days[day] + cardSubfix].src.replace('./', '/')}
+        src={Imgs['first'][days[day] + cardSubfix].src}
         alt="online"
       />
     </div>

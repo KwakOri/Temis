@@ -64,7 +64,7 @@ const ProfileFrame = () => {
       className="absolute inset-0"
     >
       <Image
-        src={Imgs["first"]["profile"].src.replace("./", "/")}
+        src={Imgs["first"]["profile"].src}
         alt="frame"
         className="object-cover"
         fill

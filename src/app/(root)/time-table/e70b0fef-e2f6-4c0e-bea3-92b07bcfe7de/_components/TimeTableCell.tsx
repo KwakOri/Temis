@@ -165,7 +165,7 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
         style={{
           transform: "rotate(2.7deg)",
         }}
-        src={Imgs["first"][dayName].src.replace("./", "/")}
+        src={Imgs["first"][dayName].src}
         alt="online"
         fill
       />
@@ -186,7 +186,7 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
       key={day}
     >
       <Image
-        src={Imgs[currentTheme || "first"][dayType].src.replace("./", "/")}
+        src={Imgs[currentTheme || "first"][dayType].src}
         alt="offline"
         style={{
           transform: "rotate(2.7deg)",

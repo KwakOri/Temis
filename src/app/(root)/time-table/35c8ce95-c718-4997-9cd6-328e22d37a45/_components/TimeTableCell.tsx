@@ -131,10 +131,7 @@ const CardStreamingDate = ({ date, currentTheme }: CardStreamingDateProps) => {
         left: 72,
         top: -4,
 
-        backgroundImage: `url(${Imgs['first']['topItem'].src.replace(
-          './',
-          '/'
-        )})`,
+        backgroundImage: `url(${Imgs['first']['topItem'].src})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
@@ -253,7 +250,7 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs['first']['online'].src.replace('./', '/')}
+        src={Imgs['first']['online'].src}
         alt="online"
       />
     </div>
@@ -270,7 +267,7 @@ const OfflineCardBG = ({ day, currentTheme }: OfflineCardProps) => {
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs[currentTheme || 'first']['offline'].src.replace('./', '/')}
+        src={Imgs[currentTheme || 'first']['offline'].src}
         alt="offline"
       />
     </div>

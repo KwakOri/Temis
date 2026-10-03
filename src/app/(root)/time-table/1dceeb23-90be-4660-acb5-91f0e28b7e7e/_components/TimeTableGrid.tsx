@@ -87,10 +87,7 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
                   }}
                 >
                   <img
-                    src={Imgs[currentTheme || "first"]["memo"].src.replace(
-                      "./",
-                      "/"
-                    )}
+                    src={Imgs[currentTheme || "first"]["memo"].src}
                     alt="offline"
                     className="object-cover"
                   />

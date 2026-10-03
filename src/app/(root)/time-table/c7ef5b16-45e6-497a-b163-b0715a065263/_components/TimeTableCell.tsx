@@ -190,7 +190,7 @@ const MultiCard = ({ day }: { day: number }) => {
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs["first"][cardName].src.replace("./", "/")}
+        src={Imgs["first"][cardName].src}
         alt="multi"
         style={{
           ...CARD_SIZES.ONLINE,
@@ -391,7 +391,7 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs["first"][cardName].src.replace("./", "/")}
+        src={Imgs["first"][cardName].src}
         alt="online"
       />
     </div>
@@ -424,7 +424,7 @@ const OfflineMemoCardBG = ({ day }: OfflineMemoCardProps) => {
       key={day}
     >
       <img
-        src={Imgs["first"]["offline_memo"].src.replace("./", "/")}
+        src={Imgs["first"]["offline_memo"].src}
         alt="offline"
         style={{
           ...CARD_SIZES.OFFLINE,
@@ -475,7 +475,7 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
       key={day}
     >
       <img
-        src={Imgs[currentTheme || "first"]["offline"].src.replace("./", "/")}
+        src={Imgs[currentTheme || "first"]["offline"].src}
         alt="offline"
         style={{
           ...CARD_SIZES.OFFLINE,

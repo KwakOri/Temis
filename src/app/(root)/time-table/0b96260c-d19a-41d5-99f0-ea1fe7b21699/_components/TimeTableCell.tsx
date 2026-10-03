@@ -247,7 +247,7 @@ const OnlineCardBG = ({ isOffline, day }: OnlineCardBGProps) => {
   return (
     <img
       className="absolute inset-0"
-      src={Imgs['first'][cardName].src.replace('./', '/')}
+      src={Imgs['first'][cardName].src}
       alt="online"
     />
   );
@@ -263,7 +263,7 @@ const CardOverlay = ({ day }: OnlineCardBGProps) => {
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs['first']['online_overlay'].src.replace('./', '/')}
+        src={Imgs['first']['online_overlay'].src}
         alt="online"
       />
     </div>
@@ -279,7 +279,7 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
       key={day}
     >
       <img
-        src={Imgs[currentTheme || 'first']['offline'].src.replace('./', '/')}
+        src={Imgs[currentTheme || 'first']['offline'].src}
         alt="offline"
         style={{
           ...CARD_SIZES.OFFLINE,

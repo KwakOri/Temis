@@ -210,7 +210,7 @@ const OnlineCardBG = ({ day, isOrange }: OnlineCardBGProps) => {
         className="object-cover w-full h-full"
         src={Imgs["first"][
           isOrange ? "online_orange" : "online_brown"
-        ].src.replace("./", "/")}
+        ].src}
         alt="online"
       />
     </div>
@@ -232,7 +232,7 @@ const OfflineCard = ({ day, isOrange, currentTheme }: OfflineCardProps) => {
         className="object-cover w-full h-full"
         src={Imgs["first"][
           isOrange ? "offline_orange" : "offline_brown"
-        ].src.replace("./", "/")}
+        ].src}
         alt="online"
       />
     </div>

@@ -87,7 +87,7 @@ const ProfileImageContainer: React.FC<ProfileImageProps> = ({
         }}
       >
         <Image
-          src={Imgs[currentTheme]["profileFrame"].src.replace("./", "/")}
+          src={Imgs[currentTheme]["profileFrame"].src}
           alt="preview"
           className="w-full h-full object-cover"
           width={profileFrameWidth}
@@ -116,7 +116,7 @@ const ProfileImageContainer: React.FC<ProfileImageProps> = ({
         }}
       >
         <Image
-          src={Imgs[currentTheme]["profileBG"].src.replace("./", "/")}
+          src={Imgs[currentTheme]["profileBG"].src}
           alt="profileBG"
           className="object-cover"
           width={profileBackPlateWidth}

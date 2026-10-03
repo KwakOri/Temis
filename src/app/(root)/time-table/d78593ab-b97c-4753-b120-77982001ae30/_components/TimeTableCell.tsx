@@ -474,7 +474,7 @@ const OnlineBG = ({ day, cardType }: OnlineCardBGProps) => {
   return (
     <img
       className="absolute inset-0 -z-10"
-      src={Imgs['first'][cardName].src.replace('./', '/')}
+      src={Imgs['first'][cardName].src}
       alt="online"
     />
   );
@@ -485,7 +485,7 @@ const OfflineBG = ({ day, cardType }: OfflineCardProps) => {
   return (
     <img
       className="absolute inset-0 -z-10"
-      src={Imgs['first'][cardName].src.replace('./', '/')}
+      src={Imgs['first'][cardName].src}
       alt="offline"
     />
   );
@@ -496,7 +496,7 @@ const OfflineMemoBG = ({ day, cardType }: OfflineCardProps) => {
   return (
     <img
       className="absolute inset-0 -z-10"
-      src={Imgs['first'][cardName].src.replace('./', '/')}
+      src={Imgs['first'][cardName].src}
       alt="offline"
     />
   );
@@ -507,7 +507,7 @@ const MultiBG = ({ cardType }: CardTypeProps) => {
   return (
     <img
       className="absolute inset-0 -z-10"
-      src={Imgs['first'][cardName].src.replace('./', '/')}
+      src={Imgs['first'][cardName].src}
       alt="multi"
     />
   );

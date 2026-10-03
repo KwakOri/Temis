@@ -43,7 +43,7 @@ const ProfileBG = () => {
       }}
     >
       <Image
-        src={Imgs["first"]["profileBG"].src.replace("./", "/")}
+        src={Imgs["first"]["profileBG"].src}
         alt="profileBG"
         className="object-cover"
         width={profileBGWidth}
@@ -91,7 +91,7 @@ const ProfileFrame = () => {
       className="absolute inset-0"
     >
       <Image
-        src={Imgs["first"]["profile"].src.replace("./", "/")}
+        src={Imgs["first"]["profile"].src}
         alt="frame"
         className="object-cover"
         fill

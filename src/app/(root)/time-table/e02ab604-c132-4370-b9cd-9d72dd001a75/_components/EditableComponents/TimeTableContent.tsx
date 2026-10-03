@@ -72,7 +72,7 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
 
         <Image
           className="relative"
-          src={Imgs[currentTheme]["week"].src.replace("./", "/")}
+          src={Imgs[currentTheme]["week"].src}
           alt="week"
           width={120}
           height={60}

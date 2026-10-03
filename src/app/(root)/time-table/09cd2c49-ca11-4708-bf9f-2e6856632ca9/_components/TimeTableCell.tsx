@@ -203,7 +203,7 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs["first"]["online"].src.replace("./", "/")}
+        src={Imgs["first"]["online"].src}
         alt="online"
       />
     </div>
@@ -221,7 +221,7 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs["first"]["offline"].src.replace("./", "/")}
+        src={Imgs["first"]["offline"].src}
         alt="online"
       />
     </div>
@@ -262,7 +262,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       >
         <StreamingDate date={weekDate.getDate()} />
         <StreamingDay day={time.day} />
-        <img src={Imgs["first"]["day"].src.replace("./", "/")} alt="day" />
+        <img src={Imgs["first"]["day"].src} alt="day" />
       </div>
       <div
         style={{

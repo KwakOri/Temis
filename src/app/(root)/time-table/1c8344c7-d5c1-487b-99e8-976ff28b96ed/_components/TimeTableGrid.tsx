@@ -82,27 +82,27 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
             {isVisibleTopBg && (
               <img
                 className="object-cover w-full h-full absolute inset-0 z-10"
-                src={Imgs["first"]["onlineTop"].src.replace("./", "/")}
+                src={Imgs["first"]["onlineTop"].src}
                 alt="online"
               />
             )}
             {isVisibleBottomBg && (
               <img
                 className="object-cover w-full h-full absolute inset-0 z-10"
-                src={Imgs["first"]["onlineBottom"].src.replace("./", "/")}
+                src={Imgs["first"]["onlineBottom"].src}
                 alt="online"
               />
             )}
             {isVisibleBottomBg && isVisibleTopBg && (
               <img
                 className="object-cover w-full h-full absolute inset-0 z-20"
-                src={Imgs["first"]["onlineMid"].src.replace("./", "/")}
+                src={Imgs["first"]["onlineMid"].src}
                 alt="online"
               />
             )}
             <img
               className="object-cover w-full h-full absolute inset-0"
-              src={Imgs["first"]["offline"].src.replace("./", "/")}
+              src={Imgs["first"]["offline"].src}
               alt="online"
             />
           </div>
