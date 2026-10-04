@@ -23,6 +23,7 @@
     "check:legacy-assets:migration": "node --import tsx scripts/check-legacy-template-assets-migration.ts",
     "check:legacy-assets:held-cleanup": "node --import tsx scripts/check-legacy-template-held-cleanup.ts",
     "check:project-assets": "node --import tsx scripts/check-project-assets.tsx",
+    "check:project-assets:browser": "node --import tsx scripts/check-project-assets-browser.mjs",
     "migrate:project-assets": "node --import tsx scripts/migrate-legacy-template-assets.ts --project-assets --all",
     "migrate:legacy-assets": "node --import tsx scripts/migrate-legacy-template-assets.ts",
     "check:legacy-assets": "node --import tsx scripts/check-legacy-template-assets.ts",

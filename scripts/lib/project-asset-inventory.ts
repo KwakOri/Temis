@@ -43,7 +43,14 @@ export function createProjectAssetTemplates(
   )
     throw new Error("대표 썸네일 조사 목록과 일치하지 않습니다.");
   const templates: ManagedInventoryTemplate[] = covers.map((cover) => {
-    if (!publicCovers.some((entry) => entry.ownerKind === cover.ownerKind && entry.templateId === cover.templateId && entry.localUrl === cover.file.replace(/^public/, "")))
+    if (
+      !publicCovers.some(
+        (entry) =>
+          entry.ownerKind === cover.ownerKind &&
+          entry.templateId === cover.templateId &&
+          entry.localUrl === cover.file.replace(/^public/, ""),
+      )
+    )
       throw new Error("검토된 공개 썸네일 목록과 일치하지 않습니다.");
     const asset = files.get(cover.file);
     if (

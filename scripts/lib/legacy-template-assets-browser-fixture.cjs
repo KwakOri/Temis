@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { readFileSync } = require("node:fs");
-exports.install = async (page, file) => {
+exports.install = async (page, file, options = {}) => {
   const fixture = JSON.parse(readFileSync(file, "utf8"));
   const { detail, assets, owner } = fixture;
   const stats = { proxyFetches: 0, applied: 0, restored: 0 };
@@ -99,7 +99,7 @@ exports.install = async (page, file) => {
       pendingUpload = body.upload;
       return route.fulfill({
         json: {
-          uploadUrl: "http://127.0.0.1:3107/fixture-asset-upload",
+          uploadUrl: `${options.baseUrl ?? "http://127.0.0.1:3107"}/fixture-asset-upload`,
           headers: { "Content-Type": body.upload.mimeType },
           ticket: "fixture-ticket",
         },
@@ -142,6 +142,9 @@ exports.install = async (page, file) => {
       stats.restored++;
     }
     if (body.action === "apply") stats.applied++;
+    if (body.action === "apply" || body.action === "restore")
+      detail.set.mode = "r2";
+    if (body.action === "mode") detail.set.mode = body.mode;
     const revision = {
       ...current,
       id: `00000000-0000-4000-8000-${String(detail.revisions.length + 10).padStart(12, "0")}`,
