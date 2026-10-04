@@ -64,6 +64,7 @@ import { StudioText } from "@/components/studio/text/studio-text";
 import { StudioWebFontLoader } from "@/components/studio/canvas/studio-web-font-loader";
 
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
+import { StudioTeamCards } from "./studio-team-cards";
 
 import {
   getStudioTimetableEditingVariantValue,
@@ -943,7 +944,10 @@ export function StudioTimetablePreview({
             {entries.length > 0 ? (
               <div
                 className="relative overflow-hidden"
-                style={{ width: dayGeometry.width, height: dayGeometry.height }}
+                style={{
+                  width: dayGeometry.width,
+                  height: dayGeometry.height,
+                }}
               >
                 {(() => {
                   const statusId = resolveStudioTimetableDayVariantStatus(
@@ -1155,7 +1159,17 @@ export function StudioTimetablePreview({
     if (!object || object.hidden) return null;
 
     if (getStudioTimetableNodeExtension(document, object.id).generator)
-      return renderDayCardsObject();
+      return timetable.team ? (
+        <StudioTeamCards
+          key={object.id}
+          document={document}
+          runtimeValues={runtimeValues}
+          selected={selectedLayerId === object.id}
+          onSelect={() => onSelectLayer?.(object.id)}
+        />
+      ) : (
+        renderDayCardsObject()
+      );
     if (object.type === "image") return renderImageObject(object);
     if (object.type !== "group") return renderTextObject(object);
 

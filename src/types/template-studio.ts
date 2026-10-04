@@ -544,6 +544,7 @@ export interface StudioTimetableComposition {
 }
 
 export interface StudioTimetableDomain {
+  team?: StudioTeamDefinition;
   version: 2;
   canvas?: StudioTimetableCanvasConfig;
   week?: StudioTimetableWeekDefinition;
@@ -632,10 +633,41 @@ export interface StudioTemplateDocument {
 }
 
 export interface StudioRuntimeValues {
+  team?: StudioTeamRuntimeValues;
   global: Record<StudioInputId, string>;
   days: Record<StudioTimetableDayId, Record<StudioInputId, string>>;
   entries: Record<StudioTimetableDayId, Array<Record<StudioInputId, string>>>;
   timetable: StudioTimetableRuntimeValues;
+}
+
+export type StudioTeamLayout = "day-columns" | "day-grid" | "member-rows";
+export interface StudioTeamDefinition {
+  memberSlotIds: string[];
+  layout: StudioTeamLayout;
+  columns: number;
+  gap: number;
+  order: "member" | "time";
+  memberNameInputId: StudioInputId;
+  memberImageInputId: StudioInputId;
+}
+export interface StudioTeamRuntimeDay {
+  status: "online" | "offline" | "missing";
+  entries: Array<{
+    mainTitle: string;
+    subTitle: string;
+    time: string;
+    isGuerrilla: boolean;
+  }>;
+}
+export interface StudioTeamRuntimeValues {
+  members: Record<
+    string,
+    {
+      name: string;
+      image: string;
+      days: Record<StudioTimetableDayId, StudioTeamRuntimeDay>;
+    }
+  >;
 }
 
 export type StudioDiagnosticSeverity = "error" | "warning";

@@ -34,6 +34,18 @@ import {
 } from "@/utils/template-studio/timetable-graph-commands";
 import type { StudioTimetableGraphNode } from "@/types/studio-timetable-graph";
 import { createStudioTimetableGraphDocument } from "@/utils/template-studio/timetable-graph-document";
+import {
+  createStudioTeamDocument,
+  createStudioTeamPreview,
+  validateStudioTeamDefinition,
+} from "@/utils/template-studio/team-timetable";
+import { StudioTeamControls } from "./studio-team-controls";
+import { Download } from "lucide-react";
+import {
+  renderStudioPng,
+  downloadStudioPng,
+  buildStudioExportFileName,
+} from "@/utils/template-studio/png-export";
 
 import {
   getStudioTimetableNodeIds,
@@ -541,26 +553,35 @@ interface TemplateStudioHistorySnapshot extends StudioEditorSnapshot {
 
 interface TemplateStudioClientProps {
   initialRemoteTemplateId?: string | null;
+  initialTemplateMode?: "personal" | "team";
 }
 
 export function TemplateStudioClient({
   initialRemoteTemplateId = null,
+  initialTemplateMode = "personal",
 }: TemplateStudioClientProps) {
   const router = useRouter();
   const studioStoreRef = useRef<StudioEditorStore<TemplateStudioView> | null>(
     null,
   );
   if (!studioStoreRef.current) {
-    const initialDocument = createStudioTimetableGraphDocument();
+    const initialDocument =
+      initialTemplateMode === "team"
+        ? createStudioTeamDocument()
+        : createStudioTimetableGraphDocument();
+    const initialRuntimeValues =
+      createInitialStudioRuntimeValues(initialDocument);
+    if (initialDocument.domains.timetable.team)
+      initialRuntimeValues.team = createStudioTeamPreview(initialDocument);
     studioStoreRef.current = createStudioEditorStore<TemplateStudioView>({
       document: initialDocument,
-      runtimeValues: createInitialStudioRuntimeValues(initialDocument),
+      runtimeValues: initialRuntimeValues,
       selectedNodeIds: ["node_c3"],
       selectedRuntimeDayId: "mon",
       view: {
         panelMode: "layers",
         theme: "dark",
-        workspaceMode: "cards",
+        workspaceMode: initialTemplateMode === "team" ? "timetable" : "cards",
         inspectorSections: DEFAULT_INSPECTOR_SECTIONS,
         inputScopeFilter: "global",
         scale: 0.8,
@@ -588,6 +609,8 @@ export function TemplateStudioClient({
     [studioStore],
   );
   const runtimeValues = useStore(studioStore, (state) => state.runtimeValues);
+  const teamExportRef = useRef<HTMLDivElement>(null);
+  const [teamExportBusy, setTeamExportBusy] = useState(false);
   const selectedInputId = useStore(
     studioStore,
     (state) => state.selectedInputId,
@@ -1073,6 +1096,18 @@ export function TemplateStudioClient({
     }
 
     if (selectedTimetableLayerId === STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID) {
+      if (timetable.team)
+        return {
+          ...resolveStudioTimetableGraphGeometry(
+            document,
+            selectedTimetableLayerId,
+          ),
+          rotateDeg:
+            getStudioTimetableNodeStyle(
+              document,
+              timetableGraph.nodes[selectedTimetableLayerId],
+            ).rotateDeg ?? 0,
+        };
       return {
         ...getStudioTimetableDayCardsBounds(
           layout,
@@ -1500,7 +1535,9 @@ export function TemplateStudioClient({
       setSelectedInputId(nextSelectedInputId);
       setSelectedRuntimeDayId(nextRuntimeDayId);
       setSelectedRuntimeEntryIndex(0);
-      setWorkspaceMode("cards");
+      setWorkspaceMode(
+        nextDocument.domains?.timetable?.team ? "timetable" : "cards",
+      );
       setPanelMode("layers");
       setSelectedTimetableLayerId(STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID);
       setCollapsedLayerGroupIds([]);
@@ -3128,9 +3165,10 @@ export function TemplateStudioClient({
       activeRuntimeEntry,
       activeRuntimeEntryIndex,
       componentOptions: cardComponentOptions,
-      dayCardsLayout: document.domains?.timetable
-        ? getStudioTimetableDayCardsLayout(document.domains.timetable)
-        : null,
+      dayCardsLayout:
+        document.domains?.timetable && !document.domains.timetable.team
+          ? getStudioTimetableDayCardsLayout(document.domains.timetable)
+          : null,
       days: timetableDays,
       document,
       fontFamilies,
@@ -3269,6 +3307,40 @@ export function TemplateStudioClient({
           ]
         : buildTimetableInspectorSections()),
 
+    ...(document.domains.timetable.team
+      ? [
+          buildInspectorSection(
+            "layout",
+            "Team",
+            <StudioTeamControls
+              document={document}
+              preview={runtimeValues.team}
+              onDefinitionChange={(team) => {
+                const candidate = cloneDocument(document);
+                candidate.domains!.timetable!.team = team;
+                const errors = validateStudioTeamDefinition(candidate);
+                if (errors.length) {
+                  showShortcutStatus(errors[0]);
+                  return;
+                }
+                updateDocument((next) => {
+                  next.domains!.timetable!.team = team;
+                });
+                const members = Object.fromEntries(
+                  Object.entries(runtimeValues.team?.members ?? {}).filter(
+                    ([id]) => team.memberSlotIds.includes(id),
+                  ),
+                );
+                setRuntimeValues({ ...runtimeValues, team: { members } });
+              }}
+              onPreviewChange={(team) =>
+                setRuntimeValues({ ...runtimeValues, team })
+              }
+            />,
+          ),
+        ]
+      : []),
+
     buildInspectorSection(
       "diagnostics",
       "Diagnostics",
@@ -3304,9 +3376,11 @@ export function TemplateStudioClient({
   return (
     <StudioEditorStoreProvider value={studioStore}>
       <StudioEditorShell
+        responsivePanels={Boolean(document.domains.timetable.team)}
         canvas={
           <section className="relative min-w-0 flex-1 overflow-hidden bg-[var(--canvas)]">
             <StudioCanvasViewport
+              autoFitOnResize={Boolean(document.domains.timetable.team)}
               canvasHeight={previewCanvasSize.height}
               canvasWidth={previewCanvasSize.width}
               fitRequestKey={fitRequestKey}
@@ -3497,7 +3571,7 @@ export function TemplateStudioClient({
                     collapsedLayerIds={collapsedTimetableLayerIds}
                     document={document}
                     editingVariants={timetableEditingVariants}
-                    days={timetableDays}
+                    days={document.domains.timetable.team ? [] : timetableDays}
                     dropState={timetableLayerDropState}
                     selectedLayerId={selectedTimetableLayerId}
                     onFocusDay={focusTimetableRuntimeDay}
@@ -3961,18 +4035,84 @@ export function TemplateStudioClient({
               </>
             }
             hiddenControls={
-              <input
-                accept="application/json,.json"
-                className="hidden"
-                ref={jsonImportInputRef}
-                type="file"
-                onChange={(event) => {
-                  const file = event.currentTarget.files?.[0];
-                  event.currentTarget.value = "";
-                  if (!file) return;
-                  void importStudioJsonFile(file);
-                }}
-              />
+              <>
+                <input
+                  accept="application/json,.json"
+                  className="hidden"
+                  ref={jsonImportInputRef}
+                  type="file"
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0];
+                    event.currentTarget.value = "";
+                    if (!file) return;
+                    void importStudioJsonFile(file);
+                  }}
+                />
+                {document.domains.timetable.team && (
+                  <div
+                    className="pointer-events-none fixed"
+                    style={{
+                      left: -20000,
+                      top: 0,
+                      width: document.domains.timetable.canvas?.width,
+                      height: document.domains.timetable.canvas?.height,
+                    }}
+                    aria-hidden="true"
+                  >
+                    <div className="relative" ref={teamExportRef}>
+                      <StudioTimetablePreview
+                        document={document}
+                        runtimeValues={runtimeValues}
+                      />
+                    </div>
+                  </div>
+                )}
+              </>
+            }
+            extraActions={
+              document.domains.timetable.team && (
+                <button
+                  type="button"
+                  title="PNG 다운로드"
+                  aria-label="PNG 다운로드"
+                  disabled={teamExportBusy}
+                  className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-md border border-[var(--border)]"
+                  onClick={async () => {
+                    if (!teamExportRef.current) return;
+                    setTeamExportBusy(true);
+                    try {
+                      const size = getStudioTimetablePreviewSize(
+                        document.domains.timetable,
+                      );
+                      const fileName = buildStudioExportFileName(
+                        document.metadata.name,
+                      );
+                      const blob = await renderStudioPng(
+                        teamExportRef.current,
+                        {
+                          ...size,
+                          pixelRatio: 1,
+                          background:
+                            document.domains.timetable.canvas
+                              ?.backgroundColor ?? null,
+                          fileName,
+                        },
+                      );
+                      downloadStudioPng(blob, fileName);
+                    } catch (error) {
+                      showShortcutStatus(
+                        error instanceof Error
+                          ? error.message
+                          : "PNG 내보내기에 실패했습니다.",
+                      );
+                    } finally {
+                      setTeamExportBusy(false);
+                    }
+                  }}
+                >
+                  <Download size={14} />
+                </button>
+              )
             }
             previewAction={{
               title: "Open runtime preview",

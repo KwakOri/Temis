@@ -22,8 +22,9 @@ import {
   STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL,
 } from "./preset-inputs";
 import { validateStudioDocument } from "./validator";
+import { validateStudioTeamDefinition } from "./team-timetable";
 
-const clone = <T,>(value: T): T => structuredClone(value);
+const clone = <T>(value: T): T => structuredClone(value);
 const uniqueId = (prefix: string, occupied: Record<string, unknown>) => {
   let id = createStudioId(prefix);
   while (id in occupied) id = createStudioId(prefix);
@@ -204,6 +205,7 @@ export const validateStudioTimetableGraphStructure = (
   document: StudioTimetableGraphDocument,
 ): string[] => {
   const errors: string[] = [];
+  errors.push(...validateStudioTeamDefinition(document));
   if (document.schema !== "studio_template_document")
     errors.push("Invalid document schema.");
   if (document.domains.thumbnail !== undefined)

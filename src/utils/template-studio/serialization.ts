@@ -172,6 +172,17 @@ export const parseStudioTemplateExportJson = (
   }
 
   const importedRuntimeValues = getImportedRuntimeValues(parsed);
+  if (
+    isRecord(parsed) &&
+    isRecord(parsed.runtimeValues) &&
+    parsed.runtimeValues.team !== undefined &&
+    !importedRuntimeValues
+  ) {
+    return {
+      ok: false,
+      message: "Invalid team runtime values in the selected JSON.",
+    };
+  }
   const runtimeDiagnostics = importedRuntimeValues
     ? validateStudioRuntimeValuesForDocument(document, importedRuntimeValues)
     : [];

@@ -39,6 +39,7 @@ import {
 } from "@/utils/template-studio/object-style";
 
 interface StudioRendererProps {
+  showImagePlaceholders?: boolean;
   document: StudioTemplateDocument;
   runtimeValues: StudioRuntimeValues;
   rootNodeIds?: string[];
@@ -87,6 +88,7 @@ const getStudioTextTypography = (
 });
 
 export function StudioRenderer({
+  showImagePlaceholders = true,
   document,
   runtimeValues,
   rootNodeIds,
@@ -272,11 +274,11 @@ export function StudioRenderer({
               ) : (
                 image
               )
-            ) : (
+            ) : showImagePlaceholders ? (
               <div className="flex h-full w-full items-center justify-center bg-slate-100 text-xs font-semibold text-slate-400">
                 No image
               </div>
-            )}
+            ) : null}
             {children}
           </div>
         );

@@ -215,7 +215,9 @@ export const buildStudioTimetableInspectorSections = ({
     onUpdateObject(object.id, recipe);
   };
 
-  const isPlacedObject = features.resizable;
+  const isPlacedObject =
+    features.resizable ||
+    (isDayCards && Boolean(document.domains?.timetable?.team));
   const formatBinding = textObject ? textObject.binding : undefined;
 
   const sections: (StudioPropertyItem | null)[] = [
@@ -523,29 +525,32 @@ export const buildStudioTimetableInspectorSections = ({
       ? buildSection("runtime", "User Preview Values", renderPreviewInputs())
       : null,
 
-    buildSection(
-      "runtime",
-      "Timetable Context",
-      <div className="grid gap-2 text-xs font-semibold text-[var(--fg2)]">
-        <div className={CONTEXT_ROW_CLASS}>
-          Layer: <span className="text-[var(--fg)]">{selectedLayerLabel}</span>
-        </div>
-        <div className={CONTEXT_ROW_CLASS}>
-          Day:{" "}
-          <span className="text-[var(--fg)]">
-            {activeRuntimeDayLabel ?? "None"}
-          </span>
-        </div>
-        <div className={CONTEXT_ROW_CLASS}>
-          Entry:{" "}
-          <span className="text-[var(--fg)]">
-            {activeRuntimeEntry
-              ? `${activeRuntimeEntryIndex + 1} · ${activeRuntimeEntry.statusId}`
-              : "None"}
-          </span>
-        </div>
-      </div>,
-    ),
+    !document.domains?.timetable?.team
+      ? buildSection(
+          "runtime",
+          "Timetable Context",
+          <div className="grid gap-2 text-xs font-semibold text-[var(--fg2)]">
+            <div className={CONTEXT_ROW_CLASS}>
+              Layer:{" "}
+              <span className="text-[var(--fg)]">{selectedLayerLabel}</span>
+            </div>
+            <div className={CONTEXT_ROW_CLASS}>
+              Day:{" "}
+              <span className="text-[var(--fg)]">
+                {activeRuntimeDayLabel ?? "None"}
+              </span>
+            </div>
+            <div className={CONTEXT_ROW_CLASS}>
+              Entry:{" "}
+              <span className="text-[var(--fg)]">
+                {activeRuntimeEntry
+                  ? `${activeRuntimeEntryIndex + 1} · ${activeRuntimeEntry.statusId}`
+                  : "None"}
+              </span>
+            </div>
+          </div>,
+        )
+      : null,
   ];
 
   if (editingState) {

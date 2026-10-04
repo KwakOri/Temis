@@ -519,7 +519,7 @@ export function useTimetableObjectCommands({
 
         const graph = requireStudioTimetableGraphDocument(nextDocument);
         const edit = getStudioTimetableGraphEditTarget(graph, layerId);
-        if (edit && !edit.extension.generator) {
+        if (edit && (!edit.extension.generator || timetable.team)) {
           const style = getStudioObjectPositionStyle(
             edit.style,
             edit.node.layoutMode,
@@ -637,7 +637,7 @@ export function useTimetableObjectCommands({
             )
           )
             return;
-          if (edit && !edit.extension.generator) {
+          if (edit && (!edit.extension.generator || timetable.team)) {
             if (!isStudioFillParentLayout(edit.node.layoutMode))
               Object.assign(
                 edit.style,
