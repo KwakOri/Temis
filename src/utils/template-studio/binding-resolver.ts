@@ -1,6 +1,7 @@
 import {
   StudioBuiltinFieldDefinition,
   StudioAsset,
+  StudioAssetSlot,
   StudioBinding,
   StudioGraphNode,
   StudioInputDefinition,
@@ -210,4 +211,23 @@ export const resolveStudioAsset = (
   }
 
   return null;
+};
+
+/** Shared image-slot resolution for graph nodes and composition objects. */
+export const resolveStudioAssetSlot = (
+  document: StudioTemplateDocument,
+  values: StudioRuntimeValues,
+  slot: StudioAssetSlot | null | undefined,
+  context?: StudioRuntimeContext,
+): StudioAsset | null => {
+  if (!slot) return null;
+  if (slot.inputId) {
+    const input = document.inputs[slot.inputId];
+    if (!input || input.type !== "image") return null;
+    const value = getStudioRuntimeInputValue(input, values, context);
+    return value
+      ? { id: `runtime:${input.id}`, label: input.label, src: value }
+      : null;
+  }
+  return slot.assetId ? (document.assets[slot.assetId] ?? null) : null;
 };

@@ -1,3 +1,9 @@
+import { createTimetableNodeFixture } from "./helpers/studio-timetable-fixture";
+import { createTimetableGraphFixture } from "./helpers/studio-timetable-fixture";
+import type { StudioTimetableGraphRecipe } from "../src/utils/template-studio/timetable-graph-commands";
+import type { StudioTimetableGraphNode } from "../src/types/studio-timetable-graph";
+import { normalizeStudioTimetableDateBinding } from "../src/utils/template-studio/timetable-bindings";
+import { StudioTextTypographyControls } from "../src/components/studio/inspector/studio-text-typography-controls";
 /**
  * 시간표 객체 인스펙터 컨트롤의 기준선 가드.
  *
@@ -33,6 +39,21 @@ import {
   getStudioWeekDateTemplateValue,
 } from "../src/utils/template-studio/timetable-object-style";
 
+import {
+  createSampleStudioDocument,
+  createInitialStudioRuntimeValues,
+} from "../src/utils/template-studio/sample-document";
+import { StudioTimetablePreview } from "../src/app/(root)/template-studio/_components/studio-timetable-preview";
+
+const nativeControlProps = (object: StudioTimetableCompositionObject) => {
+  const fixture = createTimetableNodeFixture(object);
+  return {
+    object: fixture.node,
+    style: fixture.style,
+    extension: fixture.extension,
+  };
+};
+
 const noop = () => {};
 
 const createObject = (
@@ -58,16 +79,49 @@ const createDocument = (): StudioTemplateDocument =>
     assets: {},
   }) as unknown as StudioTemplateDocument;
 
+const applyGraphRecipe = (
+  object: StudioTimetableCompositionObject,
+  recipe: StudioTimetableGraphRecipe,
+) => {
+  normalizeStudioTimetableDateBinding(object);
+  const node: StudioTimetableGraphNode = {
+    id: object.id,
+    type:
+      object.kind === "generatedDayCards"
+        ? "group"
+        : (object.kind as StudioTimetableGraphNode["type"]),
+    label: object.label,
+    parentId: object.parentId ?? null,
+    childIds: object.childIds ?? [],
+    layoutMode: object.layoutMode,
+    binding: object.binding,
+    variantSet: object.variantSet,
+  };
+  const extension = { inlineAssetLayout: {} };
+  recipe({ node, style: object.style, extension });
+  object.binding = node.binding;
+  object.variantSet = node.variantSet;
+  const layout = extension.inlineAssetLayout as {
+    mode?: string;
+    position?: string;
+    size?: number;
+    gap?: number;
+  };
+  for (const [key, value] of Object.entries({
+    assetMode: layout.mode,
+    assetPosition: layout.position,
+    assetSize: layout.size,
+    assetGap: layout.gap,
+  }))
+    if (value !== undefined) object.style[key] = value;
+};
+
 /** 컨트롤이 넘긴 recipe를 객체에 적용하고 결과를 준다. */
 const applyRecipes = (
   object: StudioTimetableCompositionObject,
-  run: (
-    onUpdateObject: (
-      recipe: (target: StudioTimetableCompositionObject) => void,
-    ) => void,
-  ) => void,
+  run: (onUpdateObject: (recipe: StudioTimetableGraphRecipe) => void) => void,
 ): StudioTimetableCompositionObject => {
-  run((recipe) => recipe(object));
+  run((recipe) => applyGraphRecipe(object, recipe));
   return object;
 };
 
@@ -86,6 +140,16 @@ const findAll = (
     }
     if (!React.isValidElement(current)) return;
 
+    if (current.type === StudioTextTypographyControls) {
+      visit(
+        StudioTextTypographyControls(
+          current.props as React.ComponentProps<
+            typeof StudioTextTypographyControls
+          >,
+        ),
+      );
+      return;
+    }
     const props = current.props as Record<string, unknown>;
     if ((!elementType || current.type === elementType) && match(props)) {
       found.push(current as React.ReactElement<Record<string, never>>);
@@ -175,7 +239,9 @@ assert.equal(
 
 const maskMarkup = renderToStaticMarkup(
   <StudioTimetableProfileMaskControls
-    object={createObject({ style: { borderRadius: 9999 } } as never)}
+    {...nativeControlProps(
+      createObject({ style: { borderRadius: 9999 } } as never),
+    )}
     onUpdateObject={noop}
   />,
 );
@@ -188,7 +254,7 @@ assert.ok(maskMarkup.includes('value="9999"'), "반지름 값도 함께 보여�
 const maskObject = createObject({ style: {} } as never);
 applyRecipes(maskObject, (onUpdateObject) => {
   const element = StudioTimetableProfileMaskControls({
-    object: maskObject,
+    ...nativeControlProps(maskObject),
     onUpdateObject,
   }) as React.ReactElement<{ children: React.ReactElement[] }>;
   const select = findAll(
@@ -204,13 +270,19 @@ assert.equal(
   "원을 고르면 원으로 볼 반지름을 쓴다.",
 );
 
+const getDateBinding = (object: StudioTimetableCompositionObject) => {
+  if (object.binding?.kind !== "builtinField")
+    throw new Error("expected a date binding");
+  return object.binding;
+};
+
 // --- 글꼴 ---
 
 const typographyMarkup = renderToStaticMarkup(
   <StudioTimetableTextTypographyControls
     document={createDocument()}
     fontFamilies={["Inter", "Pretendard"]}
-    object={createObject({ style: { fontSize: 24 } } as never)}
+    {...nativeControlProps(createObject({ style: { fontSize: 24 } } as never))}
     onUpdateObject={noop}
   />,
 );
@@ -229,7 +301,7 @@ assert.ok(
     <StudioTimetableTextTypographyControls
       document={createDocument()}
       fontFamilies={["Inter"]}
-      object={createObject({ kind: "flexibleText" } as never)}
+      {...nativeControlProps(createObject({ kind: "flexibleText" } as never))}
       onUpdateObject={noop}
     />,
   ).includes("Line Breaks"),
@@ -242,7 +314,7 @@ applyRecipes(alignObject, (onUpdateObject) => {
   const element = StudioTimetableTextTypographyControls({
     document: createDocument(),
     fontFamilies: ["Inter"],
-    object: alignObject,
+    ...nativeControlProps(alignObject),
     onUpdateObject,
   });
   const alignField = findAll(element, (props) =>
@@ -264,7 +336,7 @@ applyRecipes(groupObject, (onUpdateObject) => {
   const element = StudioTimetableTextTypographyControls({
     document: createDocument(),
     fontFamilies: ["Inter"],
-    object: groupObject,
+    ...nativeControlProps(groupObject),
     onUpdateObject,
   }) as React.ReactElement<{ children: React.ReactElement[] }>;
   const select = findAll(
@@ -319,10 +391,13 @@ assert.equal(
   "적은 틀이 프리셋과 같으면 그 프리셋으로 보여준다.",
 );
 
-const dateObject = createObject();
+const dateObject = createObject({
+  presetId: "weekDates",
+  binding: { kind: "builtinField", fieldId: "week.date_range" },
+});
 applyRecipes(dateObject, (onUpdateObject) => {
   const element = StudioTimetableWeekDatesFormatControls({
-    object: dateObject,
+    ...nativeControlProps(dateObject),
     onUpdateObject,
   });
   const textarea = findAll(
@@ -333,23 +408,31 @@ applyRecipes(dateObject, (onUpdateObject) => {
   textarea.props.onChange({ currentTarget: { value: "custom one" } });
 });
 assert.equal(
-  dateObject.style.dateRangeTemplate,
+  getDateBinding(dateObject).dateRangeTemplate,
   "custom one",
   "직접 적은 틀을 저장한다.",
 );
 assert.equal(
-  dateObject.style.dateRangeFormat,
+  getDateBinding(dateObject).dateRangeFormat,
   "custom",
   "틀을 직접 고치면 형식도 custom으로 바꾼다. 안 바꾸면 프리셋이 틀을 덮어쓴다.",
 );
 
+assert.equal(
+  dateObject.style.dateRangeTemplate,
+  undefined,
+  "포맷은 style 대신 binding에만 저장한다.",
+);
+
 // 프리셋을 고르면 그 프리셋의 틀을 함께 적어 둔다.
 const presetObject = createObject({
+  presetId: "weekDates",
+  binding: { kind: "builtinField", fieldId: "week.date_range" },
   style: { dateRangeTemplate: "old", dateRangeFormat: "custom" },
 } as never);
 applyRecipes(presetObject, (onUpdateObject) => {
   const element = StudioTimetableWeekDatesFormatControls({
-    object: presetObject,
+    ...nativeControlProps(presetObject),
     onUpdateObject,
   });
   const select = findAll(
@@ -359,20 +442,22 @@ applyRecipes(presetObject, (onUpdateObject) => {
   )[0] as unknown as React.ReactElement<{ onChange: (event: unknown) => void }>;
   select.props.onChange({ currentTarget: { value: "long" } });
 });
-assert.equal(presetObject.style.dateRangeFormat, "long");
+assert.equal(getDateBinding(presetObject).dateRangeFormat, "long");
 assert.notEqual(
-  presetObject.style.dateRangeTemplate,
+  getDateBinding(presetObject).dateRangeTemplate,
   "old",
   "프리셋을 고르면 그 프리셋의 틀로 바꾼다.",
 );
 
 // 토큰 버튼은 이미 적은 틀 뒤에 붙인다.
 const tokenObject = createObject({
+  presetId: "weekDates",
+  binding: { kind: "builtinField", fieldId: "week.date_range" },
   style: { dateRangeTemplate: "start" },
 } as never);
 applyRecipes(tokenObject, (onUpdateObject) => {
   const element = StudioTimetableWeekDatesFormatControls({
-    object: tokenObject,
+    ...nativeControlProps(tokenObject),
     onUpdateObject,
   });
   const tokenButton = findAll(
@@ -383,7 +468,9 @@ applyRecipes(tokenObject, (onUpdateObject) => {
   tokenButton.props.onClick();
 });
 assert.ok(
-  tokenObject.style.dateRangeTemplate?.toString().startsWith("start "),
+  getDateBinding(tokenObject)
+    .dateRangeTemplate?.toString()
+    .startsWith("start "),
   "이미 적은 틀을 지우지 않고 뒤에 붙인다.",
 );
 
@@ -391,7 +478,9 @@ assert.ok(
 
 const layoutMarkup = renderToStaticMarkup(
   <StudioTimetableArtistProfileTextAssetLayoutControls
-    object={createObject({ style: { assetMode: "hidden" } } as never)}
+    {...nativeControlProps(
+      createObject({ style: { assetMode: "hidden" } } as never),
+    )}
     onUpdateObject={noop}
   />,
 );
@@ -402,7 +491,7 @@ assert.ok(
 assert.ok(
   !renderToStaticMarkup(
     <StudioTimetableArtistProfileTextAssetLayoutControls
-      object={createObject()}
+      {...nativeControlProps(createObject())}
       onUpdateObject={noop}
     />,
   ).includes('disabled=""'),
@@ -412,7 +501,7 @@ assert.ok(
 const sizeObject = createObject();
 applyRecipes(sizeObject, (onUpdateObject) => {
   const element = StudioTimetableArtistProfileTextAssetLayoutControls({
-    object: sizeObject,
+    ...nativeControlProps(sizeObject),
     onUpdateObject,
   });
   const sizeField = findAll(
@@ -431,8 +520,10 @@ assert.equal(
 
 assert.equal(
   StudioTimetableObjectVariantControls({
-    object: createObject(),
+    ...nativeControlProps(createObject()),
     onUpdateObject: noop,
+    editingValue: "a",
+    onSelectEditingValue: noop,
   }),
   null,
   "상태가 없는 객체에는 상태 선택이 나타나지 않는다.",
@@ -451,12 +542,14 @@ const variantObject = createObject({
 
 const variantMarkup = renderToStaticMarkup(
   <StudioTimetableObjectVariantControls
-    object={variantObject}
+    {...nativeControlProps(variantObject)}
+    editingValue="a"
+    onSelectEditingValue={noop}
     onUpdateObject={noop}
   />,
 );
 assert.ok(
-  variantMarkup.includes("Editing state:"),
+  variantMarkup.includes("Editing design state:"),
   "지금 편집 중인 상태를 알려준다.",
 );
 assert.ok(
@@ -466,16 +559,86 @@ assert.ok(
 assert.ok(
   renderToStaticMarkup(
     <StudioTimetableObjectVariantControls
-      object={
-        {
-          ...variantObject,
-          variantSet: { ...variantObject.variantSet, activeValue: "b" },
-        } as StudioTimetableCompositionObject
-      }
+      {...nativeControlProps({
+        ...variantObject,
+        variantSet: { ...variantObject.variantSet, activeValue: "b" },
+      } as StudioTimetableCompositionObject)}
       onUpdateObject={noop}
+      editingValue="b"
+      onSelectEditingValue={noop}
     />,
   ).includes(">B</span>"),
   "정해 둔 상태가 있으면 기본값 대신 그것을 보여준다.",
 );
+
+// 일반 날짜 요소는 포맷을 바인딩에 저장하며 실제 렌더링에도 적용한다.
+for (const fieldId of [
+  "week.start_date",
+  "week.end_date",
+  "week.date_range",
+] as const) {
+  const object = createObject({ binding: { kind: "builtinField", fieldId } });
+  const element = StudioTimetableWeekDatesFormatControls({
+    ...nativeControlProps(object),
+    onUpdateObject: (recipe) => applyGraphRecipe(object, recipe),
+  });
+  const textarea = findAll(
+    element,
+    () => true,
+    "textarea",
+  )[0] as unknown as React.ReactElement<{ onChange: (event: unknown) => void }>;
+  const template =
+    fieldId === "week.date_range"
+      ? "${start.YYYY}/${start.MM}/${start.DD} ~ ${end.MM}/${end.DD}"
+      : "${YYYY}/${MM}/${DD}";
+  textarea.props.onChange({ currentTarget: { value: template } });
+  assert.equal(object.binding?.kind, "builtinField");
+  if (object.binding?.kind !== "builtinField")
+    throw new Error("Missing date binding");
+  assert.equal(object.binding.dateRangeFormat, "custom");
+  assert.equal(object.binding.dateRangeTemplate, template);
+  assert.deepEqual(
+    object.style,
+    {},
+    "일반 날짜 포맷은 스타일 값으로 중복 저장하지 않는다.",
+  );
+  const document = createSampleStudioDocument();
+  const values = createInitialStudioRuntimeValues(document);
+  values.timetable.weekStartDate = "2026-09-28";
+  document.domains!.timetable!.composition = {
+    rootObjectIds: [object.id],
+    objects: { [object.id]: object },
+  };
+  const markup = renderToStaticMarkup(
+    <StudioTimetablePreview
+      document={createTimetableGraphFixture(document)}
+      runtimeValues={values}
+    />,
+  );
+  const expected =
+    fieldId === "week.date_range"
+      ? "2026/09/28 ~ 10/04"
+      : fieldId === "week.start_date"
+        ? "2026/09/28"
+        : "2026/10/04";
+  assert.ok(
+    markup.includes(expected),
+    `${fieldId} 포맷 변경이 실제 시간표 렌더링에 적용된다.`,
+  );
+  if (fieldId !== "week.date_range") {
+    object.presetId = "weekDates";
+    object.style.dateRangeTemplate = "legacy-range";
+    const splitMarkup = renderToStaticMarkup(
+      <StudioTimetablePreview
+        document={createTimetableGraphFixture(document)}
+        runtimeValues={values}
+      />,
+    );
+    assert.ok(
+      splitMarkup.includes(expected),
+      "Week Dates의 단일 날짜 바인딩도 기간 전용 렌더를 우회한다.",
+    );
+  }
+}
 
 console.log("Studio timetable object control baseline checks passed.");

@@ -2,26 +2,21 @@ import assert from "node:assert/strict";
 
 import type {
   StudioRuntimeValues,
-  StudioTimetableDomain,
 } from "../src/types/template-studio";
 import {
   migrateStudioTemplateDocument,
-  STUDIO_TEMPLATE_DOCUMENT_VERSION,
 } from "../src/utils/template-studio/migrations";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
 import { cloneStudioComponentVariant } from "../src/utils/template-studio/component-variants";
 import {
   createStudioStructuredTextPresetObjects,
-  getStudioTimetableComposition,
   getStudioTimetableObjectRenderableChildIds,
   getStudioTimetableObjectRuntimeVariantValue,
-  setStudioTimetableObjectActiveVariantValue,
-} from "../src/utils/template-studio/timetable-composition";
+} from "./helpers/studio-timetable-recipe";
 import {
   getStudioTextWrapMode,
   STUDIO_TEXT_WRAP_MODE_STYLE_KEY,
 } from "../src/utils/template-studio/text-wrap";
-import { validateStudioDocument } from "../src/utils/template-studio/validator";
 import {
   getStudioNodeRuntimeContext,
   getStudioVariantEntryGroups,
@@ -103,16 +98,16 @@ assert.notEqual(
   "On and Off objects must not share mutable style records.",
 );
 
-setStudioTimetableObjectActiveVariantValue(structured.group, "off");
+const editingValue = "off";
 assert.deepEqual(
-  getStudioTimetableObjectRenderableChildIds(structured.group),
+  getStudioTimetableObjectRenderableChildIds(structured.group, editingValue),
   [offRootId],
   "Changing the authoring state must select the Off subtree.",
 );
 
 structured.group.variantSet!.rootByValue.off = null;
 assert.deepEqual(
-  getStudioTimetableObjectRenderableChildIds(structured.group),
+  getStudioTimetableObjectRenderableChildIds(structured.group, editingValue),
   [],
   "An empty state must not fall back to another state's children.",
 );
@@ -146,76 +141,8 @@ assert.equal(
   "Runtime state must come from the bound select input.",
 );
 
-const nestedComposition = getStudioTimetableComposition({
-  composition: {
-    rootObjectIds: ["parent"],
-    objects: {
-      parent: {
-        id: "parent",
-        kind: "group",
-        label: "Parent",
-        parentId: null,
-        childIds: ["nested-artist"],
-        style: { width: 1200, height: 800 },
-      },
-      "nested-artist": {
-        id: "nested-artist",
-        kind: "text",
-        label: "Nested Artist",
-        presetId: "artistProfileText",
-        parentId: "parent",
-        style: { left: 10, top: 20, width: 300, height: 80 },
-        binding: { kind: "staticText", value: "Artist" },
-      },
-    },
-  },
-} as unknown as StudioTimetableDomain);
-assert.equal(
-  nestedComposition.objects["nested-artist"].parentId,
-  "parent",
-  "Variant migration must preserve the existing parent.",
-);
-const nestedOnRootId =
-  nestedComposition.objects["nested-artist"].variantSet?.rootByValue.on;
-assert.ok(nestedOnRootId);
-assert.equal(
-  nestedComposition.objects[`${nestedOnRootId}:background-object`].parentId,
-  nestedOnRootId,
-  "Migrated On children must point to the On state group.",
-);
-
-const migrationSource = createSampleStudioDocument();
-const timetable = migrationSource.domains?.timetable;
-assert.ok(timetable);
-const composition = getStudioTimetableComposition(timetable);
-const migratedPreset = createStudioStructuredTextPresetObjects(
-  "weeklyMemo",
-  composition,
-);
-composition.objects[migratedPreset.group.id] = migratedPreset.group;
-migratedPreset.children.forEach((child) => {
-  composition.objects[child.id] = child;
-});
-composition.rootObjectIds.push(migratedPreset.group.id);
-timetable.composition = composition;
-
-const migrationResult = migrateStudioTemplateDocument(migrationSource);
-if (!migrationResult.ok) throw new Error(migrationResult.message);
-assert.equal(migrationResult.ok, true);
-const migratedObject =
-  migrationResult.document.domains?.timetable?.composition?.objects[
-    migratedPreset.group.id
-  ];
-const migratedInputId = migratedObject?.variantSet?.inputId;
-assert.ok(migratedInputId);
-assert.equal(migrationResult.document.inputs[migratedInputId].type, "select");
-assert.deepEqual(
-  validateStudioDocument(migrationResult.document).filter((diagnostic) =>
-    diagnostic.id.includes("variant"),
-  ),
-  [],
-  "Migrated object variants must pass document validation.",
-);
+assert.equal(migrateStudioTemplateDocument(createSampleStudioDocument()).ok, false,
+  "Legacy timetable recipes are rejected.");
 
 const cardVariantDocument = createSampleStudioDocument();
 const cardComponent =
@@ -277,121 +204,6 @@ assert.equal(
   "Card singleton lookup must stay inside the selected status variant.",
 );
 
-const legacyBackgroundDocument = createSampleStudioDocument();
-const legacyBackgroundComponent =
-  legacyBackgroundDocument.domains?.timetable?.components.defaultEntryCard;
-assert.ok(legacyBackgroundComponent);
-const legacyOnlineBackground = findStatusBackgroundNode(
-  legacyBackgroundDocument,
-  legacyBackgroundComponent.variants.online.rootNodeId,
-);
-const legacyOfflineBackground = findStatusBackgroundNode(
-  legacyBackgroundDocument,
-  legacyBackgroundComponent.variants.offline.rootNodeId,
-);
-assert.ok(legacyOnlineBackground && legacyOfflineBackground);
-[legacyOnlineBackground, legacyOfflineBackground].forEach((background) => {
-  assert.ok(background.styleId);
-  legacyBackgroundDocument.styles[background.styleId].backgroundColor =
-    "#ffffff";
-  background.assetSlots = {
-    online: { assetId: "asset_b2", fit: "cover" },
-    offline: { assetId: "asset_c3", fit: "fill" },
-  };
-  background.meta!.exception!.editableSlots = {
-    statusAssets: { source: "status-assets", slots: background.assetSlots },
-  };
-});
-(legacyBackgroundDocument as unknown as { version: number }).version = 4;
-const legacyBackgroundMigration = migrateStudioTemplateDocument(
-  legacyBackgroundDocument,
-);
-if (!legacyBackgroundMigration.ok) {
-  throw new Error(legacyBackgroundMigration.message);
-}
-assert.equal(
-  legacyBackgroundMigration.document.version,
-  STUDIO_TEMPLATE_DOCUMENT_VERSION,
-);
-assert.ok(
-  legacyBackgroundMigration.warnings.some((warning) =>
-    warning.includes("status background asset maps"),
-  ),
-);
-assert.ok(
-  legacyBackgroundMigration.warnings.some((warning) =>
-    warning.includes("legacy white base color"),
-  ),
-);
-const migratedBackgroundComponent =
-  legacyBackgroundMigration.document.domains?.timetable?.components
-    .defaultEntryCard;
-assert.ok(migratedBackgroundComponent);
-const migratedOnlineBackground = findStatusBackgroundNode(
-  legacyBackgroundMigration.document,
-  migratedBackgroundComponent.variants.online.rootNodeId,
-);
-const migratedOfflineBackground = findStatusBackgroundNode(
-  legacyBackgroundMigration.document,
-  migratedBackgroundComponent.variants.offline.rootNodeId,
-);
-assert.ok(migratedOnlineBackground && migratedOfflineBackground);
-assert.equal(
-  legacyBackgroundMigration.document.styles[migratedOnlineBackground.styleId!]
-    ?.backgroundColor,
-  "transparent",
-);
-assert.equal(
-  legacyBackgroundMigration.document.styles[migratedOfflineBackground.styleId!]
-    ?.backgroundColor,
-  "transparent",
-);
-assert.deepEqual(Object.keys(migratedOnlineBackground.assetSlots ?? {}), [
-  "asset",
-]);
-assert.equal(migratedOnlineBackground.assetSlots?.asset?.assetId, "asset_b2");
-assert.deepEqual(Object.keys(migratedOfflineBackground.assetSlots ?? {}), [
-  "asset",
-]);
-assert.equal(migratedOfflineBackground.assetSlots?.asset?.assetId, "asset_c3");
-assert.equal(migratedOfflineBackground.assetSlots?.asset?.fit, "fill");
-assert.equal(
-  migratedOfflineBackground.meta?.exception?.editableSlots?.statusAssets,
-  undefined,
-);
-
-const explicitWhiteBackgroundDocument = createSampleStudioDocument();
-const explicitWhiteBackgroundComponent =
-  explicitWhiteBackgroundDocument.domains?.timetable?.components
-    .defaultEntryCard;
-assert.ok(explicitWhiteBackgroundComponent);
-const explicitWhiteBackground = findStatusBackgroundNode(
-  explicitWhiteBackgroundDocument,
-  explicitWhiteBackgroundComponent.variants.online.rootNodeId,
-);
-assert.ok(explicitWhiteBackground?.styleId);
-explicitWhiteBackgroundDocument.styles[
-  explicitWhiteBackground.styleId
-].backgroundColor = "#ffffff";
-const explicitWhiteBackgroundMigration = migrateStudioTemplateDocument(
-  explicitWhiteBackgroundDocument,
-);
-if (!explicitWhiteBackgroundMigration.ok) {
-  throw new Error(explicitWhiteBackgroundMigration.message);
-}
-assert.equal(
-  explicitWhiteBackgroundMigration.document.styles[
-    explicitWhiteBackground.styleId
-  ].backgroundColor,
-  "#ffffff",
-  "A white base color explicitly saved in a current document must be preserved.",
-);
-assert.equal(
-  explicitWhiteBackgroundMigration.warnings.some((warning) =>
-    warning.includes("legacy white base color"),
-  ),
-  false,
-);
 const sourceRootId = cardComponent.variants.online.rootNodeId;
 const sourceRoot = cardVariantDocument.graph.nodes[sourceRootId];
 assert.ok(sourceRoot);
@@ -587,64 +399,6 @@ assert.equal(
     secondContext,
   ),
   "Second entry",
-);
-
-const legacyDocument = createSampleStudioDocument();
-(legacyDocument as unknown as { version: number }).version = 2;
-const legacyComponent =
-  legacyDocument.domains!.timetable!.components.defaultEntryCard;
-legacyComponent.variants.offline.rootNodeId =
-  legacyComponent.variants.online.rootNodeId;
-delete legacyComponent.frame;
-const legacyRoot =
-  legacyDocument.graph.nodes[legacyComponent.variants.online.rootNodeId];
-const legacyGroup = getStudioVariantEntryGroups(
-  legacyDocument,
-  legacyComponent.variants.online,
-)[0];
-assert.ok(legacyGroup);
-const legacyGroupIndex = legacyRoot.childIds.indexOf(legacyGroup.id);
-legacyRoot.childIds.splice(legacyGroupIndex, 1, ...legacyGroup.childIds);
-legacyGroup.childIds.forEach((childId) => {
-  legacyDocument.graph.nodes[childId].parentId = legacyRoot.id;
-});
-if (legacyGroup.styleId) delete legacyDocument.styles[legacyGroup.styleId];
-delete legacyDocument.graph.nodes[legacyGroup.id];
-
-const legacyMigration = migrateStudioTemplateDocument(legacyDocument);
-if (!legacyMigration.ok) throw new Error(legacyMigration.message);
-assert.equal(
-  legacyMigration.document.version,
-  STUDIO_TEMPLATE_DOCUMENT_VERSION,
-);
-const migratedLegacyComponent =
-  legacyMigration.document.domains!.timetable!.components.defaultEntryCard;
-assert.ok(migratedLegacyComponent.frame);
-assert.notEqual(
-  migratedLegacyComponent.variants.online.rootNodeId,
-  migratedLegacyComponent.variants.offline.rootNodeId,
-  "Migration must separate shared base status roots.",
-);
-assert.deepEqual(
-  getStudioVariantEntryGroups(
-    legacyMigration.document,
-    migratedLegacyComponent.variants.online,
-  ).map((group) => group.meta?.entrySlot?.index),
-  [0],
-  "Migration must wrap entry-scoped nodes exactly once.",
-);
-const repeatedMigration = migrateStudioTemplateDocument(
-  legacyMigration.document,
-);
-if (!repeatedMigration.ok) throw new Error(repeatedMigration.message);
-assert.deepEqual(
-  getStudioVariantEntryGroups(
-    repeatedMigration.document,
-    repeatedMigration.document.domains!.timetable!.components.defaultEntryCard
-      .variants.online,
-  ).map((group) => group.meta?.entrySlot?.index),
-  [0],
-  "Version-3 migration must be idempotent.",
 );
 
 console.log("Template Studio object variant checks passed.");

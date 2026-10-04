@@ -7,10 +7,7 @@ import {
   StudioTemplateKind,
 } from "@/types/template-studio";
 import { createStudioInitialRuntimeValues } from "@/utils/template-studio/input-values";
-import {
-  migrateStudioTemplateDocument,
-  STUDIO_TEMPLATE_DOCUMENT_VERSION,
-} from "@/utils/template-studio/migrations";
+import { migrateStudioTemplateDocument } from "@/utils/template-studio/migrations";
 import {
   getStudioTemplateKind,
   isStudioTemplateKind,
@@ -836,7 +833,7 @@ export const saveTemplateStudioDraft = async (
     {
       p_template_id: input.templateId,
       p_user_id: input.userId,
-      p_document_version: STUDIO_TEMPLATE_DOCUMENT_VERSION,
+      p_document_version: prepared.document.version,
       p_document: toJson(prepared.document),
       p_runtime_values: toJson(prepared.runtimeValues),
       p_base_revision_no: input.baseRevisionNo ?? null,
@@ -969,7 +966,7 @@ export const publishTemplateStudioDocument = async (
     "publish_template_studio_document",
     {
       p_template_id: input.templateId,
-      p_document_version: STUDIO_TEMPLATE_DOCUMENT_VERSION,
+      p_document_version: prepared.document.version,
       p_document: toJson(prepared.document),
       p_runtime_values: toJson(prepared.runtimeValues),
       p_created_by: input.userId,

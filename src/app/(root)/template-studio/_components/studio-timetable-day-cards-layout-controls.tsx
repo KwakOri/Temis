@@ -13,7 +13,11 @@ import type {
 import {
   getStudioTimetableThreeByThreeEmptySlotIndexes,
   STUDIO_TIMETABLE_DAY_CARD_GRID_PRESETS,
+  getStudioTimetableDayCardGeometries,
+  getStudioTimetableDayCardsLayout,
 } from "./studio-timetable-preview";
+
+import { applyStudioTimetableGridPreset } from "@/utils/template-studio/timetable-placement";
 
 const STUDIO_DAY_CARD_FILL_ORDER_OPTIONS = [
   { value: "row", label: "Row" },
@@ -45,6 +49,10 @@ export interface StudioTimetableDayCardsLayoutControlsProps {
   layout: StudioTimetableDayCardsLayout;
   /** 문서에 있는 요일 순서. 칸 수 계산과 자리 지도의 기준이다. */
   days: StudioDayCardsLayoutDay[];
+  getEntryCardSize?: (dayId: StudioTimetableDayId) => {
+    width: number;
+    height: number;
+  };
   /** 배치를 바꾼다. 문서 갱신과 이력은 호출한 쪽이 소유한다. */
   onUpdateLayout: (
     recipe: (layout: StudioTimetableDayCardsLayout) => void,
@@ -63,6 +71,7 @@ export interface StudioTimetableDayCardsLayoutControlsProps {
 export function StudioTimetableDayCardsLayoutControls({
   layout,
   days,
+  getEntryCardSize,
   onUpdateLayout,
 }: StudioTimetableDayCardsLayoutControlsProps) {
   const threeByThreeEmptySlotIndexes =
@@ -84,31 +93,29 @@ export function StudioTimetableDayCardsLayoutControls({
               (candidate) => candidate.id === gridPreset,
             );
 
-            const enteringCustom =
-              gridPreset === "custom" && layout.gridPreset !== "custom";
+            if (!preset) return;
+            const dayIds = days.map((day) => day.id);
             onUpdateLayout((nextLayout) => {
-              nextLayout.gridPreset = gridPreset;
-              if (preset) {
-                nextLayout.columns = preset.columns;
-                nextLayout.rows = Math.max(
-                  preset.rows,
-                  Math.ceil(days.length / preset.columns),
-                );
-              }
-
-              if (gridPreset === "custom") {
-                nextLayout.left = 0;
-                nextLayout.top = 0;
-                if (enteringCustom) nextLayout.dayOffsets = {};
-              }
-              nextLayout.slots = undefined;
-              nextLayout.emptySlotIndexes =
-                gridPreset === "3x3"
-                  ? getStudioTimetableThreeByThreeEmptySlotIndexes(
-                      nextLayout,
-                      days.length,
-                    )
-                  : undefined;
+              applyStudioTimetableGridPreset(
+                nextLayout,
+                preset,
+                dayIds,
+                (candidate) =>
+                  getStudioTimetableDayCardGeometries(
+                    getStudioTimetableDayCardsLayout({
+                      dayIds,
+                      dayCardsLayout: candidate,
+                    }),
+                    days.map((day, order) => ({ ...day, order })),
+                    () => 1,
+                    getEntryCardSize,
+                  ),
+                (candidate) =>
+                  getStudioTimetableThreeByThreeEmptySlotIndexes(
+                    candidate,
+                    days.length,
+                  ),
+              );
             });
           }}
         >
@@ -273,98 +280,107 @@ export function StudioTimetableDayCardsLayoutControls({
         </div>
       ) : null}
 
-      <div className="grid gap-2 rounded-xl border border-[var(--field-border)] bg-[var(--field)]/40 p-2.5">
-        <div className="grid gap-0.5">
-          <span className="text-[11px] font-bold text-[var(--fg)]">
-            Card Transforms
-          </span>
-          <span className="text-[9px] font-semibold leading-relaxed text-[var(--fg3)]">
-            {layout.gridPreset === "custom"
-              ? "Position each card from the canvas origin (0, 0)."
-              : "Adjust each card relative to its automatic grid position."}
-          </span>
-        </div>
-        {days.map((day) => {
-          const offset = layout.dayOffsets?.[day.id] ?? {
-            left: 0,
-            top: 0,
-            rotateDeg: 0,
-          };
+      <p className="text-[10px] leading-relaxed text-[var(--fg3)]">
+        Select a day card in Layers to edit its position, rotation, and card
+        design.
+      </p>
+      <details className="rounded-xl border border-[var(--field-border)] bg-[var(--field)]/40 p-2.5">
+        <summary className="cursor-pointer text-[11px] font-bold text-[var(--fg)]">
+          Advanced · Card Transforms
+        </summary>
+        <div className="mt-3 grid gap-2">
+          <div className="grid gap-0.5">
+            <span className="text-[11px] font-bold text-[var(--fg)]">
+              Card Transforms
+            </span>
+            <span className="text-[9px] font-semibold leading-relaxed text-[var(--fg3)]">
+              {layout.gridPreset === "custom"
+                ? "Position each card from the canvas origin (0, 0)."
+                : "Adjust each card relative to its automatic grid position."}
+            </span>
+          </div>
+          {days.map((day) => {
+            const offset = layout.dayOffsets?.[day.id] ?? {
+              left: 0,
+              top: 0,
+              rotateDeg: 0,
+            };
 
-          return (
-            <div className="grid gap-1.5" key={day.id}>
-              <span className="text-[10px] font-bold text-[var(--fg2)]">
-                {day.label}
-              </span>
-              <div className="grid grid-cols-3 gap-2">
-                <StudioNumberField
-                  label={layout.gridPreset === "custom" ? "X" : "Offset X"}
-                  value={offset.left}
-                  onChange={(value) =>
-                    onUpdateLayout((nextLayout) => {
-                      const current = nextLayout.dayOffsets?.[day.id] ?? {
-                        left: 0,
-                        top: 0,
-                        rotateDeg: 0,
-                      };
-                      nextLayout.dayOffsets = {
-                        ...nextLayout.dayOffsets,
-                        [day.id]: { ...current, left: value },
-                      };
-                    })
-                  }
-                />
-                <StudioNumberField
-                  label={layout.gridPreset === "custom" ? "Y" : "Offset Y"}
-                  value={offset.top}
-                  onChange={(value) =>
-                    onUpdateLayout((nextLayout) => {
-                      const current = nextLayout.dayOffsets?.[day.id] ?? {
-                        left: 0,
-                        top: 0,
-                        rotateDeg: 0,
-                      };
-                      nextLayout.dayOffsets = {
-                        ...nextLayout.dayOffsets,
-                        [day.id]: { ...current, top: value },
-                      };
-                    })
-                  }
-                />
-                <StudioNumberField
-                  label="Rotate"
-                  value={offset.rotateDeg ?? 0}
-                  onChange={(value) =>
-                    onUpdateLayout((nextLayout) => {
-                      const current = nextLayout.dayOffsets?.[day.id] ?? {
-                        left: 0,
-                        top: 0,
-                        rotateDeg: 0,
-                      };
-                      nextLayout.dayOffsets = {
-                        ...nextLayout.dayOffsets,
-                        [day.id]: { ...current, rotateDeg: value },
-                      };
-                    })
-                  }
-                />
+            return (
+              <div className="grid gap-1.5" key={day.id}>
+                <span className="text-[10px] font-bold text-[var(--fg2)]">
+                  {day.label}
+                </span>
+                <div className="grid grid-cols-3 gap-2">
+                  <StudioNumberField
+                    label={layout.gridPreset === "custom" ? "X" : "Offset X"}
+                    value={offset.left}
+                    onChange={(value) =>
+                      onUpdateLayout((nextLayout) => {
+                        const current = nextLayout.dayOffsets?.[day.id] ?? {
+                          left: 0,
+                          top: 0,
+                          rotateDeg: 0,
+                        };
+                        nextLayout.dayOffsets = {
+                          ...nextLayout.dayOffsets,
+                          [day.id]: { ...current, left: value },
+                        };
+                      })
+                    }
+                  />
+                  <StudioNumberField
+                    label={layout.gridPreset === "custom" ? "Y" : "Offset Y"}
+                    value={offset.top}
+                    onChange={(value) =>
+                      onUpdateLayout((nextLayout) => {
+                        const current = nextLayout.dayOffsets?.[day.id] ?? {
+                          left: 0,
+                          top: 0,
+                          rotateDeg: 0,
+                        };
+                        nextLayout.dayOffsets = {
+                          ...nextLayout.dayOffsets,
+                          [day.id]: { ...current, top: value },
+                        };
+                      })
+                    }
+                  />
+                  <StudioNumberField
+                    label="Rotate"
+                    value={offset.rotateDeg ?? 0}
+                    onChange={(value) =>
+                      onUpdateLayout((nextLayout) => {
+                        const current = nextLayout.dayOffsets?.[day.id] ?? {
+                          left: 0,
+                          top: 0,
+                          rotateDeg: 0,
+                        };
+                        nextLayout.dayOffsets = {
+                          ...nextLayout.dayOffsets,
+                          [day.id]: { ...current, rotateDeg: value },
+                        };
+                      })
+                    }
+                  />
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
 
-      <button
-        className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-semibold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
-        type="button"
-        onClick={() =>
-          onUpdateLayout((nextLayout) => {
-            nextLayout.dayOffsets = {};
-          })
-        }
-      >
-        Reset card positions and rotations
-      </button>
+        <button
+          className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-semibold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
+          type="button"
+          onClick={() =>
+            onUpdateLayout((nextLayout) => {
+              nextLayout.dayOffsets = {};
+            })
+          }
+        >
+          Reset card positions and rotations
+        </button>
+      </details>
     </div>
   );
 }

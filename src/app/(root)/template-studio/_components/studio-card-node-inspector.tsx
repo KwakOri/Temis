@@ -15,10 +15,7 @@ import React from "react";
 import type { StudioPropertyItem } from "@/components/studio/editor-shell/studio-properties-panel";
 import {
   StudioFitParentButton,
-  StudioFontWeightField,
-  StudioLineBreakField,
   StudioNumberField,
-  StudioTextAlignmentField,
 } from "@/components/studio/inspector/studio-inspector-fields";
 import { cn } from "@/lib/utils";
 import type {
@@ -36,8 +33,6 @@ import {
 import {
   getStudioAvailableBuiltinFields,
   getStudioBuiltinField,
-  isStudioTimeBuiltinField,
-  normalizeStudioDayLabelFormat,
 } from "@/utils/template-studio/builtin-fields";
 import {
   getStudioInputScopeLabel,
@@ -46,7 +41,6 @@ import {
 import { getStudioInputTypeLabel } from "@/utils/template-studio/input-commands";
 import {
   getStudioOpacityPercent,
-  getStudioTextAlignment,
   type StudioTextAlignment,
 } from "@/utils/template-studio/node-style-commands";
 import {
@@ -54,18 +48,11 @@ import {
   resolveStudioGraphNodeGeometry,
 } from "@/utils/template-studio/object-layout";
 import { isStudioStatusCardBackgroundNode } from "@/utils/template-studio/status-card-background";
-import {
-  getStudioTextWrapMode,
-  STUDIO_TEXT_WRAP_MODE_STYLE_KEY,
-} from "@/utils/template-studio/text-wrap";
-import { getStudioFontWeightOptions } from "@/utils/template-studio/web-fonts";
-import { getStudioDateFormatMode } from "@/utils/template-studio/date-template";
+import { applyStudioBindingFormatPatch } from "@/utils/template-studio/binding-format";
+import { StudioBuiltinFieldFormatControls } from "@/components/studio/inspector/studio-binding-format-controls";
+import { StudioTextTypographyControls } from "@/components/studio/inspector/studio-text-typography-controls";
 
 import { StudioDayLabelFormatField } from "./studio-day-label-format-field";
-import {
-  StudioTimeFormatControls,
-  StudioWeekDatesFormatControls,
-} from "./studio-timetable-object-inspector-controls";
 import { StudioHexColorPicker } from "@/components/studio/inspector/studio-hex-color-picker";
 
 /** 카드 노드 인스펙터가 쓰는 섹션 키. */
@@ -201,7 +188,6 @@ export const buildStudioCardNodeInspectorSections = ({
       ? getStudioBuiltinField(selectedNode.binding.fieldId)
       : null;
 
-  const selectedFontFamily = String(styleRecord.fontFamily ?? "Inter");
   const selectedStatusBackground =
     isStudioStatusCardBackgroundNode(selectedNode);
   const selectedStatusBackgroundColor = String(
@@ -214,11 +200,6 @@ export const buildStudioCardNodeInspectorSections = ({
     document,
     selectedNode.id,
   );
-  const selectedFontWeightOptions = getStudioFontWeightOptions(
-    document,
-    selectedFontFamily,
-  );
-  const selectedTextWrapMode = getStudioTextWrapMode(styleRecord);
 
   const bindingBuiltinFieldId =
     selectedNode.binding?.kind === "builtinField"
@@ -532,71 +513,20 @@ export const buildStudioCardNodeInspectorSections = ({
                             updateNode(selectedNode.id, (node) => {
                               if (node.binding?.kind !== "builtinField") return;
 
-                              const normalizedFormat =
-                                normalizeStudioDayLabelFormat(dayLabelFormat);
-                              node.binding =
-                                normalizedFormat === "default"
-                                  ? {
-                                      kind: "builtinField",
-                                      fieldId: node.binding.fieldId,
-                                    }
-                                  : {
-                                      ...node.binding,
-                                      dayLabelFormat: normalizedFormat,
-                                    };
+                              applyStudioBindingFormatPatch(node, {
+                                dayLabelFormat,
+                              });
                             })
                           }
                         />
-                        {getStudioDateFormatMode(
-                          selectedNode.binding.fieldId,
-                        ) ? (
-                          <StudioWeekDatesFormatControls
-                            mode={getStudioDateFormatMode(
-                              selectedNode.binding.fieldId,
-                            )!}
-                            format={
-                              selectedNode.binding.dateRangeFormat ?? "short"
-                            }
-                            template={selectedNode.binding.dateRangeTemplate}
-                            onChange={({ format, template }) =>
-                              updateNode(selectedNode.id, (node) => {
-                                if (
-                                  node.binding?.kind !== "builtinField" ||
-                                  !getStudioDateFormatMode(node.binding.fieldId)
-                                ) {
-                                  return;
-                                }
-                                node.binding = {
-                                  ...node.binding,
-                                  dateRangeFormat: format,
-                                  dateRangeTemplate: template,
-                                };
-                              })
-                            }
-                          />
-                        ) : null}
-                        {isStudioTimeBuiltinField(
-                          selectedNode.binding.fieldId,
-                        ) ? (
-                          <StudioTimeFormatControls
-                            format={selectedNode.binding.timeFormat}
-                            amText={selectedNode.binding.timeAmText}
-                            pmText={selectedNode.binding.timePmText}
-                            onChange={({ format, amText, pmText }) =>
-                              updateNode(selectedNode.id, (node) => {
-                                if (node.binding?.kind !== "builtinField") {
-                                  return;
-                                }
-                                node.binding = {
-                                  ...node.binding,
-                                  timeFormat: format,
-                                  timeAmText: amText,
-                                  timePmText: pmText,
-                                };
-                              })
-                            }
-                          />
-                        ) : null}
+                        <StudioBuiltinFieldFormatControls
+                          binding={selectedNode.binding}
+                          onChange={(patch) =>
+                            updateNode(selectedNode.id, (node) =>
+                              applyStudioBindingFormatPatch(node, patch),
+                            )
+                          }
+                        />
                       </>
                     ) : null}
                   </>
@@ -690,64 +620,18 @@ export const buildStudioCardNodeInspectorSections = ({
       ? buildSection(
           "typography",
           "Typography",
-          <div className="grid gap-2">
-            <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-              <span>Font</span>
-              <select
-                className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-                value={selectedFontFamily}
-                onChange={(event) =>
-                  updateStyle("fontFamily", event.currentTarget.value)
-                }
-              >
-                {fontFamilies.map((fontFamily) => (
-                  <option key={fontFamily} value={fontFamily}>
-                    {fontFamily}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="grid grid-cols-[1.3fr_1fr] gap-2">
-              <StudioNumberField
-                label="Size"
-                value={Number(styleRecord.fontSize ?? 16)}
-                onChange={(value) => updateStyle("fontSize", value)}
-              />
-              <StudioFontWeightField
-                options={selectedFontWeightOptions}
-                value={styleRecord.fontWeight ?? 700}
-                onChange={(value) => updateStyle("fontWeight", value)}
-              />
-              <StudioNumberField
-                label="Line height"
-                value={Number(
-                  styleRecord.lineHeight ??
-                    (selectedNode.type === "flexibleText" ? 1.08 : 1.2),
-                )}
-                onChange={(value) => updateStyle("lineHeight", value)}
-              />
-            </div>
-            <StudioTextAlignmentField
-              value={getStudioTextAlignment(styleRecord)}
-              onChange={updateTextAlignment}
-            />
-            {selectedNode.type === "flexibleText" ? (
-              <StudioLineBreakField
-                value={selectedTextWrapMode}
-                onChange={(mode) =>
-                  updateStyle(STUDIO_TEXT_WRAP_MODE_STYLE_KEY, mode)
-                }
-              />
-            ) : null}
-            <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-              <span>Color</span>
-              <StudioHexColorPicker
-                ariaLabel="Card text color"
-                value={String(styleRecord.color ?? "#111827")}
-                onChange={(color) => updateStyle("color", color)}
-              />
-            </label>
-          </div>,
+          <StudioTextTypographyControls
+            document={document}
+            style={styleRecord}
+            fontFamilies={fontFamilies}
+            flexibleText={selectedNode.type === "flexibleText"}
+            defaultLineHeight={
+              selectedNode.type === "flexibleText" ? 1.08 : 1.2
+            }
+            colorLabel="Card text color"
+            onUpdateStyle={updateStyle}
+            onUpdateTextAlignment={updateTextAlignment}
+          />,
         )
       : null,
 

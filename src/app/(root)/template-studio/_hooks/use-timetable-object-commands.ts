@@ -9,8 +9,6 @@ import type {
   StudioTemplateDocument,
   StudioTimetableCapabilityKey,
   StudioTimetableComponentId,
-  StudioTimetableComposition,
-  StudioTimetableCompositionObject,
   StudioTimetableDayCardsLayout,
   StudioTimetableDayId,
   StudioTimetableDomain,
@@ -62,17 +60,10 @@ import {
 import { ensureStudioCapabilityVariant } from "@/utils/template-studio/status-variants";
 import { setStudioStatusCardBackgroundAssetSlot } from "@/utils/template-studio/status-card-background";
 import { createInitialStudioRuntimeValues } from "@/utils/template-studio/sample-document";
+import { isStudioFillParentLayout } from "@/utils/template-studio/object-layout";
 import {
-  isStudioFillParentLayout,
-  resolveStudioTimetableObjectGeometry,
-} from "@/utils/template-studio/object-layout";
-import {
-  applyStudioTimetableObjectFitParent,
-  applyStudioTimetableObjectOffset,
-  applyStudioTimetableObjectPosition,
   getStudioTimetableDayCardLayerId,
   getStudioTimetableOrderedDayIds,
-  isStudioPlacedTimetableObject,
   planStudioTimetableDayCardOffset,
   reorderStudioIdList,
   resolveStudioTimetableDragLayerId,
@@ -82,23 +73,27 @@ import {
   type StudioTimetableObjectPosition,
 } from "@/utils/template-studio/timetable-commands";
 import {
-  ensureStudioTimetableComposition,
-  getStudioTimetableCompositionObjectGeometry,
-} from "@/utils/template-studio/timetable-composition";
+  getStudioTimetableGraphEditTarget,
+  isStudioTimetableGraphNodeLocked,
+  requireStudioTimetableGraphDocument,
+  resolveStudioTimetableGraphGeometry,
+  type StudioTimetableGraphRecipe,
+} from "@/utils/template-studio/timetable-graph-commands";
+import { addStudioTimetableGraphPreset } from "@/utils/template-studio/timetable-graph-document";
 import {
-  getStudioTimetablePresetMessage,
-  insertStudioTimetablePresetObject,
-  relinkStudioTimetablePresetInput,
-  type StudioTimetablePresetInsertResult,
-} from "@/utils/template-studio/timetable-preset-commands";
-import type { StudioTimetableCompositionPreset } from "@/utils/template-studio/preset-registry";
+  getStudioObjectFitParentStyle,
+  getStudioObjectPositionStyle,
+  getStudioObjectOffsetStyle,
+} from "@/utils/template-studio/object-style";
+import type { StudioTimetableGraphNode } from "@/types/studio-timetable-graph";
+import { getStudioTimetablePresetMessage } from "@/utils/template-studio/timetable-preset-commands";
+import type { StudioTimetableGraphPreset } from "@/utils/template-studio/preset-registry";
 import { getStudioTimetableDayComponent } from "@/utils/template-studio/component-sets";
 import {
   getStudioTimetableDayCardGeometries,
   getStudioTimetableDayCardGeometry,
   getStudioTimetableDayCardsLayout,
   getStudioTimetableEntryCardSize,
-  getStudioTimetablePreviewSize,
   STUDIO_TIMETABLE_DEFAULT_DAY_CARDS_LAYOUT,
 } from "../_components/studio-timetable-preview";
 export interface StudioUpdateOptions {
@@ -126,15 +121,11 @@ export interface TimetableObjectCommandOptions {
 }
 
 export type StudioAdapterPanelMode =
-  | "layers"
-  | "inputs"
-  | "presets"
-  | "timetable";
+  "layers" | "inputs" | "presets" | "timetable";
 
 export type StudioAdapterWorkspaceMode = "cards" | "timetable";
 
-export interface TimetableAdapterCommandOptions
-  extends TimetableObjectCommandOptions {
+export interface TimetableAdapterCommandOptions extends TimetableObjectCommandOptions {
   /** 편집기 상태를 하나의 undo 단위로 묶을 때 호출한다. */
   captureHistory: () => void;
   setDocument: (document: StudioTemplateDocument) => void;
@@ -341,25 +332,15 @@ export function useTimetableObjectCommands({
   onSelectNode,
   onRestoreSelection,
 }: TimetableAdapterCommandOptions) {
-  const updateTimetableCompositionObject = useCallback(
+  const updateTimetableGraphObject = useCallback(
     (
       objectId: string,
-      updater: (
-        object: StudioTimetableCompositionObject,
-        composition: StudioTimetableComposition,
-        timetable: StudioTimetableDomain,
-      ) => void,
+      updater: StudioTimetableGraphRecipe,
       options: StudioUpdateOptions = {},
     ) => {
-      updateDocument((nextDocument) => {
-        const timetable = nextDocument.domains?.timetable;
-        if (!timetable) return;
-
-        const composition = ensureStudioTimetableComposition(timetable);
-        const object = composition.objects[objectId];
-        if (!object) return;
-
-        updater(object, composition, timetable);
+      updateDocument((draft) => {
+        const target = getStudioTimetableGraphEditTarget(draft, objectId);
+        if (target) updater(target);
       }, options);
     },
     [updateDocument],
@@ -380,81 +361,62 @@ export function useTimetableObjectCommands({
         const timetable = nextDocument.domains?.timetable;
         if (!timetable) return;
 
-        const composition = ensureStudioTimetableComposition(timetable);
-        const object = composition.objects[objectId];
-        if (!isStudioPlacedTimetableObject(object)) return;
-
-        applyStudioTimetableObjectFitParent(
-          object,
-          !isStudioFillParentLayout(object.layoutMode),
-          resolveStudioTimetableObjectGeometry(
-            composition,
-            objectId,
-            getStudioTimetablePreviewSize(timetable),
-          ),
+        const target = getStudioTimetableGraphEditTarget(
+          nextDocument,
+          objectId,
+        );
+        if (!target || target.extension.generator) return;
+        const { node, style } = target;
+        const shouldFillParent = !isStudioFillParentLayout(node.layoutMode);
+        const geometry = resolveStudioTimetableGraphGeometry(
+          requireStudioTimetableGraphDocument(nextDocument),
+          objectId,
+        );
+        node.layoutMode = shouldFillParent ? "fillParent" : "fixed";
+        Object.assign(
+          style,
+          getStudioObjectFitParentStyle(style, shouldFillParent, geometry),
         );
       });
     },
     [updateDocument],
   );
   const addTimetablePresetObject = useCallback(
-    (preset: StudioTimetableCompositionPreset) => {
-      const existingObjectId = getStudioPresetExistingTargetId(
-        getDocument(),
-        preset,
+    (preset: StudioTimetableGraphPreset) => {
+      if (preset.timetableObjectPresetId === "dayCards") {
+        onSelectLayer("day-cards");
+        return;
+      }
+      const current = requireStudioTimetableGraphDocument(getDocument());
+      const existing =
+        preset.singleton &&
+        current.domains.timetable.rootNodeIds.some(
+          (id) =>
+            current.domains.timetable.nodeExtensions[id]?.presetId ===
+            preset.timetableObjectPresetId,
+        );
+      const result = addStudioTimetableGraphPreset(
+        current,
+        preset.timetableObjectPresetId,
       );
-
-      if (preset.singleton && existingObjectId) {
-        let linkedInput = false;
-        updateDocument((nextDocument) => {
-          linkedInput = relinkStudioTimetablePresetInput(
-            nextDocument,
-            preset,
-            existingObjectId,
-          );
-        });
-
-        onSelectLayer(existingObjectId);
-        onOpenLayersPanel();
-        onStatusMessage(
-          getStudioTimetablePresetMessage(preset.label, {
-            existing: true,
-            linkedInput,
-          }),
-        );
-        return;
-      }
-
-      const insertion: { result: StudioTimetablePresetInsertResult | null } = {
-        result: null,
-      };
-      updateDocument((nextDocument) => {
-        insertion.result = insertStudioTimetablePresetObject(
-          nextDocument,
-          preset,
-        );
-      });
-
-      if (!insertion.result) {
-        onStatusMessage("Timetable is not available");
-        return;
-      }
-
-      onSelectLayer(insertion.result.objectId);
+      captureHistory();
+      setDocument(result.document);
+      onSelectLayer(result.nodeId);
       onOpenLayersPanel();
       onStatusMessage(
         getStudioTimetablePresetMessage(preset.label, {
-          existing: false,
-          linkedInput: insertion.result.linkedInput,
+          existing: Boolean(existing),
+          linkedInput: result.linkedInput,
         }),
       );
     },
     [
+      captureHistory,
       getDocument,
       onOpenLayersPanel,
       onSelectLayer,
       onStatusMessage,
-      updateDocument,
+      setDocument,
     ],
   );
   const moveTimetableRootObjectLayer = useCallback(
@@ -467,18 +429,21 @@ export function useTimetableObjectCommands({
         const timetable = nextDocument.domains?.timetable;
         if (!timetable) return;
 
-        const composition = ensureStudioTimetableComposition(timetable);
+        const graph = requireStudioTimetableGraphDocument(nextDocument);
         const nextRootObjectIds = reorderStudioIdList(
-          composition.rootObjectIds.filter(
-            (objectId) => composition.objects[objectId],
-          ),
+          graph.domains.timetable.rootNodeIds,
           sourceObjectId,
           targetObjectId,
           position,
         );
         if (!nextRootObjectIds) return;
 
-        composition.rootObjectIds = nextRootObjectIds;
+        graph.domains.timetable.rootNodeIds = nextRootObjectIds;
+        const weeklyRoots = new Set(nextRootObjectIds);
+        graph.graph.rootNodeIds = [
+          ...graph.graph.rootNodeIds.filter((id) => !weeklyRoots.has(id)),
+          ...nextRootObjectIds,
+        ];
       });
 
       onSelectLayer(sourceObjectId);
@@ -552,15 +517,16 @@ export function useTimetableObjectCommands({
         const timetable = nextDocument.domains?.timetable;
         if (!timetable) return;
 
-        const composition = ensureStudioTimetableComposition(timetable);
-        const object = composition.objects[layerId];
-
-        if (isStudioPlacedTimetableObject(object)) {
-          applyStudioTimetableObjectPosition(
-            object,
+        const graph = requireStudioTimetableGraphDocument(nextDocument);
+        const edit = getStudioTimetableGraphEditTarget(graph, layerId);
+        if (edit && !edit.extension.generator) {
+          const style = getStudioObjectPositionStyle(
+            edit.style,
+            edit.node.layoutMode,
             nextPosition,
-            getStudioTimetableCompositionObjectGeometry(object),
+            resolveStudioTimetableGraphGeometry(graph, layerId),
           );
+          if (style) Object.assign(edit.style, style);
           return;
         }
 
@@ -568,18 +534,19 @@ export function useTimetableObjectCommands({
         const target = resolveStudioTimetableLayerTarget(layerId);
 
         if (target.kind === "dayCards") {
-          layout.left = layout.gridPreset === "custom"
-            ? 0 : roundStudioCoordinate(nextPosition.left ?? layout.left);
-          layout.top = layout.gridPreset === "custom"
-            ? 0 : roundStudioCoordinate(nextPosition.top ?? layout.top);
+          layout.left =
+            layout.gridPreset === "custom"
+              ? 0
+              : roundStudioCoordinate(nextPosition.left ?? layout.left);
+          layout.top =
+            layout.gridPreset === "custom"
+              ? 0
+              : roundStudioCoordinate(nextPosition.top ?? layout.top);
 
-          const dayCardsObject = composition.objects[layerId];
-          if (dayCardsObject && nextPosition.rotateDeg !== undefined) {
-            dayCardsObject.style = {
-              ...dayCardsObject.style,
-              rotateDeg: roundStudioCoordinate(nextPosition.rotateDeg),
-            };
-          }
+          if (edit && nextPosition.rotateDeg !== undefined)
+            edit.style.rotateDeg = roundStudioCoordinate(
+              nextPosition.rotateDeg,
+            );
 
           timetable.dayCardsLayout = layout;
           return;
@@ -626,15 +593,11 @@ export function useTimetableObjectCommands({
         setStudioTimetableDayOffset(
           layout,
           dayId,
-          planStudioTimetableDayCardOffset(
-            dayGeometry,
-            currentOffset,
-            {
-              left: nextPosition.left,
-              top: nextPosition.top,
-              rotateDeg: nextPosition.rotateDeg,
-            },
-          ),
+          planStudioTimetableDayCardOffset(dayGeometry, currentOffset, {
+            left: nextPosition.left,
+            top: nextPosition.top,
+            rotateDeg: nextPosition.rotateDeg,
+          }),
         );
         timetable.dayCardsLayout = layout;
       }, options);
@@ -665,15 +628,26 @@ export function useTimetableObjectCommands({
           const timetable = nextDocument.domains?.timetable;
           if (!timetable) return;
 
-          const composition = ensureStudioTimetableComposition(timetable);
-          const object = composition.objects[layerId];
-
-          if (isStudioPlacedTimetableObject(object)) {
-            applyStudioTimetableObjectOffset(
-              object,
-              delta,
-              getStudioTimetableCompositionObjectGeometry(object),
-            );
+          const graph = requireStudioTimetableGraphDocument(nextDocument);
+          const edit = getStudioTimetableGraphEditTarget(graph, layerId);
+          if (
+            isStudioTimetableGraphNodeLocked(
+              graph,
+              edit ? layerId : "day-cards",
+            )
+          )
+            return;
+          if (edit && !edit.extension.generator) {
+            if (!isStudioFillParentLayout(edit.node.layoutMode))
+              Object.assign(
+                edit.style,
+                getStudioObjectOffsetStyle(
+                  edit.style,
+                  delta,
+                  resolveStudioTimetableGraphGeometry(graph, layerId),
+                  true,
+                ),
+              );
             return;
           }
 
@@ -770,9 +744,8 @@ export function useTimetableObjectCommands({
   const commitSelectedCardComponentLabel = useCallback(() => {
     if (!activeCardComponentId) return;
     const document = getDocument();
-    const component = document.domains?.timetable?.components[
-      activeCardComponentId
-    ];
+    const component =
+      document.domains?.timetable?.components[activeCardComponentId];
     if (!component) return;
 
     const nextLabel = componentLabelDraft.trim();
@@ -1017,11 +990,13 @@ export function useTimetableObjectCommands({
               none: null,
               spark:
                 Object.values(nextDocument.assets).find(
-                  (asset) => asset.label.trim().toLowerCase() === "spark sticker",
+                  (asset) =>
+                    asset.label.trim().toLowerCase() === "spark sticker",
                 )?.id ?? null,
               heart:
                 Object.values(nextDocument.assets).find(
-                  (asset) => asset.label.trim().toLowerCase() === "heart sticker",
+                  (asset) =>
+                    asset.label.trim().toLowerCase() === "heart sticker",
                 )?.id ?? null,
             },
           });
@@ -1170,7 +1145,7 @@ export function useTimetableObjectCommands({
       defaultFit?: StudioImageFit;
       label: string;
       onUpdateInput: (
-        object: StudioTimetableCompositionObject,
+        object: StudioTimetableGraphNode,
         inputId: string,
         fit: StudioImageFit,
       ) => void;
@@ -1183,8 +1158,10 @@ export function useTimetableObjectCommands({
       updateDocument((nextDocument) => {
         const timetable = nextDocument.domains?.timetable;
         if (!timetable) return;
-        const composition = ensureStudioTimetableComposition(timetable);
-        const currentObject = composition.objects[objectId];
+        const currentObject = getStudioTimetableGraphEditTarget(
+          nextDocument,
+          objectId,
+        )?.node;
         if (!currentObject) return;
 
         const { inputId } = ensureStudioPresetImageInput(nextDocument, {
@@ -1216,7 +1193,7 @@ export function useTimetableObjectCommands({
       fit?: StudioImageFit;
       defaultFit?: StudioImageFit;
       onUpdateAsset: (
-        object: StudioTimetableCompositionObject,
+        object: StudioTimetableGraphNode,
         assetId: string | null,
         fit: StudioImageFit,
       ) => void;
@@ -1228,8 +1205,10 @@ export function useTimetableObjectCommands({
         (nextDocument, nextAssetId) => {
           const timetable = nextDocument.domains?.timetable;
           if (!timetable) return;
-          const composition = ensureStudioTimetableComposition(timetable);
-          const currentObject = composition.objects[objectId];
+          const currentObject = getStudioTimetableGraphEditTarget(
+            nextDocument,
+            objectId,
+          )?.node;
           if (!currentObject) return;
           onUpdateAsset(currentObject, nextAssetId, fit ?? defaultFit);
         },
@@ -1259,11 +1238,7 @@ export function useTimetableObjectCommands({
         (nextDocument, nextAssetId) => {
           const currentNode = nextDocument.graph.nodes[nodeId];
           if (!currentNode) return;
-          setStudioStatusCardBackgroundAssetSlot(
-            currentNode,
-            nextAssetId,
-            fit,
-          );
+          setStudioStatusCardBackgroundAssetSlot(currentNode, nextAssetId, fit);
         },
       );
     },
@@ -1285,7 +1260,8 @@ export function useTimetableObjectCommands({
       activeRuntimeDayId,
     );
     if (
-      activeEntries.length >= getStudioTimetableEffectiveMaxEntriesPerDay(document)
+      activeEntries.length >=
+      getStudioTimetableEffectiveMaxEntriesPerDay(document)
     ) {
       return;
     }
@@ -1333,11 +1309,7 @@ export function useTimetableObjectCommands({
   );
 
   const updateEntryStatus = useCallback(
-    (
-      dayId: string,
-      entryIndex: number,
-      statusId: StudioTimetableStatusId,
-    ) => {
+    (dayId: string, entryIndex: number, statusId: StudioTimetableStatusId) => {
       captureHistory();
       setRuntimeValues((currentValues) =>
         setStudioTimetableEntryStatus(
@@ -1413,7 +1385,7 @@ export function useTimetableObjectCommands({
    * 자리를 그대로 두면 없는 일정을 가리킨 채로 남는다.
    */
   return {
-    updateCompositionObject: updateTimetableCompositionObject,
+    updateObject: updateTimetableGraphObject,
     toggleObjectFitParent: toggleTimetableObjectFitParent,
     addPresetObject: addTimetablePresetObject,
     moveRootObjectLayer: moveTimetableRootObjectLayer,

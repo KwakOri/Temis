@@ -1,3 +1,4 @@
+import { createTimetableGraphFixture } from "./helpers/studio-timetable-fixture";
 import assert from "node:assert/strict";
 
 import {
@@ -8,7 +9,7 @@ import {
 } from "../src/utils/template-studio/crop-resize";
 import { getStudioRuntimeProfileImageCropTarget } from "../src/utils/template-studio/runtime-image-crop";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
-import { getStudioTimetableComposition } from "../src/utils/template-studio/timetable-composition";
+import { getStudioTimetableComposition } from "./helpers/studio-timetable-recipe";
 
 const fitted = fitStudioCropFrame({ width: 1000, height: 600 }, 16 / 9);
 assert.equal(fitted.width, 952);
@@ -110,13 +111,16 @@ runtimeTimetable.composition = runtimeComposition;
 
 assert.deepEqual(
   getStudioRuntimeProfileImageCropTarget(
-    runtimeDocument,
+    createTimetableGraphFixture(runtimeDocument),
     "profile-image-input",
   ),
   { objectId: "profile-image", width: 640, height: 800 },
 );
 assert.equal(
-  getStudioRuntimeProfileImageCropTarget(runtimeDocument, "other-image-input"),
+  getStudioRuntimeProfileImageCropTarget(
+    createTimetableGraphFixture(runtimeDocument),
+    "other-image-input",
+  ),
   null,
   "Only profile image inputs should use the fixed runtime crop modal.",
 );

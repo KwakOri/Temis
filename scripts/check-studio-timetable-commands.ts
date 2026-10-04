@@ -1,3 +1,4 @@
+import { createStudioTimetableGraphDocument } from "../src/utils/template-studio/timetable-graph-document";
 /**
  * 시간표 레이어 명령의 기준선 가드.
  *
@@ -15,10 +16,7 @@ import type {
   StudioTimetableDayCardsLayout,
   StudioTimetableDomain,
 } from "../src/types/template-studio";
-import {
-  createInitialStudioRuntimeValues,
-  createSampleStudioDocument,
-} from "../src/utils/template-studio/sample-document";
+import { createInitialStudioRuntimeValues } from "../src/utils/template-studio/sample-document";
 import { useTimetableObjectCommands } from "../src/app/(root)/template-studio/_hooks/use-timetable-object-commands";
 import {
   applyStudioDeleteTimetableObject,
@@ -38,7 +36,7 @@ import {
   roundStudioCoordinate,
   setStudioTimetableDayOffset,
 } from "../src/utils/template-studio/timetable-commands";
-import { STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID } from "../src/utils/template-studio/timetable-composition";
+import { STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID } from "./helpers/studio-timetable-recipe";
 
 const createObject = (
   id: string,
@@ -321,7 +319,11 @@ assert.equal(
 
 const resetLayout = rotationLayout;
 resetLayout.dayOffsets = {};
-assert.deepEqual(resetLayout.dayOffsets, {}, "offset reset은 빈 map을 유지한다.");
+assert.deepEqual(
+  resetLayout.dayOffsets,
+  {},
+  "offset reset은 빈 map을 유지한다.",
+);
 
 // --- 시간표 객체 삭제 ---
 
@@ -416,8 +418,8 @@ assert.equal(
 );
 assert.equal(
   variantSet?.activeValue,
-  "off",
-  "활성 값이 사라지면 남아 있는 값으로 옮긴다.",
+  undefined,
+  "문서에는 편집 상태를 쓰지 않는다.",
 );
 
 const emptyVariantComposition = createComposition();
@@ -433,8 +435,8 @@ emptyVariantComposition.objects.host = createObject("host", {
 applyStudioDeleteTimetableObject(emptyVariantComposition, ["solo"]);
 assert.equal(
   emptyVariantComposition.objects.host.variantSet?.activeValue,
-  "off",
-  "남은 값이 없으면 기본 값으로 돌아간다.",
+  undefined,
+  "빈 상태여도 편집 상태를 문서에 저장하지 않는다.",
 );
 
 // 부모의 자식 목록에서도 빠진다.
@@ -580,16 +582,24 @@ assert.equal(
   "아무것도 없는 자리에서는 잡을 것이 없다.",
 );
 
-const runTimetableDayCardHookIntegration = (custom = false): {
+const runTimetableDayCardHookIntegration = (
+  custom = false,
+): {
   rotateDeg: number | undefined;
   left: number;
   top: number;
 } => {
-  const document = createSampleStudioDocument();
+  const document = createStudioTimetableGraphDocument();
   const runtimeValues = createInitialStudioRuntimeValues(document);
   const timetable = document.domains?.timetable;
   if (!timetable) throw new Error("sample document has no timetable");
-  if (custom) timetable.dayCardsLayout = { ...timetable.dayCardsLayout!, gridPreset: "custom", left: 0, top: 0 };
+  if (custom)
+    timetable.dayCardsLayout = {
+      ...timetable.dayCardsLayout!,
+      gridPreset: "custom",
+      left: 0,
+      top: 0,
+    };
 
   const HookProbe = () => {
     const commands = useTimetableObjectCommands({
@@ -623,9 +633,9 @@ const runTimetableDayCardHookIntegration = (custom = false): {
     });
 
     if (custom) {
-      commands.updateLayerPosition("day-card:mon", {left: 100, top: 200});
-      commands.moveCanvasLayer("day-cards", {deltaX: 50, deltaY: 75});
-      commands.updateLayerPosition("day-cards", {left: 90, top: 110});
+      commands.updateLayerPosition("day-card:mon", { left: 100, top: 200 });
+      commands.moveCanvasLayer("day-cards", { deltaX: 50, deltaY: 75 });
+      commands.updateLayerPosition("day-cards", { left: 90, top: 110 });
       assert.equal(timetable.dayCardsLayout?.left, 0);
       assert.equal(timetable.dayCardsLayout?.top, 0);
     }
@@ -649,7 +659,19 @@ assert.equal(
   17,
   "실제 hook update/drag 경로가 회전값을 보존한다.",
 );
-assert.equal(hookIntegrationResult.left, 5, "실제 hook drag 경로가 X 보정을 저장한다.");
-assert.equal(hookIntegrationResult.top, 6, "실제 hook drag 경로가 Y 보정을 저장한다.");
-assert.deepEqual(runTimetableDayCardHookIntegration(true), {left: 105, top: 206, rotateDeg: 17}, "Custom positions and drag deltas are absolute and preserve rotation");
+assert.equal(
+  hookIntegrationResult.left,
+  5,
+  "실제 hook drag 경로가 X 보정을 저장한다.",
+);
+assert.equal(
+  hookIntegrationResult.top,
+  6,
+  "실제 hook drag 경로가 Y 보정을 저장한다.",
+);
+assert.deepEqual(
+  runTimetableDayCardHookIntegration(true),
+  { left: 105, top: 206, rotateDeg: 17 },
+  "Custom positions and drag deltas are absolute and preserve rotation",
+);
 console.log("Studio timetable command baseline checks passed.");

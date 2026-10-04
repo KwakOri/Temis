@@ -556,7 +556,7 @@ const typographyMarkup = markupOf(
 assert.ok(typographyMarkup.includes("Pretendard"), "폰트 후보를 받아서 쓴다.");
 assert.ok(typographyMarkup.includes('value="24"'), "글자 크기를 보여준다.");
 assert.ok(
-  typographyMarkup.includes("Line height") &&
+  typographyMarkup.includes("Line Height") &&
     typographyMarkup.includes('value="1.2"'),
   "일반 텍스트에 줄간격 입력이 나타난다.",
 );

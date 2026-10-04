@@ -10,13 +10,13 @@ import {
   isStudioCardContextObjectPreset,
   isStudioCardSelectInputBundlePreset,
   isStudioCardStatusBackgroundPreset,
-  isStudioTimetableCompositionPreset,
+  isStudioTimetableGraphPreset,
   type StudioCardContextObjectPreset,
   type StudioCardSelectInputBundlePreset,
   type StudioCardStatusBackgroundPreset,
   type StudioPresetGroup,
   type StudioPresetListItem,
-  type StudioTimetableCompositionPreset,
+  type StudioTimetableGraphPreset,
 } from "@/utils/template-studio/preset-registry";
 
 /**
@@ -39,7 +39,7 @@ const countPresets = (groups: StudioPresetGroup[]): number =>
 
 export interface StudioTimetablePresetsPanelProps {
   groups: StudioPresetGroup[];
-  onInsertPreset: (definition: StudioTimetableCompositionPreset) => void;
+  onInsertPreset: (definition: StudioTimetableGraphPreset) => void;
 }
 
 /**
@@ -77,7 +77,7 @@ export function StudioTimetablePresetsPanel({
                 {group.presets.map((item) => {
                   const { definition, disabledReason, existingTargetId } = item;
                   const canInsert =
-                    isStudioTimetableCompositionPreset(definition) &&
+                    isStudioTimetableGraphPreset(definition) &&
                     !disabledReason;
 
                   return (
@@ -93,7 +93,7 @@ export function StudioTimetablePresetsPanel({
                       title={definition.description ?? definition.label}
                       type="button"
                       onClick={() => {
-                        if (!isStudioTimetableCompositionPreset(definition)) {
+                        if (!isStudioTimetableGraphPreset(definition)) {
                           return;
                         }
                         onInsertPreset(definition);

@@ -1,8 +1,9 @@
+import { getStudioTimetableNodeIds } from "./timetable-graph-queries";
+import type { StudioTimetableGraphNode } from "@/types/studio-timetable-graph";
 import type {
   StudioInputDefinition,
   StudioSelectInputDefinition,
   StudioTemplateDocument,
-  StudioTimetableCompositionObject,
 } from "@/types/template-studio";
 
 export interface StudioRuntimeGlobalInputGroup {
@@ -40,49 +41,57 @@ export const getStudioRuntimeSuppressedInputIds = (
   document: StudioTemplateDocument,
 ): ReadonlySet<string> => {
   const suppressedInputIds = new Set<string>();
-  const objects = document.domains?.timetable?.composition?.objects ?? {};
+  const nodes: Record<string, StudioTimetableGraphNode> =
+    document.version === 8
+      ? Object.fromEntries(
+          [...getStudioTimetableNodeIds(document)].map((id) => [
+            id,
+            document.graph.nodes[id] as StudioTimetableGraphNode,
+          ]),
+        )
+      : {};
 
-  Object.values(objects).forEach((object) => {
-    if (object.variantSet?.mode === "always" && object.variantSet.inputId) {
-      suppressedInputIds.add(object.variantSet.inputId);
+  Object.values(nodes).forEach((node) => {
+    if (node.variantSet?.mode === "always" && node.variantSet.inputId) {
+      suppressedInputIds.add(node.variantSet.inputId);
     }
   });
 
   return suppressedInputIds;
 };
 
-const collectObjectInputIds = ({
-  objectId,
-  objects,
+const collectNodeInputIds = ({
+  nodeId,
+  nodes,
   visited,
   inputIds,
 }: {
-  objectId: string;
-  objects: Record<string, StudioTimetableCompositionObject>;
+  nodeId: string;
+  nodes: Record<string, StudioTimetableGraphNode>;
   visited: Set<string>;
   inputIds: Set<string>;
 }) => {
-  if (visited.has(objectId)) return;
-  visited.add(objectId);
+  if (visited.has(nodeId)) return;
+  visited.add(nodeId);
 
-  const object = objects[objectId];
-  if (!object) return;
+  const node = nodes[nodeId];
+  if (!node) return;
 
-  const binding = object.binding;
+  const binding = node.binding;
   if (binding && "inputId" in binding) inputIds.add(binding.inputId);
 
-  Object.values(object.assetSlots ?? {}).forEach((slot) => {
+  Object.values(node.assetSlots ?? {}).forEach((slot) => {
     if (slot.inputId) inputIds.add(slot.inputId);
   });
 
-  if (object.variantSet?.inputId) inputIds.add(object.variantSet.inputId);
-  Object.values(object.variantSet?.rootByValue ?? {}).forEach((rootId) => {
+  if (node.variantSet?.inputId) inputIds.add(node.variantSet.inputId);
+  Object.values(node.variantSet?.rootByValue ?? {}).forEach((rootId) => {
     if (!rootId) return;
-    collectObjectInputIds({ objectId: rootId, objects, visited, inputIds });
+    collectNodeInputIds({ nodeId: rootId, nodes, visited, inputIds });
   });
 
-  (object.childIds ?? []).forEach((childId) =>
-    collectObjectInputIds({ objectId: childId, objects, visited, inputIds }),
+  (node.childIds ?? []).forEach((childId) =>
+    collectNodeInputIds({ nodeId: childId, nodes, visited, inputIds }),
   );
 };
 
@@ -101,17 +110,25 @@ export const getStudioRuntimeGlobalInputGroups = (
   const assignedInputIds = new Set<string>();
   const suppressedInputIds = getStudioRuntimeSuppressedInputIds(document);
   const groups: StudioRuntimeGlobalInputGroup[] = [];
-  const objects = document.domains?.timetable?.composition?.objects ?? {};
+  const nodes: Record<string, StudioTimetableGraphNode> =
+    document.version === 8
+      ? Object.fromEntries(
+          [...getStudioTimetableNodeIds(document)].map((id) => [
+            id,
+            document.graph.nodes[id] as StudioTimetableGraphNode,
+          ]),
+        )
+      : {};
 
-  Object.values(objects).forEach((object) => {
-    if (object.variantSet?.mode === "always") {
-      if (object.variantSet.inputId) {
-        assignedInputIds.add(object.variantSet.inputId);
+  Object.values(nodes).forEach((node) => {
+    if (node.variantSet?.mode === "always") {
+      if (node.variantSet.inputId) {
+        assignedInputIds.add(node.variantSet.inputId);
       }
       return;
     }
 
-    const toggleInputId = object.variantSet?.inputId;
+    const toggleInputId = node.variantSet?.inputId;
     if (!toggleInputId || assignedInputIds.has(toggleInputId)) return;
 
     const toggleInput = document.inputs[toggleInputId];
@@ -126,11 +143,11 @@ export const getStudioRuntimeGlobalInputGroups = (
 
     const relatedInputIds = new Set<string>();
     const visited = new Set<string>();
-    Object.values(object.variantSet?.rootByValue ?? {}).forEach((rootId) => {
+    Object.values(node.variantSet?.rootByValue ?? {}).forEach((rootId) => {
       if (!rootId) return;
-      collectObjectInputIds({
-        objectId: rootId,
-        objects,
+      collectNodeInputIds({
+        nodeId: rootId,
+        nodes,
         visited,
         inputIds: relatedInputIds,
       });
@@ -146,8 +163,8 @@ export const getStudioRuntimeGlobalInputGroups = (
     );
 
     groups.push({
-      id: `composition:${object.id}`,
-      label: object.label || stripStatusSuffix(toggleInput.label),
+      id: `timetable:${node.id}`,
+      label: node.label || stripStatusSuffix(toggleInput.label),
       toggleInput,
       contentInputs,
       firstInputIndex: Math.min(...groupInputIndexes),

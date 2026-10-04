@@ -4,23 +4,19 @@ import React from "react";
 
 import { cn } from "@/lib/utils";
 import {
-  StudioAsset,
   StudioAssetSlot,
   StudioGraphNode,
   StudioRuntimeValues,
-  StudioStyleRecord,
   StudioTemplateDocument,
 } from "@/types/template-studio";
 import {
   resolveStudioAsset,
+  resolveStudioAssetSlot,
   resolveStudioTextBinding,
 } from "@/utils/template-studio/binding-resolver";
 import { getStudioNodeBackgroundAssetSlot } from "@/utils/template-studio/graph-nodes";
 import { resolveStudioTextAppearance } from "@/utils/template-studio/text-appearance";
-import {
-  getStudioRuntimeInputValue,
-  type StudioRuntimeContext,
-} from "@/utils/template-studio/input-values";
+import { type StudioRuntimeContext } from "@/utils/template-studio/input-values";
 import { getStudioPaintOrder } from "@/utils/template-studio/layer-order";
 import { getStudioObjectRenderStyle } from "@/utils/template-studio/object-layout";
 import { getStudioNodeRuntimeContext } from "@/utils/template-studio/entry-groups";
@@ -36,6 +32,11 @@ import {
 import { StudioWebFontLoader } from "@/components/studio/canvas/studio-web-font-loader";
 import { StudioText } from "@/components/studio/text/studio-text";
 import type { StudioRuntimeImageOverrides } from "@/utils/thumbnail-studio/runtime-image-transform";
+
+import {
+  getStudioObjectCssStyle,
+  getStudioBackgroundSizeForFit,
+} from "@/utils/template-studio/object-style";
 
 interface StudioRendererProps {
   document: StudioTemplateDocument;
@@ -67,27 +68,6 @@ interface StudioRendererProps {
   ) => void;
 }
 
-const toCssStyle = (styleRecord?: StudioStyleRecord): React.CSSProperties => {
-  if (!styleRecord) return { position: "absolute" };
-
-  const { rotateDeg, textWrapMode, ...rest } = styleRecord;
-  // textWrapMode는 Auto Text 렌더 옵션이므로 CSS 선언으로 흘리지 않는다.
-  void textWrapMode;
-  const style = { ...rest } as React.CSSProperties;
-
-  if (!style.position) {
-    style.position = "absolute";
-  }
-
-  if (typeof rotateDeg === "number" && rotateDeg !== 0) {
-    style.transform = [style.transform, `rotate(${rotateDeg}deg)`]
-      .filter(Boolean)
-      .join(" ");
-  }
-
-  return style;
-};
-
 /**
  * Text SVG and its logical HTML measurement span must use the same font metrics.
  * Keep layout/position declarations on the node wrapper and pass only typography
@@ -105,34 +85,6 @@ const getStudioTextTypography = (
   lineHeight: style.lineHeight,
   textAlign: style.textAlign,
 });
-
-const resolveStudioAssetSlotAsset = (
-  document: StudioTemplateDocument,
-  values: StudioRuntimeValues,
-  slot: StudioAssetSlot | null | undefined,
-  context?: StudioRuntimeContext,
-): StudioAsset | null => {
-  if (!slot) return null;
-
-  if (slot.inputId) {
-    const input = document.inputs[slot.inputId];
-    if (!input || input.type !== "image") return null;
-
-    const value = getStudioRuntimeInputValue(input, values, context);
-    if (!value) return null;
-
-    return {
-      id: `runtime:${input.id}`,
-      label: input.label,
-      src: value,
-    };
-  }
-
-  return slot.assetId ? (document.assets[slot.assetId] ?? null) : null;
-};
-
-const getBackgroundSizeForFit = (fit: StudioAssetSlot["fit"]): string =>
-  fit === "fill" ? "100% 100%" : (fit ?? "cover");
 
 export function StudioRenderer({
   document,
@@ -164,7 +116,7 @@ export function StudioRenderer({
     const styleRecord = node.styleId
       ? document.styles[node.styleId]
       : undefined;
-    const baseStyle = toCssStyle(
+    const baseStyle = getStudioObjectCssStyle(
       getStudioObjectRenderStyle(styleRecord ?? {}, node.layoutMode),
     );
     const style =
@@ -182,7 +134,7 @@ export function StudioRenderer({
     const backgroundSlot = resolveNodeBackgroundAssetSlot
       ? resolveNodeBackgroundAssetSlot(node, nodeRuntimeContext)
       : getStudioNodeBackgroundAssetSlot(node);
-    const backgroundAsset = resolveStudioAssetSlotAsset(
+    const backgroundAsset = resolveStudioAssetSlot(
       document,
       runtimeValues,
       backgroundSlot,
@@ -194,7 +146,7 @@ export function StudioRenderer({
           backgroundImage: `url(${JSON.stringify(backgroundAsset.src)})`,
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
-          backgroundSize: getBackgroundSizeForFit(backgroundSlot?.fit),
+          backgroundSize: getStudioBackgroundSizeForFit(backgroundSlot?.fit),
         }
       : style;
     const isSelected =

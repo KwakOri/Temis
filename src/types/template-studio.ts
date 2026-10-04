@@ -503,6 +503,7 @@ export interface StudioTimetableObjectVariantOption {
 export interface StudioTimetableObjectVariantSet {
   options: StudioTimetableObjectVariantOption[];
   defaultValue: string;
+  /** Legacy authoring state, removed at load/save boundaries. */
   activeValue?: string;
   /** Whether runtime users can toggle the states or the On state is forced. */
   mode?: StudioTimetableObjectVariantMode;
@@ -524,6 +525,7 @@ export interface StudioTimetableCompositionObject {
   style: StudioStyleRecord;
   binding?: StudioBinding;
   assetSlots?: Record<string, StudioAssetSlot>;
+  /** Legacy background fields; normalized into assetSlots.background. */
   backgroundAssetId?: StudioAssetId | null;
   backgroundFit?: StudioImageFit;
   locked?: boolean;
@@ -617,7 +619,8 @@ export interface StudioTemplateMetadata {
 
 export interface StudioTemplateDocument {
   schema: "studio_template_document";
-  version: 7;
+  /** v7 remains the thumbnail/render-view contract; timetable storage uses v8. */
+  version: 7 | 8;
   metadata: StudioTemplateMetadata;
   canvas: StudioCanvasConfig;
   graph: StudioNodeGraph;

@@ -1,3 +1,4 @@
+import { createStudioTimetableGraphDocument } from "../src/utils/template-studio/timetable-graph-document";
 import assert from "node:assert/strict";
 import type {
   FigmaNormalizedNode,
@@ -278,7 +279,7 @@ assert.equal(
   inferFigmaGridOriginVariantFamily({ componentName: "Online Origin" }),
   null,
 );
-const frameLayoutDocument = createSampleStudioDocument();
+const frameLayoutDocument = createStudioTimetableGraphDocument();
 const frameLayoutResult = applyStudioFigmaFrameImport(frameLayoutDocument, {
   candidateId: "1555:17498",
   label: "edit",

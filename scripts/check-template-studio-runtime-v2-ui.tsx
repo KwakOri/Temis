@@ -1,3 +1,4 @@
+import { createTimetableGraphFixture } from "./helpers/studio-timetable-fixture";
 import assert from "node:assert/strict";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -427,6 +428,7 @@ assert.ok(groupedComposition);
 groupedComposition.rootObjectIds.push("artist-group");
 groupedComposition.objects["artist-group"] = {
   id: "artist-group",
+  childIds: ["artist-on"],
   kind: "group",
   label: "Artist",
   style: {},
@@ -442,6 +444,7 @@ groupedComposition.objects["artist-group"] = {
 };
 groupedComposition.objects["artist-on"] = {
   id: "artist-on",
+  parentId: "artist-group",
   kind: "group",
   label: "Artist On",
   childIds: ["artist-text-object"],
@@ -449,13 +452,16 @@ groupedComposition.objects["artist-on"] = {
 };
 groupedComposition.objects["artist-text-object"] = {
   id: "artist-text-object",
+  parentId: "artist-on",
   kind: "text",
   label: "Artist Text",
   binding: { kind: "inputText", inputId: "artist_text" },
   style: {},
 };
 
-const globalGroups = getStudioRuntimeGlobalInputGroups(groupedDocument);
+const globalGroups = getStudioRuntimeGlobalInputGroups(
+  createTimetableGraphFixture(groupedDocument),
+);
 assert.equal(globalGroups[0]?.label, STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL);
 const artistGroup = globalGroups.find((group) => group.label === "Artist");
 assert.ok(artistGroup);
@@ -546,7 +552,7 @@ profileComposition.objects["profile-image-regression"] = {
 const renderProfilePreview = (values: StudioRuntimeValues) =>
   renderToStaticMarkup(
     <StudioTimetablePreview
-      document={profilePreviewDocument}
+      document={createTimetableGraphFixture(profilePreviewDocument)}
       runtimeValues={values}
     />,
   );
@@ -576,7 +582,7 @@ const emptyArtistValues = createStudioInitialRuntimeValues(groupedDocument);
 const renderArtistPreview = (values: StudioRuntimeValues) =>
   renderToStaticMarkup(
     <StudioTimetablePreview
-      document={groupedDocument}
+      document={createTimetableGraphFixture(groupedDocument)}
       runtimeValues={values}
     />,
   );
@@ -602,7 +608,7 @@ assert.doesNotMatch(renderArtistPreview(emptyArtistValues), />Artist Text</);
 
 const shellMarkup = renderToStaticMarkup(
   <TemplateStudioRuntimeShell
-    document={document}
+    document={createTimetableGraphFixture(document)}
     initialRuntimeValues={initialValues}
     source="draft"
     templateId="runtime-v2-ui-check"

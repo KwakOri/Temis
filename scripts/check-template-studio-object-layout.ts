@@ -15,7 +15,7 @@ import {
   createStudioStructuredTextPresetObjects,
   createStudioTimetablePresetObject,
   getStudioTimetableComposition,
-} from "../src/utils/template-studio/timetable-composition";
+} from "./helpers/studio-timetable-recipe";
 import {
   getStudioPresetCreationRule,
   getStudioPresetGroups,
@@ -246,16 +246,6 @@ assert.equal(
   weekDatesPresetItem.existingTargetId,
   null,
   "Repeatable Week Dates must keep the preset add action available.",
-);
-
-weekDatesObjects[0].meta!.exception!.singleton = true;
-const normalizedRepeatableComposition =
-  getStudioTimetableComposition(repeatableTimetable);
-assert.equal(
-  normalizedRepeatableComposition.objects[weekDatesObjects[0].id].meta
-    ?.exception?.singleton,
-  false,
-  "Legacy Week Dates metadata must normalize to repeatable.",
 );
 
 // --- 배치 가능 오브젝트 판정 ---

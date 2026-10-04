@@ -1,23 +1,22 @@
+import {
+  requireStudioTimetableGraphDocument,
+  applyStudioDeleteTimetableGraphNodes,
+} from "../timetable-graph-commands";
+import { getStudioTimetableGraphNodeIds } from "../timetable-graph-document";
 import type {
   StudioAsset,
   StudioTemplateDocument,
-  StudioTimetableCompositionObject,
   StudioTimetableDayCardsLayout,
 } from "@/types/template-studio";
 import type {
   StudioFigmaFrameImportPayload,
-  StudioFigmaFrameImportLayer,
   StudioFigmaGridOriginCandidate,
 } from "@/types/template-studio-figma";
 import { applyStudioTimetableComponentFrames } from "@/utils/template-studio/entry-groups";
 import { createStudioId } from "@/utils/template-studio/id";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
 import { applyStudioFigmaGridCandidate } from "./figma-component-import";
-import {
-  createStudioTimetableDayCardsObject,
-  ensureStudioTimetableComposition,
-  STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID,
-} from "../timetable-composition";
+import { STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID } from "../timetable-graph-presets";
 
 export type StudioFigmaFrameImportResult =
   | { ok: true; componentIds: string[]; warnings: string[] }
@@ -199,27 +198,6 @@ const setImportedGridLayout = (
   };
 };
 
-const makeImageObject = (
-  layer: StudioFigmaFrameImportLayer,
-): StudioTimetableCompositionObject => ({
-  id: createStudioId("figma_layer"),
-  kind: "image",
-  label: layer.label.slice(0, 160) || "Figma layer",
-  parentId: null,
-  style: {
-    position: "absolute",
-    left: layer.bounds.left,
-    top: layer.bounds.top,
-    width: layer.bounds.width,
-    height: layer.bounds.height,
-    opacity: 1,
-    rotateDeg: 0,
-  },
-  assetSlots: {
-    asset: { assetId: layer.asset.id, fit: "cover" },
-  },
-});
-
 const getImportedComponentIds = (
   document: StudioTemplateDocument,
   candidates: StudioFigmaGridOriginCandidate[],
@@ -245,7 +223,9 @@ export const applyStudioFigmaFrameImport = (
 ): StudioFigmaFrameImportResult => {
   const draft = cloneData(document);
   const timetable = draft.domains?.timetable;
-  if (!timetable) return { ok: false, reason: "Document timetable domain is missing" };
+  if (!timetable || draft.version !== 8)
+    return { ok: false, reason: "A v8 timetable document is required" };
+  const graph = requireStudioTimetableGraphDocument(draft);
   if (
     !Number.isFinite(payload.frame.width) ||
     !Number.isFinite(payload.frame.height) ||
@@ -268,19 +248,17 @@ export const applyStudioFigmaFrameImport = (
   } catch (error) {
     return {
       ok: false,
-      reason: error instanceof Error ? error.message : "Figma GRID could not be imported",
+      reason:
+        error instanceof Error
+          ? error.message
+          : "Figma GRID could not be imported",
     };
   }
 
-  const composition = ensureStudioTimetableComposition(timetable);
-  const dayCards =
-    composition.objects[STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID] ??
-    createStudioTimetableDayCardsObject();
-  const importedObjects: Record<string, StudioTimetableCompositionObject> = {
-    [dayCards.id]: dayCards,
-  };
-  const orderedRootLayers: Array<{ zIndex: number; objectId: string }> = [];
-  const occupiedObjectIds = new Set<string>(Object.keys(composition.objects));
+  const dayCardsId = STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID;
+  const orderedRootLayers: Array<{ zIndex: number; nodeId: string }> = [];
+  const occupiedNodeIds = new Set(Object.keys(graph.graph.nodes));
+  const importedNodes: string[] = [];
 
   for (const layer of payload.layers) {
     const existingAsset = draft.assets[layer.asset.id];
@@ -289,20 +267,45 @@ export const applyStudioFigmaFrameImport = (
       (existingAsset.contentHash !== layer.asset.contentHash ||
         existingAsset.storagePath !== layer.asset.storagePath)
     ) {
-      return { ok: false, reason: "Imported Figma asset ID conflicts with the document" };
+      return {
+        ok: false,
+        reason: "Imported Figma asset ID conflicts with the document",
+      };
     }
     draft.assets[layer.asset.id] = cloneData(layer.asset) as StudioAsset;
-    let object = makeImageObject(layer);
-    while (occupiedObjectIds.has(object.id)) object = makeImageObject(layer);
-    occupiedObjectIds.add(object.id);
-    importedObjects[object.id] = object;
-    orderedRootLayers.push({ zIndex: layer.zIndex, objectId: object.id });
+    let id = createStudioId("figma_layer");
+    while (occupiedNodeIds.has(id)) id = createStudioId("figma_layer");
+    occupiedNodeIds.add(id);
+    let styleId = createStudioId("style");
+    while (graph.styles[styleId]) styleId = createStudioId("style");
+    graph.styles[styleId] = {
+      position: "absolute",
+      left: layer.bounds.left,
+      top: layer.bounds.top,
+      width: layer.bounds.width,
+      height: layer.bounds.height,
+      opacity: 1,
+      rotateDeg: 0,
+    };
+    graph.graph.nodes[id] = {
+      id,
+      type: "image",
+      label: layer.label.slice(0, 160) || "Figma layer",
+      parentId: null,
+      childIds: [],
+      styleId,
+      binding: { kind: "staticAsset", assetId: layer.asset.id },
+      fit: "cover",
+    };
+    graph.domains.timetable.nodeExtensions[id] = {};
+    importedNodes.push(id);
+    orderedRootLayers.push({ zIndex: layer.zIndex, nodeId: id });
   }
 
   if (payload.grid) {
     orderedRootLayers.push({
       zIndex: payload.grid.zIndex,
-      objectId: STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID,
+      nodeId: STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID,
     });
     setImportedGridLayout(draft, payload, componentIdByPlacementId, warnings);
   }
@@ -312,19 +315,33 @@ export const applyStudioFigmaFrameImport = (
     width: payload.frame.width,
     height: payload.frame.height,
   };
-  timetable.composition = {
-    objects: importedObjects,
-    rootObjectIds: payload.grid
-      ? orderedRootLayers
-          .sort((left, right) => left.zIndex - right.zIndex)
-          .map((layer) => layer.objectId)
-      : orderedRootLayers.map((layer) => layer.objectId),
-  };
-  if (!payload.grid) timetable.composition.rootObjectIds.push(dayCards.id);
+  const rootIds = payload.grid
+    ? orderedRootLayers
+        .sort((left, right) => left.zIndex - right.zIndex)
+        .map((layer) => layer.nodeId)
+    : [...orderedRootLayers.map((layer) => layer.nodeId), dayCardsId];
+  applyStudioDeleteTimetableGraphNodes(
+    graph,
+    [...getStudioTimetableGraphNodeIds(graph)].filter(
+      (id) => id !== dayCardsId && !importedNodes.includes(id),
+    ),
+  );
+  graph.domains.timetable.rootNodeIds = rootIds;
+  graph.graph.rootNodeIds = [
+    ...graph.graph.rootNodeIds.filter((id) => id !== dayCardsId),
+    ...rootIds,
+  ];
 
   applyStudioTimetableComponentFrames(draft);
-  if (validateStudioDocument(draft).some((diagnostic) => diagnostic.severity === "error")) {
-    return { ok: false, reason: "Imported frame would violate document validation" };
+  if (
+    validateStudioDocument(draft).some(
+      (diagnostic) => diagnostic.severity === "error",
+    )
+  ) {
+    return {
+      ok: false,
+      reason: "Imported frame would violate document validation",
+    };
   }
 
   document.graph = draft.graph;

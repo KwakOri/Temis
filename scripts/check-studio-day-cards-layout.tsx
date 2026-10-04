@@ -17,6 +17,8 @@ import {
 } from "../src/app/(root)/template-studio/_components/studio-timetable-day-cards-layout-controls";
 import {
   getStudioTimetableDayCardsBounds,
+  getStudioTimetableDayCardsLayout,
+  getStudioTimetableDayCardGeometries,
   getStudioTimetableEntryCardSize,
 } from "../src/app/(root)/template-studio/_components/studio-timetable-preview";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
@@ -71,6 +73,10 @@ assert.deepEqual(
 // --- 프리셋에 따라 보이는 컨트롤 ---
 
 const defaultMarkup = markupOf(createLayout());
+assert.ok(
+  defaultMarkup.includes("<details") && !defaultMarkup.includes('open=""'),
+  "일괄 변환은 기본적으로 접힌 고급 영역에 둔다.",
+);
 assert.ok(defaultMarkup.includes("<span>Grid Preset</span>"));
 assert.ok(defaultMarkup.includes("<span>Fill Order</span>"));
 assert.ok(defaultMarkup.includes("<span>Remainder</span>"));
@@ -99,8 +105,14 @@ const customMarkup = markupOf(
 );
 assert.ok(customMarkup.includes("Card Transforms"));
 assert.ok(customMarkup.includes("canvas origin (0, 0)"));
-assert.ok(customMarkup.includes("<span>X</span>") && customMarkup.includes("<span>Y</span>"));
-assert.doesNotMatch(customMarkup, /Slot Map|Columns|Rows|Gap X|Gap Y|Fill Order|Remainder|Offset X|Offset Y/);
+assert.ok(
+  customMarkup.includes("<span>X</span>") &&
+    customMarkup.includes("<span>Y</span>"),
+);
+assert.doesNotMatch(
+  customMarkup,
+  /Slot Map|Columns|Rows|Gap X|Gap Y|Fill Order|Remainder|Offset X|Offset Y/,
+);
 
 const threeByThreeMarkup = markupOf(
   createLayout({ gridPreset: "3x3", columns: 3, rows: 3 }),
@@ -179,7 +191,11 @@ assert.equal(toCustom.gridPreset, "custom");
 assert.equal(toCustom.slots, undefined, "Custom does not use a slot map");
 assert.equal(toCustom.left, 0);
 assert.equal(toCustom.top, 0);
-assert.deepEqual(toCustom.dayOffsets, {}, "Custom starts all cards at the canvas origin");
+assert.equal(
+  Object.keys(toCustom.dayOffsets ?? {}).length,
+  DAYS.length,
+  "Custom stores each card position instead of resetting it",
+);
 
 const toPresetFromCustom = toPreset(
   createLayout({
@@ -220,14 +236,25 @@ const cardTransformFixture = {
   tue: { left: -7, top: 3, rotateDeg: -12 },
 } as StudioTimetableDayCardsLayout["dayOffsets"];
 
-assert.deepEqual(toPreset(createLayout({ gridPreset: "custom", dayOffsets: cardTransformFixture }), "custom").dayOffsets, cardTransformFixture, "reselecting Custom preserves edited absolute coordinates");
+assert.deepEqual(
+  toPreset(
+    createLayout({ gridPreset: "custom", dayOffsets: cardTransformFixture }),
+    "custom",
+  ).dayOffsets,
+  cardTransformFixture,
+  "reselecting Custom preserves edited absolute coordinates",
+);
 
 for (const gridPreset of cardTransformPresets) {
   const presetMarkup = markupOf(createLayout({ gridPreset }));
   assert.ok(
     presetMarkup.includes("Card Transforms") &&
-      presetMarkup.includes(gridPreset === "custom" ? "<span>X</span>" : "Offset X") &&
-      presetMarkup.includes(gridPreset === "custom" ? "<span>Y</span>" : "Offset Y") &&
+      presetMarkup.includes(
+        gridPreset === "custom" ? "<span>X</span>" : "Offset X",
+      ) &&
+      presetMarkup.includes(
+        gridPreset === "custom" ? "<span>Y</span>" : "Offset Y",
+      ) &&
       presetMarkup.includes("Rotate"),
     `${gridPreset} 프리셋에서도 카드 변환 필드를 렌더링한다.`,
   );
@@ -236,11 +263,34 @@ for (const gridPreset of cardTransformPresets) {
     createLayout({ gridPreset: "1x7", dayOffsets: cardTransformFixture }),
     gridPreset,
   );
-  assert.deepEqual(
-    presetLayout.dayOffsets,
-    gridPreset === "custom" ? {} : cardTransformFixture,
-    `${gridPreset} 프리셋으로 바꿔도 day ID별 카드 변환을 보존한다.`,
-  );
+  if (gridPreset === "custom") {
+    const positions = (candidate: StudioTimetableDayCardsLayout) =>
+      getStudioTimetableDayCardGeometries(
+        getStudioTimetableDayCardsLayout({
+          dayIds: DAYS.map((day) => day.id),
+          dayCardsLayout: candidate,
+        }),
+        DAYS.map((day, order) => ({ ...day, order })),
+        () => 1,
+      );
+    assert.deepEqual(
+      positions(presetLayout),
+      positions(
+        createLayout({ gridPreset: "1x7", dayOffsets: cardTransformFixture }),
+      ),
+      "Grid to Custom preserves every rendered card position and size.",
+    );
+    assert.equal(presetLayout.dayOffsets?.mon.rotateDeg, 9);
+    assert.equal(presetLayout.dayOffsets?.tue.rotateDeg, -12);
+    const restored = toPreset(presetLayout, "3x3");
+    assert.deepEqual(
+      positions(restored),
+      positions(presetLayout),
+      "Custom to Grid converts positions to offsets without moving cards.",
+    );
+  } else {
+    assert.deepEqual(presetLayout.dayOffsets, cardTransformFixture);
+  }
 }
 
 const sampleDocument = createSampleStudioDocument();
@@ -407,7 +457,10 @@ const resetElement = StudioTimetableDayCardsLayoutControls({
   layout: resetLayout,
   onUpdateLayout: (recipe) => recipe(resetLayout),
 }) as React.ReactElement<{ children: React.ReactNode }>;
-const findButton = (node: React.ReactNode, text: string): React.ReactElement<{ onClick: () => void }> | null => {
+const findButton = (
+  node: React.ReactNode,
+  text: string,
+): React.ReactElement<{ onClick: () => void }> | null => {
   if (Array.isArray(node)) {
     for (const child of node) {
       const found = findButton(child, text);
@@ -416,13 +469,24 @@ const findButton = (node: React.ReactNode, text: string): React.ReactElement<{ o
     return null;
   }
   if (!React.isValidElement(node)) return null;
-  const props = node.props as { children?: React.ReactNode; onClick?: () => void };
-  if (props.onClick && props.children === text) return node as React.ReactElement<{ onClick: () => void }>;
+  const props = node.props as {
+    children?: React.ReactNode;
+    onClick?: () => void;
+  };
+  if (props.onClick && props.children === text)
+    return node as React.ReactElement<{ onClick: () => void }>;
   return findButton(props.children, text);
 };
-const resetButton = findButton(resetElement, "Reset card positions and rotations");
+const resetButton = findButton(
+  resetElement,
+  "Reset card positions and rotations",
+);
 assert.ok(resetButton, "위치와 회전을 초기화하는 버튼을 찾을 수 있다.");
 resetButton?.props.onClick();
-assert.deepEqual(resetLayout.dayOffsets, {}, "초기화하면 모든 day transform을 지운다.");
+assert.deepEqual(
+  resetLayout.dayOffsets,
+  {},
+  "초기화하면 모든 day transform을 지운다.",
+);
 
 console.log("Studio day cards layout baseline checks passed.");

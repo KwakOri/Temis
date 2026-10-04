@@ -13,37 +13,21 @@ import { createStudioId } from "@/utils/template-studio/id";
 import { getStudioDefaultNodeStyle } from "@/utils/template-studio/node-commands";
 import { isStudioFillParentLayout } from "@/utils/template-studio/object-layout";
 
-export type StudioTextAlignment = "left" | "center" | "right";
-
-/**
- * style에서 텍스트 정렬을 읽는다.
- *
- * 예전 문서는 정렬을 `justifyContent`로만 갖고 있어서 그 값도 함께 본다.
- */
-export const getStudioTextAlignment = (
-  styleRecord: StudioStyleRecord,
-): StudioTextAlignment => {
-  const value = styleRecord.textAlign;
-  if (value === "center" || value === "right") return value;
-  if (value === "left") return value;
-
-  const justifyContent =
-    typeof styleRecord.justifyContent === "string"
-      ? styleRecord.justifyContent
-      : "flex-start";
-
-  if (justifyContent === "center") return "center";
-  if (justifyContent === "flex-end" || justifyContent === "end") return "right";
-  return "left";
-};
-
-/** 좌표를 다루는 style 키. fillParent 노드에서는 바꿀 수 없다. */
-export const STUDIO_GEOMETRY_STYLE_KEYS = [
-  "left",
-  "top",
-  "width",
-  "height",
-] as const;
+import {
+  getStudioObjectOffsetStyle,
+  getStudioObjectStyleWithValue,
+  getStudioObjectFitParentStyle,
+  getStudioTextAlignmentStyle,
+  isStudioGeometryStyleKey,
+  type StudioTextAlignment,
+} from "./object-style";
+export {
+  getStudioTextAlignment,
+  getStudioTextJustifyContent,
+  getStudioOpacityPercent,
+  STUDIO_GEOMETRY_STYLE_KEYS,
+  type StudioTextAlignment,
+} from "./object-style";
 
 /**
  * 노드에 style 레코드를 붙이고 그 id를 준다.
@@ -96,14 +80,15 @@ export const applyStudioNodeOffset = (
 
     const styleId = ensureStudioNodeStyleId(draft, node);
     const style = draft.styles[styleId] ?? {};
-    const left = readStyleNumber(style, "left") + delta.deltaX;
-    const top = readStyleNumber(style, "top") + delta.deltaY;
-
-    draft.styles[styleId] = {
-      ...style,
-      left: round ? Number(left.toFixed(2)) : left,
-      top: round ? Number(top.toFixed(2)) : top,
-    };
+    draft.styles[styleId] = getStudioObjectOffsetStyle(
+      style,
+      delta,
+      {
+        left: readStyleNumber(style, "left"),
+        top: readStyleNumber(style, "top"),
+      },
+      round,
+    );
   });
 };
 
@@ -164,9 +149,7 @@ export const applyStudioNodeStyleValue = (
   key: string,
   value: string | number | undefined,
 ): void => {
-  const isGeometryKey = (
-    STUDIO_GEOMETRY_STYLE_KEYS as readonly string[]
-  ).includes(key);
+  const isGeometryKey = isStudioGeometryStyleKey(key);
 
   if (isStudioFillParentLayout(node.layoutMode) && isGeometryKey) return;
 
@@ -186,21 +169,13 @@ export const applyStudioNodeStyleValue = (
   }
 
   const styleId = ensureStudioNodeStyleId(draft, node);
-  draft.styles[styleId] = {
-    ...draft.styles[styleId],
-    [key]: value,
-  };
+  draft.styles[styleId] = getStudioObjectStyleWithValue(
+    draft.styles[styleId] ?? {},
+    node.layoutMode,
+    key,
+    value,
+  );
 };
-
-/** 텍스트 정렬에 맞는 flex 정렬 값. */
-export const getStudioTextJustifyContent = (
-  textAlign: StudioTextAlignment,
-): string =>
-  textAlign === "left"
-    ? "flex-start"
-    : textAlign === "right"
-      ? "flex-end"
-      : "center";
 
 /** 텍스트 정렬은 문단 정렬과 flex 정렬을 함께 맞춘다. */
 export const applyStudioNodeTextAlignment = (
@@ -209,11 +184,10 @@ export const applyStudioNodeTextAlignment = (
   textAlign: StudioTextAlignment,
 ): void => {
   const styleId = ensureStudioNodeStyleId(draft, node);
-  draft.styles[styleId] = {
-    ...draft.styles[styleId],
+  draft.styles[styleId] = getStudioTextAlignmentStyle(
+    draft.styles[styleId] ?? {},
     textAlign,
-    justifyContent: getStudioTextJustifyContent(textAlign),
-  };
+  );
 };
 
 /**
@@ -232,14 +206,11 @@ export const applyStudioNodeFitParent = (
   const style = draft.styles[styleId] ?? {};
 
   node.layoutMode = shouldFillParent ? "fillParent" : "fixed";
-  draft.styles[styleId] = {
-    ...style,
-    left: 0,
-    top: 0,
-    ...(shouldFillParent
-      ? {}
-      : { width: resolvedSize.width, height: resolvedSize.height }),
-  };
+  draft.styles[styleId] = getStudioObjectFitParentStyle(
+    style,
+    shouldFillParent,
+    resolvedSize,
+  );
 };
 
 // --- 상태 사이 style 전파 ---
@@ -261,20 +232,4 @@ export const getStudioVariantStyleMessage = ({
   const skippedSuffix =
     skippedStatusCount > 0 ? ` · ${skippedStatusCount} skipped` : "";
   return `Applied ${appliedNodeCount} style update(s) to ${appliedStatusCount} status(es)${skippedSuffix}`;
-};
-
-// --- 투명도 표시 ---
-
-/**
- * 투명도를 0~100 백분율로 읽는다.
- *
- * 문서에는 0~1로 저장하지만 사람은 백분율로 읽고 쓴다. 이미 1보다 큰 값이
- * 들어와 있으면 백분율로 저장된 것으로 보고 그대로 쓴다. 값이 없으면 불투명으로
- * 본다.
- */
-export const getStudioOpacityPercent = (value: unknown): number => {
-  const parsedValue = Number(value ?? 1);
-  if (!Number.isFinite(parsedValue)) return 100;
-  const percent = parsedValue <= 1 ? parsedValue * 100 : parsedValue;
-  return Math.min(Math.max(Math.round(percent), 0), 100);
 };

@@ -1,6 +1,18 @@
 "use client";
 
 import React, { useMemo } from "react";
+import type { StudioTimetableGraphNode } from "@/types/studio-timetable-graph";
+import {
+  requireStudioTimetableGraphDocument,
+  resolveStudioTimetableGraphGeometry,
+} from "@/utils/template-studio/timetable-graph-commands";
+import {
+  getStudioTimetableNodeStyle,
+  getStudioTimetableNodeExtension,
+  getStudioTimetableNodeAsset,
+  getStudioTimetableNodeChildIds,
+  getStudioTimetableNodeRuntimeVariant,
+} from "@/utils/template-studio/timetable-graph-queries";
 
 import {
   StudioAsset,
@@ -17,12 +29,12 @@ import {
   StudioTimetableDomain,
   StudioAssetSlot,
   StudioTimetableComponentDefinition,
-  StudioTimetableCompositionObject,
 } from "@/types/template-studio";
-import { resolveStudioTextBinding } from "@/utils/template-studio/binding-resolver";
+import {
+  resolveStudioAssetSlot,
+  resolveStudioTextBinding,
+} from "@/utils/template-studio/binding-resolver";
 import { getStudioTimetableDayComponent } from "@/utils/template-studio/component-sets";
-import { resolveStudioWeekDateText } from "@/utils/template-studio/date-template";
-import { getStudioRuntimeInputValue } from "@/utils/template-studio/input-values";
 import { getStudioPaintOrder } from "@/utils/template-studio/layer-order";
 import {
   getLocalizedStudioPresetDefaultText,
@@ -30,16 +42,8 @@ import {
   type StudioRuntimeCopy,
   type StudioRuntimeLocale,
 } from "@/utils/template-studio/runtime-i18n";
-import {
-  getStudioObjectRenderStyle,
-  resolveStudioTimetableObjectGeometry,
-} from "@/utils/template-studio/object-layout";
-import {
-  getStudioTimetableObjectRenderableChildIds,
-  getStudioTimetableObjectRuntimeVariantValue,
-  getStudioTimetableComposition,
-  STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID,
-} from "@/utils/template-studio/timetable-composition";
+import { getStudioObjectRenderStyle } from "@/utils/template-studio/object-layout";
+import { STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID } from "@/utils/template-studio/timetable-graph-presets";
 import {
   getStudioTimetableEntriesForDay,
   resolveStudioTimetableComponentVariant,
@@ -50,12 +54,21 @@ import {
   getStudioTimetableComponentFrame,
   resolveStudioTimetableDayVariantStatus,
 } from "@/utils/template-studio/entry-groups";
-import { STUDIO_TEXT_WRAP_MODE_STYLE_KEY } from "@/utils/template-studio/text-wrap";
+import {
+  getStudioObjectCssStyle,
+  getStudioBackgroundSizeForFit,
+  getStudioCssOpacity,
+} from "@/utils/template-studio/object-style";
 
 import { StudioText } from "@/components/studio/text/studio-text";
 import { StudioWebFontLoader } from "@/components/studio/canvas/studio-web-font-loader";
 
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
+
+import {
+  getStudioTimetableEditingVariantValue,
+  type StudioTimetableEditingVariants,
+} from "@/utils/template-studio/timetable-selection";
 
 export const STUDIO_TIMETABLE_DEFAULT_CANVAS_SIZE = {
   width: 4000,
@@ -320,7 +333,7 @@ export const getStudioTimetablePreviewSize = (
 });
 
 export const getStudioTimetableDayCardsLayout = (
-  timetable?: StudioTimetableDomain,
+  timetable?: Pick<StudioTimetableDomain, "dayIds" | "dayCardsLayout">,
 ): StudioTimetableDayCardsLayout => {
   const rawLayout = {
     ...STUDIO_TIMETABLE_DEFAULT_DAY_CARDS_LAYOUT,
@@ -720,51 +733,17 @@ export const getStudioTimetableDayCardsBounds = (
 };
 
 const getNumericStyleValue = (
-  styleRecord: StudioStyleRecord | undefined,
+  style: StudioStyleRecord | undefined,
   key: string,
   fallback: number,
-) => {
-  const value = styleRecord?.[key];
-  return typeof value === "number" ? value : fallback;
-};
-
-const getStringStyleValue = (
-  styleRecord: StudioStyleRecord | undefined,
-  key: string,
-  fallback: string,
-) => {
-  const value = styleRecord?.[key];
-  return typeof value === "string" ? value : fallback;
-};
-
-const isWeekDatesObject = (object: StudioTimetableCompositionObject) =>
-  object.presetId === "weekDates" ||
-  object.meta?.exception?.semanticKey === "weekDates";
-
-const resolveWeekDatesText = (
-  document: StudioTemplateDocument,
-  runtimeValues: StudioRuntimeValues,
-  object: StudioTimetableCompositionObject,
-) => {
-  const format = getStringStyleValue(object.style, "dateRangeFormat", "long");
-  const template = getStringStyleValue(object.style, "dateRangeTemplate", "");
-  const startDate = runtimeValues.timetable.weekStartDate;
-
-  return resolveStudioWeekDateText(document, { format, template, startDate });
-};
+) => (typeof style?.[key] === "number" ? (style[key] as number) : fallback);
 
 const resolveTimetableObjectText = (
   document: StudioTemplateDocument,
   runtimeValues: StudioRuntimeValues,
-  object: StudioTimetableCompositionObject,
+  object: StudioTimetableGraphNode,
   copy: StudioRuntimeCopy,
 ) => {
-  if (isWeekDatesObject(object)) {
-    return (
-      resolveWeekDatesText(document, runtimeValues, object) || object.label
-    );
-  }
-
   const value = resolveStudioTextBinding(
     document,
     runtimeValues,
@@ -775,34 +754,6 @@ const resolveTimetableObjectText = (
     return input?.type === "text" ? (input.placeholder ?? "") : "";
   }
   return getLocalizedStudioPresetDefaultText(copy, value || object.label);
-};
-
-const isArtistProfileTextObject = (object: StudioTimetableCompositionObject) =>
-  object.presetId === "artistProfileText" ||
-  object.meta?.exception?.semanticKey === "artistProfileText";
-
-const resolveTimetableAssetSlot = (
-  document: StudioTemplateDocument,
-  runtimeValues: StudioRuntimeValues,
-  slot?: StudioAssetSlot,
-): StudioAsset | null => {
-  if (!slot) return null;
-
-  if (slot.inputId) {
-    const input = document.inputs[slot.inputId];
-    if (!input || input.type !== "image") return null;
-
-    const value = getStudioRuntimeInputValue(input, runtimeValues);
-    if (!value) return null;
-
-    return {
-      id: `runtime:${input.id}`,
-      label: input.label,
-      src: value,
-    };
-  }
-
-  return slot.assetId ? (document.assets[slot.assetId] ?? null) : null;
 };
 
 const isStudioProfileImageDefaultAsset = (
@@ -816,52 +767,35 @@ const isStudioProfileImageDefaultAsset = (
   return input?.type === "image" && input.defaultUrl === asset.src;
 };
 
-const getTimetableCssOpacity = (value: unknown): number => {
-  const parsedValue = Number(value ?? 1);
-  if (!Number.isFinite(parsedValue)) return 1;
-  const normalizedValue = parsedValue <= 1 ? parsedValue : parsedValue / 100;
-  return Math.min(Math.max(normalizedValue, 0), 1);
-};
-
 const getTimetableObjectStyle = (
   document: StudioTemplateDocument,
   runtimeValues: StudioRuntimeValues,
-  object: StudioTimetableCompositionObject,
+  object: StudioTimetableGraphNode,
 ): React.CSSProperties => {
   const resolvedStyle = getStudioObjectRenderStyle(
-    object.style,
+    getStudioTimetableNodeStyle(document, object),
     object.layoutMode,
   );
-  const { opacity, rotateDeg, ...styleRecord } = resolvedStyle;
-  delete styleRecord.dateRangeFormat;
-  delete styleRecord.dateRangeTemplate;
-  delete styleRecord.assetMode;
-  delete styleRecord.assetPosition;
-  delete styleRecord.assetGap;
-  delete styleRecord.assetSize;
-  delete styleRecord[STUDIO_TEXT_WRAP_MODE_STYLE_KEY];
-  const backgroundSlot = object.assetSlots?.background;
-  const backgroundAsset =
-    resolveTimetableAssetSlot(document, runtimeValues, backgroundSlot) ??
-    (object.backgroundAssetId
-      ? document.assets[object.backgroundAssetId]
-      : null);
-  const backgroundFit = backgroundSlot?.fit ?? object.backgroundFit;
-  const backgroundSize =
-    backgroundFit === "fill" ? "100% 100%" : (backgroundFit ?? "cover");
+  const styleRecord = getStudioObjectCssStyle(resolvedStyle, {
+    legacyTimetable: true,
+  });
+  const backgroundSlot = object.assetSlots?.asset;
+  const backgroundAsset = resolveStudioAssetSlot(
+    document,
+    runtimeValues,
+    backgroundSlot,
+  );
+  const backgroundFit = backgroundSlot?.fit;
+  const backgroundSize = getStudioBackgroundSizeForFit(backgroundFit);
 
   return {
     ...styleRecord,
-    position: "absolute",
-    opacity: getTimetableCssOpacity(opacity),
     backgroundImage: backgroundAsset
       ? `url(${JSON.stringify(backgroundAsset.src)})`
       : undefined,
     backgroundPosition: backgroundAsset ? "center" : undefined,
     backgroundRepeat: backgroundAsset ? "no-repeat" : undefined,
     backgroundSize: backgroundAsset ? backgroundSize : undefined,
-    transform:
-      typeof rotateDeg === "number" ? `rotate(${rotateDeg}deg)` : undefined,
   } as React.CSSProperties;
 };
 
@@ -871,17 +805,20 @@ interface StudioTimetablePreviewProps {
   selectedLayerId?: string | null;
   onSelectLayer?: (layerId: string) => void;
   variantMode?: "authoring" | "runtime";
+  editingVariants?: StudioTimetableEditingVariants;
   locale?: StudioRuntimeLocale;
 }
 
 export function StudioTimetablePreview({
-  document,
+  document: sourceDocument,
   runtimeValues,
   selectedLayerId = null,
   onSelectLayer,
   variantMode = "runtime",
+  editingVariants = {},
   locale = "en",
 }: StudioTimetablePreviewProps) {
+  const document = requireStudioTimetableGraphDocument(sourceDocument);
   const timetable = document.domains?.timetable;
   const copy = getStudioRuntimeCopy(locale);
   // 상태 카드 배경은 지금 상태에 따라 그림 자리가 달라진다. 이 판단은 시간표에서
@@ -918,7 +855,10 @@ export function StudioTimetablePreview({
   );
   const previewSize = getStudioTimetablePreviewSize(timetable);
   const dayCardsLayout = getStudioTimetableDayCardsLayout(timetable);
-  const composition = getStudioTimetableComposition(timetable);
+  const generator = document.graph.nodes[STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID];
+  const generatorStyle = generator
+    ? getStudioTimetableNodeStyle(document, generator)
+    : {};
   const getEntryCardSize = (dayId: StudioTimetableDayId) =>
     getStudioTimetableEntryCardSize(document, componentByDayId[dayId]);
   const getPreviewEntryCount = (dayId: StudioTimetableDayId) =>
@@ -947,14 +887,8 @@ export function StudioTimetablePreview({
         top: dayCardsBounds.top,
         width: dayCardsBounds.width,
         height: dayCardsBounds.height,
-        opacity: getTimetableCssOpacity(
-          composition.objects[STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID]?.style
-            .opacity,
-        ),
-        transform: `rotate(${Number(
-          composition.objects[STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID]?.style
-            .rotateDeg ?? 0,
-        )}deg)`,
+        opacity: getStudioCssOpacity(generatorStyle.opacity),
+        transform: `rotate(${Number(generatorStyle.rotateDeg ?? 0)}deg)`,
         transformOrigin: "center",
         outline:
           selectedLayerId === STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID
@@ -1084,35 +1018,23 @@ export function StudioTimetablePreview({
     </div>
   );
 
-  const renderTextObject = (object: StudioTimetableCompositionObject) => {
-    const geometry = resolveStudioTimetableObjectGeometry(
-      composition,
-      object.id,
-      previewSize,
-    );
+  const renderTextObject = (object: StudioTimetableGraphNode) => {
+    const geometry = resolveStudioTimetableGraphGeometry(document, object.id);
     const selected = selectedLayerId === object.id;
-    const assetSlot = isArtistProfileTextObject(object)
-      ? object.assetSlots?.asset
-      : undefined;
-    const asset = resolveTimetableAssetSlot(document, runtimeValues, assetSlot);
-    const assetMode = getStringStyleValue(object.style, "assetMode", "visible");
-    const assetPosition = getStringStyleValue(
-      object.style,
-      "assetPosition",
-      "left",
-    );
+    const style = getStudioTimetableNodeStyle(document, object);
+    const inline = getStudioTimetableNodeExtension(
+      document,
+      object.id,
+    ).inlineAssetLayout;
+    const assetSlot = object.assetSlots?.inlineDecoration;
+    const asset = resolveStudioAssetSlot(document, runtimeValues, assetSlot);
+    const assetMode = inline?.mode ?? "visible";
+    const assetPosition = inline?.position ?? "left";
     const assetSize = Math.max(
       24,
-      getNumericStyleValue(
-        object.style,
-        "assetSize",
-        Math.min(160, geometry.height || 160),
-      ),
+      inline?.size ?? Math.min(160, geometry.height || 160),
     );
-    const assetGap = Math.max(
-      0,
-      getNumericStyleValue(object.style, "assetGap", 32),
-    );
+    const assetGap = Math.max(0, inline?.gap ?? 32);
     const shouldShowAsset = Boolean(asset?.src && assetMode !== "hidden");
     const text = resolveTimetableObjectText(
       document,
@@ -1154,21 +1076,14 @@ export function StudioTimetablePreview({
             }}
           />
         ) : null}
-        {object.kind === "flexibleText" ? (
+        {object.type === "flexibleText" ? (
           <StudioText
-            /*
-             * composition 오브젝트는 아직 구조화된 효과를 담지 않는다. 시간표가 공용
-             * 텍스트 효과를 채택하는 것은 후속 범위다(03 문서 §4.1). 그래서 효과 없는
-             * 것으로 보고 style에서 색만 읽는다.
-             */
-            appearance={resolveStudioTextAppearance({}, object.style)}
+            appearance={resolveStudioTextAppearance({}, style)}
             autoFit={{
               maxFontSize:
-                typeof object.style.fontSize === "number"
-                  ? object.style.fontSize
-                  : 48,
+                typeof style.fontSize === "number" ? style.fontSize : 48,
               minFontSize: 8,
-              styleRecord: object.style,
+              styleRecord: style,
             }}
             className="min-w-0"
             text={text}
@@ -1181,133 +1096,14 @@ export function StudioTimetablePreview({
     );
   };
 
-  const renderProfileBlockObject = (
-    object: StudioTimetableCompositionObject,
-  ) => {
-    const geometry = resolveStudioTimetableObjectGeometry(
-      composition,
-      object.id,
-      previewSize,
-    );
+  const renderImageObject = (object: StudioTimetableGraphNode) => {
+    const geometry = resolveStudioTimetableGraphGeometry(document, object.id);
     const selected = selectedLayerId === object.id;
-    const profileImageSlot = object.assetSlots?.profileImage;
-    const profileFrameSlot = object.assetSlots?.profileFrame;
-    const asset = resolveTimetableAssetSlot(
-      document,
-      runtimeValues,
-      profileImageSlot,
-    );
-    const renderAsset =
-      variantMode === "runtime" &&
-      isStudioProfileImageDefaultAsset(document, profileImageSlot, asset)
-        ? null
-        : asset;
-    const frameAsset = resolveTimetableAssetSlot(
-      document,
-      runtimeValues,
-      profileFrameSlot,
-    );
-
-    return (
-      <div
-        className="absolute overflow-hidden"
-        data-node-id={object.id}
-        key={object.id}
-        style={{
-          ...getTimetableObjectStyle(document, runtimeValues, object),
-          outline: selected ? "8px solid rgba(59, 130, 246, 0.75)" : "none",
-          outlineOffset: 8,
-          minWidth: Math.max(1, geometry.width),
-          minHeight: Math.max(1, geometry.height),
-        }}
-        onClick={(event) => {
-          event.stopPropagation();
-          onSelectLayer?.(object.id);
-        }}
-      >
-        {renderAsset?.src ? (
-          // eslint-disable-next-line @next/next/no-img-element -- Timetable preset assets are plain template asset URLs.
-          <img
-            alt={renderAsset.label}
-            className="absolute inset-0 h-full w-full"
-            draggable={false}
-            src={renderAsset.src}
-            style={{ objectFit: profileImageSlot?.fit ?? "cover" }}
-          />
-        ) : variantMode === "authoring" ? (
-          <div className="absolute inset-0 flex h-full w-full items-center justify-center text-[48px] font-extrabold text-slate-400">
-            Profile
-          </div>
-        ) : null}
-        {frameAsset?.src ? (
-          // eslint-disable-next-line @next/next/no-img-element -- Timetable preset frame assets are plain template asset URLs.
-          <img
-            alt={frameAsset.label}
-            className="pointer-events-none absolute inset-0 h-full w-full"
-            draggable={false}
-            src={frameAsset.src}
-            style={{ objectFit: profileFrameSlot?.fit ?? "contain" }}
-          />
-        ) : null}
-      </div>
-    );
-  };
-
-  const renderTopObject = (object: StudioTimetableCompositionObject) => {
-    const geometry = resolveStudioTimetableObjectGeometry(
-      composition,
-      object.id,
-      previewSize,
-    );
-    const selected = selectedLayerId === object.id;
-    const assetSlot = object.assetSlots?.asset;
-    const asset = resolveTimetableAssetSlot(document, runtimeValues, assetSlot);
-
-    return (
-      <div
-        className="absolute overflow-visible"
-        data-node-id={object.id}
-        key={object.id}
-        style={{
-          ...getTimetableObjectStyle(document, runtimeValues, object),
-          outline: selected ? "8px solid rgba(59, 130, 246, 0.75)" : "none",
-          outlineOffset: 8,
-          minWidth: Math.max(1, geometry.width),
-          minHeight: Math.max(1, geometry.height),
-        }}
-        onClick={(event) => {
-          event.stopPropagation();
-          onSelectLayer?.(object.id);
-        }}
-      >
-        {asset?.src ? (
-          // eslint-disable-next-line @next/next/no-img-element -- Timetable preset assets are plain template asset URLs.
-          <img
-            alt={asset.label}
-            className="absolute inset-0 h-full w-full"
-            draggable={false}
-            src={asset.src}
-            style={{ objectFit: assetSlot?.fit ?? "contain" }}
-          />
-        ) : (
-          <div className="absolute inset-0 flex h-full w-full items-center justify-center border border-dashed border-slate-300 text-[42px] font-extrabold text-slate-400">
-            Top Object
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderImageObject = (object: StudioTimetableCompositionObject) => {
-    const geometry = resolveStudioTimetableObjectGeometry(
-      composition,
-      object.id,
-      previewSize,
-    );
-    const selected = selectedLayerId === object.id;
-    const assetSlot = object.assetSlots?.asset;
-    const asset = resolveTimetableAssetSlot(document, runtimeValues, assetSlot);
-    const isProfileUserImage = object.profileRole === "userImage";
+    const assetSlot = getStudioTimetableNodeAsset(object);
+    const asset = resolveStudioAssetSlot(document, runtimeValues, assetSlot);
+    const isProfileUserImage =
+      getStudioTimetableNodeExtension(document, object.id).profileRole ===
+      "userImage";
     const renderAsset =
       variantMode === "runtime" &&
       isProfileUserImage &&
@@ -1355,22 +1151,15 @@ export function StudioTimetablePreview({
     visitedObjectIds = new Set<string>(),
   ): React.ReactNode => {
     if (visitedObjectIds.has(objectId)) return null;
-    const object = composition.objects[objectId];
+    const object = document.graph.nodes[objectId];
     if (!object || object.hidden) return null;
 
-    if (object.kind === "generatedDayCards") return renderDayCardsObject();
-    if (object.kind === "profileBlock") {
-      return renderProfileBlockObject(object);
-    }
-    if (object.kind === "topObject") return renderTopObject(object);
-    if (object.kind === "image") return renderImageObject(object);
-    if (object.kind !== "group") return renderTextObject(object);
+    if (getStudioTimetableNodeExtension(document, object.id).generator)
+      return renderDayCardsObject();
+    if (object.type === "image") return renderImageObject(object);
+    if (object.type !== "group") return renderTextObject(object);
 
-    const geometry = resolveStudioTimetableObjectGeometry(
-      composition,
-      object.id,
-      previewSize,
-    );
+    const geometry = resolveStudioTimetableGraphGeometry(document, object.id);
     const selected = selectedLayerId === object.id;
     const nextVisitedObjectIds = new Set(visitedObjectIds);
     nextVisitedObjectIds.add(object.id);
@@ -1393,15 +1182,15 @@ export function StudioTimetablePreview({
         }}
       >
         {getStudioPaintOrder(
-          getStudioTimetableObjectRenderableChildIds(
+          getStudioTimetableNodeChildIds(
             object,
             variantMode === "runtime"
-              ? getStudioTimetableObjectRuntimeVariantValue(
+              ? getStudioTimetableNodeRuntimeVariant(
                   document,
                   runtimeValues,
                   object,
                 )
-              : undefined,
+              : getStudioTimetableEditingVariantValue(object, editingVariants),
           ),
         ).map((childId) =>
           renderCompositionObject(childId, nextVisitedObjectIds),
@@ -1420,8 +1209,8 @@ export function StudioTimetablePreview({
       }}
     >
       <StudioWebFontLoader document={document} />
-      {getStudioPaintOrder(composition.rootObjectIds).map((objectId) =>
-        renderCompositionObject(objectId),
+      {getStudioPaintOrder(document.domains.timetable.rootNodeIds).map(
+        (objectId) => renderCompositionObject(objectId),
       )}
     </div>
   );

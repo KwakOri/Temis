@@ -220,12 +220,12 @@ const modalSource = fs.readFileSync(
   "utf8",
 );
 assert.match(clientSource, /candidateWithEdits/);
-assert.match(clientSource, /applyStudioFigmaGridCandidate\(nextDocument, candidateWithEdits\)/);
+assert.match(clientSource, /applyStudioFigmaGridCandidate\(\s*nextDocument,\s*candidateWithEdits,?\s*\)/);
 assert.match(clientSource, /applyStudioFigmaReviewEdits/);
 assert.match(clientSource, /figmaBindingTouchedSourceNodeIds/);
 assert.match(clientSource, /recordFigmaBindingChange/);
 assert.match(clientSource, /onBindingChange: recordFigmaBindingChange/);
-assert.match(clientSource, /recordFigmaBindingChange = useCallback\(\(statusOrSourceNodeId/);
+assert.match(clientSource, /recordFigmaBindingChange = useCallback\(\s*\(statusOrSourceNodeId/);
 assert.match(clientSource, /applyStudioFigmaReviewPatch/);
 assert.match(clientSource, /\$\{status\}:\$\{touchedSourceNodeId\}/);
 assert.match(reviewEditSource, /reviewNodeIds/);

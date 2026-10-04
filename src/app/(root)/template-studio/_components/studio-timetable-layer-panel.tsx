@@ -6,14 +6,22 @@ import {
   StudioLayerPanelFrame,
 } from "@/components/studio/layers/studio-layer-primitives";
 import type {
-  StudioTimetableComposition,
-  StudioTimetableCompositionObjectKind,
+  StudioGraphNodeType,
   StudioTimetableDayDefinition,
   StudioTimetableDayId,
 } from "@/types/template-studio";
 import { getStudioLayerPanelOrder } from "@/utils/template-studio/layer-order";
 import { getStudioTimetableDayCardLayerId } from "@/utils/template-studio/timetable-commands";
-import { getStudioTimetableObjectRenderableChildIds } from "@/utils/template-studio/timetable-composition";
+import {
+  getStudioTimetableNodeChildIds,
+  getStudioTimetableNodeExtension,
+} from "@/utils/template-studio/timetable-graph-queries";
+import type { StudioTimetableGraphDocument } from "@/types/studio-timetable-graph";
+import { resolveStudioTimetableGraphEditingState } from "@/utils/template-studio/timetable-graph-selection";
+import {
+  getStudioTimetableEditingVariantValue,
+  type StudioTimetableEditingVariants,
+} from "@/utils/template-studio/timetable-selection";
 import type { StudioTimetableLayerDropState } from "@/utils/template-studio/timetable-layer-drag";
 import { StudioTimetableLayerRow } from "./studio-timetable-layer-row";
 
@@ -25,17 +33,17 @@ import { StudioTimetableLayerRow } from "./studio-timetable-layer-row";
  * 종류는 이름이 달라도 image로 모은다. 사용자가 무엇을 채워야 하는지가 같기 때문이다.
  */
 export const getStudioTimetableLayerTypeLabel = (
-  kind: StudioTimetableCompositionObjectKind,
+  kind: StudioGraphNodeType,
 ): string => {
-  if (kind === "generatedDayCards" || kind === "group") return "group";
-  if (kind === "profileBlock") return "block";
-  if (kind === "image" || kind === "topObject") return "image";
+  if (kind === "group") return "group";
+  if (kind === "image") return "image";
   if (kind === "flexibleText") return "auto text";
   return "text";
 };
 
 export interface StudioTimetableLayerPanelProps {
-  composition: StudioTimetableComposition;
+  document: StudioTimetableGraphDocument;
+  editingVariants?: StudioTimetableEditingVariants;
   /** order로 이미 정렬한 요일 목록. 요일 카드는 이 순서 그대로 보여 준다. */
   days: StudioTimetableDayDefinition[];
   selectedLayerId: string | null;
@@ -81,7 +89,8 @@ export interface StudioTimetableLayerPanelProps {
  * 놓을 수 있는지와 실제로 무엇을 옮길지는 호출한 쪽의 훅이 정한다.
  */
 export function StudioTimetableLayerPanel({
-  composition,
+  document,
+  editingVariants = {},
   days,
   selectedLayerId,
   collapsedLayerIds,
@@ -138,18 +147,23 @@ export function StudioTimetableLayerPanel({
   ): React.ReactNode => {
     if (visitedObjectIds.has(objectId)) return null;
 
-    const object = composition.objects[objectId];
+    const object = document.graph.nodes[objectId];
     if (!object) return null;
 
     const nextVisitedObjectIds = new Set(visitedObjectIds);
     nextVisitedObjectIds.add(objectId);
     const isRoot = depth === 0;
-    const isGeneratedDayCards = object.kind === "generatedDayCards";
+    const isGeneratedDayCards = Boolean(
+      getStudioTimetableNodeExtension(document, object.id).generator,
+    );
     const childIds =
-      object.kind === "group"
-        ? getStudioTimetableObjectRenderableChildIds(object)
+      object.type === "group"
+        ? getStudioTimetableNodeChildIds(
+            object,
+            getStudioTimetableEditingVariantValue(object, editingVariants),
+          )
         : [];
-    const isGroup = isGeneratedDayCards || object.kind === "group";
+    const isGroup = isGeneratedDayCards || object.type === "group";
     const isCollapsed = collapsedLayerIdsSet.has(object.id);
     // 숨김은 아래로 물려받는다. 부모를 숨기면 자식도 화면에 나오지 않는다.
     const hidden = parentHidden || Boolean(object.hidden);
@@ -166,7 +180,7 @@ export function StudioTimetableLayerPanel({
           collapsed={isCollapsed}
           collapsible={
             isGeneratedDayCards ||
-            (object.kind === "group" && childIds.length > 0)
+            (object.type === "group" && childIds.length > 0)
           }
           depth={depth}
           draggable={isRoot}
@@ -175,7 +189,17 @@ export function StudioTimetableLayerPanel({
           key={object.id}
           label={object.label}
           selectedLayerId={selectedLayerId}
-          type={getStudioTimetableLayerTypeLabel(object.kind)}
+          type={getStudioTimetableLayerTypeLabel(object.type)}
+          typeLabel={isGeneratedDayCards ? "repeat" : undefined}
+          editingStateLabel={
+            object.variantSet
+              ? resolveStudioTimetableGraphEditingState(
+                  document,
+                  object,
+                  editingVariants,
+                )?.label
+              : undefined
+          }
           onDragEnd={isRoot ? onLayerDragEnd : undefined}
           onDragOver={
             isRoot ? (event) => onLayerDragOver(event, object.id) : undefined
@@ -210,6 +234,7 @@ export function StudioTimetableLayerPanel({
                     label={`${day.shortLabel ?? day.label} Card`}
                     selectedLayerId={selectedLayerId}
                     type="day"
+                    typeLabel="instance"
                     onDragEnd={onLayerDragEnd}
                     onDragOver={(event) =>
                       onLayerDragOver(event, layerId, day.id)
@@ -226,7 +251,7 @@ export function StudioTimetableLayerPanel({
               );
             })
           : null}
-        {!isCollapsed && object.kind === "group"
+        {!isCollapsed && object.type === "group"
           ? getStudioLayerPanelOrder(childIds).map((childId) =>
               renderObject(childId, depth + 1, hidden, nextVisitedObjectIds),
             )
@@ -238,14 +263,14 @@ export function StudioTimetableLayerPanel({
 
   return (
     <StudioLayerPanelFrame
-      summary={`${composition.rootObjectIds.length} placed objects`}
+      summary={`${document.domains.timetable.rootNodeIds.length} placed objects`}
       title="Timetable Layers"
     >
       <div className="px-3 pb-2 text-[10px] font-semibold leading-relaxed text-[var(--fg3)]">
         Select a day card to edit Position / Rotate.
       </div>
-      {getStudioLayerPanelOrder(composition.rootObjectIds).map((objectId) =>
-        renderObject(objectId),
+      {getStudioLayerPanelOrder(document.domains.timetable.rootNodeIds).map(
+        (objectId) => renderObject(objectId),
       )}
     </StudioLayerPanelFrame>
   );

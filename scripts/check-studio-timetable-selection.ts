@@ -12,11 +12,21 @@ import type {
   StudioTimetableComposition,
   StudioTimetableCompositionObject,
 } from "../src/types/template-studio";
-import { STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID } from "../src/utils/template-studio/timetable-composition";
+import { STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID } from "./helpers/studio-timetable-recipe";
 import {
   isStudioTimetableObjectOfPreset,
   resolveStudioTimetableSelection,
+  getStudioTimetableEditorFeatures,
+  resolveStudioTimetableEditingState,
+  resolveStudioTimetableDayCardEditorTarget,
 } from "../src/utils/template-studio/timetable-selection";
+
+import {
+  createSampleStudioDocument,
+  createInitialStudioRuntimeValues,
+} from "../src/utils/template-studio/sample-document";
+import { ensureStudioCapabilityVariant } from "../src/utils/template-studio/status-variants";
+import { cloneStudioTimetableComponentSet } from "../src/utils/template-studio/component-sets";
 
 const createObject = (
   id: string,
@@ -137,7 +147,7 @@ assert.equal(empty.dayId, null);
 assert.equal(empty.day, null);
 assert.equal(empty.textObject, null);
 assert.equal(empty.textValue, "");
-assert.equal(empty.variantSet, null);
+assert.equal(empty.editingState, null);
 assert.equal(empty.isFitParent, false);
 assert.equal(empty.isDayCards, false);
 
@@ -268,35 +278,31 @@ assert.equal(resolve("o", [createObject("o")]).isFitParent, false);
 
 // --- 프리셋별 판정 ---
 
-const presetChecks: Array<
-  [string, keyof ReturnType<typeof resolveStudioTimetableSelection>]
-> = [
-  ["weekDates", "isWeekDates"],
-  ["weeklyMemo", "isWeeklyMemo"],
-  ["artistProfileText", "isArtistProfileText"],
-  ["topObject", "isTopObject"],
-  ["board", "isBoard"],
-];
-
-for (const [presetId, flag] of presetChecks) {
+for (const presetId of [
+  "weekDates",
+  "weeklyMemo",
+  "artistProfileText",
+  "topObject",
+  "board",
+]) {
+  for (const object of [
+    createObject("o", { presetId } as never),
+    createObject("o", {
+      meta: { exception: { semanticKey: presetId } },
+    } as never),
+  ]) {
+    assert.equal(
+      isStudioTimetableObjectOfPreset(resolve("o", [object]).object, presetId),
+      true,
+      `${presetId}의 레거시 및 의미 역할을 알아본다.`,
+    );
+  }
   assert.equal(
-    resolve("o", [createObject("o", { presetId } as never)])[flag],
-    true,
-    `${presetId}를 presetId로 알아본다.`,
-  );
-  assert.equal(
-    resolve("o", [
-      createObject("o", {
-        meta: { exception: { semanticKey: presetId } },
-      } as never),
-    ])[flag],
-    true,
-    `${presetId}를 예외 meta로도 알아본다.`,
-  );
-  assert.equal(
-    resolve("o", [createObject("o")])[flag],
+    isStudioTimetableObjectOfPreset(
+      resolve("o", [createObject("o")]).object,
+      presetId,
+    ),
     false,
-    `프리셋이 없으면 ${presetId}가 아니다.`,
   );
 }
 
@@ -311,14 +317,14 @@ assert.equal(
       kind: "profileBlock",
       presetId: "profileBlock",
     } as never),
-  ]).isLegacyProfileBlock,
+  ]).features.assetSlots.includes("profileImage"),
   true,
   "예전 구조의 프로필 묶음을 알아본다.",
 );
 assert.equal(
   resolve("p", [
     createObject("p", { kind: "group", presetId: "profileBlock" } as never),
-  ]).isLegacyProfileBlock,
+  ]).features.assetSlots.includes("profileImage"),
   false,
   "지금 구조의 프로필은 예전 묶음이 아니다.",
 );
@@ -326,12 +332,14 @@ assert.equal(
 assert.equal(
   resolve("c", [
     createObject("c", { kind: "image", profileRole: "userImage" } as never),
-  ]).isProfileChild,
+  ]).features.assetSlots.includes("profileChild"),
   true,
   "프로필 자식 이미지를 알아본다.",
 );
 assert.equal(
-  resolve("c", [createObject("c", { kind: "image" } as never)]).isProfileChild,
+  resolve("c", [
+    createObject("c", { kind: "image" } as never),
+  ]).features.assetSlots.includes("profileChild"),
   false,
   "역할이 없는 이미지는 프로필 자식이 아니다.",
 );
@@ -342,13 +350,13 @@ assert.equal(
       kind: "image",
       structuredRole: "background",
     } as never),
-  ]).isStructuredBackground,
+  ]).features.assetSlots.includes("structuredBackground"),
   true,
 );
 assert.equal(
   resolve("b", [
     createObject("b", { kind: "group", structuredRole: "background" } as never),
-  ]).isStructuredBackground,
+  ]).features.assetSlots.includes("structuredBackground"),
   false,
   "이미지가 아니면 구조 배경이 아니다.",
 );
@@ -360,9 +368,143 @@ assert.deepEqual(
     createObject("o", {
       variantSet: { inputId: "i", defaultValue: "a", options: [] },
     } as never),
-  ]).variantSet,
+  ]).editingState?.owner.variantSet,
   { inputId: "i", defaultValue: "a", options: [] },
   "상태를 가진 객체는 상태 묶음을 그대로 준다.",
+);
+
+assert.deepEqual(dayCard.target, { kind: "dayCard", dayId: "mon" });
+assert.deepEqual(objectSelection.target, { kind: "object", objectId: "memo" });
+assert.equal(empty.target, null);
+assert.equal(
+  getStudioTimetableEditorFeatures(
+    createObject("plain", {
+      binding: { kind: "builtinField", fieldId: "week.date_range" },
+    }),
+  ).dateFormatMode,
+  "range",
+);
+assert.equal(
+  getStudioTimetableEditorFeatures(
+    createObject("plain", {
+      binding: { kind: "builtinField", fieldId: "week.start_date" },
+    }),
+  ).dateFormatMode,
+  "single",
+);
+assert.equal(
+  getStudioTimetableEditorFeatures(
+    createObject("label", {
+      presetId: "weekDates",
+      binding: { kind: "builtinField", fieldId: "day.label" },
+    }),
+  ).dateFormatMode,
+  null,
+);
+
+const stateOwner = createObject("owner", {
+  kind: "group",
+  label: "Artist",
+  variantSet: {
+    options: [
+      { value: "on", label: "On" },
+      { value: "off", label: "Off" },
+    ],
+    defaultValue: "on",
+    activeValue: "off",
+    rootByValue: { on: "on", off: "off" },
+  },
+});
+const stateChild = createObject("child", { parentId: "state" });
+const stateComposition = createComposition([
+  stateOwner,
+  createObject("state", { kind: "group", parentId: "owner" }),
+  stateChild,
+]);
+const originalState = JSON.stringify(stateComposition);
+const stateContext = resolveStudioTimetableEditingState(
+  stateComposition,
+  stateChild,
+  { owner: "off" },
+);
+assert.equal(stateContext?.owner.id, "owner");
+assert.equal(stateContext?.label, "Off");
+assert.equal(
+  JSON.stringify(stateComposition),
+  originalState,
+  "선택 해석은 저장된 객체를 수정하지 않는다.",
+);
+const cyclicComposition = createComposition([
+  createObject("a", { parentId: "b" }),
+  createObject("b", { parentId: "a" }),
+]);
+assert.equal(
+  resolveStudioTimetableEditingState(
+    cyclicComposition,
+    cyclicComposition.objects.a,
+  ),
+  null,
+  "순환하는 부모 참조도 선택 해석을 멈추지 않는다.",
+);
+
+// 요일별 지정, 현재 상태, fallback을 모두 렌더링과 같은 기준으로 해석한다.
+const navigationDocument = createSampleStudioDocument();
+const navigationValues = createInitialStudioRuntimeValues(navigationDocument);
+const timetable = navigationDocument.domains!.timetable!;
+const dayId = timetable.dayIds[0];
+const clone = cloneStudioTimetableComponentSet(
+  navigationDocument,
+  timetable.entryComponentId,
+);
+assert.ok(clone.ok);
+timetable.days[dayId].componentId = clone.componentId;
+navigationValues.timetable.entriesByDay[dayId] = [
+  { id: "entry", statusId: "offline" },
+];
+const savedNavigationDocument = JSON.stringify(navigationDocument);
+const offlineTarget = resolveStudioTimetableDayCardEditorTarget(
+  navigationDocument,
+  navigationValues,
+  dayId,
+);
+assert.equal(offlineTarget?.componentId, clone.componentId);
+assert.equal(offlineTarget?.statusId, "offline");
+assert.equal(
+  offlineTarget?.rootNodeId,
+  timetable.components[clone.componentId].variants.offline.rootNodeId,
+);
+assert.equal(JSON.stringify(navigationDocument), savedNavigationDocument);
+assert.equal(
+  resolveStudioTimetableDayCardEditorTarget(
+    navigationDocument,
+    navigationValues,
+    "missing",
+  ),
+  null,
+);
+timetable.capabilities!.multi.enabled = true;
+ensureStudioCapabilityVariant(navigationDocument, "multi");
+navigationValues.timetable.entriesByDay[dayId] = [
+  { id: "first", statusId: "multi" },
+  { id: "second", statusId: "multi" },
+];
+assert.equal(
+  resolveStudioTimetableDayCardEditorTarget(
+    navigationDocument,
+    navigationValues,
+    dayId,
+  )?.statusId,
+  "multi",
+);
+delete timetable.components[clone.componentId].variants.multi;
+assert.equal(
+  resolveStudioTimetableDayCardEditorTarget(
+    navigationDocument,
+    navigationValues,
+    dayId,
+  )?.statusId,
+  "online",
+  "상태가 없으면 렌더러와 같은 fallback 디자인을 연다.",
 );
 
 console.log("Studio timetable selection baseline checks passed.");
