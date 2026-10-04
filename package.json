@@ -5,6 +5,8 @@
   "scripts": {
     "check:studio:team-v8": "node --import tsx scripts/check-studio-team-v8.tsx",
     "check:studio:team-v8:browser": "node scripts/check-studio-team-v8-browser.mjs",
+    "check:studio:team-runtime": "node --import tsx scripts/check-team-studio-runtime.tsx",
+    "check:studio:team-runtime:browser": "node --import tsx scripts/check-team-studio-runtime-browser.mjs",
     "dev": "npm run dev:local",
     "dev:next": "next dev",
     "dev:local": "node scripts/dev-local.cjs",

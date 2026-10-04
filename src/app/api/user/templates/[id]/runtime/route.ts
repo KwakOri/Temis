@@ -147,6 +147,20 @@ export async function GET(
     }
 
     const isThumbnailRuntime = requestedKind === "thumbnail";
+    if (documentRecord.document.domains?.timetable?.team) {
+      return NextResponse.json({
+        template: { id: templateId, name: auth.templateName },
+        kind: "timetable",
+        revisionNo: documentRecord.publishedRevisionNo,
+        document: documentRecord.document,
+        runtimeValues: createStudioInitialRuntimeValues(
+          documentRecord.document,
+        ),
+        baseRevisionNo: documentRecord.publishedRevisionNo,
+        hasSavedState: false,
+        storageOwnerId: String(auth.userId),
+      });
+    }
     const state = isThumbnailRuntime
       ? null
       : await getTemplateStudioUserState(templateId, auth.userId);
@@ -266,6 +280,12 @@ export async function PUT(
         { status: 405 },
       );
     }
+
+    if (documentRecord.document.domains?.timetable?.team)
+      return NextResponse.json(
+        { error: "팀 일정은 기존 팀 시간표에서 관리합니다." },
+        { status: 405 },
+      );
 
     // Defense in depth: strip image-input values before pruning/validation
     // even though up-to-date clients never send them (images stay local to

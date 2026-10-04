@@ -5,6 +5,8 @@ import { ManagedCatalogImage } from "@/components/common/ManagedCatalogImage";
 
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import BackButton from "@/components/BackButton";
+import Link from "next/link";
+import { Users } from "lucide-react";
 import ArtistProfileManagement from "@/components/my-page/ArtistProfileManagement";
 import { UserTemplateSection } from "@/components/my-page/user-template-section";
 import CustomOrderForm from "@/components/shop/CustomOrderForm";
@@ -467,6 +469,16 @@ const MyPageContent = () => {
                     />
 
                     {/* Team Templates Section */}
+                    {activeTab === "templates" &&
+                      teams?.some((team) => team.is_active) && (
+                        <Link
+                          href="/team-time-table/studio"
+                          className="mb-4 flex items-center gap-2 border-t border-tertiary pt-4 text-sm font-semibold text-dark-gray"
+                        >
+                          <Users size={18} />
+                          Studio 팀 시간표
+                        </Link>
+                      )}
                     {activeTab === "templates" &&
                       !isArtistUser &&
                       !teamsLoading &&

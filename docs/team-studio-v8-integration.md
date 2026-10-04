@@ -22,8 +22,8 @@ capture. Production build, remote migrations, and deployment are excluded.
 
 ## Product boundary
 
-This is an administrator template designer. Binding a real team to a published
-Studio template and exposing it in the existing team scheduler is separate work.
+The first phase is an administrator template designer. The connected runtime
+phase below reads existing team schedules without replacing their editing flow.
 Team templates use timetable kind with a team domain extension; no new database
 template kind or independent draft table is introduced.
 
@@ -69,9 +69,53 @@ used the shared image proxy once. User runtime status changes preserved both
 broadcasts. Initial route-compilation timeouts were resolved by waiting for the
 existing development server; it was not restarted or replaced.
 
-## Remaining Integration
+## Connected Runtime
 
-The schedule adapter is implemented and tested but deliberately not connected
-to the operational team scheduler. A follow-up must select published team
-Studio templates, map real team members to slots, and supply authorized
-schedules/profile image URLs. Legacy team templates remain unchanged.
+- User entry: `/team-time-table/studio`, linked from My Page when the user has
+  an active team. Existing Studio template links also open this runtime when
+  their published document contains a team domain.
+- `GET /api/user/team-studio/options` lists entitled, published Studio team
+  templates and active member teams. Role-based administrators can list all.
+  Template-access and artist-link grants use the existing tables; publishing
+  or marking a template public does not grant ordinary users permission.
+- `GET /api/user/team-studio/:id/week` rechecks common template entitlement,
+  team membership (or common admin entitlement), active team, published
+  revision, and native document validity before reading member schedules.
+  Query user IDs come only from that team's membership rows, not the browser.
+- Member names and schedules are projected without emails or credential
+  fields. Missing/invalid schedules remain missing; offline remains offline.
+  Successful options/week responses use `Cache-Control: private, no-store`.
+- React Query caches are scoped by the authenticated user ID; account changes
+  cannot reuse another user's team catalog or weekly schedules.
+- The UI supports team/template/week selection, member-slot mapping,
+  session-local profile image URLs, explicit missing/unassigned warnings,
+  refresh, and shared PNG export. An unassigned team member blocks download
+  rather than silently dropping their schedule. Requested historical weeks
+  are preserved by the shared runtime shell.
+- Existing user runtime-state GET does not create or reconcile team states;
+  PUT rejects team documents with 405. Schedule creation/editing stays in the
+  existing individual timetable flow. This runtime never writes schedules,
+  per-user Studio state, or team-template associations.
+- `check:studio:team-runtime` covers service and actual API handlers with an
+  in-memory database, signed fixture authentication, 401/403 gates, 405 writes,
+  native rendering, stable mapping and historical weeks.
+- `check:studio:team-runtime:browser` uses the real protected route and runtime
+  with intercepted APIs, tests week changes, remapping, capacity warnings,
+  read-only schedules, desktop/mobile overflow, and remote-image PNG pixels.
+  It is not a live bucket CORS or production-data test.
+
+## Boundaries
+
+No database migration, operational DB/R2 mutation, or deployment is required
+or performed. Legacy team routes and associations remain unchanged. Member
+mapping and profile URLs are intentionally session-local; team-wide persistent
+template assignment and mapping would be a separate data-management feature.
+The current users table has no member profile-image field, so this phase does
+not invent one or reuse an unrelated artist profile without authorization.
+
+Connected phase verified on 2026-10-04: TypeScript, focused lint, the connected
+core/handler and browser checks, team v8 core, personal v8 commands/persistence,
+personal timetable runtime/runtime-form and thumbnail editor checks passed.
+The connected PNG retained 4,617 red fixture-image pixels and used the shared
+proxy once. The database-backed legacy runtime-image cleanup integration check
+was not run: this phase intentionally uses no database test environment.
