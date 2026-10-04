@@ -30,17 +30,26 @@ export const isRecord = (value: unknown): value is Record<string, unknown> =>
 export function parseLegacyAssetOwner(
   ownerKind: string,
   templateId: string,
+  purpose: string = ownerKind === "site" ? "site" : "runtime",
 ): LegacyAssetOwner {
   if (
     !LEGACY_ASSET_OWNER_KINDS.includes(
       ownerKind as LegacyAssetOwner["ownerKind"],
     ) ||
-    !UUID_PATTERN.test(templateId)
+    !(ownerKind === "site"
+      ? templateId === "homepage"
+      : UUID_PATTERN.test(templateId)) ||
+    !(ownerKind === "site"
+      ? purpose === "site"
+      : ["runtime", "cover"].includes(purpose))
   )
     throw new LegacyAssetError("유효한 템플릿 종류와 ID가 필요합니다.");
   return {
     ownerKind: ownerKind as LegacyAssetOwner["ownerKind"],
     templateId: templateId.toLowerCase(),
+    ...(purpose !== "runtime"
+      ? { purpose: purpose as LegacyAssetOwner["purpose"] }
+      : {}),
   };
 }
 export function parseLegacyAssetUpload(value: unknown): LegacyAssetUpload {
@@ -132,9 +141,11 @@ export function legacyAssetStoragePath(
   environment: string,
   asset: LegacyAssetUpload,
 ): string {
-  parseLegacyAssetOwner(owner.ownerKind, owner.templateId);
+  parseLegacyAssetOwner(owner.ownerKind, owner.templateId, owner.purpose);
   parseLegacyAssetUpload(asset);
   if (!/^[a-z0-9_-]{1,32}$/.test(environment))
     throw new LegacyAssetError("에셋 환경 구분이 필요합니다.", 503);
-  return `legacy-template-assets/${environment}/${owner.ownerKind}/${owner.templateId}/assets/${asset.assetId}/${asset.contentHash}.${LEGACY_IMAGE_EXTENSIONS[asset.mimeType]}`;
+  const purpose =
+    owner.purpose && owner.purpose !== "runtime" ? `/${owner.purpose}` : "";
+  return `legacy-template-assets/${environment}/${owner.ownerKind}/${owner.templateId}${purpose}/assets/${asset.assetId}/${asset.contentHash}.${LEGACY_IMAGE_EXTENSIONS[asset.mimeType]}`;
 }

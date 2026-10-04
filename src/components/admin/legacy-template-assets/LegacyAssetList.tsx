@@ -9,14 +9,22 @@ export const ownerLabels = {
   timetable: "시간표",
   team_timetable: "팀 시간표",
   thumbnail: "썸네일",
+  site: "공통",
+};
+export const purposeLabels = {
+  runtime: "내부 이미지",
+  cover: "대표 썸네일",
+  site: "홈페이지",
 };
 export function LegacyAssetList() {
   const query = useLegacyAssetSets();
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState("");
+  const [purpose, setPurpose] = useState("");
   const sets = (query.data?.sets ?? []).filter(
     (set) =>
       (!kind || set.ownerKind === kind) &&
+      (!purpose || (set.purpose ?? "runtime") === purpose) &&
       `${set.name} ${set.templateId}`
         .toLowerCase()
         .includes(search.toLowerCase()),
@@ -61,6 +69,19 @@ export function LegacyAssetList() {
             </option>
           ))}
         </select>
+        <select
+          aria-label="에셋 용도"
+          className="rounded border border-gray-300 px-3 py-2 text-sm"
+          value={purpose}
+          onChange={(event) => setPurpose(event.target.value)}
+        >
+          <option value="">전체 용도</option>
+          {Object.entries(purposeLabels).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
       </div>
       {query.isLoading ? (
         <p role="status">불러오는 중...</p>
@@ -79,6 +100,7 @@ export function LegacyAssetList() {
               <tr>
                 <th className="py-3">템플릿</th>
                 <th>종류</th>
+                <th>용도</th>
                 <th>슬롯</th>
                 <th>적용</th>
               </tr>
@@ -89,7 +111,7 @@ export function LegacyAssetList() {
                   <td className="py-4 pr-3">
                     <Link
                       className="flex items-center gap-2 text-blue-700 hover:underline"
-                      href={`/admin/legacy-template-assets/${set.ownerKind}/${set.templateId}`}
+                      href={`/admin/legacy-template-assets/${set.ownerKind}/${set.templateId}?purpose=${set.purpose ?? "runtime"}`}
                     >
                       <ImageIcon className="h-4 w-4 shrink-0" />
                       {set.name}
@@ -100,6 +122,9 @@ export function LegacyAssetList() {
                   </td>
                   <td className="pr-3 whitespace-nowrap">
                     {ownerLabels[set.ownerKind]}
+                  </td>
+                  <td className="pr-3 whitespace-nowrap">
+                    {purposeLabels[set.purpose ?? "runtime"]}
                   </td>
                   <td className="pr-3">
                     {Object.values(set.expected_slots).reduce(

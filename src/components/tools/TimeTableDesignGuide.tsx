@@ -1,7 +1,7 @@
 "use client";
 
 import { useTimeTableDesignGuideContext } from "@/contexts/TimeTableDesignGuideContext";
-import Image from "next/image";
+import { ManagedCatalogImage } from "@/components/common/ManagedCatalogImage";
 import { usePathname } from "next/navigation";
 import React from "react";
 
@@ -22,16 +22,13 @@ const TimeTableDesignGuide: React.FC<TimeTableDesignGuideProps> = ({
   if (!isVisible) return null;
 
   return (
-    <Image
+    <ManagedCatalogImage
       style={{
         opacity: opacity,
       }}
-      className={`absolute inset-0 z-50 pointer-events-none ${className}`}
+      className={`absolute inset-0 h-full w-full z-50 pointer-events-none ${className}`}
       src={`/thumbnail/${id}.png`}
       alt="도안 가이드"
-      fill
-      priority={false}
-      unoptimized={true}
     />
   );
 };

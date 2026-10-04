@@ -6,9 +6,10 @@ import {
 
 export const assetOwnerFromParams = async (
   params: Promise<{ ownerKind: string; id: string }>,
+  purpose?: string,
 ) => {
   const { ownerKind, id } = await params;
-  return parseLegacyAssetOwner(ownerKind, id);
+  return parseLegacyAssetOwner(ownerKind, id, purpose);
 };
 export const legacyAssetResponse = (value: unknown) =>
   NextResponse.json(value, {

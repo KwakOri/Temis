@@ -2,12 +2,14 @@ export const LEGACY_ASSET_OWNER_KINDS = [
   "timetable",
   "team_timetable",
   "thumbnail",
+  "site",
 ] as const;
 export type LegacyAssetOwnerKind = (typeof LEGACY_ASSET_OWNER_KINDS)[number];
 export type LegacyAssetBindings = Record<string, Record<string, string>>;
 export interface LegacyAssetOwner {
   ownerKind: LegacyAssetOwnerKind;
   templateId: string;
+  purpose?: "runtime" | "cover" | "site";
 }
 export interface LegacyAssetVersion {
   public_url?: string;
@@ -64,4 +66,8 @@ export interface LegacyAssetRuntime {
     string,
     Record<string, { src: string; width: number; height: number }>
   >;
+}
+export interface ProjectAssetManifest {
+  covers: Record<string, { src: string; width: number; height: number }>;
+  homepage: LegacyAssetRuntime;
 }

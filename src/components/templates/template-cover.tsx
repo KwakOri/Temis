@@ -6,6 +6,7 @@ import React, { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import type { ConsumerTemplateKind } from "@/utils/templates/consumer-template";
+import { useManagedCatalogUrl } from "@/hooks/query/useLegacyTemplateAssets";
 
 export interface TemplateCoverProps {
   src: string | null;
@@ -26,10 +27,11 @@ export function TemplateCover({
   imageClassName,
 }: TemplateCoverProps) {
   const [imageFailed, setImageFailed] = useState(false);
+  const managed = useManagedCatalogUrl(src);
 
   useEffect(() => {
     setImageFailed(false);
-  }, [src]);
+  }, [managed.src]);
 
   const showImage = Boolean(src) && !imageFailed;
 
@@ -43,9 +45,9 @@ export function TemplateCover({
       aria-label={`${alt} 대표 이미지`}
       data-template-cover-kind={kind}
     >
-      {showImage ? (
+      {managed.error ? <span role="alert" className="px-4 text-xs text-red-700">{managed.error.message}</span> : showImage ? (
         <img
-          src={src ?? undefined}
+          src={managed.src ?? undefined}
           alt={alt}
           loading="lazy"
           decoding="async"

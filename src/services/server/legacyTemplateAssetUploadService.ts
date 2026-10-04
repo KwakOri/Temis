@@ -133,6 +133,7 @@ export async function verifyLegacyAssetUpload(
     claims.setId !== detail.set.id ||
     claims.ownerKind !== owner.ownerKind ||
     claims.templateId !== owner.templateId ||
+    (claims.purpose ?? "runtime") !== (owner.purpose ?? "runtime") ||
     claims.environment !== environment ||
     typeof claims.stagingKey !== "string" ||
     !claims.stagingKey.startsWith(

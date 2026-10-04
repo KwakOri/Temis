@@ -121,6 +121,25 @@ async function main() {
     assert.equal((await admin.GET(request(userToken), context)).status, 403);
     assert.equal((await runtime.GET(request(), context)).status, 401);
     assert.equal(calls, 0);
+    const coverRequest = new NextRequest(
+      `http://localhost/api/legacy-template-assets/timetable/${id}?purpose=cover`,
+    );
+    assert.equal((await runtime.GET(coverRequest, context)).status, 403);
+    const siteContext = {
+      params: Promise.resolve({ ownerKind: "site", id: "homepage" }),
+    };
+    assert.equal(
+      (
+        await runtime.GET(
+          new NextRequest(
+            "http://localhost/api/legacy-template-assets/site/homepage",
+          ),
+          siteContext,
+        )
+      ).status,
+      403,
+    );
+    assert.equal(calls, 0, "Unprivileged management detail queried the DB");
     assert.equal(
       (
         await admin.GET(request(adminToken), {

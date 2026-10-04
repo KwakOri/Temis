@@ -3,7 +3,6 @@ import React, { Fragment } from "react";
 import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import TimeTableCell from "./TimeTableCell";
-import TimeTableWeeklyMemo from "./TimeTableWeeklyMemo";
 
 interface TimeTableGridProps {
   data: TDefaultCard[];
@@ -28,7 +27,6 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
           />
         </Fragment>
       ))}
-      <TimeTableWeeklyMemo />
     </div>
   );
 };

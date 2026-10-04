@@ -66,12 +66,32 @@ try {
   assert.equal(result.selectedTemplates, 1);
   assert.equal(result.templates[0].slots, 15);
   assert.equal(result.templates[0].templateId, owner.templateId);
+  const projectRun = run(["--project-assets", "--all"]);
+  assert.equal(projectRun.status, 0, projectRun.stderr);
+  const project = JSON.parse(projectRun.stdout);
+  assert.equal(project.selectedTemplates, 98);
+  assert.equal(project.selectedAssets, 111);
+  assert.equal(
+    project.templates.filter(
+      (item: { purpose: string }) => item.purpose === "cover",
+    ).length,
+    97,
+  );
+  assert.equal(
+    project.templates.find(
+      (item: { purpose: string }) => item.purpose === "site",
+    ).slots,
+    14,
+  );
   const failures = [
     ["--concurrency", "0"],
     ["--concurrency", "5"],
     ["--concurrency", "1.5"],
     ["--concurrency"],
     ["--unexpected"],
+    ["--project-assets"],
+    ["--project-assets", "--all", "--activate"],
+    ["--project-assets", "--all", ...selected],
     [...selected, "--catalog", invalid],
     [...selected, "--selection", invalid],
     [...selected, "--selection", unknown],

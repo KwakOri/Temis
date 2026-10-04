@@ -18,6 +18,7 @@ export const legacyAssetQueryKeys = {
       "detail",
       owner.ownerKind,
       owner.templateId,
+      owner.purpose ?? "runtime",
     ] as const,
   runtime: (userId: string, owner: LegacyAssetOwner) =>
     [
@@ -26,8 +27,31 @@ export const legacyAssetQueryKeys = {
       "runtime",
       owner.ownerKind,
       owner.templateId,
+      owner.purpose ?? "runtime",
     ] as const,
 };
+export function useProjectAssetManifest(
+  enabled = process.env.NEXT_PUBLIC_PROJECT_ASSETS_R2_ENABLED === "true",
+) {
+  return useQuery({
+    queryKey: ["legacy-template-assets", "public-project-manifest"],
+    queryFn: service.projectManifest,
+    enabled,
+    staleTime: 0,
+    retry: false,
+  });
+}
+export function useManagedCatalogUrl(src: string | null | undefined) {
+  const enabled =
+    process.env.NEXT_PUBLIC_PROJECT_ASSETS_R2_ENABLED === "true" &&
+    !!src &&
+    /^\/(?:thumbnail|team-thumbnails)\/[a-f0-9-]{36}\.png$/i.test(src);
+  const query = useProjectAssetManifest(enabled);
+  return {
+    src: enabled && src ? (query.data?.covers[src]?.src ?? src) : src,
+    error: enabled ? query.error : null,
+  };
+}
 function useAssetIdentity() {
   const { user, loading } = useAuth();
   const client = useQueryClient();
@@ -132,6 +156,7 @@ export function useLegacyAssetPreview(
       "preview",
       owner.ownerKind,
       owner.templateId,
+      owner.purpose ?? "runtime",
       changes,
     ],
     queryFn: () => service.preview(owner, changes!),

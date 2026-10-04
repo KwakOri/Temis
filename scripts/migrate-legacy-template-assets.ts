@@ -15,6 +15,11 @@ import {
   parseLegacyAssetUpload,
 } from "../src/utils/legacy-template-assets/contracts";
 import { downloadFileFromR2, uploadFileToR2Key } from "../src/lib/r2";
+import {
+  createProjectAssetTemplates,
+  type ManagedInventoryTemplate,
+} from "./lib/project-asset-inventory";
+import { TRUSTED_CALENDAR_SVG_HASH } from "../src/utils/legacy-template-assets/project-assets";
 
 const args = process.argv.slice(2);
 const value = (flag: string) => args[args.indexOf(flag) + 1];
@@ -30,6 +35,7 @@ const known = new Set([
   "--skip-blocked",
   "--concurrency",
   "--selection",
+  "--project-assets",
 ]);
 for (let i = 0; i < args.length; i++) {
   if (!known.has(args[i])) throw new Error("알 수 없는 인수입니다.");
@@ -100,20 +106,34 @@ if (
     ))
 )
   throw new Error("selection에는 조사된 템플릿 ID만 지정해야 합니다.");
-const templates = selection
-  ? inventory.templates.filter((t) =>
-      selection.some(
-        (row) =>
-          row.ownerKind === t.ownerKind && row.templateId === t.templateId,
-      ),
-    )
-  : inventory.templates;
+if (
+  args.includes("--project-assets") &&
+  (!args.includes("--all") ||
+    kind ||
+    templateId ||
+    selection ||
+    args.includes("--activate"))
+)
+  throw new Error(
+    "공통/대표 이미지 이관은 단독 --project-assets --all로 실행하며 활성화하지 않습니다.",
+  );
+const templates: ManagedInventoryTemplate[] = args.includes("--project-assets")
+  ? createProjectAssetTemplates(root, inventory)
+  : selection
+    ? inventory.templates.filter((t) =>
+        selection.some(
+          (row) =>
+            row.ownerKind === t.ownerKind && row.templateId === t.templateId,
+        ),
+      )
+    : inventory.templates;
 if ((kind || templateId) && !inventory.templates.length)
   throw new Error("일치하는 템플릿이 없습니다.");
 const columns = {
   timetable: "template_id",
   team_timetable: "team_template_id",
   thumbnail: "thumbnail_id",
+  site: "site_key",
 };
 const parents = {
   timetable: "templates",
@@ -128,9 +148,14 @@ async function main() {
           dryRun: true,
           summary: inventory.summary,
           selectedTemplates: templates.length,
+          selectedAssets: templates.reduce(
+            (total, item) => total + item.assets.length,
+            0,
+          ),
           templates: templates.map((item) => ({
             ownerKind: item.ownerKind,
             templateId: item.templateId,
+            purpose: item.purpose ?? "runtime",
             issues: item.issues,
             slots: Object.values(item.bindings).reduce(
               (sum, slots) => sum + Object.keys(slots).length,
@@ -200,15 +225,17 @@ async function main() {
         )
       )
         throw new Error("슬롯에서 사용하는 파일이 누락되었습니다.");
-      let parentQuery = client
-        .from(parents[template.ownerKind])
-        .select("id")
-        .eq("id", template.templateId);
-      if (template.ownerKind === "timetable")
-        parentQuery = parentQuery.eq("template_engine", "legacy");
-      const parent = await parentQuery.maybeSingle();
-      if (parent.error || !parent.data)
-        throw new Error("연결할 부모 템플릿이 없습니다.");
+      if (template.ownerKind !== "site") {
+        let parentQuery = client
+          .from(parents[template.ownerKind])
+          .select("id")
+          .eq("id", template.templateId);
+        if (template.ownerKind === "timetable")
+          parentQuery = parentQuery.eq("template_engine", "legacy");
+        const parent = await parentQuery.maybeSingle();
+        if (parent.error || !parent.data)
+          throw new Error("연결할 부모 템플릿이 없습니다.");
+      }
       const expected = Object.fromEntries(
         Object.entries(template.bindings).map(([theme, slots]) => [
           theme,
@@ -220,6 +247,7 @@ async function main() {
         .from("legacy_template_asset_sets")
         .select("*")
         .eq(column, template.templateId)
+        .eq("purpose", template.purpose ?? "runtime")
         .maybeSingle();
       if (set.error) throw new Error("에셋 스키마를 조회하지 못했습니다.");
       if (set.data?.active_revision_id) {
@@ -232,7 +260,11 @@ async function main() {
       if (!set.data) {
         const created = await client
           .from("legacy_template_asset_sets")
-          .insert({ [column]: template.templateId, expected_slots: expected })
+          .insert({
+            [column]: template.templateId,
+            purpose: template.purpose ?? "runtime",
+            expected_slots: expected,
+          })
           .select("*")
           .single();
         if (created.error?.code === "23505")
@@ -240,6 +272,7 @@ async function main() {
             .from("legacy_template_asset_sets")
             .select("*")
             .eq(column, template.templateId)
+            .eq("purpose", template.purpose ?? "runtime")
             .maybeSingle();
         else set = created;
       }
@@ -263,18 +296,25 @@ async function main() {
       }
       const versionIds = new Map<string, string>();
       const processAsset = async (asset: InventoryAsset) => {
+        const trustedSvg =
+          template.ownerKind === "site" &&
+          asset.file === "public/images/calendar.svg" &&
+          asset.contentHash === TRUSTED_CALENDAR_SVG_HASH;
         const upload = parseLegacyAssetUpload({
           assetId: asset.assetId,
           contentHash: asset.contentHash,
-          mimeType: asset.mimeType,
+          mimeType: trustedSvg ? "image/png" : asset.mimeType,
           byteSize: asset.byteSize,
           originalFilename: asset.originalFilename,
         });
-        const storagePath = legacyAssetStoragePath(
+        const canonicalPath = legacyAssetStoragePath(
           template,
           environment,
           upload,
         );
+        const storagePath = trustedSvg
+          ? canonicalPath.replace(/\.png$/, ".svg")
+          : canonicalPath;
         const bytes = readFileSync(path.join(root, asset.file));
         if (
           !asset.width ||

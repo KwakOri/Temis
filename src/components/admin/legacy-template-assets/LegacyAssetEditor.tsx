@@ -16,13 +16,14 @@ import AdminTabHeader from "@/components/admin/AdminTabHeader";
 import {
   useLegacyAssetDetail,
   useLegacyAssetMutations,
+  useLegacyAssetPreview,
 } from "@/hooks/query/useLegacyTemplateAssets";
 import type {
   LegacyAssetChange,
   LegacyAssetDetail,
   LegacyAssetOwner,
 } from "@/types/legacy-template-assets";
-import { ownerLabels } from "./LegacyAssetList";
+import { ownerLabels, purposeLabels } from "./LegacyAssetList";
 
 const button = cva(
   "inline-flex items-center justify-center gap-2 rounded border px-3 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed",
@@ -40,6 +41,7 @@ const runtimePaths = {
   timetable: "time-table",
   team_timetable: "team-time-table",
   thumbnail: "thumbnails",
+  site: "",
 };
 const assetUrl = (path: string) =>
   `${process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL?.replace(/\/$/, "")}/${path}`;
@@ -80,6 +82,10 @@ function Editor({
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const [preview, setPreview] = useState(false);
+  const previewQuery = useLegacyAssetPreview(
+    owner,
+    preview && owner.purpose === "cover" ? changes : null,
+  );
   const [confirmRestore, setConfirmRestore] = useState<string | null>(null);
   const revision = detail.revisions.find(
     (item) => item.id === detail.set.active_revision_id,
@@ -148,7 +154,7 @@ function Editor({
       </Link>
       <AdminTabHeader
         title={detail.set.name}
-        description={`${ownerLabels[owner.ownerKind]} · ${detail.set.mode === "r2" ? "R2" : "로컬"} · #${revision?.revision_no ?? 0}`}
+        description={`${ownerLabels[owner.ownerKind]} · ${purposeLabels[owner.purpose ?? "runtime"]} · ${detail.set.mode === "r2" ? "R2" : "로컬"} · #${revision?.revision_no ?? 0}`}
       >
         <button
           aria-label="새로고침"
@@ -345,7 +351,11 @@ function Editor({
             onClick={() => setPreview(true)}
           >
             <Eye className="h-4 w-4" />
-            시간표 미리보기
+            {owner.purpose === "cover"
+              ? "이미지 미리보기"
+              : owner.ownerKind === "site"
+                ? "홈 미리보기"
+                : "시간표 미리보기"}
           </button>
           <button
             className={button({ intent: "primary" })}
@@ -367,11 +377,26 @@ function Editor({
               : `${changes.length}개 적용`}
           </button>
         </div>
-        {preview && (
+        {preview &&
+          owner.purpose === "cover" &&
+          (previewQuery.isError ? (
+            <p role="alert" className="text-red-700">
+              {previewQuery.error.message}
+            </p>
+          ) : previewQuery.isPending ? (
+            <p role="status">불러오는 중...</p>
+          ) : (
+            <img
+              alt="교체 후보 대표 썸네일"
+              className="max-h-[600px] w-full object-contain"
+              src={previewQuery.data.images.first.cover.src}
+            />
+          ))}
+        {preview && owner.purpose !== "cover" && (
           <iframe
             title="교체 후보 시간표"
             className="h-[600px] w-full border border-gray-200"
-            src={`/${runtimePaths[owner.ownerKind]}/${owner.templateId}?legacyAssetPreview=${encodeURIComponent(JSON.stringify(changes))}`}
+            src={`${owner.ownerKind === "site" ? "/" : `/${runtimePaths[owner.ownerKind]}/${owner.templateId}`}?legacyAssetPreview=${encodeURIComponent(JSON.stringify(changes))}`}
           />
         )}
       </section>

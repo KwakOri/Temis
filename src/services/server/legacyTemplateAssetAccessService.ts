@@ -9,6 +9,11 @@ export async function requireLegacyAssetRuntimeAccess(
   user: JWTPayload | null,
 ): Promise<void> {
   if (user?.role === "admin") return;
+  if (owner.ownerKind === "site" || owner.purpose === "cover")
+    throw new LegacyAssetError(
+      "이 관리 에셋은 관리자만 조회할 수 있습니다.",
+      403,
+    );
   // The sole legacy thumbnail route is public today; do not introduce a Studio entitlement here.
   if (owner.ownerKind === "thumbnail") return;
   if (!user) throw new LegacyAssetError("로그인이 필요합니다.", 401);

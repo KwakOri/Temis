@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { ConsumerTemplateCard } from "../src/components/templates/consumer-template-card";
 import {
@@ -128,7 +129,9 @@ for (const invalid of [
 }
 
 const timetableMarkup = renderToStaticMarkup(
-  <ConsumerTemplateCard template={legacy} showEngineBadge />,
+  <QueryClientProvider client={new QueryClient()}>
+    <ConsumerTemplateCard template={legacy} showEngineBadge />
+  </QueryClientProvider>,
 );
 assert.match(
   timetableMarkup,
@@ -146,7 +149,9 @@ assert.ok(!timetableMarkup.includes("onClick"));
 assert.ok(!timetableMarkup.includes("innerHTML"));
 
 const thumbnailMarkup = renderToStaticMarkup(
-  <ConsumerTemplateCard template={customThumbnail} />,
+  <QueryClientProvider client={new QueryClient()}>
+    <ConsumerTemplateCard template={customThumbnail} />
+  </QueryClientProvider>,
 );
 assert.match(thumbnailMarkup, /<a\b[^>]*href="\/thumbnail\/studio-thumbnail"/);
 assert.ok(thumbnailMarkup.includes("썸네일"));

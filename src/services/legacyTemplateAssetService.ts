@@ -5,12 +5,13 @@ import type {
   LegacyAssetRuntime,
   LegacyAssetSet,
   LegacyAssetVersion,
+  ProjectAssetManifest,
 } from "@/types/legacy-template-assets";
 import { MAX_LEGACY_ASSET_BYTES } from "@/utils/legacy-template-assets/contracts";
 
 const base = "/api/admin/legacy-template-assets";
 const path = (owner: LegacyAssetOwner) =>
-  `${base}/${encodeURIComponent(owner.ownerKind)}/${encodeURIComponent(owner.templateId)}`;
+  `${base}/${encodeURIComponent(owner.ownerKind)}/${encodeURIComponent(owner.templateId)}?purpose=${owner.purpose ?? (owner.ownerKind === "site" ? "site" : "runtime")}`;
 async function request<T>(url: string, body?: unknown): Promise<T> {
   const response = await fetch(url, {
     cache: "no-store",
@@ -29,6 +30,7 @@ async function request<T>(url: string, body?: unknown): Promise<T> {
   return data as T;
 }
 export const LegacyTemplateAssetService = {
+  projectManifest: () => request<ProjectAssetManifest>("/api/project-assets"),
   list: () => request<{ sets: LegacyAssetSet[] }>(base),
   detail: (owner: LegacyAssetOwner) => request<LegacyAssetDetail>(path(owner)),
   preview: (owner: LegacyAssetOwner, changes: LegacyAssetChange[]) =>
@@ -67,7 +69,7 @@ export const LegacyTemplateAssetService = {
     }),
   runtime: (owner: LegacyAssetOwner) =>
     request<LegacyAssetRuntime>(
-      `/api/legacy-template-assets/${owner.ownerKind}/${owner.templateId}`,
+      `/api/legacy-template-assets/${owner.ownerKind}/${owner.templateId}?purpose=${owner.purpose ?? "runtime"}`,
     ),
   async upload(
     owner: LegacyAssetOwner,

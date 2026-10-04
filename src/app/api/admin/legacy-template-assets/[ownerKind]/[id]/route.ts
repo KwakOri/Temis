@@ -29,7 +29,10 @@ export async function GET(request: NextRequest, context: Context) {
     if (!actor.ok) return actor.response;
     return legacyAssetResponse(
       await requireLegacyAssetDetail(
-        await assetOwnerFromParams(context.params),
+        await assetOwnerFromParams(
+          context.params,
+          request.nextUrl.searchParams.get("purpose") ?? undefined,
+        ),
       ),
     );
   } catch (error) {
@@ -40,7 +43,10 @@ export async function POST(request: NextRequest, context: Context) {
   try {
     const actor = await requireTemplateStudioAdminActor(request);
     if (!actor.ok) return actor.response;
-    const owner = await assetOwnerFromParams(context.params);
+    const owner = await assetOwnerFromParams(
+      context.params,
+      request.nextUrl.searchParams.get("purpose") ?? undefined,
+    );
     const detail = await requireLegacyAssetDetail(owner);
     if (Number(request.headers.get("content-length")) > 256 * 1024)
       throw new LegacyAssetError("요청이 너무 큽니다.", 413);

@@ -10,11 +10,15 @@ const walk = (directory: string): string[] =>
       ? walk(path.join(directory, entry.name))
       : [path.join(directory, entry.name)],
   );
-const files = ["time-table", "team-time-table", "thumbnails"]
+const homepage = process.argv.includes("--homepage");
+const files = (
+  homepage ? ["_sample"] : ["time-table", "team-time-table", "thumbnails"]
+)
   .flatMap((kind) => walk(path.join(root, "src/app/(root)", kind)))
   .filter(
     (file) =>
-      /\/(?:[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12})\//i.test(file) &&
+      (homepage ||
+        /\/(?:[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12})\//i.test(file)) &&
       file.endsWith(".tsx"),
   );
 const apply = process.argv.includes("--apply");

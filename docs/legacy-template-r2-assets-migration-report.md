@@ -25,7 +25,9 @@
 - 사후 읽기 전용 검사에서 모든 원본 asset ID/해시/크기/해상도, 테마/키/버전 연결과 expected_slots가 일치했다.
 - 운영 부모 catalog에서는 조사한 99개 템플릿 모두의 부모가 존재했다. 로컬 catalog의 95/99와 구분한다.
 - 첫 대표 템플릿 1개, 경고 보류 배치 69개, 검토 완료한 경고 배치 26개를 순차 등록했다. 이관 실패 0개.
-- 공통/public/샘플 등 템플릿 외 146개 이미지는 이번 registry/관리 UI의 대상이 아니며 업로드하지 않았다.
+- 템플릿 외 146개 이미지는 현재 registry/관리 UI에 연결하지 않았으며 업로드하지 않았다.
+  후속 조사에서 97개는 템플릿 대표 썸네일, 14개는 실제 홈 이미지로 확인했다.
+  [추가 이미지 및 보류 템플릿 조사](./legacy-template-project-assets-audit.md)를 참고한다.
 
 ## 경고 검토
 
@@ -73,12 +75,14 @@ TimeTableBoard는 import만 남아 있고 JSX 사용이 주석 처리돼 있다.
 
 | 템플릿 ID | 원본 문제 | 기존 파일 수 |
 | --- | --- | ---: |
-| `0c10c964-b83c-4309-a81b-76550aba17b0` | `_img/imgs.ts`가 import하는 `board.png`, `week_dates.png`, `weekly_memo.png` 누락. TimeTableBoard/WeeklyMemoCard의 `first.board`, `first.weekly_memo` 미정의 | 7 |
-| `28c2b9fb-9d7e-4aaa-822d-96909d384032` | 실제 조건부 메모 렌더의 `_components/TimeTableWeeklyMemo.tsx`가 미정의 `first.weekly_memo` 참조 | 16 |
-| `8f9bb89d-34f5-45c1-b923-16366197af33` | 실제 조건부 메모 렌더의 `_components/TimeTableWeeklyMemo.tsx`가 미정의 `first.memo` 참조 | 17 |
+| `0c10c964-b83c-4309-a81b-76550aba17b0` | 미사용 누락 import 3개. 보드/메모의 미정의 참조는 잔여 코드이며 해당 JSX는 현재 렌더되지 않음 | 7 |
+| `28c2b9fb-9d7e-4aaa-822d-96909d384032` | 메모 조건부 렌더에서 미정의 `first.weekly_memo` 참조. 메모 설정 UI는 비활성 | 16 |
+| `8f9bb89d-34f5-45c1-b923-16366197af33` | 메모 조건부 렌더에서 미정의 `first.memo` 참조. 메모 설정 UI는 비활성 | 17 |
 
 위 40개 실제 파일과 존재하지 않는 import 3개는 등록하지 않았다. 임의 대체 이미지나 키 변경을
-추정해 넣지 않았다. 원본 확인/복구 후 해당 템플릿만 재조사하고 이관해야 한다.
+추정해 넣지 않았다. 후속 Git/원본/렌더 조사에서는 최초 추가 때부터 남은 잔여 코드로 확인했다.
+새 원본 복구가 반드시 필요한 것으로 단정하지 않으며, 최소 정리와 옵션 검증 후 재조사/이관한다.
+자세한 근거는 [보류 템플릿 조사](./legacy-template-project-assets-audit.md)를 참고한다.
 
 ## 실행 방식과 재실행
 

@@ -44,7 +44,11 @@ registry migration, 업로드/검증 서비스, 관리자 화면, 레거시 reso
 템플릿 외 146개 이미지(public/샘플/공통 등)는 조사만 했으며 resolver에 연결하지 않았다.
 후속 운영 catalog 읽기 전용 대조에서는 99개 폴더 모두의 부모가 확인됐다.
 정적 참조 경고 29개 중 미사용 함수/미연결 모듈 등의 26개를 검토 후 등록했고,
-원본 파일 또는 실제 렌더 참조가 잘못된 3개 템플릿은 이관하지 않았다.
+누락 import/메모 참조 경고가 남은 3개 템플릿은 이관하지 않았다.
+후속 [파일별 사용처 및 Git 조사](./legacy-template-project-assets-audit.md)에서 템플릿 외 146개 중
+97개는 실제 대표 썸네일, 14개는 홈 이미지로 확인했다. 보류 3개는 최초 추가 때부터 남은
+잔여 코드로, 히오리의 보드/메모 JSX는 렌더되지 않으며 나머지 두 메모 설정 UI도 비활성이다.
+원본 복구가 반드시 필요한 것으로 단정하지 않고 최소 정리/옵션 검증을 검토한다.
 
 inventory/계약/API fixture, 원본 키/조건/레이아웃 보존, lint와 TypeScript 검사가 통과했다.
 Docker의 network-none 임시 PostgreSQL에서 FK, 권한, 원자적 적용/복원 검사도 통과했다.
@@ -182,3 +186,39 @@ bucket 공개 설정과 CORS는 별개이며 R2는 객체별 public-read ACL로 
 [R2 CORS 문서](https://developers.cloudflare.com/r2/buckets/cors/),
 [S3 호환성 문서](https://developers.cloudflare.com/r2/api/s3/api/)를 참고한다.
 이번 검증에서는 bucket 공개/CORS 정책을 변경하지 않았다.
+
+## 대표 썸네일 및 홈 에셋 확장
+
+후속 승인에 따라 내부 이미지(`runtime`), 대표 썸네일(`cover`), 홈페이지(`site`) 목적을 분리했다.
+부모 catalog는 변경하지 않으며 새 에셋 세트에 `purpose`/`site_key`를 추가하는 후속 migration을 사용한다.
+기존 세트는 `purpose=runtime`이며 기존 경로와 슬롯 계약은 유지한다.
+
+- 대표 썸네일 97개는 템플릿 종류/ID별 `first.cover` 슬롯으로 관리한다.
+- 홈 이미지 14개는 `site/homepage` 세트로 관리한다. 샘플의 기존 8개 키는 바꾸지 않았다.
+- `/admin/legacy-template-assets`에서 종류/용도별 필터, 업로드/미리보기/적용/복원을 재사용한다.
+  대표 이미지도 32MiB 검증 계약을 사용하므로 기존 원본 12MB 이미지 2개를 재압축하지 않는다.
+- 사용자가 승인한 공개 범위는 `/api/project-assets`의 GET만 허용한다.
+  소스의 명시적 허용 목록 97개와 홈페이지 14개 키만 공개하고 내부 이미지/이력/관리 작업은 제외한다.
+  기존 template entitlement와 관리자 인증, DB RLS/service-role 접근 제한은 유지한다.
+- 소비자 cover, 구매 내역, 팀 마이페이지, 가이드, 관리자 썸네일 조회를 연결했다.
+  홈 배경과 샘플 시간표/모바일 예시/기능 이미지도 같은 데이터에 연결했다.
+- `NEXT_PUBLIC_PROJECT_ASSETS_R2_ENABLED=true`일 때만 공개 에셋 manifest를 사용한다.
+  기본 꺼짐이며 `NEXT_PUBLIC_LEGACY_TEMPLATE_R2_ENABLED`와 별도다.
+- 초기 데이터 모드는 local을 유지하고 원본 파일/import도 보존한다. 앱 배포/활성화는 제외한다.
+- 신뢰한 저장소 달력 SVG 한 개는 경로와 SHA-256을 고정하여 seed한다.
+  브라우저 SVG 업로드는 계속 거부하며 관리 화면에서는 검증된 raster로 교체할 수 있다.
+- 히오리의 누락 미사용 import 3개, 아이 쿠먀먀/동동의 비활성 메모 잔여 JSX/import만 제거했다.
+  회귀 검사에서 지정한 제거 외 변경이 없고 원본 40개가 유지되는지 확인한다.
+
+```sh
+npm run check:legacy-assets:held-cleanup
+npm run check:project-assets
+npm run check:legacy-assets:migration
+npm run check:legacy-assets:db -- --docker
+npm run migrate:project-assets
+# 실제 운영 DB/R2 등록은 대상/승인 확인 후 실행, 활성화하지 않음
+LEGACY_TEMPLATE_ASSET_ENV=production npm run migrate:project-assets -- \
+  --apply --env-dir /Users/kwakori/projects/promotion/temis --concurrency 3
+```
+
+앱 아이콘 13개, 개발용 16개, 미사용 후보 6개는 이 확장에서도 이동/삭제하지 않는다.

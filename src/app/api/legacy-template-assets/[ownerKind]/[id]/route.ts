@@ -15,7 +15,10 @@ export async function GET(
   { params }: { params: Promise<{ ownerKind: string; id: string }> },
 ) {
   try {
-    const owner = await assetOwnerFromParams(params);
+    const owner = await assetOwnerFromParams(
+      params,
+      request.nextUrl.searchParams.get("purpose") ?? undefined,
+    );
     const { user } = await optionalAuth(request);
     await requireLegacyAssetRuntimeAccess(owner, user);
     const detail = await getLegacyAssetDetail(owner);

@@ -30,6 +30,23 @@ async function main() {
   );
   assert.throws(() => legacyAssetStoragePath(owner, "../prod", upload));
   assert.throws(() => parseLegacyAssetOwner("studio", owner.templateId));
+  const cover = parseLegacyAssetOwner("timetable", owner.templateId, "cover");
+  const site = parseLegacyAssetOwner("site", "homepage");
+  assert.equal(site.purpose, "site");
+  assert.throws(() => parseLegacyAssetOwner("site", "other"));
+  assert.throws(() => parseLegacyAssetOwner("site", "homepage", "runtime"));
+  assert.throws(() =>
+    parseLegacyAssetOwner("timetable", owner.templateId, "site"),
+  );
+  assert.notEqual(
+    legacyAssetStoragePath(owner, "local", upload),
+    legacyAssetStoragePath(cover, "local", upload),
+  );
+  assert.ok(
+    legacyAssetStoragePath(site, "local", upload).includes(
+      "/site/homepage/site/assets/",
+    ),
+  );
   assert.throws(() =>
     parseLegacyAssetUpload({ ...upload, assetId: "../../other" }),
   );

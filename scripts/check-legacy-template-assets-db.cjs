@@ -67,6 +67,30 @@ BEGIN
    RAISE EXCEPTION 'foreign active revision was accepted'; EXCEPTION WHEN foreign_key_violation THEN NULL; END;
  IF has_table_privilege('anon','legacy_template_asset_sets','SELECT') OR has_table_privilege('authenticated','legacy_template_asset_versions','INSERT') OR has_table_privilege('service_role','legacy_template_asset_versions','UPDATE') OR has_function_privilege('anon','apply_legacy_template_asset_revision(uuid,uuid,jsonb,bigint,text,text)','EXECUTE') THEN RAISE EXCEPTION 'unsafe privileges'; END IF;
 END $$;
+${readFileSync(path.join(__dirname, "../supabase/migrations/20261004010000_extend_legacy_assets_for_covers_and_site.sql"), "utf8")}
+DO $$ DECLARE cover_id uuid; site_id uuid; runtime_id uuid; runtime_version uuid;
+BEGIN
+ IF (SELECT count(*) FROM legacy_template_asset_sets WHERE purpose='runtime') <> 2
+    OR (SELECT count(*) FROM legacy_template_asset_revisions) <> 2 THEN RAISE EXCEPTION 'existing runtime data changed'; END IF;
+ SELECT id INTO runtime_id FROM legacy_template_asset_sets WHERE template_id='00000000-0000-4000-8000-000000000001' AND purpose='runtime';
+ INSERT INTO legacy_template_asset_sets(template_id,purpose,expected_slots)
+ VALUES('00000000-0000-4000-8000-000000000001','cover','{"first":["cover"]}') RETURNING id INTO cover_id;
+ INSERT INTO legacy_template_asset_sets(site_key,purpose,expected_slots)
+ VALUES('homepage','site','{"site":["demo_calendar"]}') RETURNING id INTO site_id;
+ BEGIN INSERT INTO legacy_template_asset_sets(template_id,purpose,expected_slots)
+   VALUES('00000000-0000-4000-8000-000000000001','cover','{"first":["cover"]}');
+   RAISE EXCEPTION 'duplicate cover accepted'; EXCEPTION WHEN unique_violation THEN NULL; END;
+ BEGIN INSERT INTO legacy_template_asset_sets(site_key,purpose,expected_slots) VALUES('homepage','runtime','{"first":["x"]}');
+   RAISE EXCEPTION 'site runtime accepted'; EXCEPTION WHEN check_violation THEN NULL; END;
+ BEGIN INSERT INTO legacy_template_asset_sets(template_id,purpose,expected_slots)
+   VALUES('00000000-0000-4000-8000-000000000001','site','{"first":["x"]}');
+   RAISE EXCEPTION 'template site accepted'; EXCEPTION WHEN check_violation THEN NULL; END;
+ SELECT id INTO runtime_version FROM legacy_template_asset_versions WHERE asset_set_id=runtime_id LIMIT 1;
+ BEGIN PERFORM apply_legacy_template_asset_revision(cover_id,NULL,jsonb_build_object('first',jsonb_build_object('cover',runtime_version)),1);
+   RAISE EXCEPTION 'runtime version accepted in cover'; EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+ IF has_table_privilege('anon','legacy_template_asset_sets','SELECT') OR has_table_privilege('authenticated','legacy_template_asset_versions','INSERT') THEN RAISE EXCEPTION 'permissions expanded'; END IF;
+ IF (SELECT mode FROM legacy_template_asset_sets WHERE id=cover_id) <> 'local' OR (SELECT mode FROM legacy_template_asset_sets WHERE id=site_id) <> 'local' THEN RAISE EXCEPTION 'new set activated'; END IF;
+END $$;
 `;
   if (docker) {
     run(

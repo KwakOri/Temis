@@ -23,6 +23,7 @@ export const legacyAssetParentColumns = {
   timetable: "template_id",
   team_timetable: "team_template_id",
   thumbnail: "thumbnail_id",
+  site: "site_key",
 } as const;
 export const legacyAssetParentTables = {
   timetable: "templates",
@@ -33,6 +34,8 @@ type SetRow = Omit<LegacyAssetSet, "ownerKind" | "templateId" | "name"> & {
   template_id: string | null;
   team_template_id: string | null;
   thumbnail_id: string | null;
+  site_key: string | null;
+  purpose: NonNullable<LegacyAssetOwner["purpose"]>;
 };
 async function readLegacyHistory<T>(
   query: ReturnType<typeof legacyAssetDb.from<T[]>>,
@@ -70,11 +73,17 @@ function mapSet(row: SetRow, name: string): LegacyAssetSet {
     ? "timetable"
     : row.team_template_id
       ? "team_timetable"
-      : "thumbnail";
+      : row.thumbnail_id
+        ? "thumbnail"
+        : "site";
   return {
     id: row.id,
     ownerKind,
-    templateId: (row.template_id ?? row.team_template_id ?? row.thumbnail_id)!,
+    templateId: (row.template_id ??
+      row.team_template_id ??
+      row.thumbnail_id ??
+      row.site_key)!,
+    purpose: row.purpose ?? "runtime",
     name,
     mode: row.mode,
     expected_slots: row.expected_slots,
@@ -91,7 +100,7 @@ export async function listLegacyAssetSets(): Promise<LegacyAssetSet[]> {
   const results: LegacyAssetSet[] = [];
   for (const kind of Object.keys(
     legacyAssetParentTables,
-  ) as LegacyAssetOwner["ownerKind"][]) {
+  ) as (keyof typeof legacyAssetParentTables)[]) {
     const parents = await legacyAssetDb
       .from<Array<{ id: string; name: string }>>(legacyAssetParentTables[kind])
       .select("id,name");
@@ -104,6 +113,9 @@ export async function listLegacyAssetSets(): Promise<LegacyAssetSet[]> {
       if (id) results.push(mapSet(row, names.get(id) ?? id));
     }
   }
+  for (const row of sets.data ?? []) {
+    if (row.site_key) results.push(mapSet(row, "홈페이지"));
+  }
   return results;
 }
 export async function getLegacyAssetDetail(
@@ -113,15 +125,19 @@ export async function getLegacyAssetDetail(
     .from<SetRow>("legacy_template_asset_sets")
     .select("*")
     .eq(legacyAssetParentColumns[owner.ownerKind], owner.templateId)
+    .eq("purpose", owner.purpose ?? "runtime")
     .maybeSingle();
   checkDbError(result.error);
   if (!result.data) return null;
   const row = result.data;
-  const parent = await legacyAssetDb
-    .from<{ name: string }>(legacyAssetParentTables[owner.ownerKind])
-    .select("name")
-    .eq("id", owner.templateId)
-    .single();
+  const parent =
+    owner.ownerKind === "site"
+      ? { data: { name: "홈페이지" }, error: null }
+      : await legacyAssetDb
+          .from<{ name: string }>(legacyAssetParentTables[owner.ownerKind])
+          .select("name")
+          .eq("id", owner.templateId)
+          .single();
   checkDbError(parent.error);
   const versions = await readLegacyHistory(
     legacyAssetDb
