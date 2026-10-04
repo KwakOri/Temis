@@ -55,11 +55,14 @@ CORS 없는 원격 이미지에서 프록시를 거쳐 1280x720 PNG 생성과 �
 실제 R2 테스트는 사용자 승인 하에 verification 경로에만 파일을 생성하고 삭제한다.
 실제 R2 presigned PUT/다운로드/검증 바이트 재업로드가 일치했고, 공개 이미지 표시와
 1280x720 PNG 배경 픽셀 `[21,27,50,255]` 일치를 확인했다. 테스트 객체 2개는 모두 삭제했다.
-`http://127.0.0.1:3108` 브라우저 PUT은 실패했다. 해당 개발 origin의 CORS를 확인/허용해야 한다.
+`http://127.0.0.1:3108` 브라우저 PUT은 실패했다. 이후 사용자가 기존 정책은 localhost:3000과
+production만 허용한다고 확인했다. 허용된 `http://localhost:3000` origin의 실제 브라우저 PUT은
+성공했고 업로드 바이트 및 원격 표시/PNG 검증도 통과했다. 3108을 추가 허용할 필요는 없다.
 화면 표시와 PNG 성공이 관리 화면 브라우저 업로드의 CORS 성공을 의미하지 않는다.
 실제 운영 DB/R2를 연결한 읽기 전용 브라우저 검증에서도 관리자 96개 목록, 대표 템플릿의
 이미지 5개 로딩, desktop/mobile 화면, 원격 이미지 표시와 1280x720 PNG 픽셀 일치를 확인했다.
-현재 R2 키의 bucket CORS 조회는 AccessDenied(403)이며 정책 변경은 실행하지 못했다.
+현재 R2 키의 bucket CORS 조회는 AccessDenied(403)이지만 기존 허용 origin의 업로드 검증은
+통과했으므로 bucket 관리 권한 추가/정책 변경은 이번 작업의 선행 조건이 아니다.
 
 ```sh
 npm run check:legacy-assets:inventory
@@ -159,13 +162,14 @@ schema 적용과 사후 검증은 성공했으나 운영에서 lock/statement ti
 
 브라우저 presigned PUT에는 S3 API endpoint의 CORS가 필요하고, PNG의 직접 이미지 fetch에는
 공개 도메인의 CORS가 필요하다. 동일 출처 프록시는 PNG fetch의 보조 경로이며 PUT CORS를 대체하지 않는다.
-운영/preview/localhost origin을 명시해 GET/HEAD/PUT과 Content-Type을 허용한다.
-다음은 localhost 검증용 예시이며 기존 정책의 origin을 지우지 않고 필요한 origin을 추가한다.
+이번 버킷은 기존 localhost:3000/production 정책을 유지한다. 허용된 localhost:3000에서
+실제 PUT 성공을 확인했다. 추가 preview origin이 필요할 때만 별도 설정을 검토한다.
+다음은 localhost 검증용 예시이며 현재 버킷 정책을 조회한 결과나 대체할 설정이 아니다.
 
 ```json
 [
   {
-    "AllowedOrigins": ["http://localhost:3000", "http://127.0.0.1:3108"],
+    "AllowedOrigins": ["http://localhost:3000"],
     "AllowedMethods": ["GET", "HEAD", "PUT"],
     "AllowedHeaders": ["Content-Type"],
     "ExposeHeaders": ["ETag"],

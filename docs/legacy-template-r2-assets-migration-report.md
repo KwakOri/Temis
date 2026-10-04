@@ -118,11 +118,23 @@ node --import tsx scripts/migrate-legacy-template-assets.ts \
 - 검증 서버는 별도 3108 포트를 사용한 뒤 종료했다. 원래 체크아웃의 서버는 건드리지 않았다.
 - PNG 대표 검증이 전체 템플릿의 모든 동적 이미지/조건부 옵션 검증을 의미하지 않는다.
 - 현재 R2 object 권한 키는 GetBucketCors에 AccessDenied(403)를 반환한다.
-  브라우저 presigned PUT은 개발 origin에서 이전 검증 실패 상태이며, bucket 관리자 권한으로
-  기존 CORS를 보존하면서 origin/GET/HEAD/PUT/Content-Type 허용이 필요하다.
-- 미완료 presigned 업로드의 staging lifecycle도 bucket 관리자 설정이 남아 있다.
-- CORS 수정 후 실제 관리 화면의 브라우저 업로드를 재검증하고, 보류 원본을 확인한다.
+  이전 브라우저 PUT 실패 origin은 `http://127.0.0.1:3108`이었다.
+  이후 사용자가 기존 CORS는 localhost:3000/production만 허용한다고 확인했다.
+  허용 origin `http://localhost:3000`의 실제 브라우저 presigned PUT과 바이트 재대조는 성공했다.
+  원격 표시와 PNG 1280x720/배경 픽셀 일치도 재검증했고 검증 객체 2개는 모두 삭제했다.
+  버킷 CORS는 변경하지 않았으며 bucket 관리자 권한 추가는 이번 작업에 필요하지 않다.
+- 미완료 presigned 업로드의 staging lifecycle 설정 여부는 조회하지 못했다.
+  기존 만료 정책 확인은 별도 운영 점검 항목이다.
+- 실제 관리 화면 전체 교체/적용/복원 흐름 검증과 보류 원본 확인을 진행한다.
   앱 배포와 runtime flag/R2 활성화는 사용자 요청대로 이번 실행에서 제외했다.
+
+```sh
+# 허용 origin 검증. 사용자 localhost:3000 서버에는 요청/수정 없이 브라우저 문서만 재현한다.
+# R2 verification 경로에만 생성/삭제하며 원격 DB는 사용하지 않는다.
+npm run check:legacy-assets:r2 -- --allow-test-upload \
+  --env-dir /Users/kwakori/projects/promotion/temis \
+  --fixture <generated-browser-fixture.json> --browser-origin http://localhost:3000
+```
 
 관리 화면 경로는 `/admin/legacy-template-assets`다. 운영 앱에는 아직 배포되지 않았다.
 기존 이미지 import/파일은 유지했으므로 이번 업로드가 번들 에셋 삭제나 운영 렌더 전환을 뜻하지 않는다.

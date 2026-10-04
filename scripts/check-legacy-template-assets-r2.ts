@@ -17,6 +17,16 @@ async function main() {
     !process.argv.includes("--fixture")
   )
     throw new Error("Pass --env-dir and --fixture.");
+  const browserOrigin = process.argv.includes("--browser-origin")
+    ? process.argv[process.argv.indexOf("--browser-origin") + 1]
+    : undefined;
+  if (
+    process.argv.includes("--browser-origin") &&
+    !["http://localhost:3000", "http://127.0.0.1:3000"].includes(
+      browserOrigin ?? "",
+    )
+  )
+    throw new Error("Pass a supported localhost:3000 browser origin.");
   loadEnvConfig(envDirectory, true, { info: () => {}, error: () => {} });
   process.env.SUPABASE_URL = "http://127.0.0.1:1";
   process.env.SUPABASE_SECRET_KEY = "sb_secret_fixture_only";
@@ -149,7 +159,19 @@ async function main() {
       "image/png",
       300,
     );
-    const browserPut = await page.evaluate(
+    const corsPage = browserOrigin ? await browser.newPage() : page;
+    if (browserOrigin) {
+      const verificationUrl = `${browserOrigin}/__legacy-r2-cors-verification`;
+      // Supply a blank document without contacting or changing the user's dev server.
+      await corsPage.route(verificationUrl, (route) =>
+        route.fulfill({
+          contentType: "text/html",
+          body: "<!doctype html><title>R2 verification</title>",
+        }),
+      );
+      await corsPage.goto(verificationUrl);
+    }
+    const browserPut = await corsPage.evaluate(
       async ({ url, data }) => {
         try {
           const buffer = Uint8Array.from(atob(data), (char) =>
@@ -168,6 +190,14 @@ async function main() {
       },
       { url: browserSigned.uploadUrl, data: bytes.toString("base64") },
     );
+    if (browserOrigin) {
+      await corsPage.close();
+      assert.ok(browserPut, "Allowed-origin browser PUT failed.");
+      assert.deepEqual(
+        (await r2.downloadFileFromR2(stagingKey, 32 * 1024 * 1024)).buffer,
+        bytes,
+      );
+    }
     mkdirSync("output/playwright", { recursive: true });
     await page.screenshot({
       path: "output/playwright/legacy-real-r2-screen.png",
@@ -220,6 +250,7 @@ async function main() {
         actualR2: true,
         presignedPut: true,
         browserPutCors: browserPut,
+        browserOrigin: browserOrigin ?? "http://127.0.0.1:3108",
         displayed,
         byteVerifiedPromotion: true,
         sourceDimensions: dimensions,
