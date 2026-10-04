@@ -1,9 +1,13 @@
+"use client";
+
 import { AutoResizeText } from '@/components/AutoResizeTextCard';
 import { useTimeTableData } from '@/contexts/TimeTableContext';
-import { Imgs } from '../_img/imgs';
+import { Imgs as LocalImgs } from '../_img/imgs';
 import { colors, fontOption } from '../_settings/settings';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 const TeamTimeTableMemo = () => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const { memoText, isMemoTextVisible } = useTimeTableData();
   return (
     <div

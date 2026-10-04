@@ -1,6 +1,10 @@
-import { Imgs } from '../_img/imgs';
+"use client";
+
+import { Imgs as LocalImgs } from '../_img/imgs';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 const TimeTableBoard = () => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       className={`absolute inset-0 flex justify-center z-10`}

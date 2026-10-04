@@ -1,3 +1,5 @@
+"use client";
+
 import React, { CSSProperties, PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
@@ -5,7 +7,7 @@ import { TDefaultCard, TEntry } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { padZero } from "@/utils/date-formatter";
 import { formatTime } from "@/utils/time-formatter";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import {
   BASE_COLORS,
@@ -15,6 +17,7 @@ import {
   MAX_FONT_SIZES,
 } from "../_settings/settings";
 import { createTextStroke } from "@/utils/utils";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 const pos = [
   { left: 1722, top: 142 },
@@ -355,6 +358,7 @@ interface OnlineCardBGProps {
 }
 
 const OnlineCardBG = ({ day, isOffline }: OnlineCardBGProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const status = isOffline ? "offline" : "online";
   const orders = ["a", "b", "c", "d", "b", "c", "a"];
   const cardName = status + "_" + orders[day];
@@ -386,6 +390,7 @@ const OnlineCardBG = ({ day, isOffline }: OnlineCardBGProps) => {
 };
 
 const CardOverlay = ({ day }: OnlineCardBGProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -403,6 +408,7 @@ const CardOverlay = ({ day }: OnlineCardBGProps) => {
 };
 
 const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -621,6 +627,7 @@ const MultiCardSubTitle = ({ content, day }: MultiCardSubTitleProps) => {
 };
 
 const MultiCard = ({ day }: { day: number }) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const orders = ["a", "b", "c", "d", "b", "c", "a"];
   const cardName = "multi_" + orders[day];
 

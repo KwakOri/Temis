@@ -1,3 +1,5 @@
+"use client";
+
 import React, { CSSProperties } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
@@ -5,7 +7,7 @@ import { TDefaultCard, TEntry } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { padZero } from "@/utils/date-formatter";
 import { formatTime } from "@/utils/time-formatter";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import {
   BASE_COLORS,
@@ -14,6 +16,7 @@ import {
   COMP_COLORS,
   COMP_FONTS,
 } from "../_settings/settings";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface CardStreamingDayProps {
   currentTheme?: TTheme;
@@ -181,6 +184,7 @@ const MultiCardSubTitle = ({ order, content }: MultiCardSubTitleProps) => {
 };
 
 const MultiCard = ({ day }: { day: number }) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const cardName = "multi";
   return (
     <div
@@ -388,6 +392,7 @@ interface OnlineCardBGProps {
 }
 
 const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const cardName = "online";
   return (
     <div
@@ -423,6 +428,7 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
 // };
 
 const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{

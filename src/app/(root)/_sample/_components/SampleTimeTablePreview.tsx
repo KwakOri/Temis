@@ -1,9 +1,12 @@
 import { useTimeTable } from "@/contexts/TimeTableContext";
 import { PropsWithChildren } from "react";
+import { useLegacyAssetUrl } from "@/contexts/LegacyTemplateAssetsContext";
 
 const TimeTableSamplePreview = ({ children }: PropsWithChildren) => {
   const { state, actions } = useTimeTable();
   const { scale, weekDates, isMobile, captureSize } = state;
+  const background = useLegacyAssetUrl("site", "landing_background", "/images/landing_bg.png");
+  const calendar = useLegacyAssetUrl("site", "demo_calendar", "/images/calendar.svg");
 
   // 동적으로 템플릿 크기 사용 (기본값으로 1280x720 사용)
 
@@ -15,7 +18,7 @@ const TimeTableSamplePreview = ({ children }: PropsWithChildren) => {
       style={{
         width: 1360,
         height: 925,
-        backgroundImage: `url("/images/landing_bg.png")`,
+        backgroundImage: `url("${background}")`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
@@ -53,7 +56,7 @@ const TimeTableSamplePreview = ({ children }: PropsWithChildren) => {
           style={{ rotate: "-12deg" }}
           width={"10%"}
           className="absolute top-44 -left-12 z-50"
-          src="/images/calendar.svg"
+          src={calendar}
           alt=""
         />
         <div

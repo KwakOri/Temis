@@ -1,3 +1,5 @@
+"use client";
+
 import React, { CSSProperties } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
@@ -8,13 +10,14 @@ import {
 } from "@/types/team-timetable";
 import { TTheme } from "@/types/time-table/theme";
 import { formatTime } from "@/utils/time-formatter";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import {
   fontOption,
   member_colors,
   Palette,
   Settings,
 } from "../_settings/settings";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface DayTextProps {
   currentTheme?: TTheme;
@@ -125,6 +128,7 @@ const StreamingMainTitle: React.FC<StreamingMainTitleProps> = ({
 };
 
 const OfflineCard: React.FC<OfflineCardProps> = ({ currentTheme }) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -157,6 +161,7 @@ export interface ProfileImageProps {
 }
 
 const ProfileImage = ({ order }: ProfileImageProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <img
       style={Settings.profile_image}
@@ -193,6 +198,7 @@ export interface ScheduleCardProps {
 }
 
 const ScheduleCard = ({ schedule, themeColor }: ScheduleCardProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const { isOffline, day } = schedule;
   const primarySchedule = schedule.entries[0];
   const titleTextStyle: CSSProperties = {

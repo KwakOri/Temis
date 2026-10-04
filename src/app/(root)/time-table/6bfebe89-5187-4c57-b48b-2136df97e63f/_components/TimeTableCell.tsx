@@ -1,3 +1,5 @@
+"use client";
+
 import React, { CSSProperties, PropsWithChildren } from "react";
 
 import { VerticalResizeText } from "@/components/AutoResizeTextCard";
@@ -5,10 +7,11 @@ import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { formatTime } from "@/utils/time-formatter";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import { colors, fontOption } from "../_settings/settings";
 import WhiteSpaceMark from "./WhiteSpaceMark";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface DayTextProps {
   currentTheme?: TTheme;
@@ -354,6 +357,7 @@ const CellTextTitle = ({ day, cellTextTitle }: CellTextSubTitleProps) => {
 };
 
 const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
   const cellStyle: CellStyleProps = {
     0: {},

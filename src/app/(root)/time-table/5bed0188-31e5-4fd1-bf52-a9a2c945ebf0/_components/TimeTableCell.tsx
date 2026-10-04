@@ -1,3 +1,5 @@
+"use client";
+
 import React, { CSSProperties, PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
@@ -6,7 +8,7 @@ import { TTheme } from "@/types/time-table/theme";
 import { padZero } from "@/utils/date-formatter";
 import { formatTime } from "@/utils/time-formatter";
 import { weekdays } from "@/utils/time-table/data";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import {
   colors,
@@ -17,6 +19,7 @@ import {
   onlineCardWidth,
   weekdayOption,
 } from "../_settings/settings";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 type dayProps = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -144,6 +147,7 @@ const StreamingTime = ({
   isMultiple,
   isOffline,
 }: StreamingTimeProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const divStyle: customStyle = {
     0: { top: 1052, left: 1168 },
     1: { top: 1090, left: 1898 },
@@ -244,6 +248,7 @@ interface OnlineCardBGProps {
 }
 
 const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
   const cardName = "online_" + days[day];
   return (
@@ -264,6 +269,7 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
 };
 
 const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{

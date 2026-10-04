@@ -1,4 +1,5 @@
 "use client";
+import { ManagedCatalogImage } from "@/components/common/ManagedCatalogImage";
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -487,7 +488,7 @@ const MyPageContent = () => {
                               >
                                 {/* Team Template Thumbnail */}
                                 <div className="aspect-video bg-gradient-to-br from-secondary/20 to-primary/20 rounded-t-lg overflow-hidden flex items-center justify-center relative">
-                                  <img
+                                  <ManagedCatalogImage
                                     src={`/team-thumbnails/${team.team_template!.id}.png`}
                                     alt={team.team_template!.name}
                                     className="w-full h-full object-cover"

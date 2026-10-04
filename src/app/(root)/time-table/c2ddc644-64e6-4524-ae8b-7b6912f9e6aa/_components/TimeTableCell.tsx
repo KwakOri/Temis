@@ -1,11 +1,13 @@
-import Image from "next/image";
+"use client";
+
+
 import React, { PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { fillZero, weekdays } from "@/utils/time-table/data";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import {
   colors,
@@ -16,6 +18,7 @@ import {
   onlineCardWidth,
   weekdayOption,
 } from "../_settings/settings";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface DayTextProps {
   currentTheme?: TTheme;
@@ -70,6 +73,7 @@ const StreamingTime = ({
   currentTheme,
   isGuerrilla,
 }: StreamingTimeProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const getFormattedStreamingTime = (time: string): string => {
     const tempArr = time.split(":");
     const hour = Number(tempArr[0]);
@@ -110,10 +114,10 @@ const StreamingTime = ({
       >
         {isGuerrilla ? "게릴라" : getFormattedStreamingTime(time)}
       </p>
-      <Image
+      <img
         alt=""
-        src={Imgs["first"]["onlineTime" as keyof (typeof Imgs)["first"]]}
-        fill
+        src={(Imgs["first"]["onlineTime" as keyof (typeof Imgs)["first"]]).src}
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
       />
     </div>
   );
@@ -199,6 +203,7 @@ interface OnlineCardBGProps {
 }
 
 const OnlineCardBG = ({ isTogether }: OnlineCardBGProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -207,19 +212,20 @@ const OnlineCardBG = ({ isTogether }: OnlineCardBGProps) => {
       }}
       className="absolute inset-0 -z-10"
     >
-      <Image
+      <img
         className="object-cover"
         src={Imgs["first"][
           isTogether ? "onlineTogether" : "online"
         ].src}
         alt="online"
-        fill
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
       />
     </div>
   );
 };
 
 const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       className=" pointer-events-none"
@@ -229,7 +235,7 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
       }}
       key={day}
     >
-      <Image
+      <img
         src={Imgs[currentTheme || "first"]["offline"].src}
         alt="offline"
         width={offlineCardWidth}

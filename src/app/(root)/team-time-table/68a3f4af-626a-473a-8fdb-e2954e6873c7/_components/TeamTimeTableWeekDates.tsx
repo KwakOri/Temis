@@ -1,9 +1,13 @@
+"use client";
+
 import { useTimeTableData } from '@/contexts/TimeTableContext';
 import { getWeekDateRange, padZero } from '@/utils/date-formatter';
-import { Imgs } from '../_img/imgs';
+import { Imgs as LocalImgs } from '../_img/imgs';
 import { colors, fontOption } from '../_settings/settings';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 const TeamTimeTableWeekDates = () => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const { weekDates } = useTimeTableData();
 
   const { start, end } = getWeekDateRange(weekDates);

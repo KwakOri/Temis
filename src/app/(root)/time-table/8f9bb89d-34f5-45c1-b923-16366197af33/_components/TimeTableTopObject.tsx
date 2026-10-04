@@ -1,7 +1,11 @@
-import { Imgs } from '../_img/imgs';
+"use client";
+
+import { Imgs as LocalImgs } from '../_img/imgs';
 import { templateSize } from '../_settings/settings';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 const TimeTableTopObject = () => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{

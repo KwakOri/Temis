@@ -1,10 +1,14 @@
+"use client";
+
 import { AutoResizeText } from '@/components/AutoResizeTextCard';
 import { useTimeTableData } from '@/contexts/TimeTableContext';
 import { getWeekDateRange } from '@/utils/date-formatter';
-import { Imgs } from '../_img/imgs';
+import { Imgs as LocalImgs } from '../_img/imgs';
 import { fontOption } from '../_settings/settings';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 const TeamTimeTableMemo = () => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const { memoText, isMemoTextVisible } = useTimeTableData();
   const { weekDates } = useTimeTableData();
 

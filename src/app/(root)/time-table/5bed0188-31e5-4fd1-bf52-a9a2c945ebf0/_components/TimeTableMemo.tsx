@@ -1,6 +1,9 @@
+"use client";
+
 import { AutoResizeText } from "@/components/AutoResizeTextCard";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import { colors, fontOption } from "../_settings/settings";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface TimeTableMemoProps {
   isMemoTextVisible: boolean;
@@ -8,6 +11,7 @@ interface TimeTableMemoProps {
 }
 
 const TimeTableMemo = ({ isMemoTextVisible, memoText }: TimeTableMemoProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <>
       {isMemoTextVisible && (

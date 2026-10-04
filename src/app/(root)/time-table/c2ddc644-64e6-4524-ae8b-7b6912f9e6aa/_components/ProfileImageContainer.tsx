@@ -1,8 +1,10 @@
+"use client";
+
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { TTheme } from "@/types/time-table/theme";
-import Image from "next/image";
+
 import { PropsWithChildren } from "react";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import {
   colors,
   fontOption,
@@ -10,6 +12,7 @@ import {
   profileImageStyle,
   profileImageWidth,
 } from "../_settings/settings";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface ProfileImageProps {
   imageSrc: string | null;
@@ -43,8 +46,8 @@ const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
       }}
     >
       {imageSrc && (
-        <Image
-          fill
+        <img
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
           className="object-cover"
           src={imageSrc}
           alt={"placeholder"}
@@ -55,6 +58,7 @@ const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
 };
 
 const ProfileFrame = () => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -63,11 +67,11 @@ const ProfileFrame = () => {
       }}
       className="absolute inset-0"
     >
-      <Image
+      <img
         src={Imgs["first"]["profile"].src}
         alt="frame"
         className="object-cover"
-        fill
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
         draggable={false}
       />
     </div>
@@ -83,6 +87,7 @@ const ProfileText = ({
   profileTextPlaceholder,
   isProfileTextVisible,
 }: ProfileTextProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   if (!isProfileTextVisible) return null;
   return (
     <div
@@ -112,10 +117,10 @@ const ProfileText = ({
           {profileText ? profileText : profileTextPlaceholder}
         </AutoResizeText>
       </div>
-      <Image
-        src={Imgs["first"]["artist" as keyof (typeof Imgs)["first"]]}
+      <img
+        src={(Imgs["first"]["artist" as keyof (typeof Imgs)["first"]]).src}
         alt=""
-        fill
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
       />
     </div>
   );
