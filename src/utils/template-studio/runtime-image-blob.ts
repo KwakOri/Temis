@@ -1,3 +1,21 @@
+/** Read the PNG's decoded pixel dimensions without changing its contents. */
+export const getStudioRuntimeImageBlobSize = (
+  blob: Blob,
+): Promise<{ width: number; height: number }> =>
+  new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve({ width: image.naturalWidth, height: image.naturalHeight });
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Failed to read image dimensions."));
+    };
+    image.src = url;
+  });
+
 /**
  * Normalizes an arbitrary user-selected image file into a static PNG Blob
  * without ever routing it through a Data URL or string storage. Used for

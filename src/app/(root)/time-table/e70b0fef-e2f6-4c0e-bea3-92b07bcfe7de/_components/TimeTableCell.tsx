@@ -1,11 +1,13 @@
-import Image from "next/image";
+"use client";
+
+
 import React, { PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { getFormattedTime, weekdays } from "@/utils/time-table/data";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import {
   colors,
@@ -16,6 +18,7 @@ import {
   onlineCardWidth,
   weekdayOption,
 } from "../_settings/settings";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface DayTextProps {
   currentTheme?: TTheme;
@@ -149,6 +152,7 @@ interface OnlineCardBGProps {
 }
 
 const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
   const dayName = days[day];
 
@@ -160,20 +164,21 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
       }}
       className="absolute inset-0 -z-10"
     >
-      <Image
+      <img
         className="object-cover"
-        style={{
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", ...({
           transform: "rotate(2.7deg)",
-        }}
-        src={Imgs["first"][dayName].src.replace("./", "/")}
+        }) }}
+        src={Imgs["first"][dayName].src}
         alt="online"
-        fill
+
       />
     </div>
   );
 };
 
 const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const dayType = day % 2 ? "even" : "odd";
   return (
     <div
@@ -185,8 +190,8 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
       }}
       key={day}
     >
-      <Image
-        src={Imgs[currentTheme || "first"][dayType].src.replace("./", "/")}
+      <img
+        src={Imgs[currentTheme || "first"][dayType].src}
         alt="offline"
         style={{
           transform: "rotate(2.7deg)",

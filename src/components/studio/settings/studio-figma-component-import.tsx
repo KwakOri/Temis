@@ -9,6 +9,7 @@ import type {
   StudioFigmaGridOriginCandidate,
   StudioFigmaNodeReview,
   StudioFigmaNodeReviewRole,
+  StudioFigmaFrameCandidate,
   StudioFigmaGridVariantStatus,
 } from "@/types/template-studio-figma";
 
@@ -30,6 +31,7 @@ export type ReviewPatch = Partial<Pick<StudioFigmaNodeReview, "suggestedRole" | 
 
 interface StudioFigmaComponentImportProps {
   candidates: ImportCandidate[];
+  frameCandidate?: StudioFigmaFrameCandidate | null;
   errorMessage: string | null;
   figmaUrl: string;
   isAnalyzing: boolean;
@@ -146,6 +148,7 @@ const bindingFromOption = (value: string, review: StudioFigmaNodeReview): Studio
 
 export function StudioFigmaComponentImport({
   candidates,
+  frameCandidate = null,
   errorMessage,
   figmaUrl,
   isAnalyzing,
@@ -183,15 +186,15 @@ export function StudioFigmaComponentImport({
   return (
     <section className="grid gap-3 rounded-xl border border-[var(--field-border)] bg-[var(--field)]/40 p-3" data-studio-figma-component-import>
       <div className="grid gap-1">
-        <h4 className="text-xs font-bold text-[var(--fg)]">GRID Figma 컴포넌트 가져오기</h4>
+        <h4 className="text-xs font-bold text-[var(--fg)]">Figma 배치 가져오기</h4>
         <p className="text-[10px] font-semibold leading-relaxed text-[var(--fg3)]">
           링크는 이 화면에서만 사용되며 문서에 저장되지 않습니다.
         </p>
       </div>
       <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-        <span>컴포넌트 카드 링크</span>
+          <span>Figma 프레임 또는 GRID 링크</span>
         <input
-          aria-label="컴포넌트 카드 링크"
+          aria-label="Figma 프레임 또는 GRID 링크"
           className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-[11px] text-[var(--fg)] outline-none focus:border-[var(--accent)]"
           disabled={isBusy}
           placeholder="https://www.figma.com/design/...?...node-id=..."
@@ -230,7 +233,38 @@ export function StudioFigmaComponentImport({
         </p>
       ) : null}
 
-      {candidates.length > 0 ? (
+      {frameCandidate ? (
+        <div className="grid gap-2 rounded-lg border border-sky-400/20 bg-sky-400/5 p-2" data-frame-candidate={frameCandidate.candidateId}>
+          <div className="flex items-center justify-between gap-2">
+            <span className="truncate text-[11px] font-bold text-[var(--fg)]">{frameCandidate.label}</span>
+            <span className="shrink-0 text-[9px] text-[var(--fg3)]">{frameCandidate.frame.width} × {frameCandidate.frame.height}</span>
+          </div>
+          <div className="text-[9px] text-[var(--fg3)]">
+            {frameCandidate.layers.length} image layers · {frameCandidate.grid?.placements.length ?? 0} GRID placements
+          </div>
+          {frameCandidate.grid ? (
+            <div className="text-[9px] text-[var(--fg3)]">
+              GRID {Math.round(frameCandidate.grid.bounds.left)}, {Math.round(frameCandidate.grid.bounds.top)} · {Math.round(frameCandidate.grid.bounds.width)} × {Math.round(frameCandidate.grid.bounds.height)}
+            </div>
+          ) : null}
+          {frameCandidate.warnings.map((warning) => (
+            <p className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-2 py-1.5 text-[10px] font-semibold text-amber-100" key={warning}>{warning}</p>
+          ))}
+          <button
+            className="h-9 rounded-lg bg-[var(--accent)] px-3 text-[11px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={isBusy || selectedCandidateId !== frameCandidate.candidateId}
+            type="button"
+            onClick={onConfirm}
+          >
+            {isImporting ? "프레임 가져오는 중…" : "전체 프레임 배치 적용"}
+          </button>
+          <p className="text-[9px] leading-relaxed text-[var(--fg3)]">
+            GRID는 생성형 시간표 카드로 유지하고 나머지 표시 레이어는 R2 이미지로 가져옵니다. 기존 시간표 배치 레이어는 교체됩니다.
+          </p>
+        </div>
+      ) : null}
+
+      {!frameCandidate && candidates.length > 0 ? (
         <div className="grid gap-2" data-candidate-selection>
           <div className="text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--fg3)]">Component Set candidates</div>
           {candidates.map((candidate) => (
@@ -253,7 +287,7 @@ export function StudioFigmaComponentImport({
         </div>
       ) : null}
 
-      {selectedCandidate ? (
+      {!frameCandidate && selectedCandidate ? (
         <div className="grid gap-2" data-review-rows>
           {selectedCandidate.warnings.map((warning) => (
             <p className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-2 py-1.5 text-[10px] font-semibold text-amber-100" key={warning}>

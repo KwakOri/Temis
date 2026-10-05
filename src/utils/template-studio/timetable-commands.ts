@@ -10,7 +10,15 @@ import {
   isStudioFillParentLayout,
   isStudioPlacedTimetableCompositionObject,
 } from "@/utils/template-studio/object-layout";
-import { STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID } from "@/utils/template-studio/timetable-composition";
+import { STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID } from "@/utils/template-studio/timetable-graph-presets";
+
+import {
+  getStudioObjectFitParentStyle,
+  getStudioObjectPositionStyle,
+  getStudioObjectOffsetStyle,
+  roundStudioCoordinate,
+} from "./object-style";
+export { roundStudioCoordinate } from "./object-style";
 
 /** 생성된 day card 레이어 id 접두사. */
 export const STUDIO_TIMETABLE_DAY_CARD_LAYER_PREFIX = "day-card:";
@@ -93,10 +101,6 @@ export const reorderStudioIdList = <TId extends string>(
   return nextIds;
 };
 
-/** 소수점 둘째 자리로 맞춘 좌표. 포인터 이동은 소수가 생긴다. */
-export const roundStudioCoordinate = (value: number): number =>
-  Number(value.toFixed(2));
-
 // --- 부모 채우기 ---
 
 /**
@@ -110,14 +114,11 @@ export const applyStudioTimetableObjectFitParent = (
   resolvedSize: { width: number; height: number },
 ): void => {
   object.layoutMode = shouldFillParent ? "fillParent" : "fixed";
-  object.style = {
-    ...object.style,
-    left: 0,
-    top: 0,
-    ...(shouldFillParent
-      ? {}
-      : { width: resolvedSize.width, height: resolvedSize.height }),
-  };
+  object.style = getStudioObjectFitParentStyle(
+    object.style,
+    shouldFillParent,
+    resolvedSize,
+  );
 };
 
 // --- 위치 이동 ---
@@ -141,30 +142,14 @@ export const applyStudioTimetableObjectPosition = (
   nextPosition: StudioTimetableObjectPosition,
   currentGeometry: { left: number; top: number; width: number; height: number },
 ): boolean => {
-  const updatesBounds =
-    nextPosition.left !== undefined ||
-    nextPosition.top !== undefined ||
-    nextPosition.width !== undefined ||
-    nextPosition.height !== undefined;
-
-  if (updatesBounds && isStudioFillParentLayout(object.layoutMode))
-    return false;
-
-  object.style = {
-    ...object.style,
-    left: roundStudioCoordinate(nextPosition.left ?? currentGeometry.left),
-    top: roundStudioCoordinate(nextPosition.top ?? currentGeometry.top),
-    width: roundStudioCoordinate(nextPosition.width ?? currentGeometry.width),
-    height: roundStudioCoordinate(
-      nextPosition.height ?? currentGeometry.height,
-    ),
-    rotateDeg: roundStudioCoordinate(
-      nextPosition.rotateDeg ??
-        (typeof object.style.rotateDeg === "number"
-          ? object.style.rotateDeg
-          : 0),
-    ),
-  };
+  const style = getStudioObjectPositionStyle(
+    object.style,
+    object.layoutMode,
+    nextPosition,
+    currentGeometry,
+  );
+  if (!style) return false;
+  object.style = style;
   return true;
 };
 
@@ -176,11 +161,12 @@ export const applyStudioTimetableObjectOffset = (
 ): boolean => {
   if (isStudioFillParentLayout(object.layoutMode)) return false;
 
-  object.style = {
-    ...object.style,
-    left: roundStudioCoordinate(currentGeometry.left + delta.deltaX),
-    top: roundStudioCoordinate(currentGeometry.top + delta.deltaY),
-  };
+  object.style = getStudioObjectOffsetStyle(
+    object.style,
+    delta,
+    currentGeometry,
+    true,
+  );
   return true;
 };
 
@@ -196,7 +182,8 @@ export const setStudioTimetableDayOffset = (
     [dayId]: {
       left: roundStudioCoordinate(offset.left),
       top: roundStudioCoordinate(offset.top),
-      ...(offset.rotateDeg !== undefined || currentOffset?.rotateDeg !== undefined
+      ...(offset.rotateDeg !== undefined ||
+      currentOffset?.rotateDeg !== undefined
         ? {
             rotateDeg: roundStudioCoordinate(
               offset.rotateDeg ?? currentOffset?.rotateDeg ?? 0,
@@ -346,7 +333,7 @@ export const collectStudioTimetableSubtreeIds = (
  * 시간표 객체와 자손을 지운다.
  *
  * day card 컨테이너는 어떤 경우에도 남긴다. variant set이 지워진 객체를
- * 가리키고 있으면 그 자리를 비우고, 활성 값이 사라졌으면 남은 값으로 옮긴다.
+ * 가리키고 있으면 그 자리를 비운다. 디자인 선택은 편집기 뷰가 소유한다.
  */
 export const applyStudioDeleteTimetableObject = (
   composition: StudioTimetableComposition,
@@ -371,15 +358,7 @@ export const applyStudioDeleteTimetableObject = (
       }
     });
 
-    const activeRootId =
-      variantSet.rootByValue[variantSet.activeValue ?? variantSet.defaultValue];
-    if (!activeRootId) {
-      const nextActiveOption = variantSet.options.find(
-        (option) => variantSet.rootByValue[option.value],
-      );
-      variantSet.activeValue =
-        nextActiveOption?.value ?? variantSet.defaultValue;
-    }
+    delete variantSet.activeValue;
   });
 
   composition.rootObjectIds = composition.rootObjectIds.filter(

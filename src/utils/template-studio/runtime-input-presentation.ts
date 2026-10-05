@@ -2,93 +2,61 @@ import type {
   StudioInputDefinition,
   StudioRuntimeValues,
   StudioTemplateDocument,
-  StudioTimetableComposition,
-  StudioTimetableCompositionObject,
 } from "@/types/template-studio";
+import type { StudioTimetableGraphNode } from "@/types/studio-timetable-graph";
+import { requireStudioTimetableGraphDocument } from "./timetable-graph-commands";
 import {
-  getStudioTimetableComposition,
-  getStudioTimetableObjectRenderableChildIds,
-  getStudioTimetableObjectRuntimeVariantValue,
-} from "@/utils/template-studio/timetable-composition";
+  getStudioTimetableNodeChildIds,
+  getStudioTimetableNodeRuntimeVariant,
+  getStudioTimetableNodeExtension,
+  getStudioTimetableNodeStyle,
+} from "./timetable-graph-queries";
 import { findStudioArtistProfileTextInput } from "@/utils/template-studio/preset-inputs";
 import { getStudioTextWrapMode } from "@/utils/template-studio/text-wrap";
 
-const isArtistObject = (object: StudioTimetableCompositionObject) =>
-  object.presetId === "artistProfileText" ||
-  object.meta?.exception?.semanticKey === "artistProfileText";
-
-const findArtistTextObject = (
-  composition: StudioTimetableComposition,
-  objectId: string,
-  visitedObjectIds = new Set<string>(),
-): StudioTimetableCompositionObject | null => {
-  if (visitedObjectIds.has(objectId)) return null;
-  visitedObjectIds.add(objectId);
-
-  const object = composition.objects[objectId];
-  if (!object) return null;
-  if (
-    object.structuredRole === "text" &&
-    (object.kind === "text" || object.kind === "flexibleText")
-  ) {
-    return object;
-  }
-
-  for (const childId of object.childIds ?? []) {
-    const textObject = findArtistTextObject(
-      composition,
-      childId,
-      visitedObjectIds,
-    );
-    if (textObject) return textObject;
-  }
-
-  return null;
-};
-
 const resolveArtistTextObject = (
   document: StudioTemplateDocument,
-  runtimeValues: StudioRuntimeValues,
-): StudioTimetableCompositionObject | null => {
-  const timetable = document.domains?.timetable;
-  if (!timetable) return null;
-
-  const composition = getStudioTimetableComposition(timetable);
-  const artistGroup = Object.values(composition.objects).find(
-    (object) => isArtistObject(object) && object.kind === "group",
-  );
-
-  if (artistGroup) {
-    const variantValue = getStudioTimetableObjectRuntimeVariantValue(
-      document,
-      runtimeValues,
-      artistGroup,
-    );
-    const activeRootIds = getStudioTimetableObjectRenderableChildIds(
-      artistGroup,
-      variantValue,
-    );
-    for (const rootId of activeRootIds) {
-      const textObject = findArtistTextObject(composition, rootId);
-      if (textObject) return textObject;
+  values: StudioRuntimeValues,
+): StudioTimetableGraphNode | null => {
+  if (document.version !== 8) return null;
+  const graph = requireStudioTimetableGraphDocument(document);
+  const visited = new Set<string>();
+  const visit = (id: string): StudioTimetableGraphNode | null => {
+    if (visited.has(id)) return null;
+    visited.add(id);
+    const node = graph.graph.nodes[id];
+    if (!node) return null;
+    const extension = getStudioTimetableNodeExtension(graph, id);
+    if (
+      extension.structuredRole === "text" &&
+      (node.type === "text" || node.type === "flexibleText")
+    )
+      return node;
+    for (const childId of getStudioTimetableNodeChildIds(
+      node,
+      getStudioTimetableNodeRuntimeVariant(graph, values, node),
+    )) {
+      const text = visit(childId);
+      if (text) return text;
     }
+    return null;
+  };
+  for (const id of graph.domains.timetable.rootNodeIds) {
+    if (
+      getStudioTimetableNodeExtension(graph, id).presetId !==
+      "artistProfileText"
+    )
+      continue;
+    const text = visit(id);
+    if (text) return text;
   }
-
-  return (
-    Object.values(composition.objects).find(
-      (object) =>
-        isArtistObject(object) &&
-        object.structuredRole === "text" &&
-        (object.kind === "text" || object.kind === "flexibleText"),
-    ) ?? null
-  );
+  return null;
 };
 
 /**
  * Artist's runtime control follows the text object's line-break setting.
  *
- * Other text inputs keep their own multiline definition. Legacy Artist
- * documents without a resolvable text object retain that input definition.
+ * Other text inputs, and states without a text node, use the input definition.
  */
 export const getStudioRuntimeInputMultiline = (
   document: StudioTemplateDocument,
@@ -104,6 +72,8 @@ export const getStudioRuntimeInputMultiline = (
 
   const textObject = resolveArtistTextObject(document, runtimeValues);
   return textObject
-    ? getStudioTextWrapMode(textObject.style) === "preserve"
+    ? getStudioTextWrapMode(
+        getStudioTimetableNodeStyle(document, textObject),
+      ) === "preserve"
     : Boolean(input.multiline);
 };

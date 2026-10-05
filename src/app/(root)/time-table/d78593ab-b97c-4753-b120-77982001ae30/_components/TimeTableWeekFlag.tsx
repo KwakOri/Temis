@@ -1,7 +1,10 @@
+"use client";
+
 import { TTheme } from '@/types/time-table/theme';
 import { getWeekDateRange, padZero } from '@/utils/date-formatter';
-import { Imgs } from '../_img/imgs';
+import { Imgs as LocalImgs } from '../_img/imgs';
 import { BASE_COLORS, COMP_FONTS } from '../_settings/settings';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface TimeTableWeekFlagProps {
   currentTheme: TTheme;
@@ -13,6 +16,7 @@ const TimeTableWeekFlag = ({
   currentTheme,
   weekDates,
 }: TimeTableWeekFlagProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const { start, end } = getWeekDateRange(weekDates);
 
   return (
@@ -89,7 +93,7 @@ const TimeTableWeekFlag = ({
       </div>
       <img
         className="object-cover w-full h-full"
-        src={Imgs['first']['week_dates'].src.replace('./', '/')}
+        src={Imgs['first']['week_dates'].src}
         draggable={false}
         alt="memo"
       />

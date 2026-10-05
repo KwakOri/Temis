@@ -1,3 +1,5 @@
+import { getStudioTimetableNodeIds } from "./timetable-graph-queries";
+import type { StudioTimetableGraphNode } from "@/types/studio-timetable-graph";
 import type {
   StudioInputDefinition,
   StudioInputScope,
@@ -202,7 +204,7 @@ export interface StudioInputConsumerReference {
  */
 export const collectStudioInputConsumers = (
   document: StudioTemplateDocument,
-  composition: StudioTimetableComposition,
+  composition?: StudioTimetableComposition,
 ): Record<string, StudioInputConsumerReference[]> => {
   const consumers: Record<string, StudioInputConsumerReference[]> = {};
 
@@ -210,31 +212,44 @@ export const collectStudioInputConsumers = (
     consumers[inputId] = [...(consumers[inputId] ?? []), reference];
   };
 
+  const weeklyIds = getStudioTimetableNodeIds(document);
   Object.values(document.graph.nodes).forEach((node) => {
+    const workspaceMode = weeklyIds.has(node.id) ? "timetable" : "cards";
+    const workspaceLabel =
+      workspaceMode === "timetable" ? "Timetable" : "Cards";
+    const variants = (node as StudioTimetableGraphNode).variantSet;
+    if (variants?.inputId)
+      add(variants.inputId, {
+        id: `${workspaceMode}:${node.id}:variant`,
+        workspaceMode,
+        targetId: node.id,
+        label: node.label,
+        detail: `${workspaceLabel} · Object State`,
+      });
     const inputId = getStudioBindingInputId(node.binding);
     if (inputId) {
       add(inputId, {
-        id: `cards:${node.id}:binding`,
-        workspaceMode: "cards",
+        id: `${workspaceMode}:${node.id}:binding`,
+        workspaceMode,
         targetId: node.id,
         label: node.label,
-        detail: "Cards · Binding",
+        detail: `${workspaceLabel} · Binding`,
       });
     }
 
     Object.entries(node.assetSlots ?? {}).forEach(([slotName, slot]) => {
       if (!slot.inputId) return;
       add(slot.inputId, {
-        id: `cards:${node.id}:slot:${slotName}`,
-        workspaceMode: "cards",
+        id: `${workspaceMode}:${node.id}:slot:${slotName}`,
+        workspaceMode,
         targetId: node.id,
         label: node.label,
-        detail: `Cards · ${formatStudioSlotName(slotName)}`,
+        detail: `${workspaceLabel} · ${formatStudioSlotName(slotName)}`,
       });
     });
   });
 
-  Object.values(composition.objects).forEach((object) => {
+  Object.values(composition?.objects ?? {}).forEach((object) => {
     if (object.variantSet?.inputId) {
       add(object.variantSet.inputId, {
         id: `timetable:${object.id}:variant`,

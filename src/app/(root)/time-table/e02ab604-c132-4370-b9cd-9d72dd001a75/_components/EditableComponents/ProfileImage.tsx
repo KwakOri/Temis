@@ -1,7 +1,9 @@
+"use client";
+
 import { TTheme } from "@/types/time-table/theme";
-import Image from "next/image";
+
 import React from "react";
-import { Imgs } from "../../_img/imgs";
+import { Imgs as LocalImgs } from "../../_img/imgs";
 import {
   colors,
   fontOption,
@@ -10,6 +12,7 @@ import {
   profileImageHeight,
   profileImageWidth,
 } from "../../_settings/settings";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface ProfileImageProps {
   currentTheme: TTheme;
@@ -26,6 +29,7 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
   profileTextPlaceholder,
   isProfileTextVisible,
 }) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       className={`absolute right-0 z-10 rounded-md flex justify-center text-white rotate-6`}
@@ -59,8 +63,8 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
           height: profileFrameHeight + "px",
         }}
       >
-        <Image
-          src={Imgs[currentTheme]["profile"].src.replace("./", "/")}
+        <img
+          src={Imgs[currentTheme]["profile"].src}
           alt="preview"
           className="w-full h-full object-cover"
           width={profileFrameWidth}
@@ -76,7 +80,7 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
         className="relative mt-6"
       >
         {imageSrc ? (
-          <Image
+          <img
             src={
               imageSrc.startsWith("/") ? imageSrc : imageSrc.replace("./", "/")
             }

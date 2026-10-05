@@ -1,3 +1,5 @@
+"use client";
+
 import React, { PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
@@ -5,7 +7,7 @@ import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { formatTime } from "@/utils/time-formatter";
 import { weekdays } from "@/utils/time-table/data";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import {
   colors,
@@ -16,6 +18,7 @@ import {
   onlineCardWidth,
   weekdayOption,
 } from "../_settings/settings";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface DayTextProps {
   currentTheme?: TTheme;
@@ -193,6 +196,7 @@ interface OnlineCardBGProps {
 }
 
 const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -203,7 +207,7 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs["first"]["online"].src.replace("./", "/")}
+        src={Imgs["first"]["online"].src}
         alt="online"
       />
     </div>
@@ -211,6 +215,7 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
 };
 
 const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -221,7 +226,7 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs["first"]["offline"].src.replace("./", "/")}
+        src={Imgs["first"]["offline"].src}
         alt="online"
       />
     </div>
@@ -246,6 +251,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   weekDate,
   currentTheme,
 }) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   if (!weekDate) return "Loading";
 
   // 새로운 데이터 구조에서 첫 번째 엔트리를 기본값으로 사용
@@ -262,7 +268,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       >
         <StreamingDate date={weekDate.getDate()} />
         <StreamingDay day={time.day} />
-        <img src={Imgs["first"]["day"].src.replace("./", "/")} alt="day" />
+        <img src={Imgs["first"]["day"].src} alt="day" />
       </div>
       <div
         style={{

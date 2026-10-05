@@ -1,3 +1,5 @@
+"use client";
+
 import React, { CSSProperties, PropsWithChildren } from 'react';
 
 import AutoResizeText from '@/components/AutoResizeTextCard/AutoResizeText';
@@ -5,7 +7,7 @@ import { TDefaultCard } from '@/types/time-table/data';
 import { TTheme } from '@/types/time-table/theme';
 import { padZero } from '@/utils/date-formatter';
 import { formatTime } from '@/utils/time-formatter';
-import { Imgs } from '../_img/imgs';
+import { Imgs as LocalImgs } from '../_img/imgs';
 import { placeholders } from '../_settings/general';
 import {
   BASE_COLORS,
@@ -13,6 +15,7 @@ import {
   COMP_COLORS,
   COMP_FONTS,
 } from '../_settings/settings';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 const dayNames = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
@@ -242,18 +245,20 @@ interface OnlineCardBGProps {
 }
 
 const OnlineCardBG = ({ isOffline, day }: OnlineCardBGProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const dayName = dayNames[day];
   const cardName = (isOffline ? 'offline_' : 'online_') + dayName;
   return (
     <img
       className="absolute inset-0"
-      src={Imgs['first'][cardName].src.replace('./', '/')}
+      src={Imgs['first'][cardName].src}
       alt="online"
     />
   );
 };
 
 const CardOverlay = ({ day }: OnlineCardBGProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -263,7 +268,7 @@ const CardOverlay = ({ day }: OnlineCardBGProps) => {
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs['first']['online_overlay'].src.replace('./', '/')}
+        src={Imgs['first']['online_overlay'].src}
         alt="online"
       />
     </div>
@@ -271,6 +276,7 @@ const CardOverlay = ({ day }: OnlineCardBGProps) => {
 };
 
 const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -279,7 +285,7 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
       key={day}
     >
       <img
-        src={Imgs[currentTheme || 'first']['offline'].src.replace('./', '/')}
+        src={Imgs[currentTheme || 'first']['offline'].src}
         alt="offline"
         style={{
           ...CARD_SIZES.OFFLINE,

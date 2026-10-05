@@ -126,6 +126,24 @@ export const rotateStudioDelta = ({
   };
 };
 
+/** Keep the opposite handle anchored when a rotated rectangle changes size. */
+export const anchorStudioRotatedResize = (
+  start: StudioResizeGeometry,
+  resized: StudioResizeGeometry,
+  rotateDeg: number,
+): StudioResizeGeometry => {
+  const delta = rotateStudioDelta({
+    deltaX: resized.left + resized.width / 2 - start.left - start.width / 2,
+    deltaY: resized.top + resized.height / 2 - start.top - start.height / 2,
+    rotateDeg: -rotateDeg,
+  });
+  return {
+    ...resized,
+    left: start.left + start.width / 2 + delta.deltaX - resized.width / 2,
+    top: start.top + start.height / 2 + delta.deltaY - resized.height / 2,
+  };
+};
+
 /**
  * 회전 각도를 -180보다 크고 180 이하로 맞춘다.
  *

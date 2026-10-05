@@ -1,11 +1,12 @@
 "use client";
 
 // jsx: "preserve" 환경의 체크 스크립트가 클래식 변환을 타므로 React 심볼이 필요하다.
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 
 import { cn } from "@/lib/utils";
 import {
   getStudioPointerRotationDeg,
+  anchorStudioRotatedResize,
   resolveStudioResizeGeometry,
   rotateStudioDelta,
   STUDIO_RESIZE_HANDLES,
@@ -29,11 +30,22 @@ export interface StudioSelectionOverlayProps {
    */
   showHandles?: boolean;
   lockAspectRatio?: boolean;
+  allowResize?: boolean;
+  allowRotate?: boolean;
+  handleTargetSize?: number;
+  /** Runtime overlays can live in rotated/scaled parent coordinate systems. */
+  pointerDeltaToLocal?: (delta: { deltaX: number; deltaY: number }) => {
+    deltaX: number;
+    deltaY: number;
+  };
+  onMove?: (geometry: StudioResizeGeometry) => void;
   /** 크기나 각도를 바꾸기 직전. 되돌리기 한 단위를 여기서 시작한다. */
   onTransformStart?: () => void;
   onResize?: (geometry: StudioResizeGeometry) => void;
   onRotate?: (rotateDeg: number) => void;
   onTransformEnd?: () => void;
+  /** Runtime gestures can be cancelled without recording an undo step. */
+  onTransformCancel?: () => void;
 }
 
 const HANDLE_CURSOR: Record<StudioResizeHandle, string> = {
@@ -70,18 +82,55 @@ export function StudioSelectionOverlay({
   scale,
   showHandles = true,
   lockAspectRatio = false,
+  allowResize = true,
+  allowRotate = true,
+  handleTargetSize = 9,
+  pointerDeltaToLocal,
+  onMove,
   onTransformStart,
   onResize,
   onRotate,
   onTransformEnd,
+  onTransformCancel,
 }: StudioSelectionOverlayProps) {
   const handleSize = Math.max(6, Math.round(9 / Math.max(scale, 0.2)));
   const borderWidth = Math.max(1, 1 / Math.max(scale, 0.2));
+  const targetSize = Math.max(
+    handleSize,
+    handleTargetSize / Math.max(scale, 0.2),
+  );
+  const handleTarget = (handle?: StudioResizeHandle) => (
+    <span
+      aria-hidden="true"
+      className="absolute"
+      style={{
+        width: targetSize,
+        height: targetSize,
+        // Keep enlarged hit areas outside the image so small images remain draggable.
+        left: handle?.includes("w")
+          ? handleSize - targetSize
+          : handle?.includes("e")
+            ? 0
+            : (handleSize - targetSize) / 2,
+        top: handle?.startsWith("n")
+          ? handleSize - targetSize
+          : handle?.startsWith("s")
+            ? 0
+            : (handleSize - targetSize) / 2,
+      }}
+    />
+  );
   const dragStateRef = useRef<{
     pointerId: number;
     startClientX: number;
     startClientY: number;
   } | null>(null);
+  const cleanupDragRef = useRef<((cancelled?: boolean) => void) | null>(null);
+  useEffect(() => () => cleanupDragRef.current?.(true), []);
+  const localDelta = (deltaX: number, deltaY: number) =>
+    pointerDeltaToLocal
+      ? pointerDeltaToLocal({ deltaX, deltaY })
+      : { deltaX: deltaX / scale, deltaY: deltaY / scale };
 
   const beginPointerDrag = useCallback(
     (
@@ -94,9 +143,11 @@ export function StudioSelectionOverlay({
         shiftKey: boolean;
       }) => void,
     ) => {
+      if (event.button !== 0 || !event.isPrimary) return;
       // 캔버스 밀기와 객체 옮기기로 번지지 않게 여기서 끊는다.
       event.preventDefault();
       event.stopPropagation();
+      cleanupDragRef.current?.(true);
 
       const startClientX = event.clientX;
       const startClientY = event.clientY;
@@ -120,18 +171,36 @@ export function StudioSelectionOverlay({
 
       const handlePointerUp = (upEvent: PointerEvent) => {
         if (dragStateRef.current?.pointerId !== upEvent.pointerId) return;
+        cleanupDragRef.current?.(
+          upEvent.type === "pointercancel" && Boolean(onTransformCancel),
+        );
+      };
+
+      const handleKeyDown = (keyEvent: KeyboardEvent) => {
+        if (keyEvent.key !== "Escape" || !onTransformCancel) return;
+        keyEvent.preventDefault();
+        keyEvent.stopPropagation();
+        cleanupDragRef.current?.(true);
+      };
+
+      cleanupDragRef.current = (cancelled = false) => {
         dragStateRef.current = null;
         window.removeEventListener("pointermove", handlePointerMove);
         window.removeEventListener("pointerup", handlePointerUp);
         window.removeEventListener("pointercancel", handlePointerUp);
-        onTransformEnd?.();
+        window.removeEventListener("keydown", handleKeyDown, true);
+        cleanupDragRef.current = null;
+        if (cancelled) onTransformCancel?.();
+        else onTransformEnd?.();
       };
 
       window.addEventListener("pointermove", handlePointerMove);
       window.addEventListener("pointerup", handlePointerUp);
       window.addEventListener("pointercancel", handlePointerUp);
+      if (onTransformCancel)
+        window.addEventListener("keydown", handleKeyDown, true);
     },
-    [onTransformEnd, onTransformStart],
+    [onTransformCancel, onTransformEnd, onTransformStart],
   );
 
   return (
@@ -160,6 +229,27 @@ export function StudioSelectionOverlay({
           transform: rotateDeg ? `rotate(${rotateDeg}deg)` : undefined,
         }}
       >
+        {onMove ? (
+          <button
+            type="button"
+            aria-label="이미지 이동"
+            className="pointer-events-auto absolute inset-0 cursor-move"
+            data-studio-image-move="true"
+            style={{ touchAction: "none" }}
+            onDoubleClick={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
+            onPointerDown={(event) =>
+              beginPointerDrag(event, ({ deltaX, deltaY }) => {
+                const delta = localDelta(deltaX, deltaY);
+                onMove({
+                  ...bounds,
+                  left: bounds.left + delta.deltaX,
+                  top: bounds.top + delta.deltaY,
+                });
+              })
+            }
+          />
+        ) : null}
         <div
           className="absolute inset-0 border-[var(--accent,#4f8cff)]"
           style={{ borderWidth }}
@@ -167,86 +257,112 @@ export function StudioSelectionOverlay({
 
         {showHandles ? (
           <>
-            {STUDIO_RESIZE_HANDLES.map((handle) => {
-              const offset = getHandleOffset(handle);
+            {allowResize
+              ? STUDIO_RESIZE_HANDLES.map((handle) => {
+                  const offset = getHandleOffset(handle);
 
-              return (
-                <button
-                  aria-label={`Resize ${handle}`}
-                  className="pointer-events-auto absolute rounded-[2px] border border-[var(--accent,#4f8cff)] bg-white"
-                  data-studio-resize-handle={handle}
-                  key={handle}
-                  style={{
-                    left: offset.left,
-                    top: offset.top,
-                    width: handleSize,
-                    height: handleSize,
-                    marginLeft: -handleSize / 2,
-                    marginTop: -handleSize / 2,
-                    cursor: HANDLE_CURSOR[handle],
-                  }}
-                  type="button"
-                  onPointerDown={(event) =>
-                    beginPointerDrag(event, ({ deltaX, deltaY, shiftKey }) => {
-                      // 회전한 객체는 화면의 오른쪽이 객체의 오른쪽이 아니다.
-                      const localDelta = rotateStudioDelta({
-                        deltaX: deltaX / scale,
-                        deltaY: deltaY / scale,
-                        rotateDeg,
-                      });
+                  return (
+                    <button
+                      aria-label={`Resize ${handle}`}
+                      className="pointer-events-auto absolute rounded-[2px] border border-[var(--accent,#4f8cff)] bg-white"
+                      data-studio-resize-handle={handle}
+                      key={handle}
+                      style={{
+                        left: offset.left,
+                        top: offset.top,
+                        width: handleSize,
+                        height: handleSize,
+                        marginLeft: -handleSize / 2,
+                        marginTop: -handleSize / 2,
+                        cursor: HANDLE_CURSOR[handle],
+                        touchAction: "none",
+                      }}
+                      type="button"
+                      onPointerDown={(event) =>
+                        beginPointerDrag(
+                          event,
+                          ({ deltaX, deltaY, shiftKey }) => {
+                            // 회전한 객체는 화면의 오른쪽이 객체의 오른쪽이 아니다.
+                            const delta = localDelta(deltaX, deltaY);
+                            const rotatedDelta = rotateStudioDelta({
+                              ...delta,
+                              rotateDeg,
+                            });
 
-                      onResize?.(
-                        resolveStudioResizeGeometry({
-                          start: bounds,
-                          handle,
-                          deltaX: localDelta.deltaX,
-                          deltaY: localDelta.deltaY,
-                          lockAspectRatio: lockAspectRatio || shiftKey,
-                        }),
-                      );
-                    })
-                  }
-                />
-              );
-            })}
+                            onResize?.(
+                              anchorStudioRotatedResize(
+                                bounds,
+                                resolveStudioResizeGeometry({
+                                  start: bounds,
+                                  handle,
+                                  deltaX: rotatedDelta.deltaX,
+                                  deltaY: rotatedDelta.deltaY,
+                                  lockAspectRatio: lockAspectRatio || shiftKey,
+                                }),
+                                rotateDeg,
+                              ),
+                            );
+                          },
+                        )
+                      }
+                    >
+                      {handleTarget(handle)}
+                    </button>
+                  );
+                })
+              : null}
 
-            <button
-              aria-label="Rotate selection"
-              className={cn(
-                "pointer-events-auto absolute rounded-full border border-[var(--accent,#4f8cff)] bg-white",
-              )}
-              data-studio-rotate-handle="true"
-              style={{
-                left: "50%",
-                top: 0,
-                width: handleSize,
-                height: handleSize,
-                marginLeft: -handleSize / 2,
-                marginTop: -(handleSize * 3),
-                cursor: "grab",
-              }}
-              type="button"
-              onPointerDown={(event) => {
-                const overlayRect =
-                  event.currentTarget.parentElement?.getBoundingClientRect();
-                const center = overlayRect
-                  ? {
-                      x: overlayRect.left + overlayRect.width / 2,
-                      y: overlayRect.top + overlayRect.height / 2,
-                    }
-                  : { x: event.clientX, y: event.clientY };
+            {allowRotate ? (
+              <button
+                aria-label="Rotate selection"
+                className={cn(
+                  "pointer-events-auto absolute rounded-full border border-[var(--accent,#4f8cff)] bg-white",
+                )}
+                data-studio-rotate-handle="true"
+                style={{
+                  left: "50%",
+                  top: 0,
+                  width: handleSize,
+                  height: handleSize,
+                  marginLeft: -handleSize / 2,
+                  marginTop: -(handleSize * 3),
+                  cursor: "grab",
+                  touchAction: "none",
+                }}
+                type="button"
+                onPointerDown={(event) => {
+                  const overlayRect =
+                    event.currentTarget.parentElement?.getBoundingClientRect();
+                  const center = overlayRect
+                    ? {
+                        x: overlayRect.left + overlayRect.width / 2,
+                        y: overlayRect.top + overlayRect.height / 2,
+                      }
+                    : { x: event.clientX, y: event.clientY };
 
-                beginPointerDrag(event, ({ clientX, clientY, shiftKey }) =>
-                  onRotate?.(
-                    getStudioPointerRotationDeg({
-                      center,
-                      pointer: { x: clientX, y: clientY },
-                      snapToStep: shiftKey,
-                    }),
-                  ),
-                );
-              }}
-            />
+                  beginPointerDrag(event, ({ clientX, clientY, shiftKey }) => {
+                    const delta = pointerDeltaToLocal
+                      ? pointerDeltaToLocal({
+                          deltaX: clientX - center.x,
+                          deltaY: clientY - center.y,
+                        })
+                      : {
+                          deltaX: clientX - center.x,
+                          deltaY: clientY - center.y,
+                        };
+                    onRotate?.(
+                      getStudioPointerRotationDeg({
+                        center: { x: 0, y: 0 },
+                        pointer: { x: delta.deltaX, y: delta.deltaY },
+                        snapToStep: shiftKey,
+                      }),
+                    );
+                  });
+                }}
+              >
+                {handleTarget()}
+              </button>
+            ) : null}
           </>
         ) : null}
       </div>

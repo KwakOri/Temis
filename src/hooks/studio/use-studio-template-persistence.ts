@@ -82,6 +82,8 @@ export interface StudioPublishedPreviewInput {
 }
 
 export interface StudioTemplatePersistenceOptions {
+  /** Reject old timetable documents rather than upgrading them in the editor. */
+  expectedDocumentVersion?: 7 | 8;
   /** 콜백 안에서 최신 문서를 읽는다. */
   getDocument: () => StudioTemplateDocument;
   getRuntimeValues: () => StudioRuntimeValues;
@@ -247,6 +249,7 @@ export function useStudioTemplatePersistence({
   syncRemoteAssets,
   recordRemoteSaveEvent,
   onReplaceDocument,
+  expectedDocumentVersion,
   onStatusMessage,
   onOperationStateChange,
   onOperationResult,
@@ -255,6 +258,20 @@ export function useStudioTemplatePersistence({
   previewPathForTemplate = (nextTemplateId) =>
     `/admin/template-studio/${nextTemplateId}/preview`,
 }: StudioTemplatePersistenceOptions): StudioTemplatePersistence {
+  const acceptsDocument = useCallback(
+    (document: StudioTemplateDocument) => {
+      if (
+        expectedDocumentVersion === undefined ||
+        document.version === expectedDocumentVersion
+      )
+        return true;
+      const message = `이 에디터는 v${expectedDocumentVersion} 템플릿을 사용합니다. 새 템플릿을 만들어 주세요.`;
+      onStatusMessage(message);
+      onOperationResult?.({ operation: "load", ok: false, message });
+      return false;
+    },
+    [expectedDocumentVersion, onOperationResult, onStatusMessage],
+  );
   const createAttemptId = useCallback(() => globalThis.crypto.randomUUID(), []);
   const persistenceGateRef = useRef<ReturnType<
     typeof createStudioPersistenceGate
@@ -441,6 +458,7 @@ export function useStudioTemplatePersistence({
         onStatusMessage(`Import failed: ${importResult.message}`);
         return;
       }
+      if (!acceptsDocument(importResult.document)) return;
       const warningCount = importResult.diagnostics.filter(
         (diagnostic) => diagnostic.severity === "warning",
       ).length;
@@ -457,7 +475,7 @@ export function useStudioTemplatePersistence({
               : "Imported JSON",
       );
     },
-    [onReplaceDocument, onStatusMessage],
+    [acceptsDocument, onReplaceDocument, onStatusMessage],
   );
   const ensureTemplateId = useCallback(async (): Promise<string> => {
     if (templateId) return templateId;
@@ -549,6 +567,7 @@ export function useStudioTemplatePersistence({
           onOperationResult?.({ operation: "load", ok: false, message });
           return;
         }
+        if (!acceptsDocument(source.document)) return;
         onReplaceDocument(
           source.document,
           source.runtimeValues,
@@ -566,6 +585,7 @@ export function useStudioTemplatePersistence({
       }
     });
   }, [
+    acceptsDocument,
     clearOperationState,
     onOperationResult,
     onReplaceDocument,
@@ -888,6 +908,10 @@ export function useStudioTemplatePersistence({
       return;
     }
 
+    if (!acceptsDocument(loadResult.document)) {
+      clearOperationState();
+      return;
+    }
     onReplaceDocument(
       loadResult.document,
       loadResult.runtimeValues,
@@ -895,6 +919,7 @@ export function useStudioTemplatePersistence({
     );
     clearOperationState();
   }, [
+    acceptsDocument,
     clearOperationState,
     getRemoteTemplate,
     hasRemoteTemplateLoadError,

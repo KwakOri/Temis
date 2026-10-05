@@ -1,4 +1,8 @@
 import {
+  getStudioTimetableNodeIds,
+  getStudioTimetableNodeExtension,
+} from "./timetable-graph-queries";
+import {
   StudioBuiltinFieldId,
   StudioGraphNode,
   StudioNodeId,
@@ -11,7 +15,6 @@ import {
 } from "@/types/template-studio";
 
 import { isStudioTimetableCapabilityEnabled } from "./timetable-capabilities";
-import { getStudioTimetableComposition } from "./timetable-composition";
 
 export type StudioPresetCategory =
   "semanticException" | "inputBundle" | "freeObject";
@@ -68,9 +71,9 @@ export interface StudioCardSelectInputBundlePreset extends StudioPresetDefinitio
   bundleKind: StudioSelectInputBundleKind;
 }
 
-export interface StudioTimetableCompositionPreset extends StudioPresetDefinitionBase {
+export interface StudioTimetableGraphPreset extends StudioPresetDefinitionBase {
   scope: "timetable";
-  kind: "timetableCompositionObject";
+  kind: "timetableGraphObject";
   implemented: true;
   semanticKey: StudioSemanticKey;
   timetableObjectPresetId: StudioTimetableObjectPresetId;
@@ -85,7 +88,7 @@ export type StudioPresetDefinition =
   | StudioCardContextObjectPreset
   | StudioCardStatusBackgroundPreset
   | StudioCardSelectInputBundlePreset
-  | StudioTimetableCompositionPreset
+  | StudioTimetableGraphPreset
   | StudioPlannedPreset;
 
 export interface StudioPresetListItem {
@@ -112,7 +115,7 @@ export const STUDIO_PRESET_DEFINITIONS: readonly StudioPresetDefinition[] = [
   {
     id: "dayCards",
     scope: "timetable",
-    kind: "timetableCompositionObject",
+    kind: "timetableGraphObject",
     label: "Day Card Containers",
     groupLabel: "Generated",
     typeLabel: "Generated",
@@ -128,7 +131,7 @@ export const STUDIO_PRESET_DEFINITIONS: readonly StudioPresetDefinition[] = [
   {
     id: "board",
     scope: "timetable",
-    kind: "timetableCompositionObject",
+    kind: "timetableGraphObject",
     label: "Board",
     groupLabel: "Background",
     typeLabel: "Image",
@@ -143,7 +146,7 @@ export const STUDIO_PRESET_DEFINITIONS: readonly StudioPresetDefinition[] = [
   {
     id: "weekDates",
     scope: "timetable",
-    kind: "timetableCompositionObject",
+    kind: "timetableGraphObject",
     label: "Week Dates",
     groupLabel: "Text",
     typeLabel: "Label",
@@ -158,7 +161,7 @@ export const STUDIO_PRESET_DEFINITIONS: readonly StudioPresetDefinition[] = [
   {
     id: "weeklyMemo",
     scope: "timetable",
-    kind: "timetableCompositionObject",
+    kind: "timetableGraphObject",
     label: "Weekly Memo",
     groupLabel: "Structured Blocks",
     typeLabel: "Block",
@@ -171,7 +174,7 @@ export const STUDIO_PRESET_DEFINITIONS: readonly StudioPresetDefinition[] = [
   {
     id: "profileBlock",
     scope: "timetable",
-    kind: "timetableCompositionObject",
+    kind: "timetableGraphObject",
     label: "Profile Block",
     groupLabel: "Structured Blocks",
     typeLabel: "Block",
@@ -186,7 +189,7 @@ export const STUDIO_PRESET_DEFINITIONS: readonly StudioPresetDefinition[] = [
   {
     id: "artistProfileText",
     scope: "timetable",
-    kind: "timetableCompositionObject",
+    kind: "timetableGraphObject",
     label: "Artist",
     groupLabel: "Structured Blocks",
     typeLabel: "Block",
@@ -201,7 +204,7 @@ export const STUDIO_PRESET_DEFINITIONS: readonly StudioPresetDefinition[] = [
   {
     id: "topObject",
     scope: "timetable",
-    kind: "timetableCompositionObject",
+    kind: "timetableGraphObject",
     label: "Top Object",
     groupLabel: "Structured Blocks",
     typeLabel: "Image",
@@ -357,10 +360,10 @@ export const isStudioCardSelectInputBundlePreset = (
 ): preset is StudioCardSelectInputBundlePreset =>
   preset.kind === "cardSelectInputBundle";
 
-export const isStudioTimetableCompositionPreset = (
+export const isStudioTimetableGraphPreset = (
   preset: StudioPresetDefinition,
-): preset is StudioTimetableCompositionPreset =>
-  preset.kind === "timetableCompositionObject";
+): preset is StudioTimetableGraphPreset =>
+  preset.kind === "timetableGraphObject";
 
 export const getStudioPresetExistingTargetId = (
   document: StudioTemplateDocument,
@@ -397,16 +400,18 @@ export const getStudioPresetExistingTargetId = (
     );
   }
 
-  const composition = getStudioTimetableComposition(
-    document.domains?.timetable,
-  );
-  return (
-    Object.values(composition.objects).find(
-      (object) =>
-        object.meta?.exception?.scope === "timetable" &&
-        object.meta.exception.semanticKey === preset.semanticKey,
-    )?.id ?? null
-  );
+  if (document.version === 8)
+    return (
+      [...getStudioTimetableNodeIds(document)].find(
+        (id) =>
+          (isStudioTimetableGraphPreset(preset) &&
+            getStudioTimetableNodeExtension(document, id).presetId ===
+              preset.timetableObjectPresetId) ||
+          document.graph.nodes[id]?.meta?.exception?.semanticKey ===
+            preset.semanticKey,
+      ) ?? null
+    );
+  return null;
 };
 
 export const getStudioPresetDisabledReason = (

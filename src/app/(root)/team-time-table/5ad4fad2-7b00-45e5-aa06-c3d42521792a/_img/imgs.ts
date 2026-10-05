@@ -1,18 +1,19 @@
+import { legacyR2ImageSlot } from "@/utils/legacy-template-assets/source-policy";
 import { ImgsType } from "@/types/time-table/image";
 
 // Background and main images
-import MainBG from "./main/bg_team_template.png";
-import TopObject from "./main/top_object_team_template.png";
+const MainBG = legacyR2ImageSlot("33e8ed394afd5dfc5db607c3d125e8723b37d966df41cf1ae1b785d85bdce486", 4000, 2250);
+const TopObject = legacyR2ImageSlot("499d38cce11fcf2b67a019a18ab8b94cf3b1d1a554be5ec67c0342bb2b8e0338", 4000, 2250);
 
 // Online/Offline images
-import OfflineImg from "./main/offline.png";
-import OnlineImg from "./main/online.png";
+const OfflineImg = legacyR2ImageSlot("21fe79584b223da0fd39710ffc875f4bfc3a01d69c556cf8af30a3ef0455b3eb", 370, 370);
+const OnlineImg = legacyR2ImageSlot("1c86167eb308f28428aabeb76331b6f022bf20fe37be5688d2e451c06bab54a6", 370, 370);
 
 // Profile images
-import UserProfile01 from "./main/user_profile_01_team_template.png";
-import UserProfile02 from "./main/user_profile_02_team_template.png";
-import UserProfile03 from "./main/user_profile_03_team_template.png";
-import UserProfile04 from "./main/user_profile_04_team_template.png";
+const UserProfile01 = legacyR2ImageSlot("7e34a3e9d2107735dfe2271f3f5278acb391f66b020c55d2c10be5369ae41151", 1119, 462);
+const UserProfile02 = legacyR2ImageSlot("435759a035237da4f0fb89d0a43d10b38597cf3ed3a35477ac1970fdb78fa5e9", 1119, 462);
+const UserProfile03 = legacyR2ImageSlot("82b75c8127313d595f31f3fd76671fa080163ade555905b1aea6c91f80748e81", 1119, 462);
+const UserProfile04 = legacyR2ImageSlot("5875bcc5a500b8a7d890a030508a4b5aef0146958acde3f7c6646791b2443f55", 1119, 462);
 
 export const Imgs: ImgsType = {
   first: {

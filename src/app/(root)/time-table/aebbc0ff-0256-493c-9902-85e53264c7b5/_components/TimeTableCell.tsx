@@ -1,12 +1,15 @@
+"use client";
+
 import React, { CSSProperties, PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { formatTime } from "@/utils/time-formatter";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import { fontOption } from "../_settings/settings";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface DayTextProps {
   currentTheme?: TTheme;
@@ -351,6 +354,7 @@ interface CellStyleProps {
 }
 
 const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
   const cellStyle: CellStyleProps = {
     0: {
@@ -412,7 +416,7 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
           width: cellStyle[day as dayProps].width,
           height: cellStyle[day as dayProps].height,
         }}
-        src={Imgs[currentTheme || "first"][days[day]].src.replace("./", "/")}
+        src={Imgs[currentTheme || "first"][days[day]].src}
         alt="offline"
       />
     </div>

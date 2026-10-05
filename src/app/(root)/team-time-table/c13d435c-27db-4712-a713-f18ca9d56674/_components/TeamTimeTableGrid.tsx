@@ -1,9 +1,11 @@
+"use client";
+
 import React from 'react';
 
 import { TeamTimeTableDay, UserScheduleData } from '@/types/team-timetable';
 import { TTheme } from '@/types/time-table/theme';
 import { padZero } from '@/utils/date-formatter';
-import { Imgs } from '../_img/imgs';
+import { Imgs as LocalImgs } from '../_img/imgs';
 import {
   fontOption,
   memberOrder,
@@ -11,6 +13,7 @@ import {
 } from '../_settings/settings';
 import TeamTimeTableCell from './TeamTimeTableCell';
 import TeamTimeTableMemo from './TeamTimeTableMemo';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface TeamTimeTableGridProps {
   data: UserScheduleData[];
@@ -122,6 +125,7 @@ const TeamTimeTableGrid: React.FC<TeamTimeTableGridProps> = ({
   weekDates,
   currentTheme,
 }) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const dataByDay = React.useMemo(
     () => groupSchedulesByDay(data, weekDates),
     [data, weekDates]

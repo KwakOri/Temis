@@ -44,6 +44,7 @@ const defaultTabs = [
     name: "Template Studio",
     icon: LayoutTemplate,
   },
+  { id: "teamTimetableStudio" as AdminTabId, name: "Team Studio", icon: Users },
   {
     id: "thumbnailStudio" as AdminTabId,
     name: "Thumbnail Studio",
@@ -56,6 +57,11 @@ const defaultTabs = [
   },
   { id: "artists" as AdminTabId, name: "작가 관리", icon: UserRound },
   { id: "thumbnails" as AdminTabId, name: "썸네일 관리", icon: Image },
+  {
+    id: "legacyTemplateAssets" as AdminTabId,
+    name: "레거시 에셋",
+    icon: Image,
+  },
   { id: "portfolios" as AdminTabId, name: "포트폴리오 관리", icon: Briefcase },
   { id: "users" as AdminTabId, name: "사용자 관리", icon: Users },
   { id: "teams" as AdminTabId, name: "팀 관리", icon: UserCheck },

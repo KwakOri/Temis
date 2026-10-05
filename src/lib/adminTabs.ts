@@ -6,6 +6,8 @@ export type AdminTabId =
   | "settlements"
   | "templates"
   | "templateStudio"
+  | "teamTimetableStudio"
+  | "legacyTemplateAssets"
   | "thumbnailStudio"
   | "templateHub"
   | "artists"
@@ -28,6 +30,8 @@ export const ADMIN_TAB_SEGMENT_BY_ID: Record<AdminTabId, string> = {
   settlements: "settlements",
   templates: "templates",
   templateStudio: "template-studio",
+  teamTimetableStudio: "team-timetable-studio",
+  legacyTemplateAssets: "legacy-template-assets",
   thumbnailStudio: "thumbnail-studio",
   templateHub: "template-hub",
   artists: "artists",

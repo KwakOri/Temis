@@ -79,7 +79,7 @@ export function StudioTopToolbar({
   hiddenControls,
 }: StudioTopToolbarProps) {
   return (
-    <div className="z-10 flex h-12 shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--panel)] px-3">
+    <div className="z-10 flex h-12 shrink-0 items-center gap-3 overflow-x-auto border-b border-[var(--border)] bg-[var(--panel)] px-3">
       <div className="flex min-w-0 shrink-0 items-center gap-1.5">
         <button
           className="flex h-[30px] items-center gap-1.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2.5 text-xs font-semibold text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
@@ -124,7 +124,7 @@ export function StudioTopToolbar({
         {centerSlot}
       </div>
 
-      <div className="ml-auto flex min-w-[300px] items-center justify-end gap-2">
+      <div className="ml-auto flex min-w-max shrink-0 items-center justify-end gap-2">
         {extraActions}
         <div className="flex h-[30px] items-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-1">
           <button

@@ -11,22 +11,20 @@ import {
 } from "@/components/studio/inspector/studio-inspector-fields";
 import type {
   StudioInputDefinition,
+  StudioRuntimeValues,
   StudioTemplateDocument,
   StudioTimetableComponentDefinition,
-  StudioTimetableCompositionObject,
   StudioTimetableDayCardsLayout,
   StudioTimetableDayId,
   StudioTimetableRuntimeEntry,
 } from "@/types/template-studio";
-import {
-  isStudioTimeBuiltinField,
-  normalizeStudioDayLabelFormat,
-} from "@/utils/template-studio/builtin-fields";
 import { getStudioInputScopeLabel } from "@/utils/template-studio/input-scope";
-import { setStudioTimetableObjectVisibilitySlot } from "@/utils/template-studio/semantic-slots";
-import { isStudioPlacedTimetableCompositionObject } from "@/utils/template-studio/object-layout";
+import type { StudioRuntimeContext } from "@/utils/template-studio/input-values";
+import { applyStudioObjectHidden } from "@/utils/template-studio/object-style";
+import type { StudioTimetableGraphRecipe } from "@/utils/template-studio/timetable-graph-commands";
 import type { StudioAssetSlotKind } from "@/utils/template-studio/timetable-asset-slot-specs";
-import type { StudioTimetableSelection } from "@/utils/template-studio/timetable-selection";
+import type { StudioTimetableGraphSelection as StudioTimetableSelection } from "@/utils/template-studio/timetable-graph-selection";
+import type { StudioTimetableGraphNode } from "@/types/studio-timetable-graph";
 
 import { StudioDayLabelFormatField } from "./studio-day-label-format-field";
 import {
@@ -37,9 +35,7 @@ import {
   StudioTimetableArtistProfileTextAssetLayoutControls,
   StudioTimetableObjectVariantControls,
   StudioTimetableProfileMaskControls,
-  StudioTimeFormatControls,
   StudioTimetableTextTypographyControls,
-  StudioTimetableWeekDatesFormatControls,
 } from "./studio-timetable-object-inspector-controls";
 import {
   StudioDayCardsLayoutDay,
@@ -75,6 +71,8 @@ export interface StudioTimetableInspectorModel {
   selectedLayerRotation: number;
   /** 폰트 굵기 후보를 찾는 데 쓴다. */
   document: StudioTemplateDocument;
+  runtimeValues?: StudioRuntimeValues;
+  runtimeContext?: StudioRuntimeContext;
   fontFamilies: string[];
   /** 요일에 붙일 수 있는 Component Set 목록. */
   componentOptions: StudioTimetableComponentDefinition[];
@@ -95,6 +93,9 @@ export interface StudioTimetableInspectorModel {
   onToggleSection: (sectionKey: StudioTimetableInspectorSectionKey) => void;
 
   onAssignComponentSet: (componentId: string) => void;
+  onEditDayCard: (dayId: StudioTimetableDayId) => void;
+  onSelectLayer: (layerId: string) => void;
+  onSelectEditingVariant: (objectId: string, value: string) => void;
   onUpdateLayerPosition: (
     layerId: string,
     patch: Partial<StudioTimetableLayerGeometry & { rotateDeg: number }>,
@@ -102,7 +103,7 @@ export interface StudioTimetableInspectorModel {
   onToggleFitParent: (objectId: string) => void;
   onUpdateObject: (
     objectId: string,
-    recipe: (object: StudioTimetableCompositionObject) => void,
+    recipe: StudioTimetableGraphRecipe,
   ) => void;
   onUpdateDayCardsLayout: (
     recipe: (layout: StudioTimetableDayCardsLayout) => void,
@@ -110,7 +111,7 @@ export interface StudioTimetableInspectorModel {
 
   /** 이미지 자리 편집. 파일 올리기와 잘라내기 배선이 필요해 받아서 놓는다. */
   renderAssetSlot: (
-    object: StudioTimetableCompositionObject,
+    object: StudioTimetableGraphNode,
     kind: StudioAssetSlotKind,
   ) => React.ReactNode;
   /** 묶인 입력 편집. 입력 패널과 같은 UI를 쓴다. */
@@ -118,6 +119,9 @@ export interface StudioTimetableInspectorModel {
   /** 미리보기 입력 값 편집. */
   renderPreviewInputs: () => React.ReactNode;
 }
+
+import { StudioBuiltinFieldFormatControls } from "@/components/studio/inspector/studio-binding-format-controls";
+import { applyStudioBindingFormatPatch } from "@/utils/template-studio/binding-format";
 
 const READ_ONLY_FIELD_CLASS =
   "flex h-8 w-full min-w-0 items-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg3)]";
@@ -156,6 +160,8 @@ export const buildStudioTimetableInspectorSections = ({
   layerGeometry,
   selectedLayerRotation,
   document,
+  runtimeValues,
+  runtimeContext,
   fontFamilies,
   componentOptions,
   getEntryCardSize,
@@ -167,6 +173,9 @@ export const buildStudioTimetableInspectorSections = ({
   isSectionOpen,
   onToggleSection,
   onAssignComponentSet,
+  onEditDayCard,
+  onSelectLayer,
+  onSelectEditingVariant,
   onUpdateLayerPosition,
   onToggleFitParent,
   onUpdateObject,
@@ -193,256 +202,31 @@ export const buildStudioTimetableInspectorSections = ({
 
   const {
     object,
+    style,
+    extension,
     day,
     dayComponentResolution,
     textObject,
     boundInput,
     builtinField,
     textValue,
-    variantSet,
+    features,
+    editingState,
     isFitParent,
     isDayCards,
-    isWeekDates,
-    isWeeklyMemo,
-    isLegacyProfileBlock,
-    isProfileChild,
-    isStructuredBackground,
-    isArtistProfileText,
-    isTopObject,
-    isBoard,
   } = selection;
 
-  const updateSelectedObject = (
-    recipe: (target: StudioTimetableCompositionObject) => void,
-  ) => {
+  const updateSelectedObject = (recipe: StudioTimetableGraphRecipe) => {
     if (!object) return;
     onUpdateObject(object.id, recipe);
   };
 
-  // 묶음 자체를 골랐을 때는 자식이 가진 이미지 자리를 보여주지 않는다.
-  const isPlacedObject = isStudioPlacedTimetableCompositionObject(
-    object ?? undefined,
-  );
-  const isLeafObject = object?.kind !== "group";
+  const isPlacedObject =
+    features.resizable ||
+    (isDayCards && Boolean(document.domains?.timetable?.team));
+  const formatBinding = textObject ? textObject.binding : undefined;
 
   const sections: (StudioPropertyItem | null)[] = [
-    day && dayComponentResolution
-      ? buildSection(
-          "componentSet",
-          "Component Set",
-          <div className="grid gap-2">
-            <label className="grid gap-1.5">
-              <span className="text-[10px] font-bold text-[var(--fg2)]">
-                {day.label} layout
-              </span>
-              <select
-                className="h-9 w-full rounded-md border border-[var(--field-border)] bg-[var(--field)] px-2.5 text-xs font-semibold text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-                value={dayComponentResolution.componentId}
-                onChange={(event) =>
-                  onAssignComponentSet(event.currentTarget.value)
-                }
-              >
-                {componentOptions.map((component) => (
-                  <option key={component.id} value={component.id}>
-                    {component.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="flex items-center justify-between rounded-md border border-[var(--field-border)] bg-[var(--field)] px-2.5 py-2 text-[10px] font-semibold text-[var(--fg3)]">
-              <span>
-                {dayComponentResolution.source === "default"
-                  ? "Default set"
-                  : "Day override"}
-              </span>
-              <span>
-                {getEntryCardSize(day.id).width} ×{" "}
-                {getEntryCardSize(day.id).height}
-              </span>
-            </div>
-            <p className="text-[10px] font-medium leading-relaxed text-[var(--fg3)]">
-              This set controls all status layouts for the selected day.
-            </p>
-          </div>,
-        )
-      : null,
-
-    object && variantSet
-      ? buildSection(
-          "settings",
-          "Object State",
-          <StudioTimetableObjectVariantControls
-            object={object}
-            onUpdateObject={updateSelectedObject}
-          />,
-        )
-      : null,
-
-    textObject
-      ? buildSection(
-          "input",
-          "Text",
-          <div className="grid gap-2">
-            {builtinField ? (
-              <>
-                <div className="grid gap-1.5 rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] px-3 py-2">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
-                    Built-in Source
-                  </span>
-                  <span className="truncate text-xs font-semibold text-[var(--fg)]">
-                    {builtinField.label}
-                  </span>
-                  <span className="truncate text-[11px] font-medium text-[var(--fg3)]">
-                    {getStudioInputScopeLabel(builtinField.scope)} ·{" "}
-                    {builtinField.type} · {builtinField.id}
-                  </span>
-                </div>
-                {textObject.binding?.kind === "builtinField" ? (
-                  <StudioDayLabelFormatField
-                    fieldId={textObject.binding.fieldId}
-                    value={textObject.binding.dayLabelFormat}
-                    onChange={(dayLabelFormat) =>
-                      onUpdateObject(textObject.id, (target) => {
-                        if (target.binding?.kind !== "builtinField") return;
-
-                        const normalizedFormat =
-                          normalizeStudioDayLabelFormat(dayLabelFormat);
-                        target.binding =
-                          normalizedFormat === "default"
-                            ? {
-                                kind: "builtinField",
-                                fieldId: target.binding.fieldId,
-                              }
-                            : {
-                                ...target.binding,
-                                dayLabelFormat: normalizedFormat,
-                              };
-                      })
-                    }
-                  />
-                ) : null}
-                {isWeekDates ? (
-                  <StudioTimetableWeekDatesFormatControls
-                    object={textObject}
-                    onUpdateObject={(recipe) =>
-                      onUpdateObject(textObject.id, recipe)
-                    }
-                  />
-                ) : null}
-                {textObject.binding?.kind === "builtinField" &&
-                isStudioTimeBuiltinField(textObject.binding.fieldId) ? (
-                  <StudioTimeFormatControls
-                    format={textObject.binding.timeFormat}
-                    amText={textObject.binding.timeAmText}
-                    pmText={textObject.binding.timePmText}
-                    onChange={({ format, amText, pmText }) =>
-                      onUpdateObject(textObject.id, (target) => {
-                        if (target.binding?.kind !== "builtinField") return;
-                        target.binding = {
-                          ...target.binding,
-                          timeFormat: format,
-                          timeAmText: amText,
-                          timePmText: pmText,
-                        };
-                      })
-                    }
-                  />
-                ) : null}
-              </>
-            ) : boundInput ? (
-              renderInputSourceSlot(boundInput)
-            ) : (
-              <StudioTextField
-                label="Content"
-                value={textValue}
-                onChange={(value) =>
-                  onUpdateObject(textObject.id, (target) => {
-                    target.binding = { kind: "staticText", value };
-                  })
-                }
-              />
-            )}
-          </div>,
-        )
-      : null,
-
-    boundInput
-      ? buildSection("runtime", "Preview Inputs", renderPreviewInputs())
-      : null,
-
-    isDayCards && dayCardsLayout
-      ? buildSection(
-          "layout",
-          "Layout",
-          <StudioTimetableDayCardsLayoutControls
-            days={days}
-            layout={dayCardsLayout}
-            onUpdateLayout={onUpdateDayCardsLayout}
-          />,
-        )
-      : null,
-
-    object
-      ? buildSection(
-          "appearance",
-          "Appearance",
-          <div className="grid gap-2">
-            <StudioTimetableVisibilityField
-              hidden={object.hidden}
-              onChange={(visible) =>
-                updateSelectedObject((target) => {
-                  setStudioTimetableObjectVisibilitySlot(target, visible);
-                })
-              }
-            />
-            <StudioTimetableOpacityField
-              opacity={object.style.opacity}
-              onChange={(opacity) =>
-                updateSelectedObject((target) => {
-                  target.style = { ...target.style, opacity };
-                })
-              }
-            />
-            {isWeeklyMemo && isLeafObject
-              ? renderAssetSlot(object, "background")
-              : null}
-            {isLegacyProfileBlock ? (
-              <>
-                {renderAssetSlot(object, "profileImage")}
-                {renderAssetSlot(object, "profileFrame")}
-                <StudioTimetableProfileMaskControls
-                  object={object}
-                  onUpdateObject={updateSelectedObject}
-                />
-              </>
-            ) : null}
-            {isProfileChild ? renderAssetSlot(object, "profileChild") : null}
-            {isStructuredBackground
-              ? renderAssetSlot(object, "structuredBackground")
-              : null}
-            {object.profileRole === "userImage" ? (
-              <StudioTimetableProfileMaskControls
-                object={object}
-                onUpdateObject={updateSelectedObject}
-              />
-            ) : null}
-            {isArtistProfileText && isLeafObject ? (
-              <>
-                {renderAssetSlot(object, "artistProfileText")}
-                <StudioTimetableArtistProfileTextAssetLayoutControls
-                  object={object}
-                  onUpdateObject={updateSelectedObject}
-                />
-              </>
-            ) : null}
-            {isTopObject && isLeafObject
-              ? renderAssetSlot(object, "topObject")
-              : null}
-            {isBoard ? renderAssetSlot(object, "board") : null}
-          </div>,
-        )
-      : null,
-
     layerGeometry && selectedLayerId
       ? buildSection(
           "position",
@@ -521,6 +305,138 @@ export const buildStudioTimetableInspectorSections = ({
         )
       : null,
 
+    isDayCards && dayCardsLayout
+      ? buildSection(
+          "layout",
+          "Layout",
+          <StudioTimetableDayCardsLayoutControls
+            days={days}
+            getEntryCardSize={getEntryCardSize}
+            layout={dayCardsLayout}
+            onUpdateLayout={onUpdateDayCardsLayout}
+          />,
+        )
+      : null,
+
+    day && dayComponentResolution
+      ? buildSection(
+          "componentSet",
+          "Component Set",
+          <div className="grid gap-2">
+            <label className="grid gap-1.5">
+              <span className="text-[10px] font-bold text-[var(--fg2)]">
+                {day.label} layout
+              </span>
+              <select
+                className="h-9 w-full rounded-md border border-[var(--field-border)] bg-[var(--field)] px-2.5 text-xs font-semibold text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+                value={dayComponentResolution.componentId}
+                onChange={(event) =>
+                  onAssignComponentSet(event.currentTarget.value)
+                }
+              >
+                {componentOptions.map((component) => (
+                  <option key={component.id} value={component.id}>
+                    {component.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="flex items-center justify-between rounded-md border border-[var(--field-border)] bg-[var(--field)] px-2.5 py-2 text-[10px] font-semibold text-[var(--fg3)]">
+              <span>
+                {dayComponentResolution.source === "default"
+                  ? "Default set"
+                  : "Day override"}
+              </span>
+              <span>
+                {getEntryCardSize(day.id).width} ×{" "}
+                {getEntryCardSize(day.id).height}
+              </span>
+            </div>
+            <p className="text-[10px] font-medium leading-relaxed text-[var(--fg3)]">
+              Generated day instance. This set controls all status designs for
+              the selected day.
+            </p>
+            <button
+              type="button"
+              className="h-8 rounded-md bg-[var(--accent)] px-3 text-xs font-semibold text-white"
+              onClick={() => onEditDayCard(day.id)}
+            >
+              Edit card design
+            </button>
+          </div>,
+          "Instance",
+        )
+      : null,
+
+    textObject
+      ? buildSection(
+          "input",
+          "Data & Format",
+          <div className="grid gap-2">
+            {builtinField ? (
+              <>
+                <div className="grid gap-1.5 rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] px-3 py-2">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
+                    Built-in Source
+                  </span>
+                  <span className="truncate text-xs font-semibold text-[var(--fg)]">
+                    {builtinField.label}
+                  </span>
+                  <span className="truncate text-[11px] font-medium text-[var(--fg3)]">
+                    {getStudioInputScopeLabel(builtinField.scope)} ·{" "}
+                    {builtinField.type} · {builtinField.id}
+                  </span>
+                </div>
+                {features.dayLabelFormat &&
+                textObject.binding?.kind === "builtinField" ? (
+                  <StudioDayLabelFormatField
+                    fieldId={textObject.binding.fieldId}
+                    value={textObject.binding.dayLabelFormat}
+                    template={textObject.binding.dayLabelTemplate}
+                    day={day ?? (runtimeContext?.dayId ? document.domains?.timetable?.days[runtimeContext.dayId] : undefined)}
+                    onChange={(dayLabelFormat, dayLabelTemplate) =>
+                      onUpdateObject(textObject.id, ({ node: target }) => {
+                        if (target.binding?.kind !== "builtinField") return;
+
+                        applyStudioBindingFormatPatch(target, {
+                          dayLabelFormat,
+                          dayLabelTemplate,
+                        });
+                      })
+                    }
+                  />
+                ) : null}
+                {formatBinding?.kind === "builtinField" && textObject ? (
+                  <StudioBuiltinFieldFormatControls
+                    binding={formatBinding}
+                    document={document}
+                    runtimeValues={runtimeValues}
+                    context={day ? { ...runtimeContext, dayId: day.id } : runtimeContext}
+                    onChange={(patch) =>
+                      onUpdateObject(textObject.id, ({ node: target }) => {
+                        applyStudioBindingFormatPatch(target, patch);
+                      })
+                    }
+                  />
+                ) : null}
+              </>
+            ) : boundInput ? (
+              renderInputSourceSlot(boundInput)
+            ) : (
+              <StudioTextField
+                label="Content"
+                value={textValue}
+                onChange={(value) =>
+                  onUpdateObject(textObject.id, ({ node: target }) => {
+                    target.binding = { kind: "staticText", value };
+                  })
+                }
+              />
+            )}
+          </div>,
+        )
+      : null,
+
     textObject
       ? buildSection(
           "typography",
@@ -529,35 +445,138 @@ export const buildStudioTimetableInspectorSections = ({
             document={document}
             fontFamilies={fontFamilies}
             object={textObject}
+            style={style}
+            extension={extension}
             onUpdateObject={(recipe) => onUpdateObject(textObject.id, recipe)}
           />,
         )
       : null,
 
-    buildSection(
-      "runtime",
-      "Timetable Context",
-      <div className="grid gap-2 text-xs font-semibold text-[var(--fg2)]">
-        <div className={CONTEXT_ROW_CLASS}>
-          Layer: <span className="text-[var(--fg)]">{selectedLayerLabel}</span>
-        </div>
-        <div className={CONTEXT_ROW_CLASS}>
-          Day:{" "}
-          <span className="text-[var(--fg)]">
-            {activeRuntimeDayLabel ?? "None"}
-          </span>
-        </div>
-        <div className={CONTEXT_ROW_CLASS}>
-          Entry:{" "}
-          <span className="text-[var(--fg)]">
-            {activeRuntimeEntry
-              ? `${activeRuntimeEntryIndex + 1} · ${activeRuntimeEntry.statusId}`
-              : "None"}
-          </span>
-        </div>
-      </div>,
-    ),
+    object
+      ? buildSection(
+          "appearance",
+          "Style",
+          <div className="grid gap-2">
+            <StudioTimetableOpacityField
+              opacity={style.opacity}
+              onChange={(opacity) =>
+                updateSelectedObject(({ style }) => {
+                  style.opacity = opacity;
+                })
+              }
+            />
+            {features.assetSlots.map((kind) => (
+              <React.Fragment key={kind}>
+                {renderAssetSlot(object, kind)}
+              </React.Fragment>
+            ))}
+            {features.mask ? (
+              <StudioTimetableProfileMaskControls
+                object={object}
+                style={style}
+                extension={extension}
+                onUpdateObject={updateSelectedObject}
+              />
+            ) : null}
+            {features.assetLayout ? (
+              <StudioTimetableArtistProfileTextAssetLayoutControls
+                object={object}
+                style={style}
+                extension={extension}
+                onUpdateObject={updateSelectedObject}
+              />
+            ) : null}
+          </div>,
+        )
+      : null,
+
+    object || editingState
+      ? buildSection(
+          "settings",
+          "Visibility & State",
+          <div className="grid gap-3">
+            {object ? (
+              <StudioTimetableVisibilityField
+                hidden={object.hidden}
+                onChange={(visible) =>
+                  updateSelectedObject(({ node }) => {
+                    applyStudioObjectHidden(node, !visible);
+                  })
+                }
+              />
+            ) : null}
+            {editingState ? (
+              <>
+                <p className="text-[10px] font-medium text-[var(--fg3)]">
+                  Editing {editingState.owner.label} design. User preview values
+                  are separate.
+                </p>
+                <StudioTimetableObjectVariantControls
+                  object={editingState.owner}
+                  style={
+                    document.styles[editingState.owner.styleId ?? ""] ?? {}
+                  }
+                  extension={editingState.extension}
+                  editingValue={editingState.value}
+                  onSelectEditingValue={(value) => {
+                    onSelectEditingVariant(editingState.owner.id, value);
+                    onSelectLayer(editingState.owner.id);
+                  }}
+                  onUpdateObject={(recipe) => {
+                    onUpdateObject(editingState.owner.id, recipe);
+                    onSelectLayer(editingState.owner.id);
+                  }}
+                />
+              </>
+            ) : null}
+          </div>,
+        )
+      : null,
+
+    boundInput
+      ? buildSection("runtime", "User Preview Values", renderPreviewInputs())
+      : null,
+
+    !document.domains?.timetable?.team
+      ? buildSection(
+          "runtime",
+          "Timetable Context",
+          <div className="grid gap-2 text-xs font-semibold text-[var(--fg2)]">
+            <div className={CONTEXT_ROW_CLASS}>
+              Layer:{" "}
+              <span className="text-[var(--fg)]">{selectedLayerLabel}</span>
+            </div>
+            <div className={CONTEXT_ROW_CLASS}>
+              Day:{" "}
+              <span className="text-[var(--fg)]">
+                {activeRuntimeDayLabel ?? "None"}
+              </span>
+            </div>
+            <div className={CONTEXT_ROW_CLASS}>
+              Entry:{" "}
+              <span className="text-[var(--fg)]">
+                {activeRuntimeEntry
+                  ? `${activeRuntimeEntryIndex + 1} · ${activeRuntimeEntry.statusId}`
+                  : "None"}
+              </span>
+            </div>
+          </div>,
+        )
+      : null,
   ];
+
+  if (editingState) {
+    sections.unshift({
+      kind: "block",
+      id: "editingState:context",
+      content: (
+        <div className="border-b border-[var(--border)] px-4 py-2 text-[11px] text-[var(--fg2)]">
+          {editingState.owner.label} · Editing design:{" "}
+          <strong>{editingState.label}</strong>
+        </div>
+      ),
+    });
+  }
 
   return sections.filter(
     (section): section is StudioPropertyItem => section !== null,

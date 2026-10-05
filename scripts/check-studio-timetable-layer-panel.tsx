@@ -1,3 +1,5 @@
+import { createTimetableGraphFixture } from "./helpers/studio-timetable-fixture";
+import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
 /**
  * 시간표 레이어 패널의 기준선 가드.
  *
@@ -76,7 +78,15 @@ const days = [
   { id: "tue", label: "Tuesday", order: 1 },
 ] as unknown as StudioTimetableDayDefinition[];
 const panelProps: StudioTimetableLayerPanelProps = {
-  composition,
+  document: createTimetableGraphFixture({
+    ...createSampleStudioDocument(),
+    domains: {
+      timetable: {
+        ...createSampleStudioDocument().domains!.timetable!,
+        composition,
+      },
+    },
+  }),
   days,
   selectedLayerId: null,
   collapsedLayerIds: [],
@@ -93,20 +103,16 @@ const panelProps: StudioTimetableLayerPanelProps = {
 const markup = renderToStaticMarkup(
   <StudioTimetableLayerPanel {...panelProps} />,
 );
+assert.ok(
+  markup.includes(">repeat</span>") && markup.includes(">instance</span>"),
+  "반복 영역과 생성된 요일 인스턴스를 일반 객체와 구별한다.",
+);
 // --- 종류 이름 기준선 ---
 assert.deepEqual(
-  (
-    [
-      "generatedDayCards",
-      "group",
-      "profileBlock",
-      "image",
-      "topObject",
-      "flexibleText",
-      "text",
-    ] as const
-  ).map(getStudioTimetableLayerTypeLabel),
-  ["group", "group", "block", "image", "image", "auto text", "text"],
+  (["group", "image", "flexibleText", "text"] as const).map(
+    getStudioTimetableLayerTypeLabel,
+  ),
+  ["group", "image", "auto text", "text"],
   "레이어 종류 이름이 바뀌면 안 된다. 사용자는 이 이름으로 무엇을 채워야 하는지 안다.",
 );
 assert.equal(
@@ -175,7 +181,15 @@ assert.equal(
   renderToStaticMarkup(
     <StudioTimetableLayerPanel
       {...panelProps}
-      composition={emptyGroupComposition}
+      document={createTimetableGraphFixture({
+        ...createSampleStudioDocument(),
+        domains: {
+          timetable: {
+            ...createSampleStudioDocument().domains!.timetable!,
+            composition: emptyGroupComposition,
+          },
+        },
+      })}
     />,
   ).includes('title="Collapse group"'),
   false,
@@ -301,7 +315,18 @@ const hiddenComposition = {
   },
 } as unknown as StudioTimetableComposition;
 const hiddenMarkup = renderToStaticMarkup(
-  <StudioTimetableLayerPanel {...panelProps} composition={hiddenComposition} />,
+  <StudioTimetableLayerPanel
+    {...panelProps}
+    document={createTimetableGraphFixture({
+      ...createSampleStudioDocument(),
+      domains: {
+        timetable: {
+          ...createSampleStudioDocument().domains!.timetable!,
+          composition: hiddenComposition,
+        },
+      },
+    })}
+  />,
 );
 assert.equal(
   (hiddenMarkup.match(/opacity-55/g) ?? []).length,
@@ -338,7 +363,18 @@ const cyclicComposition = {
   },
 } as unknown as StudioTimetableComposition;
 const cyclicMarkup = renderToStaticMarkup(
-  <StudioTimetableLayerPanel {...panelProps} composition={cyclicComposition} />,
+  <StudioTimetableLayerPanel
+    {...panelProps}
+    document={createTimetableGraphFixture({
+      ...createSampleStudioDocument(),
+      domains: {
+        timetable: {
+          ...createSampleStudioDocument().domains!.timetable!,
+          composition: cyclicComposition,
+        },
+      },
+    })}
+  />,
 );
 assert.deepEqual(
   getRowTitles(cyclicMarkup),

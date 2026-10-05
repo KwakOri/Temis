@@ -1,7 +1,7 @@
 /**
  * 요일 카드 배치 컨트롤의 기준선 가드.
  *
- * 프리셋을 고르면 자리 지도를 지우고, 사용자 지정일 때만 지도를 만든다. 3x3은
+ * Custom은 캔버스 원점부터 절대 좌표로 배치하고, 격자 옵션을 숨긴다. 3x3은
  * 빈 칸 두 개를 고르는 방식으로만 남는 칸을 정한다. 이 규칙이 깨지면 화면의
  * 격자와 문서의 자리 지도가 어긋난다.
  */
@@ -17,6 +17,8 @@ import {
 } from "../src/app/(root)/template-studio/_components/studio-timetable-day-cards-layout-controls";
 import {
   getStudioTimetableDayCardsBounds,
+  getStudioTimetableDayCardsLayout,
+  getStudioTimetableDayCardGeometries,
   getStudioTimetableEntryCardSize,
 } from "../src/app/(root)/template-studio/_components/studio-timetable-preview";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
@@ -71,6 +73,10 @@ assert.deepEqual(
 // --- 프리셋에 따라 보이는 컨트롤 ---
 
 const defaultMarkup = markupOf(createLayout());
+assert.ok(
+  defaultMarkup.includes("<details") && !defaultMarkup.includes('open=""'),
+  "일괄 변환은 기본적으로 접힌 고급 영역에 둔다.",
+);
 assert.ok(defaultMarkup.includes("<span>Grid Preset</span>"));
 assert.ok(defaultMarkup.includes("<span>Fill Order</span>"));
 assert.ok(defaultMarkup.includes("<span>Remainder</span>"));
@@ -97,23 +103,15 @@ assert.ok(
 const customMarkup = markupOf(
   createLayout({ gridPreset: "custom", columns: 3, rows: 3 }),
 );
+assert.ok(customMarkup.includes("Card Transforms"));
+assert.ok(customMarkup.includes("canvas origin (0, 0)"));
 assert.ok(
-  customMarkup.indexOf("Slot Map") < customMarkup.indexOf("Card Transforms"),
-  "사용자 지정에서는 Slot Map 바로 아래에 카드 변환을 보여준다.",
+  customMarkup.includes("<span>X</span>") &&
+    customMarkup.includes("<span>Y</span>"),
 );
-assert.ok(
-  customMarkup.includes("Slot Map"),
-  "사용자 지정에서는 자리 지도를 보여준다.",
-);
-assert.ok(
-  customMarkup.includes("<span>Columns</span>") &&
-    customMarkup.includes("<span>Rows</span>"),
-  "사용자 지정에서는 칸 수를 직접 정한다.",
-);
-assert.equal(
-  (customMarkup.match(/>Empty<\/option>/g) ?? []).length,
-  9,
-  "자리 지도는 칸 수만큼 선택을 만든다.",
+assert.doesNotMatch(
+  customMarkup,
+  /Slot Map|Columns|Rows|Gap X|Gap Y|Fill Order|Remainder|Offset X|Offset Y/,
 );
 
 const threeByThreeMarkup = markupOf(
@@ -180,20 +178,6 @@ const toPreset = (
   return nextLayout;
 };
 
-type SelectElement = React.ReactElement<{
-  onChange?: (event: unknown) => void;
-  children?: React.ReactNode;
-}>;
-
-const findSelects = (node: React.ReactNode): SelectElement[] => {
-  if (Array.isArray(node)) return node.flatMap(findSelects);
-  if (!React.isValidElement(node)) return [];
-
-  const selects: SelectElement[] =
-    node.type === "select" ? [node as SelectElement] : [];
-  return [...selects, ...findSelects((node.props as { children?: React.ReactNode }).children)];
-};
-
 assert.ok(
   gridPresetSelect(createLayout()) !== null,
   "격자 프리셋 선택을 찾을 수 있다.",
@@ -204,9 +188,13 @@ const toCustom = toPreset(
   "custom",
 );
 assert.equal(toCustom.gridPreset, "custom");
-assert.ok(
-  Array.isArray(toCustom.slots) && toCustom.slots.length > 0,
-  "사용자 지정으로 바꾸면 지금 요일 순서로 자리 지도를 만들어 준다.",
+assert.equal(toCustom.slots, undefined, "Custom does not use a slot map");
+assert.equal(toCustom.left, 0);
+assert.equal(toCustom.top, 0);
+assert.equal(
+  Object.keys(toCustom.dayOffsets ?? {}).length,
+  DAYS.length,
+  "Custom stores each card position instead of resetting it",
 );
 
 const toPresetFromCustom = toPreset(
@@ -248,39 +236,25 @@ const cardTransformFixture = {
   tue: { left: -7, top: 3, rotateDeg: -12 },
 } as StudioTimetableDayCardsLayout["dayOffsets"];
 
-const customSlotMapLayout = createLayout({
-  gridPreset: "custom",
-  columns: 3,
-  rows: 3,
-  slots: ["mon", "tue", null],
-  dayOffsets: cardTransformFixture,
-});
-const customSlotMapElement = StudioTimetableDayCardsLayoutControls({
-  days: DAYS,
-  layout: customSlotMapLayout,
-  onUpdateLayout: (recipe) => recipe(customSlotMapLayout),
-});
-const customSlotSelects = findSelects(customSlotMapElement);
-const firstSlotSelect = customSlotSelects.at(-9 + 2);
-assert.ok(firstSlotSelect, "사용자 지정 자리 지도의 실제 select를 찾을 수 있다.");
-firstSlotSelect?.props.onChange?.({ currentTarget: { value: "wed" } });
 assert.deepEqual(
-  customSlotMapLayout.slots?.slice(0, 3),
-  ["mon", "tue", "wed"],
-  "실제 자리 지도 select를 바꾸면 해당 슬롯이 갱신된다.",
-);
-assert.deepEqual(
-  customSlotMapLayout.dayOffsets,
+  toPreset(
+    createLayout({ gridPreset: "custom", dayOffsets: cardTransformFixture }),
+    "custom",
+  ).dayOffsets,
   cardTransformFixture,
-  "자리 지도를 바꿔도 day ID별 Offset X/Y/Rotate는 그대로 보존된다.",
+  "reselecting Custom preserves edited absolute coordinates",
 );
 
 for (const gridPreset of cardTransformPresets) {
   const presetMarkup = markupOf(createLayout({ gridPreset }));
   assert.ok(
     presetMarkup.includes("Card Transforms") &&
-      presetMarkup.includes("Offset X") &&
-      presetMarkup.includes("Offset Y") &&
+      presetMarkup.includes(
+        gridPreset === "custom" ? "<span>X</span>" : "Offset X",
+      ) &&
+      presetMarkup.includes(
+        gridPreset === "custom" ? "<span>Y</span>" : "Offset Y",
+      ) &&
       presetMarkup.includes("Rotate"),
     `${gridPreset} 프리셋에서도 카드 변환 필드를 렌더링한다.`,
   );
@@ -289,11 +263,34 @@ for (const gridPreset of cardTransformPresets) {
     createLayout({ gridPreset: "1x7", dayOffsets: cardTransformFixture }),
     gridPreset,
   );
-  assert.deepEqual(
-    presetLayout.dayOffsets,
-    cardTransformFixture,
-    `${gridPreset} 프리셋으로 바꿔도 day ID별 카드 변환을 보존한다.`,
-  );
+  if (gridPreset === "custom") {
+    const positions = (candidate: StudioTimetableDayCardsLayout) =>
+      getStudioTimetableDayCardGeometries(
+        getStudioTimetableDayCardsLayout({
+          dayIds: DAYS.map((day) => day.id),
+          dayCardsLayout: candidate,
+        }),
+        DAYS.map((day, order) => ({ ...day, order })),
+        () => 1,
+      );
+    assert.deepEqual(
+      positions(presetLayout),
+      positions(
+        createLayout({ gridPreset: "1x7", dayOffsets: cardTransformFixture }),
+      ),
+      "Grid to Custom preserves every rendered card position and size.",
+    );
+    assert.equal(presetLayout.dayOffsets?.mon.rotateDeg, 9);
+    assert.equal(presetLayout.dayOffsets?.tue.rotateDeg, -12);
+    const restored = toPreset(presetLayout, "3x3");
+    assert.deepEqual(
+      positions(restored),
+      positions(presetLayout),
+      "Custom to Grid converts positions to offsets without moving cards.",
+    );
+  } else {
+    assert.deepEqual(presetLayout.dayOffsets, cardTransformFixture);
+  }
 }
 
 const sampleDocument = createSampleStudioDocument();
@@ -460,7 +457,10 @@ const resetElement = StudioTimetableDayCardsLayoutControls({
   layout: resetLayout,
   onUpdateLayout: (recipe) => recipe(resetLayout),
 }) as React.ReactElement<{ children: React.ReactNode }>;
-const findButton = (node: React.ReactNode, text: string): React.ReactElement<{ onClick: () => void }> | null => {
+const findButton = (
+  node: React.ReactNode,
+  text: string,
+): React.ReactElement<{ onClick: () => void }> | null => {
   if (Array.isArray(node)) {
     for (const child of node) {
       const found = findButton(child, text);
@@ -469,13 +469,24 @@ const findButton = (node: React.ReactNode, text: string): React.ReactElement<{ o
     return null;
   }
   if (!React.isValidElement(node)) return null;
-  const props = node.props as { children?: React.ReactNode; onClick?: () => void };
-  if (props.onClick && props.children === text) return node as React.ReactElement<{ onClick: () => void }>;
+  const props = node.props as {
+    children?: React.ReactNode;
+    onClick?: () => void;
+  };
+  if (props.onClick && props.children === text)
+    return node as React.ReactElement<{ onClick: () => void }>;
   return findButton(props.children, text);
 };
-const resetButton = findButton(resetElement, "Reset card positions and rotations");
+const resetButton = findButton(
+  resetElement,
+  "Reset card positions and rotations",
+);
 assert.ok(resetButton, "위치와 회전을 초기화하는 버튼을 찾을 수 있다.");
 resetButton?.props.onClick();
-assert.deepEqual(resetLayout.dayOffsets, {}, "초기화하면 모든 day transform을 지운다.");
+assert.deepEqual(
+  resetLayout.dayOffsets,
+  {},
+  "초기화하면 모든 day transform을 지운다.",
+);
 
 console.log("Studio day cards layout baseline checks passed.");

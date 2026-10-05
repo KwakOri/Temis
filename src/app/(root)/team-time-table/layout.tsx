@@ -1,6 +1,7 @@
 'use client';
 
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { LegacyTemplateAssetsRoute } from "@/contexts/LegacyTemplateAssetsContext";
 import TeamTemplateProtectedRoute from "@/components/auth/TeamTemplateProtectedRoute";
 import { PropsWithChildren } from "react";
 import { usePathname } from "next/navigation";
@@ -16,14 +17,14 @@ const TimeTableLayout = ({ children }: PropsWithChildren) => {
     if (templateId) {
       return (
         <TeamTemplateProtectedRoute templateId={templateId}>
-          {children}
+          <LegacyTemplateAssetsRoute ownerKind="team_timetable">{children}</LegacyTemplateAssetsRoute>
         </TeamTemplateProtectedRoute>
       );
     }
   }
 
   // 기본 템플릿이나 검증이 불필요한 경우 기본 인증만 수행
-  return <ProtectedRoute>{children}</ProtectedRoute>;
+  return <ProtectedRoute><LegacyTemplateAssetsRoute ownerKind="team_timetable">{children}</LegacyTemplateAssetsRoute></ProtectedRoute>;
 };
 
 export default TimeTableLayout;

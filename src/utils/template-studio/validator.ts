@@ -1,3 +1,9 @@
+import { getStudioTimetableNodeIds } from "./timetable-graph-queries";
+import type {
+  StudioTimetableGraphDocument,
+  StudioTimetableGraphNode,
+} from "@/types/studio-timetable-graph";
+import { validateStudioTimetableGraphStructure } from "./timetable-graph-document";
 import {
   StudioBinding,
   StudioDiagnostic,
@@ -114,20 +120,32 @@ const collectStudioInputConsumers = (
   const consumers: Record<string, StudioInputConsumerDiagnosticReference[]> =
     {};
 
+  const weeklyIds = getStudioTimetableNodeIds(document);
   Object.values(document.graph.nodes).forEach((node) => {
+    const workspace = weeklyIds.has(node.id) ? "timetable" : "cards";
+    addInputConsumer(
+      consumers,
+      (node as StudioTimetableGraphNode).variantSet?.inputId,
+      {
+        id: `${workspace}:${node.id}:variant`,
+        workspace,
+        label: node.label,
+        detail: "Timetable object state",
+      },
+    );
     addInputConsumer(consumers, getBindingInputId(node.binding), {
-      id: `cards:${node.id}:binding`,
-      workspace: "cards",
+      id: `${workspace}:${node.id}:binding`,
+      workspace,
       label: node.label,
-      detail: "Cards binding",
+      detail: workspace === "timetable" ? "Timetable binding" : "Cards binding",
     });
 
     Object.entries(node.assetSlots ?? {}).forEach(([slotName, slot]) => {
       addInputConsumer(consumers, slot.inputId, {
-        id: `cards:${node.id}:slot:${slotName}`,
-        workspace: "cards",
+        id: `${workspace}:${node.id}:slot:${slotName}`,
+        workspace,
         label: node.label,
-        detail: `Cards ${slotName} slot`,
+        detail: `${workspace === "timetable" ? "Timetable" : "Cards"} ${slotName} slot`,
       });
     });
   });
@@ -668,8 +686,8 @@ const validateTimetableCompositionObjectAssets = (
 
 const validateTimetableCompositionObjectVariants = (
   document: StudioTemplateDocument,
-  object: StudioTimetableCompositionObject,
-  objects: Record<string, StudioTimetableCompositionObject>,
+  object: StudioTimetableCompositionObject | StudioTimetableGraphNode,
+  objects: Record<string, StudioTimetableCompositionObject | StudioGraphNode>,
 ): StudioDiagnostic[] => {
   const variantSet = object.variantSet;
   if (!variantSet) return [];
@@ -678,7 +696,7 @@ const validateTimetableCompositionObjectVariants = (
   const optionValues = variantSet.options.map((option) => option.value);
   const uniqueOptionValues = new Set(optionValues);
 
-  if (object.kind !== "group") {
+  if (("kind" in object ? object.kind : object.type) !== "group") {
     diagnostics.push(
       createDiagnostic(
         "error",
@@ -715,15 +733,16 @@ const validateTimetableCompositionObjectVariants = (
   }
 
   if (
+    "activeValue" in variantSet &&
     variantSet.activeValue &&
-    !uniqueOptionValues.has(variantSet.activeValue)
+    !uniqueOptionValues.has(String(variantSet.activeValue))
   ) {
     diagnostics.push(
       createDiagnostic(
         "error",
         `timetable-object-variant-active-invalid:${object.id}`,
         "Invalid authoring object state",
-        `${object.label} is editing ${variantSet.activeValue}, but that state is not defined.`,
+        `${object.label} is editing ${"activeValue" in variantSet ? variantSet.activeValue : ""}, but that state is not defined.`,
       ),
     );
   }
@@ -2393,6 +2412,23 @@ const validateStudioInputPresentation = (
 ): StudioDiagnostic[] => {
   const diagnostics: StudioDiagnostic[] = [];
   const presentation = input.presentation;
+  const preset = (input as { preset?: unknown }).preset;
+  if (
+    preset !== undefined &&
+    (preset !== "user_images" ||
+      input.type !== "image" ||
+      document.metadata.kind !== "thumbnail" ||
+      input.scope !== "global")
+  ) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `input-preset-invalid:${input.id}`,
+        "Invalid image preset",
+        "user_images is only supported by global thumbnail image inputs.",
+      ),
+    );
+  }
 
   if (presentation?.order !== undefined) {
     if (
@@ -2689,8 +2725,33 @@ const validateStudioSelectInputDefinition = (
 export const validateStudioDocument = (
   document: StudioTemplateDocument,
 ): StudioDiagnostic[] => {
+  if (document.version === 8) {
+    try {
+      const graphDocument = document as StudioTimetableGraphDocument;
+      const errors = validateStudioTimetableGraphStructure(graphDocument);
+      if (errors.length)
+        return errors.map((detail, index) =>
+          createDiagnostic(
+            "error",
+            `timetable-graph:${index}`,
+            "Invalid timetable graph",
+            detail,
+          ),
+        );
+    } catch {
+      return [
+        createDiagnostic(
+          "error",
+          "timetable-graph:malformed",
+          "Invalid timetable graph",
+          "Malformed v8 timetable document.",
+        ),
+      ];
+    }
+  }
   const diagnostics: StudioDiagnostic[] = [];
   const nodes = document.graph.nodes;
+  const weeklyIds = getStudioTimetableNodeIds(document);
   const inputConsumers = collectStudioInputConsumers(document);
 
   diagnostics.push(
@@ -2812,11 +2873,19 @@ export const validateStudioDocument = (
           node.id,
           node.label,
           node.meta.exception,
-          "cards",
+          weeklyIds.has(node.id) ? "timetable" : "cards",
         ),
       );
     }
 
+    if (weeklyIds.has(node.id))
+      diagnostics.push(
+        ...validateTimetableCompositionObjectVariants(
+          document,
+          node as StudioTimetableGraphNode,
+          nodes,
+        ),
+      );
     diagnostics.push(
       ...validateBinding(document, node),
       ...validateBindingFallback(document, node),

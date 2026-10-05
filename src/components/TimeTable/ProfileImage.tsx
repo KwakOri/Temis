@@ -1,12 +1,15 @@
-import Image from "next/image";
-
 interface ProfileImageProps {
   imageSrc: string;
 }
 
 const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
   return (
-    <Image fill className="object-cover" src={imageSrc} alt={"placeholder"} />
+    <img
+      style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+      className="object-cover"
+      src={imageSrc}
+      alt={"placeholder"}
+    />
   );
 };
 

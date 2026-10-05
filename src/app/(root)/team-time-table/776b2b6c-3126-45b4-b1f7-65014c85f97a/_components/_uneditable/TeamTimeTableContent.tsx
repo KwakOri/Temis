@@ -1,3 +1,5 @@
+"use client";
+
 import { useTimeTableData, useTimeTableUI } from '@/contexts/TimeTableContext';
 import React from 'react';
 
@@ -6,11 +8,12 @@ import { UserScheduleData } from '@/types/team-timetable';
 import { TPlaceholders } from '@/types/time-table/data';
 import { TTheme } from '@/types/time-table/theme';
 import { isGuideEnabled } from '@/utils/time-table/data';
-import { Imgs } from '../../_img/imgs';
+import { Imgs as LocalImgs } from '../../_img/imgs';
 import { templateSize } from '../../_settings/settings';
 import TeamTimeTableGrid from '../TeamTimeTableGrid';
 
 import TeamTimeTableTopObject from '../TeamTimeTableTopObject';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 export interface TeamTimeTableContentProps {
   currentTheme: TTheme;
@@ -23,6 +26,7 @@ const TeamTimeTableContent: React.FC<TeamTimeTableContentProps> = ({
   data,
   placeholders,
 }) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const { imageSrc, weekDates, profileText, memoText, isMemoTextVisible } =
     useTimeTableData();
   const { scale, isProfileTextVisible } = useTimeTableUI();

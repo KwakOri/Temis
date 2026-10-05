@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { TeamStudioRunClient } from "./team-studio-run-client";
 
 import { TemplateStudioRuntimeShell } from "@/app/(root)/template-studio/_components/runtime/template-studio-runtime-shell";
 import {
@@ -55,6 +56,9 @@ export function TemplateStudioRunClient({
       </main>
     );
   }
+
+  if (data.document.domains?.timetable?.team)
+    return <TeamStudioRunClient initialTemplateId={templateId} />;
 
   return (
     <TemplateStudioRuntimeShell

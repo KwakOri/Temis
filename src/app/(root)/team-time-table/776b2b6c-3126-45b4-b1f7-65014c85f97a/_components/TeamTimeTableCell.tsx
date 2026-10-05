@@ -1,16 +1,19 @@
+"use client";
+
 import React from 'react';
 
 import AutoResizeText from '@/components/AutoResizeTextCard/AutoResizeText';
 import { TeamTimeTableDay } from '@/types/team-timetable';
 import { TTheme } from '@/types/time-table/theme';
 import { formatTime } from '@/utils/time-formatter';
-import { Imgs } from '../_img/imgs';
+import { Imgs as LocalImgs } from '../_img/imgs';
 import {
   fontOption,
   memberIdsMap,
   memberNamesMap,
 } from '../_settings/settings';
 import type { DayGroupedMemberSchedule } from './TeamTimeTableGrid';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface DayTextProps {
   currentTheme?: TTheme;
@@ -121,6 +124,7 @@ const StreamingMainTitle: React.FC<StreamingMainTitleProps> = ({
 };
 
 const OfflineCard: React.FC<OfflineCardProps> = ({ currentTheme }) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -151,6 +155,7 @@ export interface MemberScheduleProps {
 }
 
 const CardBG = ({ userId }: { userId: number }) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const cardName = 'members_' + memberIdsMap.get(userId);
   console.log(Imgs['first'][cardName]?.src);
   return (

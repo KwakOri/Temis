@@ -173,7 +173,8 @@ import {
   type ThumbnailUpdateOptions,
 } from "../_hooks/use-thumbnail-node-commands";
 
-type ThumbnailPanelMode = "layers" | "assets" | "textPresets" | "inputs";
+type ThumbnailPanelMode =
+  "layers" | "assets" | "presets" | "textPresets" | "inputs";
 type ThumbnailTheme = "dark" | "light";
 
 /**
@@ -220,6 +221,7 @@ interface PublishedPreviewCaptureRequest {
 const THUMBNAIL_PANEL_TABS: StudioPanelTab[] = [
   { id: "layers", label: "Layers", icon: <Layers3 size={14} /> },
   { id: "assets", label: "Assets", icon: <ImageIcon size={14} /> },
+  { id: "presets", label: "Presets", icon: <ImageIcon size={14} /> },
   { id: "textPresets", label: "Text", icon: <Type size={14} /> },
   { id: "inputs", label: "Inputs", icon: <ListChecks size={14} /> },
 ];
@@ -1636,6 +1638,29 @@ export function ThumbnailStudioClient({
         onRename={renameAsset}
         onReplaceSelected={replaceSelectedImageAsset}
       />
+    ) : panelMode === "presets" ? (
+      <div className="grid gap-3 p-3">
+        <h3 className="text-xs font-bold text-[var(--fg)]">Presets</h3>
+        <button
+          type="button"
+          data-thumbnail-add-preset="user_images"
+          className="rounded-xl border border-[var(--field-border)] bg-[var(--field)] p-3 text-left text-[var(--fg)] hover:border-[var(--accent)]"
+          onClick={commands.addUserImages}
+        >
+          <span className="block text-xs font-bold">user_images</span>
+          <span className="mt-1 block text-[11px] text-[var(--fg2)]">
+            배경 이미지와 애드온 이미지를 담는 단일 레이어. 이미지 레이어 선택
+            시 프리셋으로 변환합니다.
+          </span>
+        </button>
+        <button
+          type="button"
+          className="rounded-xl border border-[var(--field-border)] bg-[var(--field)] p-3 text-left text-xs font-bold text-[var(--fg)] hover:border-[var(--accent)]"
+          onClick={commands.addWeekDates}
+        >
+          Week Dates
+        </button>
+      </div>
     ) : panelMode === "textPresets" ? (
       <ThumbnailTextPresetPanel
         presets={textPresets}

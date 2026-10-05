@@ -242,8 +242,10 @@ assert.equal(
 const TIMETABLE_CARDS_TABS = [
   { id: "layers", label: "Layers", icon: <span>L</span> },
   { id: "presets", label: "Presets", icon: <span>P</span> },
+];
+const TIMETABLE_MENU_TABS = [
   { id: "inputs", label: "Inputs", icon: <span>I</span> },
-  { id: "timetable", label: "Table", icon: <span>T</span> },
+  { id: "timetable", label: "Sample Data", icon: <span>T</span> },
 ];
 
 const sidebarMarkup = renderToStaticMarkup(
@@ -252,6 +254,7 @@ const sidebarMarkup = renderToStaticMarkup(
     content={<div data-region="panel">panel</div>}
     contextHeader={<div data-region="context">Component Set</div>}
     tabs={TIMETABLE_CARDS_TABS}
+    menuTabs={TIMETABLE_MENU_TABS}
     onTabChange={noop}
   />,
 );
@@ -283,15 +286,20 @@ assert.deepEqual(
   "context header는 탭 행보다 앞, 콘텐츠는 뒤에 온다.",
 );
 
-// 시간표 Cards 모드의 탭 4개가 순서대로 렌더된다.
+// 상시 탭은 두 개이고 입력 관리와 샘플 데이터는 더보기 메뉴로 접근한다.
 const tabLabels = [...sidebarMarkup.matchAll(/<button[^>]*>.*?<\/button>/g)]
   .map((match) => match[0].replace(/<[^>]+>/g, ""))
-  .map((label) => label.replace(/^[LPIT]/, ""));
+  .map((label) => label.replace(/^[LPIT]/, ""))
+  .filter(Boolean);
 assert.deepEqual(
   tabLabels,
-  ["Layers", "Presets", "Inputs", "Table"],
-  "Cards 모드 탭 구성과 순서가 바뀌면 안 된다.",
+  ["Layers", "Presets"],
+  "상시 탭에는 입력 관리와 샘플 데이터가 없다.",
 );
+assert.ok(sidebarMarkup.includes('aria-label="More panels"'));
+assert.ok(sidebarMarkup.includes('aria-haspopup="menu"'));
+assert.ok(!sidebarMarkup.includes(">Sample Data<"));
+assert.ok(!sidebarMarkup.includes(">Inputs<"));
 
 // 활성 탭만 강조된다.
 const activeTabCount = (
@@ -299,16 +307,18 @@ const activeTabCount = (
 ).length;
 assert.equal(activeTabCount, 1, "활성 탭 표현은 정확히 하나여야 한다.");
 
-// Timetable 모드는 Table 탭이 없다.
+// Timetable도 같은 메뉴를 제공한다.
 const timetableModeMarkup = renderToStaticMarkup(
   <StudioLeftSidebar
     activeTabId="layers"
     content={<div>panel</div>}
-    tabs={TIMETABLE_CARDS_TABS.slice(0, 3)}
+    tabs={TIMETABLE_CARDS_TABS}
+    menuTabs={TIMETABLE_MENU_TABS}
     onTabChange={noop}
   />,
 );
 assert.ok(!timetableModeMarkup.includes(">Table<"));
+assert.ok(timetableModeMarkup.includes('aria-label="More panels"'));
 assert.ok(
   !timetableModeMarkup.includes('data-region="context"'),
   "context header를 넘기지 않으면 렌더되지 않는다.",

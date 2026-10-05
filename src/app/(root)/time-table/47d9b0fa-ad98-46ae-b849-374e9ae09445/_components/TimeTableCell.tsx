@@ -1,12 +1,15 @@
+"use client";
+
 import React, { CSSProperties } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { formatTime } from "@/utils/time-formatter";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import { colors, fontOption } from "../_settings/settings";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface DayTextProps {
   currentTheme?: TTheme;
@@ -338,6 +341,7 @@ interface OnlineBgProps {
 }
 
 const CardBG = ({ isOffline, day }: OnlineBgProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const cardType = isOffline ? "offline" : "online";
   const cardOfDays = ["2", "3", "1", "1", "1", "3", "2"];
   const cardName = cardType + cardOfDays[day];

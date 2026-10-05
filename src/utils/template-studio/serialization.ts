@@ -11,6 +11,8 @@ import {
   validateStudioRuntimeValuesForDocument,
 } from "@/utils/template-studio/timetable-runtime";
 
+import { canonicalizeStudioTimetableDocumentStorage } from "./semantic-slots";
+
 export const STUDIO_TEMPLATE_EXPORT_SCHEMA = "studio_template_export";
 export const STUDIO_TEMPLATE_EXPORT_VERSION = 1;
 
@@ -77,13 +79,17 @@ const getImportedRuntimeValues = (
 export const createStudioTemplateExportPayload = (
   document: StudioTemplateDocument,
   runtimeValues: StudioRuntimeValues,
-): StudioTemplateExportPayload => ({
-  schema: STUDIO_TEMPLATE_EXPORT_SCHEMA,
-  version: STUDIO_TEMPLATE_EXPORT_VERSION,
-  exportedAt: new Date().toISOString(),
-  document: cloneJson(document),
-  runtimeValues: cloneJson(runtimeValues),
-});
+): StudioTemplateExportPayload => {
+  const storedDocument = cloneJson(document);
+  canonicalizeStudioTimetableDocumentStorage(storedDocument);
+  return {
+    schema: STUDIO_TEMPLATE_EXPORT_SCHEMA,
+    version: STUDIO_TEMPLATE_EXPORT_VERSION,
+    exportedAt: new Date().toISOString(),
+    document: storedDocument,
+    runtimeValues: cloneJson(runtimeValues),
+  };
+};
 
 export const getStudioTemplateExportFilename = (
   document: StudioTemplateDocument,
@@ -166,6 +172,17 @@ export const parseStudioTemplateExportJson = (
   }
 
   const importedRuntimeValues = getImportedRuntimeValues(parsed);
+  if (
+    isRecord(parsed) &&
+    isRecord(parsed.runtimeValues) &&
+    parsed.runtimeValues.team !== undefined &&
+    !importedRuntimeValues
+  ) {
+    return {
+      ok: false,
+      message: "Invalid team runtime values in the selected JSON.",
+    };
+  }
   const runtimeDiagnostics = importedRuntimeValues
     ? validateStudioRuntimeValuesForDocument(document, importedRuntimeValues)
     : [];

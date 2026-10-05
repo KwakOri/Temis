@@ -1,26 +1,13 @@
+import { parseStudioTimetableGraphDocument } from "./timetable-graph-document";
+import { upgradeThumbnailUserImages } from "@/utils/thumbnail-studio/user-images";
 import type {
   StudioBinding,
   StudioTemplateDocument,
 } from "@/types/template-studio";
-import { ensureStudioTimetableEntryGroupContract } from "@/utils/template-studio/entry-groups";
-import {
-  ensureStudioTimetableVariantInput,
-  isStudioTimetableVariantInputCompatible,
-} from "@/utils/template-studio/preset-inputs";
-import { ensureStudioStatusCardBackgroundBaseColors } from "@/utils/template-studio/status-card-background";
-import { ensureStudioIndependentStatusVariants } from "@/utils/template-studio/status-variants";
-import {
-  ensureStudioTimetableCapabilityStatus,
-  getStudioTimetableCapabilities,
-} from "@/utils/template-studio/timetable-capabilities";
 import {
   getStudioTemplateKind,
   isStudioTemplateKind,
 } from "@/utils/template-studio/template-kind";
-import {
-  ensureStudioStructuredTextFlexibleKind,
-  getStudioTimetableComposition,
-} from "@/utils/template-studio/timetable-composition";
 import { normalizeThumbnailStudioInputPresentation } from "@/utils/thumbnail-studio/input-order";
 import {
   getStudioSingleDatePreset,
@@ -92,7 +79,7 @@ export const isStudioTemplateDocumentLike = (
 ): value is StudioTemplateDocument =>
   isRecord(value) &&
   value.schema === STUDIO_TEMPLATE_DOCUMENT_SCHEMA &&
-  value.version === STUDIO_TEMPLATE_DOCUMENT_VERSION &&
+  (value.version === STUDIO_TEMPLATE_DOCUMENT_VERSION || value.version === 8) &&
   isRecord(value.metadata) &&
   isRecord(value.canvas) &&
   isRecord(value.graph) &&
@@ -115,6 +102,23 @@ export const migrateStudioTemplateDocument = (
       ok: false,
       message: "The selected JSON is not a Template Studio document.",
     };
+  }
+
+  // v8 is already canonical. Validate it without adding a composition or upgrading it.
+  if (value.version === 8) {
+    try {
+      return {
+        ok: true,
+        document: parseStudioTimetableGraphDocument(JSON.stringify(value)),
+        warnings: [],
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        message:
+          error instanceof Error ? error.message : "Invalid v8 document.",
+      };
+    }
   }
 
   if (
@@ -159,7 +163,13 @@ export const migrateStudioTemplateDocument = (
     warnings.push(`Recorded template kind ${resolvedKind} on the document.`);
   }
 
+  if (document.metadata.kind !== "thumbnail") {
+    return { ok: false, message: "Only v8 timetable documents are supported." };
+  }
+
   if (document.metadata.kind === "thumbnail") {
+    if (upgradeThumbnailUserImages(document))
+      warnings.push("Upgraded USER_IMAGE to user_images preset.");
     const weekDates = document.domains?.thumbnail?.weekDates as
       (Record<string, unknown> & { locale?: string }) | undefined;
     const legacyDateInputId =
@@ -198,75 +208,6 @@ export const migrateStudioTemplateDocument = (
     }
   }
 
-  const timetable = document.domains?.timetable;
-
-  if (timetable) {
-    if ((timetable as { version: number }).version !== 2) {
-      (timetable as { version: number }).version = 2;
-      warnings.push("Migrated timetable domain to version 2.");
-    }
-    if (!timetable.capabilities) {
-      warnings.push("Added default timetable capabilities.");
-    }
-    timetable.capabilities = getStudioTimetableCapabilities(timetable);
-    Object.entries(timetable.capabilities).forEach(
-      ([capabilityKey, capability]) => {
-        if (!capability.enabled) return;
-        if (
-          ensureStudioTimetableCapabilityStatus(
-            timetable,
-            capabilityKey as keyof typeof timetable.capabilities,
-          )
-        ) {
-          warnings.push(`Added ${capabilityKey} timetable status.`);
-        }
-      },
-    );
-
-    if (!timetable.composition) {
-      warnings.push("Added default timetable composition.");
-    }
-    timetable.composition = getStudioTimetableComposition(timetable);
-    warnings.push(
-      ...ensureStudioStructuredTextFlexibleKind(timetable.composition),
-    );
-    warnings.push(...ensureStudioTimetableEntryGroupContract(document));
-    warnings.push(...ensureStudioIndependentStatusVariants(document));
-    if (typeof value.version === "number" && value.version < 6) {
-      warnings.push(...ensureStudioStatusCardBackgroundBaseColors(document));
-    }
-
-    Object.values(timetable.composition.objects).forEach((object) => {
-      if (
-        !object.variantSet ||
-        (object.presetId !== "weeklyMemo" &&
-          object.presetId !== "artistProfileText" &&
-          object.presetId !== "topObject")
-      ) {
-        return;
-      }
-
-      if (
-        isStudioTimetableVariantInputCompatible(
-          document,
-          object.variantSet.inputId,
-        )
-      ) {
-        return;
-      }
-
-      const variantInput = ensureStudioTimetableVariantInput(
-        document,
-        object.presetId,
-      );
-      if (!variantInput) return;
-
-      object.variantSet.inputId = variantInput.inputId;
-      if (variantInput.created) {
-        warnings.push(`Added ${object.label} state input.`);
-      }
-    });
-  }
 
   return {
     ok: true,

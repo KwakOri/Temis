@@ -39,6 +39,11 @@ import { TemplateStudioRuntimeForm } from "./template-studio-runtime-form";
 import StudioRuntimeImageSaveModal from "./ui/studio-runtime-image-save-modal";
 
 interface TemplateStudioRuntimeShellProps {
+  preserveInitialWeek?: boolean;
+  renderForm?: (controls: {
+    onSaveImage: () => void;
+    isSavingImage: boolean;
+  }) => React.ReactNode;
   document: StudioTemplateDocument;
   initialRuntimeValues: StudioRuntimeValues;
   source: "draft" | "published";
@@ -60,13 +65,18 @@ const cloneRuntimeValues = (
 const createSessionRuntimeValues = (
   document: StudioTemplateDocument,
   runtimeValues: StudioRuntimeValues,
+  preserveInitialWeek = false,
 ): StudioRuntimeValues =>
-  withStudioCurrentRuntimeWeekStartDate(
-    document,
-    cloneRuntimeValues(runtimeValues),
-  );
+  preserveInitialWeek
+    ? cloneRuntimeValues(runtimeValues)
+    : withStudioCurrentRuntimeWeekStartDate(
+        document,
+        cloneRuntimeValues(runtimeValues),
+      );
 
 export function TemplateStudioRuntimeShell({
+  preserveInitialWeek = false,
+  renderForm,
   document,
   initialRuntimeValues,
   templateId,
@@ -77,7 +87,11 @@ export function TemplateStudioRuntimeShell({
 }: TemplateStudioRuntimeShellProps) {
   const previewContentRef = useRef<HTMLDivElement | null>(null);
   const [runtimeValues, setRuntimeValues] = useState<StudioRuntimeValues>(() =>
-    createSessionRuntimeValues(document, initialRuntimeValues),
+    createSessionRuntimeValues(
+      document,
+      initialRuntimeValues,
+      preserveInitialWeek,
+    ),
   );
   const [locale, setLocale] = useState<StudioRuntimeLocale>("en");
   const [isSavingImage, setIsSavingImage] = useState(false);
@@ -102,8 +116,10 @@ export function TemplateStudioRuntimeShell({
   const backHref =
     backHrefProp ??
     (templateId
-      ? `/admin/template-studio/${templateId}/edit`
-      : "/admin/template-studio");
+      ? `${timetable?.team ? "/admin/team-timetable-studio" : "/admin/template-studio"}/${templateId}/edit`
+      : timetable?.team
+        ? "/admin/team-timetable-studio"
+        : "/admin/template-studio");
 
   useEffect(() => {
     const queryLocale = new URLSearchParams(window.location.search).get("lang");
@@ -150,13 +166,21 @@ export function TemplateStudioRuntimeShell({
 
   useEffect(() => {
     setRuntimeValues(
-      createSessionRuntimeValues(document, initialRuntimeValues),
+      createSessionRuntimeValues(
+        document,
+        initialRuntimeValues,
+        preserveInitialWeek,
+      ),
     );
-  }, [document, initialRuntimeValues]);
+  }, [document, initialRuntimeValues, preserveInitialWeek]);
 
   const resetRuntimeValues = () => {
     setRuntimeValues(
-      createSessionRuntimeValues(document, initialRuntimeValues),
+      createSessionRuntimeValues(
+        document,
+        initialRuntimeValues,
+        preserveInitialWeek,
+      ),
     );
   };
 
@@ -299,27 +323,31 @@ export function TemplateStudioRuntimeShell({
           )}
         </StudioRuntimePreviewWorkspace>
 
-        <TemplateStudioRuntimeForm
-          document={document}
-          isSavingImage={isSavingImage}
-          isSavingValues={isSavingValues}
-          locale={locale}
-          runtimeValues={runtimeValues}
-          setRuntimeValues={setRuntimeValues}
-          storageOwnerId={storageOwnerId}
-          templateId={templateId}
-          onReset={resetRuntimeValues}
-          onSaveImage={() => {
-            openImageSaveModal();
-          }}
-          onSaveValues={
-            onSaveValues
-              ? () => {
-                  void saveValues();
-                }
-              : undefined
-          }
-        />
+        {renderForm ? (
+          renderForm({ onSaveImage: openImageSaveModal, isSavingImage })
+        ) : (
+          <TemplateStudioRuntimeForm
+            document={document}
+            isSavingImage={isSavingImage}
+            isSavingValues={isSavingValues}
+            locale={locale}
+            runtimeValues={runtimeValues}
+            setRuntimeValues={setRuntimeValues}
+            storageOwnerId={storageOwnerId}
+            templateId={templateId}
+            onReset={resetRuntimeValues}
+            onSaveImage={() => {
+              openImageSaveModal();
+            }}
+            onSaveValues={
+              onSaveValues
+                ? () => {
+                    void saveValues();
+                  }
+                : undefined
+            }
+          />
+        )}
       </div>
       <StudioRuntimeImageSaveModal
         isOpen={isImageSaveModalOpen}

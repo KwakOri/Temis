@@ -23,6 +23,17 @@ import {
 import { getStudioRuntimeInputValue } from "@/utils/template-studio/input-values";
 import { getThumbnailStudioInputDefinitions } from "@/utils/thumbnail-studio/input-order";
 import { ThumbnailRuntimeForm } from "./thumbnail-runtime-form";
+import { useThumbnailUserImages } from "./use-thumbnail-user-images";
+import { useThumbnailImageHistory } from "./use-thumbnail-image-history";
+import {
+  expandThumbnailUserImages,
+  isThumbnailUserImagesInput,
+} from "@/utils/thumbnail-studio/user-images";
+import { StudioRuntimeImageTransformOverlay } from "@/components/studio/runtime/studio-runtime-image-transform-overlay";
+import {
+  createThumbnailRuntimeImageOverrides,
+  type StudioRuntimeImageOverrides,
+} from "@/utils/thumbnail-studio/runtime-image-transform";
 
 interface ThumbnailRuntimeShellProps {
   document: StudioTemplateDocument;
@@ -57,12 +68,104 @@ export function ThumbnailRuntimeShell({
   const [runtimeValues, setRuntimeValues] = useState(() =>
     cloneRuntimeValues(initialRuntimeValues),
   );
-  const [runtimeImageOverrides, setRuntimeImageOverrides] = useState<
-    Record<
-      string,
-      { fit?: "cover" | "contain" | "fill"; objectPosition?: string }
-    >
-  >({});
+  const imageHistory = useThumbnailImageHistory(() =>
+    createThumbnailRuntimeImageOverrides(document),
+  );
+  const {
+    overrides: runtimeImageOverrides,
+    setOverrides: setRuntimeImageOverrides,
+    clear: clearImageHistory,
+  } = imageHistory;
+  const [activeImage, setActiveImage] = useState<{
+    inputId: string;
+    nodeId: string;
+  } | null>(null);
+  const addons = useThumbnailUserImages(
+    document,
+    storageOwnerId,
+    templateId,
+    runtimeImageOverrides,
+    setRuntimeImageOverrides,
+  );
+  const expanded = useMemo(
+    () =>
+      expandThumbnailUserImages(
+        document,
+        runtimeValues,
+        addons.images,
+        runtimeImageOverrides,
+      ),
+    [document, runtimeValues, addons.images, runtimeImageOverrides],
+  );
+  // Keep the overlay's document stable during pointer gestures; only visibility changes rebuild it.
+  const removedImageKey = JSON.stringify(
+    Object.entries(runtimeImageOverrides)
+      .filter(([, override]) => override.removed)
+      .map(([id]) => id),
+  );
+  const visibilityOverrides = useMemo<StudioRuntimeImageOverrides>(
+    () =>
+      Object.fromEntries(
+        (JSON.parse(removedImageKey) as string[]).map((id) => [
+          id,
+          { removed: true },
+        ]),
+      ),
+    [removedImageKey],
+  );
+  const runtimeDocument = useMemo(
+    () =>
+      expandThumbnailUserImages(
+        document,
+        runtimeValues,
+        addons.images,
+        visibilityOverrides,
+      ).document,
+    [document, runtimeValues, addons.images, visibilityOverrides],
+  );
+  const activeImageInput = activeImage
+    ? runtimeDocument.inputs[activeImage.inputId]
+    : undefined;
+  const activeNodeId =
+    activeImage &&
+    isThumbnailUserImagesInput(
+      document.inputs[activeImage.inputId] ?? { type: "" },
+    )
+      ? `${activeImage.nodeId}:background`
+      : activeImage?.nodeId;
+  const resetImageAdjustment = (
+    inputId: string,
+    preserveIntrinsicSize = true,
+  ) => {
+    const reset = (current: StudioRuntimeImageOverrides) => {
+      const next = { ...current };
+      const intrinsicSize = current[inputId]?.intrinsicSize;
+      if (preserveIntrinsicSize) {
+        next[inputId] = {
+          ...createThumbnailRuntimeImageOverrides(document)[inputId],
+          ...(intrinsicSize ? { intrinsicSize } : {}),
+        };
+      } else delete next[inputId];
+      return next;
+    };
+    if (preserveIntrinsicSize) imageHistory.changePlacement(reset);
+    else {
+      clearImageHistory();
+      setRuntimeImageOverrides(reset);
+    }
+    setActiveImage((current) =>
+      current?.inputId === inputId ? null : current,
+    );
+  };
+
+  useEffect(() => {
+    if (!activeImage) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setActiveImage(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeImage]);
   const [isExporting, setIsExporting] = useState(false);
   const [readiness, setReadiness] = useState<RenderReadiness>({
     fontsReady: false,
@@ -72,9 +175,24 @@ export function ThumbnailRuntimeShell({
   });
 
   useEffect(() => {
+    clearImageHistory();
     setRuntimeValues(cloneRuntimeValues(initialRuntimeValues));
-    setRuntimeImageOverrides({});
-  }, [document, initialRuntimeValues, revisionNo]);
+    setRuntimeImageOverrides(createThumbnailRuntimeImageOverrides(document));
+    setActiveImage(null);
+  }, [
+    document,
+    initialRuntimeValues,
+    revisionNo,
+    storageOwnerId,
+    templateId,
+    clearImageHistory,
+    setRuntimeImageOverrides,
+  ]);
+
+  useEffect(() => {
+    // Loading placements from IndexedDB establishes the baseline, not an edit.
+    clearImageHistory();
+  }, [addons.loaded, clearImageHistory]);
 
   const previewSize = useMemo(
     () => ({ width: document.canvas.width, height: document.canvas.height }),
@@ -139,7 +257,7 @@ export function ThumbnailRuntimeShell({
         image.removeEventListener("load", updateImages);
       });
     };
-  }, [runtimeImageOverrides, runtimeValues]);
+  }, [document, runtimeValues, addons.images]);
 
   const handleFontLoadStateChange = useCallback(
     (state: StudioWebFontLoadState) => {
@@ -161,17 +279,19 @@ export function ThumbnailRuntimeShell({
     readiness.fontsReady &&
     readiness.imagesReady &&
     readiness.layoutReady &&
-    readiness.blockingErrors.length === 0;
+    readiness.blockingErrors.length === 0 &&
+    addons.loaded;
   const missingRequiredInputLabels = useMemo(
     () =>
       getThumbnailStudioInputDefinitions(document)
         .filter(
           (input) =>
             input.required &&
-            !getStudioRuntimeInputValue(input, runtimeValues).trim(),
+            (!getStudioRuntimeInputValue(input, runtimeValues).trim() ||
+              runtimeImageOverrides[input.id]?.removed === true),
         )
         .map((input) => input.label),
-    [document, runtimeValues],
+    [document, runtimeValues, runtimeImageOverrides],
   );
   const isExportReady = isReady && missingRequiredInputLabels.length === 0;
   const readinessMessage = readiness.blockingErrors[0]
@@ -213,8 +333,10 @@ export function ThumbnailRuntimeShell({
   };
 
   const resetRuntime = () => {
+    clearImageHistory();
     setRuntimeValues(cloneRuntimeValues(initialRuntimeValues));
-    setRuntimeImageOverrides({});
+    setRuntimeImageOverrides(createThumbnailRuntimeImageOverrides(document));
+    setActiveImage(null);
   };
 
   return (
@@ -231,11 +353,42 @@ export function ThumbnailRuntimeShell({
         >
           <StudioExportRoot
             ref={exportRootRef}
-            document={document}
+            document={runtimeDocument}
             onFontLoadStateChange={handleFontLoadStateChange}
-            runtimeImageOverrides={runtimeImageOverrides}
-            runtimeValues={runtimeValues}
+            runtimeImageOverrides={expanded.runtimeImageOverrides}
+            runtimeValues={expanded.runtimeValues}
           />
+          {activeImage && activeImageInput?.type === "image" ? (
+            <StudioRuntimeImageTransformOverlay
+              key={`${activeImage.inputId}:${activeImage.nodeId}`}
+              document={runtimeDocument}
+              inputId={activeImage.inputId}
+              nodeId={activeNodeId!}
+              imageSrc={getStudioRuntimeInputValue(
+                activeImageInput,
+                expanded.runtimeValues,
+              )}
+              exportRootRef={exportRootRef}
+              viewportTransform={viewport.viewportTransform}
+              override={expanded.runtimeImageOverrides[activeImage.inputId]}
+              onTransformStart={imageHistory.begin}
+              onTransformEnd={imageHistory.finish}
+              onTransformCancel={imageHistory.cancel}
+              onChange={(transform) =>
+                setRuntimeImageOverrides((current) => ({
+                  ...current,
+                  [activeImage.inputId]: {
+                    ...current[activeImage.inputId],
+                    placementMode: "manual",
+                    transforms: {
+                      ...current[activeImage.inputId]?.transforms,
+                      [activeImage.nodeId]: transform,
+                    },
+                  },
+                }))
+              }
+            />
+          ) : null}
         </StudioRuntimePreviewWorkspace>
         <ThumbnailRuntimeForm
           document={document}
@@ -244,6 +397,15 @@ export function ThumbnailRuntimeShell({
           runtimeValues={runtimeValues}
           setRuntimeImageOverrides={setRuntimeImageOverrides}
           setRuntimeValues={setRuntimeValues}
+          activeImage={activeImage}
+          onAdjustImage={setActiveImage}
+          onResetImageAdjustment={resetImageAdjustment}
+          onImageAssetsChange={clearImageHistory}
+          changeImagePlacement={imageHistory.changePlacement}
+          addonImages={addons.images}
+          setAddonImages={addons.setImages}
+          addonsLoaded={addons.loaded}
+          imageStorageError={addons.storageError}
           storageOwnerId={storageOwnerId}
           templateId={templateId}
           templateName={templateName}

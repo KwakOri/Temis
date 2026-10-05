@@ -1,4 +1,6 @@
+"use client";
 import { PropsWithChildren } from "react";
+import { useLegacyAssetUrl } from "@/contexts/LegacyTemplateAssetsContext";
 import SectionTitle from "../SectionTitle";
 
 export interface KeyFeaturesItem {
@@ -14,6 +16,11 @@ interface KeyFeaturesProps {
 const ImageNames = ["money", "phone", "calendar"];
 
 const KeyFeaturesSection = ({ items }: PropsWithChildren<KeyFeaturesProps>) => {
+  const images = [
+    useLegacyAssetUrl("site", "feature_money", "/landing/money.png"),
+    useLegacyAssetUrl("site", "feature_phone", "/landing/phone.png"),
+    useLegacyAssetUrl("site", "feature_calendar", "/landing/calendar.png"),
+  ];
   return (
     <section className="w-full flex flex-col items-center gap-6 py-8 md:py-12 bg-[#221D19] px-4">
       <SectionTitle label="KEY FEATURES" intent={"white"} />
@@ -87,7 +94,7 @@ const KeyFeaturesSection = ({ items }: PropsWithChildren<KeyFeaturesProps>) => {
               >
                 {/* Icon placeholder */}
                 <img
-                  src={`/landing/${ImageNames[i]}.png`}
+                  src={images[i] ?? `/landing/${ImageNames[i]}.png`}
                   className="w-40 h-40 md:w-52 md:h-52 lg:w-60 lg:h-60 rounded-2xl mb-4 md:mb-6"
                   alt={item.title}
                 />

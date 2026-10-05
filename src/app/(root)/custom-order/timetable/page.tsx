@@ -3,7 +3,7 @@
 import BackButton from "@/components/BackButton";
 import CustomOrderForm from "@/components/shop/CustomOrderForm";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAdminOptions } from "@/hooks/query/useAdminOptions";
+import { useCustomOrderIntake } from "@/hooks/query/useCustomOrderIntake";
 import {
   useEstimatedCustomOrderDeadline,
   useSubmitCustomOrder,
@@ -28,12 +28,10 @@ const formatDisplayDate = (value?: string | null) => {
 
 export default function CustomOrderPage() {
   const { user } = useAuth();
-  const { data: generalOptions, isLoading: isLoadingGeneralOptions } =
-    useAdminOptions("general");
-  const isCustomOrderEnabled = generalOptions?.some(
-    (option) => option.value === "custom_timetable_orders" && option.is_enabled,
-  );
+  const intake = useCustomOrderIntake("timetable");
+  const isCustomOrderEnabled = intake.accepting;
   const [showOrderForm, setShowOrderForm] = useState(false);
+  const [isOpeningForm, setIsOpeningForm] = useState(false);
 
   const submitOrderMutation = useSubmitCustomOrder();
   const { data: estimatedDeadlineData, isLoading: isEstimatedDeadlineLoading } =
@@ -60,7 +58,19 @@ export default function CustomOrderPage() {
     }
   };
 
-  if (isLoadingGeneralOptions) {
+  const handleOpenOrderForm = async () => {
+    setIsOpeningForm(true);
+    try {
+      const result = await intake.refetch();
+      if (!result.isError && result.data?.timetable.accepting) {
+        setShowOrderForm(true);
+      }
+    } finally {
+      setIsOpeningForm(false);
+    }
+  };
+
+  if (intake.isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-light via-timetable-card-bg to-tertiary flex items-center justify-center">
         <div className="text-center">
@@ -85,7 +95,9 @@ export default function CustomOrderPage() {
                 맞춤형 시간표 제작
               </h1>
               <p className="text-dark-gray/70 mb-6">
-                현재 시간표 주문제작 접수가 마감되었습니다.
+                {intake.isError
+                  ? "접수 상태를 확인하지 못했습니다. 잠시 후 다시 시도해주세요."
+                  : intake.message}
               </p>
               <Link
                 href="/custom-order"
@@ -247,10 +259,11 @@ export default function CustomOrderPage() {
                 </div>
 
                 <button
-                  onClick={() => setShowOrderForm(true)}
-                  className="bg-primary text-white px-8 py-3 rounded-lg hover:bg-primary/90 transition-colors font-semibold text-lg"
+                  onClick={handleOpenOrderForm}
+                  disabled={isOpeningForm}
+                  className="bg-primary text-white px-8 py-3 rounded-lg hover:bg-primary/90 transition-colors font-semibold text-lg disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  제작 신청하기
+                  {isOpeningForm ? "접수 상태 확인 중" : "제작 신청하기"}
                 </button>
               </div>
             </div>

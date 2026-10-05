@@ -531,7 +531,7 @@ const weekRangeMarkup = renderToStaticMarkup(<>{weekRangeSection.content}</>);
 assert.ok(
   weekRangeMarkup.includes("Date Format") &&
     weekRangeMarkup.includes("${start.YYYY}") &&
-    weekRangeMarkup.includes("Split lines"),
+    weekRangeMarkup.includes("두 줄 날짜 범위"),
   "썸네일 Week Dates의 week.date_range에는 기간 포맷과 start/end 토큰이 나타난다.",
 );
 

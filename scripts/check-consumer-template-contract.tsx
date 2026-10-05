@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { ConsumerTemplateCard } from "../src/components/templates/consumer-template-card";
 import {
@@ -127,8 +128,26 @@ for (const invalid of [
   );
 }
 
+const coverClient = new QueryClient();
+const coverUrl = "https://assets.example.test/legacy-cover.png";
+coverClient.setQueryData(
+  ["legacy-template-assets", "public-project-manifest"],
+  {
+    covers: {
+      [`/thumbnail/${LEGACY_TEMPLATE_ID}.png`]: {
+        src: coverUrl,
+        width: 1280,
+        height: 720,
+      },
+    },
+    homepage: { mode: "local", revisionId: null, images: {} },
+  },
+);
+process.env.NEXT_PUBLIC_PROJECT_ASSETS_R2_ENABLED = "false";
 const timetableMarkup = renderToStaticMarkup(
-  <ConsumerTemplateCard template={legacy} showEngineBadge />,
+  <QueryClientProvider client={coverClient}>
+    <ConsumerTemplateCard template={legacy} showEngineBadge />
+  </QueryClientProvider>,
 );
 assert.match(
   timetableMarkup,
@@ -138,15 +157,19 @@ assert.ok(timetableMarkup.includes("시간표"));
 assert.ok(timetableMarkup.includes("시간표 만들기"));
 assert.ok(timetableMarkup.includes("Legacy"));
 assert.ok(timetableMarkup.includes("LITE"));
+assert.ok(timetableMarkup.includes(`src="${coverUrl}"`));
 assert.ok(
-  timetableMarkup.includes(`src="/thumbnail/${LEGACY_TEMPLATE_ID}.png"`),
+  !timetableMarkup.includes(`src="/thumbnail/${LEGACY_TEMPLATE_ID}.png"`),
 );
+coverClient.clear();
 assert.ok(!timetableMarkup.includes('role="button"'));
 assert.ok(!timetableMarkup.includes("onClick"));
 assert.ok(!timetableMarkup.includes("innerHTML"));
 
 const thumbnailMarkup = renderToStaticMarkup(
-  <ConsumerTemplateCard template={customThumbnail} />,
+  <QueryClientProvider client={new QueryClient()}>
+    <ConsumerTemplateCard template={customThumbnail} />
+  </QueryClientProvider>,
 );
 assert.match(thumbnailMarkup, /<a\b[^>]*href="\/thumbnail\/studio-thumbnail"/);
 assert.ok(thumbnailMarkup.includes("썸네일"));

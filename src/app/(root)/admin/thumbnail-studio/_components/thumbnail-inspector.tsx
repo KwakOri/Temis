@@ -85,7 +85,7 @@ import {
   getStudioImageObjectPosition,
 } from "@/utils/thumbnail-studio/image-object-position";
 import type { ThumbnailCanvasPreset } from "@/utils/thumbnail-studio/document-factory";
-import { StudioWeekDatesFormatControls } from "@/app/(root)/template-studio/_components/studio-timetable-object-inspector-controls";
+import { StudioDateFormatControls } from "@/components/studio/inspector/studio-binding-format-controls";
 import {
   createStudioShapeFillGradient,
   createStudioShapeFillSolid,
@@ -509,7 +509,7 @@ export const buildThumbnailInspectorSections = ({
               </div>
               {isWeekDatesBinding &&
               selectedNode.binding?.kind === "builtinField" ? (
-                <StudioWeekDatesFormatControls
+                <StudioDateFormatControls
                   mode={getStudioDateFormatMode(selectedNode.binding.fieldId)!}
                   format={selectedNode.binding.dateRangeFormat}
                   template={selectedNode.binding.dateRangeTemplate}

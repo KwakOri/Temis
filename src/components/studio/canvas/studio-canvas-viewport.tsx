@@ -66,6 +66,7 @@ export interface StudioCanvasViewportHandle {
 }
 
 interface StudioCanvasViewportProps {
+  autoFitOnResize?: boolean;
   canvasWidth: number;
   canvasHeight: number;
   scale: number;
@@ -120,6 +121,7 @@ const getNodeIdPathFromEventTarget = (
 };
 
 export function StudioCanvasViewport({
+  autoFitOnResize = false,
   canvasWidth,
   canvasHeight,
   scale,
@@ -159,6 +161,19 @@ export function StudioCanvasViewport({
     const animationFrame = window.requestAnimationFrame(fitToViewport);
     return () => window.cancelAnimationFrame(animationFrame);
   }, [fitRequestKey, fitToViewport]);
+
+  useEffect(() => {
+    if (!autoFitOnResize || !viewportRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      if (
+        entries[0]?.contentRect.width > 0 &&
+        entries[0]?.contentRect.height > 0
+      )
+        fitToViewport();
+    });
+    observer.observe(viewportRef.current);
+    return () => observer.disconnect();
+  }, [autoFitOnResize, fitToViewport]);
 
   const getVisibleCanvasCenter = useCallback((): StudioCanvasPoint => {
     const viewportRect = viewportRef.current?.getBoundingClientRect();

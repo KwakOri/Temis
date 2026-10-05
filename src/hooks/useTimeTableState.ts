@@ -2,14 +2,14 @@
 
 import { CroppedAreaPixels, ImageEditData } from "@/types/image-edit";
 import { pageAwareStorage } from "@/utils/pageAwareLocalStorage";
-import { domToBlob } from "modern-screenshot";
+import { renderLegacyPngBlob } from "@/utils/template-studio/png-export";
 import { useEffect, useState } from "react";
 
 const DOWNLOAD_URL_REVOKE_DELAY_MS = 10_000;
 
 const createPngBlob = (
   canvas: HTMLCanvasElement,
-  errorMessage: string
+  errorMessage: string,
 ): Promise<Blob> =>
   new Promise((resolve, reject) => {
     canvas.toBlob(
@@ -22,14 +22,14 @@ const createPngBlob = (
         reject(new Error(errorMessage));
       },
       "image/png",
-      1
+      1,
     );
   });
 
 const resizePngBlob = async (
   sourceBlob: Blob,
   targetWidth: number,
-  targetHeight: number
+  targetHeight: number,
 ): Promise<Blob> => {
   const sourceUrl = URL.createObjectURL(sourceBlob);
   const canvas = document.createElement("canvas");
@@ -57,7 +57,7 @@ const resizePngBlob = async (
 
     return await createPngBlob(
       canvas,
-      "리사이즈된 PNG 이미지를 생성하지 못했습니다."
+      "리사이즈된 PNG 이미지를 생성하지 못했습니다.",
     );
   } finally {
     URL.revokeObjectURL(sourceUrl);
@@ -80,7 +80,7 @@ const triggerBlobDownload = (blob: Blob, fileName: string) => {
   // iOS WebKit은 다운로드 직후 URL을 폐기하면 파일 읽기가 중단될 수 있다.
   window.setTimeout(
     () => URL.revokeObjectURL(url),
-    DOWNLOAD_URL_REVOKE_DELAY_MS
+    DOWNLOAD_URL_REVOKE_DELAY_MS,
   );
 };
 
@@ -169,7 +169,7 @@ export const useTimeTableState = (captureSize?: {
         return pageAwareStorage.getItem("isProfileTextVisible", true);
       }
       return true;
-    }
+    },
   );
   const [isMemoTextVisible, setIsMemoTextVisible] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
@@ -193,20 +193,20 @@ export const useTimeTableState = (captureSize?: {
         return pageAwareStorage.getItem("imageEditData", null);
       }
       return null;
-    }
+    },
   );
 
   const [mondayDateStr, setMondayDateStr] = useState<string>(
-    getDefaultMondayString()
+    getDefaultMondayString(),
   );
   const [weekDates, setWeekDates] = useState<Date[]>([]);
 
   // UI 상태
   const [scale, setScale] = useState(() =>
-    getInitialScale(captureSize?.width, captureSize?.height)
+    getInitialScale(captureSize?.width, captureSize?.height),
   );
   const [isMobile, setIsMobile] = useState(
-    typeof window !== "undefined" ? window.innerWidth < 768 : false
+    typeof window !== "undefined" ? window.innerWidth < 768 : false,
   );
 
   // 주간 날짜 업데이트
@@ -303,7 +303,7 @@ export const useTimeTableState = (captureSize?: {
       // 창 크기에 맞춰 최적 배율 재계산
       const newOptimalScale = getInitialScale(
         captureSize?.width,
-        captureSize?.height
+        captureSize?.height,
       );
 
       // 현재 배율이 기본값들 중 하나인 경우에만 자동 조정
@@ -443,7 +443,7 @@ export const useTimeTableState = (captureSize?: {
 
     saveCroppedImage: (
       croppedImageSrc: string,
-      croppedAreaPixels: CroppedAreaPixels
+      croppedAreaPixels: CroppedAreaPixels,
     ) => {
       setImageEditData((prev) =>
         prev
@@ -452,14 +452,14 @@ export const useTimeTableState = (captureSize?: {
               croppedImageSrc,
               croppedAreaPixels,
             }
-          : null
+          : null,
       );
     },
 
     updateEditProgress: (
       crop: { x: number; y: number },
       zoom: number,
-      rotation: number
+      rotation: number,
     ) => {
       setImageEditData((prev) =>
         prev
@@ -469,7 +469,7 @@ export const useTimeTableState = (captureSize?: {
               zoom,
               rotation,
             }
-          : null
+          : null,
       );
     },
 
@@ -520,15 +520,11 @@ export const useTimeTableState = (captureSize?: {
         node.style.height = `${templateHeight}px`;
         node.style.transformOrigin = "top left";
 
-        // 폰트와 이미지 로딩 대기
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
         // 원본 사이즈의 PNG Blob으로 캡처한다. 큰 data URL을 만들지 않는다.
-        const originalBlob = await domToBlob(node, {
+        const originalBlob = await renderLegacyPngBlob(node, {
           width: templateWidth,
           height: templateHeight,
-          quality: 1,
-          backgroundColor: "transparent",
+          pixelRatio: 1,
         });
         restoreNodeStyle();
 

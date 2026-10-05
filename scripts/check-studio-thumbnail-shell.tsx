@@ -126,8 +126,8 @@ const tabLabels = [
 ].map((match) => match[1]);
 assert.deepEqual(
   tabLabels,
-  ["Layers", "Assets", "Text", "Inputs"],
-  "썸네일 탭 구성과 순서가 바뀌면 안 된다.",
+  ["Layers", "Assets", "Presets", "Text", "Inputs"],
+  "썸네일 프리셋 탭을 포함한 구성과 순서.",
 );
 assert.equal(
   (markup.match(/bg-\[var\(--field\)\] text-\[var\(--fg\)\]/g) ?? []).length,

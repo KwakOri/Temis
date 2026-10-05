@@ -66,7 +66,7 @@ assert.match(stateScreen, /studio-runtime-theme/);
 assert.match(form, /getThumbnailStudioInputGroups/);
 assert.match(form, /setStudioRuntimeInputValue/);
 assert.match(form, /putStudioRuntimeImage/);
-assert.match(form, /StudioRuntimeImageCropModal/);
+assert.doesNotMatch(form, /StudioRuntimeImageCropModal|setPendingCrop/);
 assert.match(exportRoot, /StudioRenderer/);
 assert.match(exporter, /modern-screenshot/);
 assert.doesNotMatch(exporter, /html-to-image/);

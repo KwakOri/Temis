@@ -1,3 +1,4 @@
+import { createTimetableGraphFixture } from "./helpers/studio-timetable-fixture";
 import assert from "node:assert/strict";
 // jsx: "preserve" 환경이라 클래식 변환용 React 심볼이 스코프에 있어야 한다.
 import React from "react";
@@ -17,13 +18,11 @@ import {
   isStudioTextWrapModeMultiline,
   STUDIO_TEXT_WRAP_MODE_STYLE_KEY,
 } from "../src/utils/template-studio/text-wrap";
-import { migrateStudioTemplateDocument } from "../src/utils/template-studio/migrations";
 import {
   createStudioStructuredTextPresetObjects,
   createStudioTimetablePresetObject,
-  ensureStudioStructuredTextFlexibleKind,
   getStudioTimetableComposition,
-} from "../src/utils/template-studio/timetable-composition";
+} from "./helpers/studio-timetable-recipe";
 import { setStudioTimetableEntryField } from "../src/utils/template-studio/timetable-runtime";
 
 const document = createSampleStudioDocument();
@@ -140,62 +139,6 @@ const singleObjectComposition: StudioTimetableComposition = {
 assert.equal(singleObjectComposition.objects["board"].kind, "image");
 assert.equal(singleObjectComposition.objects["week-dates"].kind, "text");
 
-// 이미 고정 크기 text로 저장된 문서는 마이그레이션에서 올라간다.
-const legacyComposition: StudioTimetableComposition = (() => {
-  const created = createStudioStructuredTextPresetObjects("artistProfileText", {
-    rootObjectIds: [],
-    objects: {},
-  });
-  const objects = Object.fromEntries(
-    [created.group, ...created.children].map((object) => [object.id, object]),
-  );
-  getStructuredTextObjects(Object.values(objects)).forEach((object) => {
-    object.kind = "text";
-  });
-  return { rootObjectIds: [created.group.id], objects };
-})();
-
-const legacyTextObjects = getStructuredTextObjects(
-  Object.values(legacyComposition.objects),
-);
-assert.ok(legacyTextObjects.every((object) => object.kind === "text"));
-const upgradeWarnings =
-  ensureStudioStructuredTextFlexibleKind(legacyComposition);
-assert.equal(upgradeWarnings.length, 1, "Upgrades must be reported once.");
-assert.match(upgradeWarnings[0], /Artist/);
-legacyTextObjects.forEach((object) => {
-  assert.equal(
-    object.kind,
-    "flexibleText",
-    "Stored structured text objects must be upgraded to Auto Text.",
-  );
-});
-assert.deepEqual(
-  ensureStudioStructuredTextFlexibleKind(legacyComposition),
-  [],
-  "A second migration pass must be a no-op.",
-);
-
-// 구조화 텍스트가 아닌 오브젝트는 건드리지 않는다.
-const unrelatedComposition: StudioTimetableComposition = {
-  rootObjectIds: ["plain"],
-  objects: {
-    plain: {
-      id: "plain",
-      kind: "text",
-      label: "plain_text",
-      structuredRole: "text",
-      style: {},
-      binding: { kind: "staticText", value: "Plain" },
-    },
-  },
-};
-assert.deepEqual(
-  ensureStudioStructuredTextFlexibleKind(unrelatedComposition),
-  [],
-);
-assert.equal(unrelatedComposition.objects.plain.kind, "text");
-
 // composition 렌더 경로도 같은 줄바꿈 모드를 따른다.
 const compositionDocument = createSampleStudioDocument();
 const compositionTimetable = compositionDocument.domains!.timetable!;
@@ -219,7 +162,7 @@ artistTextObject.binding = {
 const renderTimetable = () =>
   renderToStaticMarkup(
     <StudioTimetablePreview
-      document={compositionDocument}
+      document={createTimetableGraphFixture(compositionDocument)}
       runtimeValues={createStudioInitialRuntimeValues(compositionDocument)}
     />,
   );
@@ -248,93 +191,5 @@ assert.match(
 
 // --- 실제 문서 마이그레이션 진입점을 통과하는지 ---
 
-const PLAIN_TEXT_OBJECT_ID = "plain-text";
-
-const createLegacyArtistDocument = () => {
-  const legacyDocument = createSampleStudioDocument();
-  const legacyTimetable = legacyDocument.domains!.timetable!;
-  const legacyArtistComposition =
-    getStudioTimetableComposition(legacyTimetable);
-  const created = createStudioStructuredTextPresetObjects(
-    "artistProfileText",
-    legacyArtistComposition,
-  );
-  [created.group, ...created.children].forEach((object) => {
-    legacyArtistComposition.objects[object.id] = object;
-  });
-  legacyArtistComposition.rootObjectIds.push(created.group.id);
-
-  // 저장된 구버전 문서를 재현한다: On/Off 텍스트가 모두 고정 크기 text.
-  const artistTextIds = getStructuredTextObjects(created.children).map(
-    (object) => {
-      object.kind = "text";
-      return object.id;
-    },
-  );
-  assert.equal(artistTextIds.length, 2);
-
-  // 구조화 프리셋 밖의 텍스트는 승격 대상이 아니다.
-  legacyArtistComposition.objects[PLAIN_TEXT_OBJECT_ID] = {
-    id: PLAIN_TEXT_OBJECT_ID,
-    kind: "text",
-    label: "Plain Text",
-    structuredRole: "text",
-    style: {},
-    binding: { kind: "staticText", value: "Plain" },
-  };
-  legacyArtistComposition.rootObjectIds.push(PLAIN_TEXT_OBJECT_ID);
-  legacyTimetable.composition = legacyArtistComposition;
-
-  return { document: legacyDocument, artistTextIds };
-};
-
-const isAutoTextUpgradeWarning = (warning: string) =>
-  /Upgraded \d+ Artist text object\(s\) to Auto Text\./.test(warning);
-
-const legacyArtist = createLegacyArtistDocument();
-const firstMigration = migrateStudioTemplateDocument(legacyArtist.document);
-// strict 모드의 assert.equal은 타입도 좁혀주므로 별도 가드가 필요 없다.
-assert.equal(firstMigration.ok, true);
-
-const firstMigratedComposition =
-  firstMigration.document.domains!.timetable!.composition!;
-legacyArtist.artistTextIds.forEach((objectId) => {
-  assert.equal(
-    firstMigratedComposition.objects[objectId].kind,
-    "flexibleText",
-    "The real migration entry point must upgrade stored Artist text objects.",
-  );
-});
-assert.equal(
-  firstMigratedComposition.objects[PLAIN_TEXT_OBJECT_ID].kind,
-  "text",
-  "Text objects outside a structured preset must stay untouched.",
-);
-assert.equal(
-  firstMigration.warnings.filter(isAutoTextUpgradeWarning).length,
-  1,
-  "The Artist upgrade must be reported exactly once.",
-);
-
-const secondMigration = migrateStudioTemplateDocument(firstMigration.document);
-assert.equal(secondMigration.ok, true);
-assert.deepEqual(
-  secondMigration.warnings.filter(isAutoTextUpgradeWarning),
-  [],
-  "A migrated document must not report the upgrade again.",
-);
-
-const secondMigratedComposition =
-  secondMigration.document.domains!.timetable!.composition!;
-legacyArtist.artistTextIds.forEach((objectId) => {
-  assert.equal(
-    secondMigratedComposition.objects[objectId].kind,
-    "flexibleText",
-  );
-});
-assert.equal(
-  secondMigratedComposition.objects[PLAIN_TEXT_OBJECT_ID].kind,
-  "text",
-);
 
 console.log("Template Studio Auto Text line break checks passed.");

@@ -121,6 +121,35 @@ const redactSourceUrls = <T>(value: T, seen = new WeakMap<object, unknown>()): T
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
+const isValidRemoteR2Asset = (value: unknown): boolean => {
+  if (!isRecord(value)) return false;
+  const asset = value;
+  if (
+    asset.storageProvider !== "r2" ||
+    typeof asset.storagePath !== "string" ||
+    asset.storagePath.length === 0 ||
+    asset.storagePath.length > 1024 ||
+    asset.storagePath.startsWith("/") ||
+    asset.storagePath.includes("..") ||
+    asset.storagePath.includes("\\") ||
+    typeof asset.contentHash !== "string" ||
+    !/^[a-f0-9]{64}$/i.test(asset.contentHash) ||
+    typeof asset.mimeType !== "string" ||
+    !SAFE_IMAGE_MIME_TYPES.has(asset.mimeType) ||
+    !isFiniteNumber(asset.byteSize) ||
+    asset.byteSize <= 0 ||
+    typeof asset.publicUrl !== "string" ||
+    asset.src !== asset.publicUrl
+  ) {
+    return false;
+  }
+  try {
+    return new URL(asset.publicUrl).protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
 const removeUrl = (value: string): string =>
   value.replace(/(?:https?|mcp):\/\/\S+/gi, "");
 
@@ -206,13 +235,14 @@ const validateComponent = (
     if (!isRecord(asset) || !addSourceId(asset.id) || typeof asset.label !== "string") {
       return "Candidate assets contain duplicate or malformed IDs";
     }
+    const isRemoteAsset = isValidRemoteR2Asset(asset);
     if (
       typeof asset.src !== "string" ||
-      !DATA_IMAGE_SOURCE.test(asset.src) ||
+      (!DATA_IMAGE_SOURCE.test(asset.src) && !isRemoteAsset) ||
       (asset.mimeType !== undefined &&
         (typeof asset.mimeType !== "string" || !SAFE_IMAGE_MIME_TYPES.has(asset.mimeType)))
     ) {
-      return "Candidate asset source must be a supported data URL";
+      return "Candidate asset source must be a supported data URL or verified R2 asset";
     }
     if (
       (asset.width !== undefined && !isFiniteNumber(asset.width)) ||
@@ -224,7 +254,15 @@ const validateComponent = (
     assetIds.add(asset.id);
   }
 
-  if (/(?:https?|mcp):\/\//i.test(JSON.stringify(component))) {
+  const urlCheckComponent = {
+    ...component,
+    assets: component.assets.map((asset) =>
+      isRecord(asset) && isValidRemoteR2Asset(asset)
+        ? { ...asset, src: "", publicUrl: "" }
+        : asset,
+    ),
+  };
+  if (/(?:https?|mcp):\/\//i.test(JSON.stringify(urlCheckComponent))) {
     return "Candidate contains an unsafe source URL";
   }
 
@@ -444,20 +482,45 @@ export const applyStudioFigmaGridCandidate = (
     occupiedIds.add(id);
     return id;
   };
+  const remoteAssets = [
+    ...explicitCandidate.variants!.online!.component.assets,
+    ...explicitCandidate.variants!.offline!.component.assets,
+  ].filter(
+    (asset) =>
+      asset.storageProvider === "r2" &&
+      Boolean(asset.storagePath) &&
+      Boolean(asset.publicUrl),
+  );
+  const remoteAssetIds = new Set<string>();
+  for (const asset of remoteAssets) {
+    if (occupiedIds.has(asset.id) || remoteAssetIds.has(asset.id)) {
+      return { ok: false, reason: "Imported R2 asset ID conflicts with the document" };
+    }
+    remoteAssetIds.add(asset.id);
+    occupiedIds.add(asset.id);
+  }
   const componentId = freshId("component");
   const mergeVariant = (component: StudioFigmaGridVariantCandidate["component"]): string => {
     const assetIdBySourceId = new Map<string, string>();
     for (const sourceAsset of component.assets) {
-      const assetId = freshId("asset");
+      const isRemoteAsset =
+        sourceAsset.storageProvider === "r2" &&
+        Boolean(sourceAsset.storagePath) &&
+        Boolean(sourceAsset.publicUrl);
+      const assetId = isRemoteAsset ? sourceAsset.id : freshId("asset");
       assetIdBySourceId.set(sourceAsset.id, assetId);
       const transientAsset = cloneData(sourceAsset);
-      delete transientAsset.storageProvider;
-      delete transientAsset.storagePath;
-      delete transientAsset.publicUrl;
-      delete transientAsset.contentHash;
-      delete transientAsset.lastSyncedAt;
+      if (!isRemoteAsset) {
+        delete transientAsset.storageProvider;
+        delete transientAsset.storagePath;
+        delete transientAsset.publicUrl;
+        delete transientAsset.contentHash;
+        delete transientAsset.lastSyncedAt;
+      }
       draft.assets[assetId] = {
-        ...redactSourceUrls(cloneData(transientAsset)),
+        ...(isRemoteAsset
+          ? cloneData(transientAsset)
+          : redactSourceUrls(cloneData(transientAsset))),
         id: assetId,
         label: safeLabel(sourceAsset.label, "Imported Figma asset"),
       } satisfies StudioAsset;

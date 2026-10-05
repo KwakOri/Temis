@@ -34,6 +34,7 @@ export const queryKeys = {
   },
   customOrder: {
     all: ["customOrder"] as const,
+    intake: () => [...queryKeys.customOrder.all, "intake"] as const,
     history: (kind: "timetable" | "thumbnail" = "timetable") =>
       [...queryKeys.customOrder.all, "history", kind] as const,
     orders: (kind: "timetable" | "thumbnail" = "timetable") =>
@@ -109,12 +110,16 @@ export const queryKeys = {
       [...queryKeys.admin.templateHub(), "list", params] as const,
     templateHubItem: (templateId: string) =>
       [...queryKeys.admin.templateHub(), "item", templateId] as const,
-    templateStudioTemplates: (templateKind?: "timetable" | "thumbnail") =>
+    templateStudioTemplates: (
+      templateKind?: "timetable" | "thumbnail",
+      templateMode?: "personal" | "team",
+    ) =>
       templateKind
         ? ([
             ...queryKeys.admin.all,
             "templateStudioTemplates",
             templateKind,
+            ...(templateMode ? [templateMode] : []),
           ] as const)
         : ([...queryKeys.admin.all, "templateStudioTemplates"] as const),
     templateStudioTemplate: (templateId: string) =>

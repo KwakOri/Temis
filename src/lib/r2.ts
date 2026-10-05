@@ -77,8 +77,6 @@ export async function uploadFileToR2(
         Key: fileKey,
         Body: file,
         ContentType: mimeType,
-        // 파일을 공개적으로 읽을 수 있게 설정
-        ACL: "public-read",
       },
     });
 
@@ -110,7 +108,6 @@ export async function uploadFileToR2Key(
       Key: fileKey,
       Body: file,
       ContentType: mimeType,
-      ACL: "public-read",
     });
 
     await getR2Client().send(command);
@@ -380,13 +377,17 @@ export function getFileUrl(fileKey: string): string {
   const publicUrl =
     process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL ||
     process.env.CLOUDFLARE_R2_PUBLIC_URL;
-  return `${publicUrl}/${fileKey}`;
+  if (!publicUrl) throw new Error("R2 public URL configuration is required.");
+  return `${publicUrl.replace(/\/+$/, "")}/${fileKey}`;
 }
 
 /**
  * Cloudflare R2에서 파일을 다운로드합니다.
  */
-export async function downloadFileFromR2(fileKey: string): Promise<{
+export async function downloadFileFromR2(
+  fileKey: string,
+  maxBytes?: number,
+): Promise<{
   buffer: Buffer;
   contentType: string;
   contentLength: number;
@@ -403,15 +404,38 @@ export async function downloadFileFromR2(fileKey: string): Promise<{
       throw new Error("파일을 찾을 수 없습니다.");
     }
 
+    if (maxBytes && Number(response.ContentLength) > maxBytes) {
+      if (
+        "destroy" in response.Body &&
+        typeof response.Body.destroy === "function"
+      )
+        response.Body.destroy();
+      throw new Error("파일 크기 제한을 초과했습니다.");
+    }
+
     // Stream을 Buffer로 변환
     const chunks: Uint8Array[] = [];
+    let byteSize = 0;
+    const appendChunk = (chunk: Uint8Array) => {
+      byteSize += chunk.byteLength;
+      if (maxBytes && byteSize > maxBytes)
+        throw new Error("파일 크기 제한을 초과했습니다.");
+      chunks.push(chunk);
+    };
 
     if (response.Body instanceof ReadableStream) {
       const reader = response.Body.getReader();
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        if (value) chunks.push(value);
+        if (value) {
+          try {
+            appendChunk(value);
+          } catch (error) {
+            await reader.cancel();
+            throw error;
+          }
+        }
       }
     } else {
       // Node.js 환경에서의 처리
@@ -419,11 +443,11 @@ export async function downloadFileFromR2(fileKey: string): Promise<{
       for await (const chunk of stream) {
         // chunk가 string이면 Buffer로 변환하고, 그 다음 Uint8Array로 변환
         if (typeof chunk === "string") {
-          chunks.push(new Uint8Array(Buffer.from(chunk)));
+          appendChunk(new Uint8Array(Buffer.from(chunk)));
         } else if (chunk instanceof Buffer) {
-          chunks.push(new Uint8Array(chunk));
+          appendChunk(new Uint8Array(chunk));
         } else {
-          chunks.push(chunk);
+          appendChunk(chunk);
         }
       }
     }

@@ -23,6 +23,43 @@ import React, {
   useState,
 } from "react";
 
+import {
+  applyStudioDuplicateTimetableGraphNode,
+  planStudioDuplicateTimetableGraphNode,
+  applyStudioDeleteTimetableGraphNodes,
+  planStudioDeleteTimetableGraphNode,
+  requireStudioTimetableGraphDocument,
+  resolveStudioTimetableGraphGeometry,
+  isStudioTimetableGraphNodeLocked,
+} from "@/utils/template-studio/timetable-graph-commands";
+import type { StudioTimetableGraphNode } from "@/types/studio-timetable-graph";
+import { createStudioTimetableGraphDocument } from "@/utils/template-studio/timetable-graph-document";
+import {
+  createStudioTeamDocument,
+  createStudioTeamPreview,
+  validateStudioTeamDefinition,
+} from "@/utils/template-studio/team-timetable";
+import { StudioTeamControls } from "./studio-team-controls";
+import {
+  StudioTeamConnectionPanel,
+  StudioConnectedTeamPreview,
+} from "./studio-team-connection-panel";
+import { Download } from "lucide-react";
+import {
+  renderStudioPng,
+  downloadStudioPng,
+  buildStudioExportFileName,
+} from "@/utils/template-studio/png-export";
+
+import {
+  getStudioTimetableNodeIds,
+  getStudioTimetableNodeStyle,
+  getStudioTimetableNodeExtension,
+  getStudioTimetableNodeChildIds,
+  getStudioCardsRootNodeIds,
+} from "@/utils/template-studio/timetable-graph-queries";
+import { resolveStudioTimetableGraphSelection } from "@/utils/template-studio/timetable-graph-selection";
+
 import { useStudioDocumentHistory } from "@/hooks/studio/use-studio-document-history";
 import { useStudioClipboard } from "@/hooks/studio/use-studio-clipboard";
 import {
@@ -65,7 +102,6 @@ import {
   StudioRuntimeValues,
   StudioTemplateDocument,
   StudioWebFontSource,
-  StudioTimetableCompositionObject,
   StudioTimetableComponentId,
   StudioTimetableDayId,
   StudioTimetableStatusId,
@@ -127,21 +163,12 @@ import {
   resolveStudioDragTargetNodeIds,
   type StudioTextAlignment,
 } from "@/utils/template-studio/node-style-commands";
-import {
-  applyStudioDeleteTimetableObject,
-  getStudioTimetableDeleteMessage,
-  planStudioDeleteTimetableObject,
-} from "@/utils/template-studio/timetable-commands";
+import { getStudioTimetableDeleteMessage } from "@/utils/template-studio/timetable-commands";
 import {
   isStudioFillParentLayout,
-  isStudioPlacedTimetableCompositionObject,
   resolveStudioGraphNodeGeometry,
-  resolveStudioTimetableObjectGeometry,
 } from "@/utils/template-studio/object-layout";
-import {
-  getStudioCanvasNodeDragBlockedReason,
-  getStudioTimetableCanvasDragBlock,
-} from "@/utils/template-studio/layer-drag";
+import { getStudioCanvasNodeDragBlockedReason } from "@/utils/template-studio/layer-drag";
 import { getStudioSelectionLabel } from "@/utils/template-studio/selection";
 import {
   getStudioInputDefaultValue,
@@ -151,16 +178,8 @@ import {
 } from "@/utils/template-studio/input-values";
 import { resolveStudioRuntimeCropSize } from "@/utils/template-studio/runtime-image-crop";
 import { getStudioPresetGroups } from "@/utils/template-studio/preset-registry";
-import {
-  createInitialStudioRuntimeValues,
-  createSampleStudioDocument,
-} from "@/utils/template-studio/sample-document";
-import {
-  ensureStudioTimetableComposition,
-  getStudioTimetableComposition,
-  getStudioTimetableObjectRenderableChildIds,
-  STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID,
-} from "@/utils/template-studio/timetable-composition";
+import { createInitialStudioRuntimeValues } from "@/utils/template-studio/sample-document";
+import { STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID } from "@/utils/template-studio/timetable-graph-presets";
 import {
   createStudioStatusCardBackgroundSlotResolver,
   setStudioStatusCardBackgroundAssetSlot,
@@ -170,11 +189,13 @@ import {
   getStudioTimetableEffectiveMaxEntriesPerDay,
   getStudioTimetableEntriesForDay,
   resolveStudioTimetableComponentVariant,
+  setStudioTimetableEntryField,
   validateStudioRuntimeValuesForDocument,
 } from "@/utils/template-studio/timetable-runtime";
 import { getStudioRuntimeSuppressedInputIds } from "@/utils/template-studio/runtime-global-input-groups";
 import { getStudioRuntimeInputMultiline } from "@/utils/template-studio/runtime-input-presentation";
 import {
+  getStudioNearestPastMonday,
   withStudioCurrentRuntimeWeekStartDate,
 } from "@/utils/template-studio/runtime-week";
 import { applyStudioTimetableComponentFrames } from "@/utils/template-studio/entry-groups";
@@ -193,8 +214,10 @@ import {
 import {} from "@/utils/template-studio/text-wrap";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
 import { applyStudioFigmaGridCandidate } from "@/utils/template-studio/figma-import/figma-component-import";
+import { applyStudioFigmaFrameImport } from "@/utils/template-studio/figma-import/figma-frame-import";
 import { applyStudioFigmaReviewEdits } from "@/utils/template-studio/figma-import/figma-review-edits";
 import { getStudioCustomFontFamilies } from "@/utils/template-studio/web-fonts";
+import type { StudioFigmaFrameCandidate } from "@/types/template-studio-figma";
 
 import {
   clampStudioPreviewScale,
@@ -222,10 +245,14 @@ import {
   STUDIO_INPUT_SCOPE_OPTIONS,
 } from "@/utils/template-studio/input-scope";
 import {
-  resolveStudioAssetSlotSpec,
+  resolveStudioGraphAssetSlotSpec,
   type StudioAssetSlotKind,
 } from "@/utils/template-studio/timetable-asset-slot-specs";
-import { resolveStudioTimetableSelection } from "@/utils/template-studio/timetable-selection";
+import {
+  getStudioTimetableEditingVariantValue,
+  type StudioTimetableEditingVariants,
+  resolveStudioTimetableDayCardEditorTarget,
+} from "@/utils/template-studio/timetable-selection";
 import { StudioLayerPanel } from "@/components/studio/layers/studio-layer-panel";
 
 import { StudioApplyStyleDialog } from "./studio-apply-style-dialog";
@@ -312,6 +339,7 @@ interface TemplateStudioView {
   collapsedLayerGroupIds: string[];
   collapsedTimetableLayerIds: string[];
   selectedTimetableLayerId: string | null;
+  timetableEditingVariants: StudioTimetableEditingVariants;
   selectedCardStatusId: StudioTimetableStatusId;
   selectedCardComponentId: StudioTimetableComponentId;
 }
@@ -481,12 +509,17 @@ const replaceRuntimeInputValue = (
   ),
 });
 
-const getStudioEditableNodeIds = (document: StudioTemplateDocument): string[] =>
-  Object.keys(document.graph.nodes).filter(
+const getStudioEditableNodeIds = (
+  document: StudioTemplateDocument,
+): string[] => {
+  const weeklyIds = getStudioTimetableNodeIds(document);
+  return Object.keys(document.graph.nodes).filter(
     (nodeId) =>
+      !weeklyIds.has(nodeId) &&
       !document.graph.rootNodeIds.includes(nodeId) &&
       document.domains?.timetable?.mountNodeId !== nodeId,
   );
+};
 
 const normalizeStudioDimension = (value: number, fallback: number) => {
   if (!Number.isFinite(value)) return fallback;
@@ -522,42 +555,70 @@ const normalizeRuntimeValuesForTimetableCapabilities = (
   },
 });
 
+interface TemplateStudioHistorySnapshot extends StudioEditorSnapshot {
+  selectedTimetableLayerId: string | null;
+}
+
 interface TemplateStudioClientProps {
   initialRemoteTemplateId?: string | null;
+  initialTemplateMode?: "personal" | "team";
 }
 
 export function TemplateStudioClient({
   initialRemoteTemplateId = null,
+  initialTemplateMode = "personal",
 }: TemplateStudioClientProps) {
   const router = useRouter();
   const studioStoreRef = useRef<StudioEditorStore<TemplateStudioView> | null>(
     null,
   );
   if (!studioStoreRef.current) {
-    const initialDocument = createSampleStudioDocument();
+    const initialDocument =
+      initialTemplateMode === "team"
+        ? createStudioTeamDocument()
+        : createStudioTimetableGraphDocument();
+    const initialRuntimeValues =
+      createInitialStudioRuntimeValues(initialDocument);
+    if (initialDocument.domains.timetable.team)
+      initialRuntimeValues.team = createStudioTeamPreview(initialDocument);
     studioStoreRef.current = createStudioEditorStore<TemplateStudioView>({
       document: initialDocument,
-      runtimeValues: createInitialStudioRuntimeValues(initialDocument),
+      runtimeValues: initialRuntimeValues,
       selectedNodeIds: ["node_c3"],
       selectedRuntimeDayId: "mon",
       view: {
         panelMode: "layers",
         theme: "dark",
-        workspaceMode: "cards",
+        workspaceMode: initialTemplateMode === "team" ? "timetable" : "cards",
         inspectorSections: DEFAULT_INSPECTOR_SECTIONS,
         inputScopeFilter: "global",
         scale: 0.8,
         collapsedLayerGroupIds: [],
         collapsedTimetableLayerIds: [],
         selectedTimetableLayerId: STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID,
+        timetableEditingVariants: {},
         selectedCardStatusId: "online",
         selectedCardComponentId: "",
       },
     });
   }
   const studioStore = studioStoreRef.current;
-  const document = useStore(studioStore, (state) => state.document);
+  const storedDocument = useStore(studioStore, (state) => state.document);
+  const document = requireStudioTimetableGraphDocument(storedDocument);
+  const getDocument = useCallback(
+    () => studioStore.getState().document,
+    [studioStore],
+  );
+  const setDocument = useCallback(
+    (nextDocument: StudioTemplateDocument) => {
+      requireStudioTimetableGraphDocument(nextDocument);
+      studioStore.getState().setDocument(nextDocument);
+    },
+    [studioStore],
+  );
   const runtimeValues = useStore(studioStore, (state) => state.runtimeValues);
+  const teamExportRef = useRef<HTMLDivElement>(null);
+  const [teamExportBusy, setTeamExportBusy] = useState(false);
   const selectedInputId = useStore(
     studioStore,
     (state) => state.selectedInputId,
@@ -571,7 +632,6 @@ export function TemplateStudioClient({
     (state) => state.selectedRuntimeEntryIndex,
   );
   const {
-    setDocument,
     setRuntimeValues,
     setSelectedInputId,
     setSelectedRuntimeDayId,
@@ -587,6 +647,7 @@ export function TemplateStudioClient({
     collapsedLayerGroupIds,
     collapsedTimetableLayerIds,
     selectedTimetableLayerId,
+    timetableEditingVariants,
     selectedCardStatusId,
     selectedCardComponentId,
   } = useStore(studioStore, (state) => state.view);
@@ -600,6 +661,7 @@ export function TemplateStudioClient({
     setCollapsedLayerGroupIds,
     setCollapsedTimetableLayerIds,
     setSelectedTimetableLayerId,
+    setTimetableEditingVariants,
     setSelectedCardStatusId,
     setSelectedCardComponentId,
   } = useMemo(
@@ -628,6 +690,10 @@ export function TemplateStudioClient({
         studioStore,
         "selectedTimetableLayerId",
       ),
+      setTimetableEditingVariants: createStudioViewSetter(
+        studioStore,
+        "timetableEditingVariants",
+      ),
       setSelectedCardStatusId: createStudioViewSetter(
         studioStore,
         "selectedCardStatusId",
@@ -640,6 +706,10 @@ export function TemplateStudioClient({
     [studioStore],
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [connectedTeamWeek, setConnectedTeamWeek] = useState(
+    getStudioNearestPastMonday,
+  );
+  const connectedTeamBindingsRef = useRef<Record<string, number>>({});
   const [stylePropagationOpen, setStylePropagationOpen] = useState(false);
   const [fitRequestKey, setFitRequestKey] = useState(0);
   const [nodePicker, setNodePicker] = useState<NodePickerState | null>(null);
@@ -650,13 +720,23 @@ export function TemplateStudioClient({
     useState<StudioPersistenceOperationState | null>(null);
   const [figmaUrl, setFigmaUrl] = useState("");
   const [figmaCandidates, setFigmaCandidates] = useState<ImportCandidate[]>([]);
-  const [selectedFigmaCandidateId, setSelectedFigmaCandidateId] = useState<string | null>(null);
+  const [figmaFrameCandidate, setFigmaFrameCandidate] =
+    useState<StudioFigmaFrameCandidate | null>(null);
+  const [selectedFigmaCandidateId, setSelectedFigmaCandidateId] = useState<
+    string | null
+  >(null);
   const [figmaAnalysisPending, setFigmaAnalysisPending] = useState(false);
   const [figmaImportPending, setFigmaImportPending] = useState(false);
-  const [figmaErrorMessage, setFigmaErrorMessage] = useState<string | null>(null);
-  const [figmaStatusMessage, setFigmaStatusMessage] = useState<string | null>(null);
-  const [figmaBindingTouchedSourceNodeIds, setFigmaBindingTouchedSourceNodeIds] =
-    useState<Record<string, boolean>>({});
+  const [figmaErrorMessage, setFigmaErrorMessage] = useState<string | null>(
+    null,
+  );
+  const [figmaStatusMessage, setFigmaStatusMessage] = useState<string | null>(
+    null,
+  );
+  const [
+    figmaBindingTouchedSourceNodeIds,
+    setFigmaBindingTouchedSourceNodeIds,
+  ] = useState<Record<string, boolean>>({});
   const figmaAnalysisSequenceRef = useRef(0);
   const [operationToast, setOperationToast] =
     useState<StudioPersistenceOperationResult | null>(null);
@@ -745,10 +825,31 @@ export function TemplateStudioClient({
     syncTemplateStudioAssetsMutation.isPending ||
     recordTemplateStudioSaveEventMutation.isPending ||
     templateStudioTemplateQuery.isFetching;
-  const timetableComposition = useMemo(
-    () => getStudioTimetableComposition(document.domains?.timetable),
-    [document.domains?.timetable],
+  const timetableNodeIds = useMemo(
+    () => getStudioTimetableNodeIds(document),
+    [document],
   );
+  const timetableGraph = useMemo(
+    () => ({
+      rootNodeIds: document.domains.timetable.rootNodeIds,
+      nodes: Object.fromEntries(
+        [...timetableNodeIds].map((id) => [id, document.graph.nodes[id]]),
+      ),
+    }),
+    [document, timetableNodeIds],
+  );
+  useEffect(() => {
+    setTimetableEditingVariants((current) => {
+      const validEntries = Object.entries(current).filter(([id, value]) =>
+        timetableGraph.nodes[id]?.variantSet?.options.some(
+          (option) => option.value === value,
+        ),
+      );
+      return validEntries.length === Object.keys(current).length
+        ? current
+        : Object.fromEntries(validEntries);
+    });
+  }, [timetableGraph, setTimetableEditingVariants]);
   const cardStatusOptions = useMemo(
     () => getStudioAvailableTimetableStatuses(document),
     [document],
@@ -794,7 +895,7 @@ export function TemplateStudioClient({
     selectedCardVariantResolution?.variant.rootNodeId ?? null;
   const cardAuthoringRootNodeIds = selectedCardVariantRootId
     ? [selectedCardVariantRootId]
-    : document.graph.rootNodeIds;
+    : getStudioCardsRootNodeIds(document);
   useEffect(() => {
     if (selectedCardComponentId !== activeCardComponentId) {
       setSelectedCardComponentId(activeCardComponentId);
@@ -829,19 +930,27 @@ export function TemplateStudioClient({
   );
   const timetablePickerNodes = useMemo<Record<string, StudioPickerNode>>(() => {
     const pickerNodes = Object.fromEntries(
-      Object.values(timetableComposition.objects).map((object) => [
+      Object.values(timetableGraph.nodes).map((object) => [
         object.id,
         {
           id: object.id,
           label: object.label,
-          typeLabel:
-            object.kind === "generatedDayCards"
-              ? "Generated Cards"
-              : object.kind === "flexibleText"
-                ? "Auto Text"
-                : object.kind[0].toUpperCase() + object.kind.slice(1),
+          typeLabel: getStudioTimetableNodeExtension(document, object.id)
+            .generator
+            ? "Generated Cards"
+            : object.type === "flexibleText"
+              ? "Auto Text"
+              : object.type[0].toUpperCase() + object.type.slice(1),
           parentId: object.parentId,
-          childIds: [...getStudioTimetableObjectRenderableChildIds(object)],
+          childIds: [
+            ...getStudioTimetableNodeChildIds(
+              object,
+              getStudioTimetableEditingVariantValue(
+                object,
+                timetableEditingVariants,
+              ),
+            ),
+          ],
         },
       ]),
     );
@@ -861,15 +970,15 @@ export function TemplateStudioClient({
     });
 
     return pickerNodes;
-  }, [timetableComposition.objects, timetableDays]);
+  }, [document, timetableGraph.nodes, timetableDays, timetableEditingVariants]);
   const timetableSelection = useMemo(
     () =>
-      resolveStudioTimetableSelection(
+      resolveStudioTimetableGraphSelection(
         document,
-        timetableComposition,
         selectedTimetableLayerId,
+        timetableEditingVariants,
       ),
-    [document, selectedTimetableLayerId, timetableComposition],
+    [document, selectedTimetableLayerId, timetableEditingVariants],
   );
   const {
     object: selectedTimetableCompositionObject,
@@ -892,15 +1001,14 @@ export function TemplateStudioClient({
   const activeRuntimeDay = timetableDays.find(
     (day) => day.id === activeRuntimeDayId,
   );
-  const selectedTimetableLayerLabel = useMemo(() => {
-    if (!selectedTimetableLayerId) return "Timetable Composition";
-    const object = timetableComposition.objects[selectedTimetableLayerId];
-    if (object) return object.label;
+  const selectedTimetableLayerLabel =
+    timetableSelection.object?.label ??
+    (timetableSelection.day
+      ? `${timetableSelection.day.shortLabel ?? timetableSelection.day.label} Card`
+      : selectedTimetableLayerId
+        ? "Timetable Layer"
+        : "Timetable Composition");
 
-    const dayId = selectedTimetableLayerId.replace(/^day-card:/, "");
-    const day = timetableDays.find((currentDay) => currentDay.id === dayId);
-    return day ? `${day.shortLabel ?? day.label} Card` : "Timetable Layer";
-  }, [selectedTimetableLayerId, timetableComposition.objects, timetableDays]);
   const maxRuntimeEntries =
     getStudioTimetableEffectiveMaxEntriesPerDay(document);
   const activeRuntimeEntries = activeRuntimeDayId
@@ -985,21 +1093,33 @@ export function TemplateStudioClient({
     if (!timetable || !selectedTimetableLayerId) return null;
 
     const layout = getStudioTimetableDayCardsLayout(timetable);
-    const compositionObject =
-      timetableComposition.objects[selectedTimetableLayerId];
+    const compositionObject = timetableGraph.nodes[selectedTimetableLayerId];
 
-    if (isStudioPlacedTimetableCompositionObject(compositionObject)) {
+    if (
+      compositionObject &&
+      !getStudioTimetableNodeExtension(document, compositionObject.id).generator
+    ) {
       return {
-        ...resolveStudioTimetableObjectGeometry(
-          timetableComposition,
-          compositionObject.id,
-          getStudioTimetablePreviewSize(timetable),
-        ),
-        rotateDeg: compositionObject.style.rotateDeg ?? 0,
+        ...resolveStudioTimetableGraphGeometry(document, compositionObject.id),
+        rotateDeg:
+          getStudioTimetableNodeStyle(document, compositionObject).rotateDeg ??
+          0,
       };
     }
 
     if (selectedTimetableLayerId === STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID) {
+      if (timetable.team)
+        return {
+          ...resolveStudioTimetableGraphGeometry(
+            document,
+            selectedTimetableLayerId,
+          ),
+          rotateDeg:
+            getStudioTimetableNodeStyle(
+              document,
+              timetableGraph.nodes[selectedTimetableLayerId],
+            ).rotateDeg ?? 0,
+        };
       return {
         ...getStudioTimetableDayCardsBounds(
           layout,
@@ -1008,19 +1128,18 @@ export function TemplateStudioClient({
             getStudioTimetableEntriesForDay(document, runtimeValues, dayId)
               .length,
           getTimetableEntryCardSizeForDay,
+          getStudioTimetablePreviewSize(timetable),
         ),
         rotateDeg:
-          timetableComposition.objects[STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID]
-            ?.style.rotateDeg ?? 0,
+          document.styles[
+            timetableGraph.nodes[STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID]
+              ?.styleId ?? ""
+          ]?.rotateDeg ?? 0,
       };
     }
 
-    if (!selectedTimetableLayerId.startsWith("day-card:")) return null;
-
-    const dayId = selectedTimetableLayerId.replace(
-      /^day-card:/,
-      "",
-    ) as StudioTimetableDayId;
+    if (timetableSelection.target?.kind !== "dayCard") return null;
+    const dayId = timetableSelection.target.dayId;
     const dayIndex = timetableDays.findIndex((day) => day.id === dayId);
     if (dayIndex < 0) return null;
 
@@ -1048,24 +1167,33 @@ export function TemplateStudioClient({
     document,
     runtimeValues,
     selectedTimetableLayerId,
-    timetableComposition,
+    timetableGraph,
     getTimetableEntryCardSizeForDay,
     timetableDays,
+    timetableSelection.target,
   ]);
   const selectedTimetableLayerRotation = useMemo(() => {
     const timetable = document.domains?.timetable;
     if (!timetable || !selectedTimetableLayerId) return 0;
 
-    const compositionObject = timetableComposition.objects[selectedTimetableLayerId];
-    if (compositionObject) return Number(compositionObject.style.rotateDeg ?? 0);
+    const compositionObject = timetableGraph.nodes[selectedTimetableLayerId];
+    if (compositionObject)
+      return Number(
+        getStudioTimetableNodeStyle(document, compositionObject).rotateDeg ?? 0,
+      );
 
-    if (!selectedTimetableLayerId.startsWith("day-card:")) return 0;
-    const dayId = selectedTimetableLayerId.replace(
-      /^day-card:/,
-      "",
-    ) as StudioTimetableDayId;
-    return Number(getStudioTimetableDayCardsLayout(timetable).dayOffsets?.[dayId]?.rotateDeg ?? 0);
-  }, [document, selectedTimetableLayerId, timetableComposition]);
+    if (timetableSelection.target?.kind !== "dayCard") return 0;
+    const dayId = timetableSelection.target.dayId;
+    return Number(
+      getStudioTimetableDayCardsLayout(timetable).dayOffsets?.[dayId]
+        ?.rotateDeg ?? 0,
+    );
+  }, [
+    document,
+    selectedTimetableLayerId,
+    timetableGraph,
+    timetableSelection.target,
+  ]);
   const statusOptions = useMemo(
     () => getStudioAvailableTimetableStatuses(document),
     [document],
@@ -1078,8 +1206,10 @@ export function TemplateStudioClient({
       : "cards";
   const activeObjectCount =
     activeWorkspaceMode === "timetable"
-      ? timetableComposition.rootObjectIds.length
-      : Object.keys(document.graph.nodes).length;
+      ? timetableGraph.rootNodeIds.length
+      : Object.keys(document.graph.nodes).filter(
+          (id) => !timetableNodeIds.has(id),
+        ).length;
   const previewCanvasSize =
     activeWorkspaceMode === "timetable"
       ? getStudioTimetablePreviewSize(document.domains?.timetable)
@@ -1099,27 +1229,20 @@ export function TemplateStudioClient({
     activeWorkspaceMode === "cards" ? cardsGuide : timetableGuide;
   const activeGuideAsset =
     activeWorkspaceMode === "cards" ? cardsGuideAsset : timetableGuideAsset;
-  const activePanelMode: PanelMode =
-    activeWorkspaceMode === "timetable" && panelMode === "timetable"
-      ? "layers"
-      : panelMode;
+  const activePanelMode: PanelMode = panelMode;
   const isInputPanelActive = activePanelMode === "inputs";
   // 좌측 패널 탭은 시간표 도메인이 소유한다. 공통 프레임은 목록만 받는다.
   const cardsPanelTabs = useMemo<StudioPanelTab[]>(() => {
     const tabs: StudioPanelTab[] = [
       { id: "layers", label: "Layers", icon: <Layers3 size={14} /> },
       { id: "presets", label: "Presets", icon: <Plus size={14} /> },
-      { id: "inputs", label: "Inputs", icon: <ListChecks size={14} /> },
     ];
-    if (activeWorkspaceMode === "cards") {
-      tabs.push({
-        id: "timetable",
-        label: "Table",
-        icon: <CalendarDays size={14} />,
-      });
-    }
     return tabs;
-  }, [activeWorkspaceMode]);
+  }, []);
+  const cardsPanelMenuTabs: StudioPanelTab[] = [
+    { id: "inputs", label: "Inputs", icon: <ListChecks size={14} /> },
+    { id: "timetable", label: "Sample Data", icon: <CalendarDays size={14} /> },
+  ];
   const assets = useMemo(
     () => Object.values(document.assets),
     [document.assets],
@@ -1138,8 +1261,8 @@ export function TemplateStudioClient({
     [document],
   );
   const inputConsumers = useMemo(
-    () => collectStudioInputConsumers(document, timetableComposition),
-    [document, timetableComposition],
+    () => collectStudioInputConsumers(document),
+    [document],
   );
   const diagnostics = useMemo(
     () => [
@@ -1182,13 +1305,9 @@ export function TemplateStudioClient({
       });
     };
 
-    collectNodeIds(document.graph.rootNodeIds);
+    collectNodeIds(getStudioCardsRootNodeIds(document));
     return nextNodeIds;
-  }, [
-    collapsedLayerGroupIdsSet,
-    document.graph.nodes,
-    document.graph.rootNodeIds,
-  ]);
+  }, [collapsedLayerGroupIdsSet, document]);
 
   useEffect(() => {
     visibleLayerNodeIdsRef.current = visibleLayerNodeIds;
@@ -1219,7 +1338,7 @@ export function TemplateStudioClient({
 
   const jumpToInput = useCallback(
     (inputId: StudioInputId) => {
-      const input = studioStore.getState().document.inputs[inputId];
+      const input = getDocument().inputs[inputId];
 
       if (!input) {
         showShortcutStatus("Input no longer exists");
@@ -1236,7 +1355,7 @@ export function TemplateStudioClient({
       setPanelMode,
       setSelectedInputId,
       showShortcutStatus,
-      studioStore,
+      getDocument,
     ],
   );
 
@@ -1245,8 +1364,7 @@ export function TemplateStudioClient({
       setNodePicker(null);
 
       if (consumer.workspaceMode === "cards") {
-        const node =
-          studioStore.getState().document.graph.nodes[consumer.targetId];
+        const node = getDocument().graph.nodes[consumer.targetId];
 
         if (!node) {
           showShortcutStatus("Consumer object no longer exists");
@@ -1257,9 +1375,7 @@ export function TemplateStudioClient({
         let parentId = node.parentId;
         while (parentId) {
           ancestorIds.push(parentId);
-          parentId =
-            studioStore.getState().document.graph.nodes[parentId]?.parentId ??
-            null;
+          parentId = getDocument().graph.nodes[parentId]?.parentId ?? null;
         }
 
         setWorkspaceMode("cards");
@@ -1272,10 +1388,10 @@ export function TemplateStudioClient({
         return;
       }
 
-      const composition = getStudioTimetableComposition(
-        studioStore.getState().document.domains?.timetable,
-      );
-      const object = composition.objects[consumer.targetId];
+      const object =
+        requireStudioTimetableGraphDocument(getDocument()).graph.nodes[
+          consumer.targetId
+        ];
 
       if (!object) {
         showShortcutStatus("Consumer object no longer exists");
@@ -1295,7 +1411,7 @@ export function TemplateStudioClient({
       setSelectedTimetableLayerId,
       setWorkspaceMode,
       showShortcutStatus,
-      studioStore,
+      getDocument,
     ],
   );
 
@@ -1324,7 +1440,7 @@ export function TemplateStudioClient({
   );
 
   const selectAllEditableNodes = useCallback(() => {
-    const nodeIds = getStudioEditableNodeIds(studioStore.getState().document);
+    const nodeIds = getStudioEditableNodeIds(getDocument());
     if (nodeIds.length === 0) {
       showShortcutStatus("No editable objects");
       return;
@@ -1333,17 +1449,29 @@ export function TemplateStudioClient({
     applyNodeSelection(nodeIds, studioStore.getState().selectedNodeId);
     setPanelMode("layers");
     showShortcutStatus(`Selected ${nodeIds.length} objects`);
-  }, [applyNodeSelection, setPanelMode, showShortcutStatus, studioStore]);
+  }, [
+    applyNodeSelection,
+    setPanelMode,
+    showShortcutStatus,
+    studioStore,
+    getDocument,
+  ]);
 
   const createHistorySnapshot = useCallback(
-    (): StudioEditorSnapshot =>
-      captureStudioEditorSnapshot(studioStore.getState()),
+    (): TemplateStudioHistorySnapshot => ({
+      ...captureStudioEditorSnapshot(studioStore.getState()),
+      selectedTimetableLayerId:
+        studioStore.getState().view.selectedTimetableLayerId,
+    }),
     [studioStore],
   );
 
   const restoreHistorySnapshot = useCallback(
-    (snapshot: StudioEditorSnapshot) => {
+    (snapshot: TemplateStudioHistorySnapshot) => {
       studioStore.getState().restoreSnapshot(snapshot);
+      studioStore.getState().setView({
+        selectedTimetableLayerId: snapshot.selectedTimetableLayerId,
+      });
       setNodePicker(null);
     },
     [studioStore],
@@ -1378,14 +1506,19 @@ export function TemplateStudioClient({
       nextRuntimeValues: StudioRuntimeValues,
       message: string,
     ) => {
-      const normalizedRuntimeValues =
-        withStudioCurrentRuntimeWeekStartDate(
-          nextDocument,
-          normalizeRuntimeValuesForTimetableCapabilities(
-            cloneRuntimeValues(nextRuntimeValues),
-            getStudioTimetableCapabilities(nextDocument.domains?.timetable),
-          ),
+      if (nextDocument.version !== 8) {
+        showShortcutStatus(
+          "새 시간표 에디터는 v8 템플릿을 사용합니다. 새 템플릿을 만들어 주세요.",
         );
+        return;
+      }
+      const normalizedRuntimeValues = withStudioCurrentRuntimeWeekStartDate(
+        nextDocument,
+        normalizeRuntimeValuesForTimetableCapabilities(
+          cloneRuntimeValues(nextRuntimeValues),
+          getStudioTimetableCapabilities(nextDocument.domains?.timetable),
+        ),
+      );
       const nextSelectedNodeId = nextDocument.graph.rootNodeIds[0] ?? null;
       const nextSelectedInputId = Object.keys(nextDocument.inputs)[0] ?? null;
       const nextRuntimeDayId =
@@ -1398,6 +1531,7 @@ export function TemplateStudioClient({
       studioStore.getState().selectedRuntimeEntryIndex = 0;
 
       setDocument(nextDocument);
+      setTimetableEditingVariants({});
       setRuntimeValues(normalizedRuntimeValues);
       restoreSelection(
         nextSelectedNodeId ? [nextSelectedNodeId] : [],
@@ -1406,7 +1540,9 @@ export function TemplateStudioClient({
       setSelectedInputId(nextSelectedInputId);
       setSelectedRuntimeDayId(nextRuntimeDayId);
       setSelectedRuntimeEntryIndex(0);
-      setWorkspaceMode("cards");
+      setWorkspaceMode(
+        nextDocument.domains?.timetable?.team ? "timetable" : "cards",
+      );
       setPanelMode("layers");
       setSelectedTimetableLayerId(STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID);
       setCollapsedLayerGroupIds([]);
@@ -1420,6 +1556,7 @@ export function TemplateStudioClient({
       setCollapsedLayerGroupIds,
       setCollapsedTimetableLayerIds,
       setDocument,
+      setTimetableEditingVariants,
       setPanelMode,
       setRuntimeValues,
       setSelectedInputId,
@@ -1433,6 +1570,7 @@ export function TemplateStudioClient({
   );
 
   const {
+    ensureTemplateId,
     exportJson: exportStudioJson,
     importJsonFile: importStudioJsonFile,
     loadRemoteTemplate,
@@ -1441,6 +1579,9 @@ export function TemplateStudioClient({
     openDraftPreview: openRuntimeDraftPreview,
     openSavedPreview,
   } = useStudioTemplatePersistence({
+    expectedDocumentVersion: 8,
+    previewPathForTemplate: (templateId) =>
+      `${studioStore.getState().document.domains?.timetable?.team ? "/admin/team-timetable-studio" : "/admin/template-studio"}/${templateId}/preview`,
     getDocument: useCallback(
       () => studioStore.getState().document,
       [studioStore],
@@ -1483,6 +1624,35 @@ export function TemplateStudioClient({
     ),
   });
 
+  const applyConnectedTeamPreview = useCallback(
+    (values: StudioRuntimeValues, bindings: Record<string, number>) => {
+      const current = studioStore.getState().runtimeValues;
+      // Preserve manually supplied preview images by user ID when slots move.
+      const images = new Map(
+        Object.entries(connectedTeamBindingsRef.current).map(([slot, userId]) => [
+          userId,
+          current.team?.members[slot]?.image ?? "",
+        ]),
+      );
+      const members = Object.fromEntries(
+        Object.entries(values.team?.members ?? {}).map(([slot, member]) => [
+          slot,
+          { ...member, image: images.get(bindings[slot]) ?? member.image },
+        ]),
+      );
+      connectedTeamBindingsRef.current = bindings;
+      studioStore.getState().setRuntimeValues({
+        ...current,
+        team: { members },
+        timetable: {
+          ...current.timetable,
+          weekStartDate: values.timetable.weekStartDate,
+        },
+      });
+    },
+    [studioStore],
+  );
+
   const updateDocument = useCallback(
     (
       updater: (nextDocument: StudioTemplateDocument) => void,
@@ -1492,12 +1662,12 @@ export function TemplateStudioClient({
         captureHistory();
       }
 
-      const nextDocument = cloneDocument(studioStore.getState().document);
+      const nextDocument = cloneDocument(getDocument());
       updater(nextDocument);
       applyStudioTimetableComponentFrames(nextDocument);
       setDocument(nextDocument);
     },
-    [captureHistory, setDocument, studioStore],
+    [captureHistory, setDocument, getDocument],
   );
 
   const analyzeFigmaGrid = useCallback(async () => {
@@ -1509,16 +1679,33 @@ export function TemplateStudioClient({
     setFigmaErrorMessage(null);
     setFigmaStatusMessage(null);
     try {
-      const response = await TemplateStudioService.analyzeFigmaGridComponent(requestedUrl);
+      const response =
+        await TemplateStudioService.analyzeFigmaGridComponent(requestedUrl);
       if (figmaAnalysisSequenceRef.current !== requestSequence) return;
-      setFigmaCandidates(response.candidates);
-      setSelectedFigmaCandidateId(response.candidates.length === 1 ? response.candidates[0]!.candidateId : null);
-      setFigmaStatusMessage(response.warnings[0] ?? `${response.candidates.length}개 후보를 분석했습니다.`);
+      const frameCandidate = response.frameCandidate ?? null;
+      setFigmaFrameCandidate(frameCandidate);
+      setFigmaCandidates(frameCandidate ? [] : response.candidates);
+      setSelectedFigmaCandidateId(
+        frameCandidate
+          ? frameCandidate.candidateId
+          : response.candidates.length === 1
+            ? response.candidates[0]!.candidateId
+            : null,
+      );
+      setFigmaStatusMessage(
+        response.warnings[0] ??
+          (frameCandidate
+            ? `${frameCandidate.label} 프레임을 분석했습니다.`
+            : `${response.candidates.length}개 후보를 분석했습니다.`),
+      );
     } catch {
       if (figmaAnalysisSequenceRef.current !== requestSequence) return;
       setFigmaCandidates([]);
+      setFigmaFrameCandidate(null);
       setSelectedFigmaCandidateId(null);
-      setFigmaErrorMessage("Figma 컴포넌트를 분석하지 못했습니다. 링크와 권한을 확인해 주세요.");
+      setFigmaErrorMessage(
+        "Figma 컴포넌트를 분석하지 못했습니다. 링크와 권한을 확인해 주세요.",
+      );
     } finally {
       if (figmaAnalysisSequenceRef.current === requestSequence) {
         setFigmaAnalysisPending(false);
@@ -1530,6 +1717,7 @@ export function TemplateStudioClient({
     figmaAnalysisSequenceRef.current += 1;
     setFigmaUrl("");
     setFigmaCandidates([]);
+    setFigmaFrameCandidate(null);
     setSelectedFigmaCandidateId(null);
     setFigmaErrorMessage(null);
     setFigmaStatusMessage(null);
@@ -1542,6 +1730,7 @@ export function TemplateStudioClient({
     figmaAnalysisSequenceRef.current += 1;
     setFigmaUrl(nextUrl);
     setFigmaCandidates([]);
+    setFigmaFrameCandidate(null);
     setSelectedFigmaCandidateId(null);
     setFigmaErrorMessage(null);
     setFigmaStatusMessage(null);
@@ -1549,26 +1738,38 @@ export function TemplateStudioClient({
     setFigmaAnalysisPending(false);
   }, []);
 
-  const recordFigmaBindingChange = useCallback((statusOrSourceNodeId: string, sourceNodeId?: string) => {
-    const status = sourceNodeId ? statusOrSourceNodeId as "online" | "offline" : "online";
-    const touchedSourceNodeId = sourceNodeId ?? statusOrSourceNodeId;
-    const touchedKey = `${status}:${touchedSourceNodeId}`;
-    setFigmaBindingTouchedSourceNodeIds((current) =>
-      current[touchedKey]
-        ? current
-        : { ...current, [touchedKey]: true },
-    );
-  }, []);
+  const recordFigmaBindingChange = useCallback(
+    (statusOrSourceNodeId: string, sourceNodeId?: string) => {
+      const status = sourceNodeId
+        ? (statusOrSourceNodeId as "online" | "offline")
+        : "online";
+      const touchedSourceNodeId = sourceNodeId ?? statusOrSourceNodeId;
+      const touchedKey = `${status}:${touchedSourceNodeId}`;
+      setFigmaBindingTouchedSourceNodeIds((current) =>
+        current[touchedKey] ? current : { ...current, [touchedKey]: true },
+      );
+    },
+    [],
+  );
 
   const updateFigmaReview = useCallback(
-    (statusOrSourceNodeId: string, sourceNodeIdOrPatch: string | ReviewPatch, maybePatch?: ReviewPatch) => {
-      const status = typeof sourceNodeIdOrPatch === "string"
-        ? statusOrSourceNodeId as "online" | "offline"
-        : "online";
-      const sourceNodeId = typeof sourceNodeIdOrPatch === "string"
-        ? sourceNodeIdOrPatch
-        : statusOrSourceNodeId;
-      const patch = typeof sourceNodeIdOrPatch === "string" ? maybePatch ?? {} : sourceNodeIdOrPatch;
+    (
+      statusOrSourceNodeId: string,
+      sourceNodeIdOrPatch: string | ReviewPatch,
+      maybePatch?: ReviewPatch,
+    ) => {
+      const status =
+        typeof sourceNodeIdOrPatch === "string"
+          ? (statusOrSourceNodeId as "online" | "offline")
+          : "online";
+      const sourceNodeId =
+        typeof sourceNodeIdOrPatch === "string"
+          ? sourceNodeIdOrPatch
+          : statusOrSourceNodeId;
+      const patch =
+        typeof sourceNodeIdOrPatch === "string"
+          ? (maybePatch ?? {})
+          : sourceNodeIdOrPatch;
       setFigmaCandidates((currentCandidates) =>
         currentCandidates.map((candidate) =>
           applyStudioFigmaReviewPatch(candidate, status, sourceNodeId, patch),
@@ -1578,8 +1779,52 @@ export function TemplateStudioClient({
     [],
   );
 
-  const importFigmaCandidate = useCallback(() => {
+  const importFigmaCandidate = useCallback(async () => {
     if (isRemoteSyncing || figmaAnalysisPending || figmaImportPending) return;
+    if (figmaFrameCandidate) {
+      if (selectedFigmaCandidateId !== figmaFrameCandidate.candidateId) {
+        setFigmaErrorMessage("가져올 프레임을 먼저 선택해 주세요.");
+        return;
+      }
+      setFigmaImportPending(true);
+      setFigmaErrorMessage(null);
+      try {
+        const templateId = await ensureTemplateId();
+        const payload = await TemplateStudioService.importFigmaFrame(
+          figmaUrl.trim(),
+          templateId,
+        );
+        const nextDocument = cloneDocument(getDocument());
+        const importResult = applyStudioFigmaFrameImport(nextDocument, payload);
+        if (!importResult.ok) {
+          setFigmaErrorMessage(importResult.reason);
+          setFigmaImportPending(false);
+          return;
+        }
+        applyStudioTimetableComponentFrames(nextDocument);
+        captureHistory();
+        setDocument(nextDocument);
+        setWorkspaceMode("timetable");
+        setPanelMode("layers");
+        setSelectedTimetableLayerId(STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID);
+        clearFigmaImportState();
+        const warningCount = importResult.warnings.length;
+        setFigmaStatusMessage(
+          warningCount > 0
+            ? `전체 프레임을 적용했습니다. ${importResult.warnings[0]}`
+            : "전체 프레임 배치를 적용했습니다.",
+        );
+        showShortcutStatus("Imported Figma frame layout");
+      } catch (error) {
+        setFigmaErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Figma 프레임을 가져오지 못했습니다.",
+        );
+        setFigmaImportPending(false);
+      }
+      return;
+    }
     const selectedCandidate = figmaCandidates.find(
       (candidate) => candidate.candidateId === selectedFigmaCandidateId,
     );
@@ -1590,34 +1835,50 @@ export function TemplateStudioClient({
 
     setFigmaImportPending(true);
     setFigmaErrorMessage(null);
-    const candidateWithEdits = applyStudioFigmaReviewEdits(selectedCandidate, figmaBindingTouchedSourceNodeIds);
-    const nextDocument = cloneDocument(studioStore.getState().document);
-    const importResult = applyStudioFigmaGridCandidate(nextDocument, candidateWithEdits);
+    const candidateWithEdits = applyStudioFigmaReviewEdits(
+      selectedCandidate,
+      figmaBindingTouchedSourceNodeIds,
+    );
+    const nextDocument = cloneDocument(getDocument());
+    const importResult = applyStudioFigmaGridCandidate(
+      nextDocument,
+      candidateWithEdits,
+    );
     if (importResult.ok) {
       applyStudioTimetableComponentFrames(nextDocument);
       captureHistory();
       setDocument(nextDocument);
       setSelectedCardComponentId(importResult.componentId);
       clearFigmaImportState();
-      setFigmaStatusMessage("새 컴포넌트 세트를 추가했습니다. 요일에는 아직 할당되지 않았습니다.");
+      setFigmaStatusMessage(
+        "새 컴포넌트 세트를 추가했습니다. 요일에는 아직 할당되지 않았습니다.",
+      );
       showShortcutStatus("Imported new component set");
     } else {
-      setFigmaErrorMessage(importResult.reason ?? "Figma 컴포넌트를 추가하지 못했습니다.");
+      setFigmaErrorMessage(
+        importResult.reason ?? "Figma 컴포넌트를 추가하지 못했습니다.",
+      );
       setFigmaImportPending(false);
     }
   }, [
     clearFigmaImportState,
+    ensureTemplateId,
+    figmaFrameCandidate,
+    figmaUrl,
     figmaAnalysisPending,
     figmaCandidates,
     figmaBindingTouchedSourceNodeIds,
     figmaImportPending,
     isRemoteSyncing,
     captureHistory,
+    setPanelMode,
     selectedFigmaCandidateId,
     setDocument,
     setSelectedCardComponentId,
+    setSelectedTimetableLayerId,
+    setWorkspaceMode,
     showShortcutStatus,
-    studioStore,
+    getDocument,
   ]);
 
   const updateNode = useCallback(
@@ -1742,7 +2003,7 @@ export function TemplateStudioClient({
     delta: { deltaX: number; deltaY: number },
   ) => {
     const targetNodeIds = resolveStudioDragTargetNodeIds(
-      studioStore.getState().document,
+      getDocument(),
       studioStore.getState().selectedNodeIds,
       nodeId,
     );
@@ -1759,10 +2020,7 @@ export function TemplateStudioClient({
   };
   const moveNodeByKeyboard = useCallback(
     (nodeIds: string[], deltaX: number, deltaY: number) => {
-      const targetNodeIds = getStudioTopLevelNodeIds(
-        studioStore.getState().document,
-        nodeIds,
-      );
+      const targetNodeIds = getStudioTopLevelNodeIds(getDocument(), nodeIds);
       if (targetNodeIds.length === 0) return;
 
       updateDocument((nextDocument) => {
@@ -1772,7 +2030,7 @@ export function TemplateStudioClient({
         });
       });
     },
-    [studioStore, updateDocument],
+    [getDocument, updateDocument],
   );
   const addNode = (type: StudioGraphNodeType) => {
     const plan = planStudioAddNode(document, type, selectedNode);
@@ -1945,7 +2203,7 @@ export function TemplateStudioClient({
     );
   };
   const {
-    updateCompositionObject: updateTimetableCompositionObject,
+    updateObject: updateTimetableObject,
     toggleObjectFitParent: toggleTimetableObjectFitParent,
     addPresetObject: addTimetablePresetObject,
     moveRootObjectLayer: moveTimetableRootObjectLayer,
@@ -1977,10 +2235,7 @@ export function TemplateStudioClient({
     updateEntryStatus,
     setTimetableCapability,
   } = useTimetableObjectCommands({
-    getDocument: useCallback(
-      () => studioStore.getState().document,
-      [studioStore],
-    ),
+    getDocument,
     getRuntimeValues: useCallback(
       () => studioStore.getState().runtimeValues,
       [studioStore],
@@ -2045,8 +2300,13 @@ export function TemplateStudioClient({
     ),
     setCollapsedLayerIds: setCollapsedTimetableLayerIds,
     getLayerObjectKind: useCallback(
-      (layerId: string) => timetableComposition.objects[layerId]?.kind ?? null,
-      [timetableComposition],
+      (layerId: string) =>
+        getStudioTimetableNodeExtension(document, layerId).generator
+          ? "generatedDayCards"
+          : timetableGraph.nodes[layerId]?.type === "shape"
+            ? null
+            : (timetableGraph.nodes[layerId]?.type ?? null),
+      [document, timetableGraph],
     ),
     onSelectLayer: setSelectedTimetableLayerId,
     onFocusDay: focusTimetableRuntimeDay,
@@ -2123,8 +2383,8 @@ export function TemplateStudioClient({
   ]);
 
   const deleteSelectedTimetableObject = useCallback(() => {
-    const plan = planStudioDeleteTimetableObject(
-      timetableComposition,
+    const plan = planStudioDeleteTimetableGraphNode(
+      requireStudioTimetableGraphDocument(storedDocument),
       selectedTimetableLayerId,
     );
     if (!plan.ok) {
@@ -2133,27 +2393,24 @@ export function TemplateStudioClient({
     }
 
     updateDocument((nextDocument) => {
-      const timetable = nextDocument.domains?.timetable;
-      if (!timetable) return;
-
-      applyStudioDeleteTimetableObject(
-        ensureStudioTimetableComposition(timetable),
-        plan.objectIds,
+      applyStudioDeleteTimetableGraphNodes(
+        requireStudioTimetableGraphDocument(nextDocument),
+        plan.nodeIds,
       );
     });
 
     setSelectedTimetableLayerId(plan.fallbackSelectionId);
     setCollapsedTimetableLayerIds((currentLayerIds) =>
-      currentLayerIds.filter((layerId) => !plan.objectIds.includes(layerId)),
+      currentLayerIds.filter((layerId) => !plan.nodeIds.includes(layerId)),
     );
     setNodePicker(null);
-    showShortcutStatus(getStudioTimetableDeleteMessage(plan.objectIds.length));
+    showShortcutStatus(getStudioTimetableDeleteMessage(plan.nodeIds.length));
   }, [
     selectedTimetableLayerId,
     setCollapsedTimetableLayerIds,
     setSelectedTimetableLayerId,
     showShortcutStatus,
-    timetableComposition,
+    storedDocument,
     updateDocument,
   ]);
   const deleteActiveSelection = useCallback(() => {
@@ -2172,10 +2429,7 @@ export function TemplateStudioClient({
     paste: pasteClipboardNode,
     cancelCut: cancelNodeCut,
   } = useStudioClipboard({
-    getDocument: useCallback(
-      () => studioStore.getState().document,
-      [studioStore],
-    ),
+    getDocument: getDocument,
     getSelectedNodeIds: useCallback(
       () => studioStore.getState().selectedNodeIds,
       [studioStore],
@@ -2207,6 +2461,33 @@ export function TemplateStudioClient({
   }, [cutNodeIds, document.graph.nodes]);
 
   const duplicateSelectedNode = useCallback(() => {
+    if (activeWorkspaceMode === "timetable") {
+      const plan = planStudioDuplicateTimetableGraphNode(
+        requireStudioTimetableGraphDocument(getDocument()),
+        selectedTimetableLayerId,
+      );
+      if (!plan.ok) {
+        showShortcutStatus(plan.reason);
+        return;
+      }
+      let nodeId = "";
+      updateDocument((draft) => {
+        nodeId = applyStudioDuplicateTimetableGraphNode(
+          requireStudioTimetableGraphDocument(draft),
+          plan.nodeId,
+        );
+      });
+      setSelectedTimetableLayerId(nodeId);
+      const editingValue = timetableEditingVariants[plan.nodeId];
+      if (editingValue)
+        setTimetableEditingVariants((current) => ({
+          ...current,
+          [nodeId]: editingValue,
+        }));
+      setPanelMode("layers");
+      showShortcutStatus("Duplicated timetable object");
+      return;
+    }
     const plan = planStudioDuplicateNodes(document, selectedNodeIds);
     if (!plan.ok) {
       showShortcutStatus(plan.reason);
@@ -2228,6 +2509,12 @@ export function TemplateStudioClient({
       )}`,
     );
   }, [
+    setTimetableEditingVariants,
+    timetableEditingVariants,
+    activeWorkspaceMode,
+    getDocument,
+    selectedTimetableLayerId,
+    setSelectedTimetableLayerId,
     applyNodeSelection,
     document,
     selectedNodeIds,
@@ -2238,6 +2525,12 @@ export function TemplateStudioClient({
 
   const nudgeSelectedNode = useCallback(
     (deltaX: number, deltaY: number) => {
+      if (activeWorkspaceMode === "timetable") {
+        if (!selectedTimetableLayerId) return;
+        captureHistory();
+        moveTimetableCanvasLayer(selectedTimetableLayerId, { deltaX, deltaY });
+        return;
+      }
       const plan = planStudioNudgeNodes(document, selectedNodeIds);
       if (!plan.ok) {
         if (plan.reason) showShortcutStatus(plan.reason);
@@ -2246,7 +2539,16 @@ export function TemplateStudioClient({
 
       moveNodeByKeyboard(plan.nodeIds, deltaX, deltaY);
     },
-    [document, moveNodeByKeyboard, selectedNodeIds, showShortcutStatus],
+    [
+      activeWorkspaceMode,
+      captureHistory,
+      document,
+      moveNodeByKeyboard,
+      moveTimetableCanvasLayer,
+      selectedNodeIds,
+      selectedTimetableLayerId,
+      showShortcutStatus,
+    ],
   );
   const moveSelectedNodeLayer = useCallback(
     (command: StudioLayerMoveCommand) => {
@@ -2353,19 +2655,49 @@ export function TemplateStudioClient({
         undo: undoEditorState,
         redo: redoEditorState,
         saveDraft: () => void saveDatabaseDraft(),
-        selectAll: selectAllEditableNodes,
-        copy: copySelectedNode,
-        cut: cutSelectedNode,
-        paste: pasteClipboardNode,
+        selectAll: () => {
+          if (activeWorkspaceMode === "cards") selectAllEditableNodes();
+        },
+        copy: () => {
+          if (activeWorkspaceMode === "cards") copySelectedNode();
+        },
+        cut: () => {
+          if (activeWorkspaceMode === "cards") cutSelectedNode();
+        },
+        paste: () => {
+          if (activeWorkspaceMode === "cards") pasteClipboardNode();
+        },
         duplicate: duplicateSelectedNode,
-        group: groupSelectedNodes,
-        ungroup: ungroupSelectedNodes,
-        toggleLock: toggleSelectedNodeLock,
-        moveLayer: moveSelectedNodeLayer,
+        group: () => {
+          if (activeWorkspaceMode === "cards") groupSelectedNodes();
+        },
+        ungroup: () => {
+          if (activeWorkspaceMode === "cards") ungroupSelectedNodes();
+        },
+        toggleLock: () => {
+          if (activeWorkspaceMode === "cards") {
+            toggleSelectedNodeLock();
+            return;
+          }
+          if (selectedTimetableLayerId)
+            updateTimetableObject(
+              selectedTimetableLayerId,
+              ({ node, extension }) => {
+                if (!extension.generator) node.locked = !node.locked;
+              },
+            );
+        },
+        moveLayer: (command) => {
+          if (activeWorkspaceMode === "cards") moveSelectedNodeLayer(command);
+        },
         delete: deleteActiveSelection,
         cancelCut: cancelNodeCut,
         closeNodePicker: () => setNodePicker(null),
-        clearSelection: () => selectSingleNode(null),
+        clearSelection: () => {
+          if (activeWorkspaceMode === "timetable")
+            setSelectedTimetableLayerId(null);
+          else selectSingleNode(null);
+        },
         nudge: nudgeSelectedNode,
         zoomIn: () =>
           setScale((currentScale) =>
@@ -2380,6 +2712,10 @@ export function TemplateStudioClient({
         onStatusMessage: showShortcutStatus,
       }),
       [
+        activeWorkspaceMode,
+        selectedTimetableLayerId,
+        setSelectedTimetableLayerId,
+        updateTimetableObject,
         cancelNodeCut,
         copySelectedNode,
         cutSelectedNode,
@@ -2440,10 +2776,7 @@ export function TemplateStudioClient({
     handleIndicatorDragOver: handleLayerIndicatorDragOver,
     handleDrop: handleLayerDrop,
   } = useStudioLayerDrag({
-    getDocument: useCallback(
-      () => studioStore.getState().document,
-      [studioStore],
-    ),
+    getDocument: getDocument,
     getSelectedNodeIds: useCallback(
       () => studioStore.getState().selectedNodeIds,
       [studioStore],
@@ -2531,7 +2864,7 @@ export function TemplateStudioClient({
    */
   const beginCanvasNodeMove = useCallback(
     (nodeId: string) => {
-      const currentDocument = studioStore.getState().document;
+      const currentDocument = getDocument();
       const selectedIds = studioStore.getState().selectedNodeIds;
       const targetNodeIds = selectedIds.includes(nodeId)
         ? getStudioTopLevelNodeIds(currentDocument, selectedIds)
@@ -2549,7 +2882,7 @@ export function TemplateStudioClient({
       captureHistory();
       return true;
     },
-    [captureHistory, showShortcutStatus, studioStore],
+    [captureHistory, showShortcutStatus, studioStore, getDocument],
   );
 
   /**
@@ -2560,17 +2893,15 @@ export function TemplateStudioClient({
    */
   const beginTimetableCanvasLayerMove = useCallback(
     (layerId: string) => {
-      const composition = getStudioTimetableComposition(
-        studioStore.getState().document.domains?.timetable,
-      );
-      const block = getStudioTimetableCanvasDragBlock(
-        composition.objects[layerId],
-        layerId,
-      );
-
-      if (block.kind === "missing") return false;
-      if (block.kind === "blocked") {
-        showShortcutStatus(block.reason);
+      const graph = requireStudioTimetableGraphDocument(getDocument());
+      const node = graph.graph.nodes[layerId];
+      if (!node && !layerId.startsWith("day-card:")) return false;
+      if (node && isStudioTimetableGraphNodeLocked(graph, layerId)) {
+        showShortcutStatus("Object is locked");
+        return false;
+      }
+      if (node && isStudioFillParentLayout(node.layoutMode)) {
+        showShortcutStatus("Disable Fit to move this object");
         return false;
       }
 
@@ -2582,7 +2913,7 @@ export function TemplateStudioClient({
       captureHistory,
       selectTimetableCanvasLayer,
       showShortcutStatus,
-      studioStore,
+      getDocument,
     ],
   );
 
@@ -2615,6 +2946,25 @@ export function TemplateStudioClient({
       onSelectDay={focusTimetableRuntimeDay}
       onSelectEntryIndex={setSelectedRuntimeEntryIndex}
       onUpdateEntryStatus={updateEntryStatus}
+      onUpdateEntryField={(dayId, entryIndex, field, value) => {
+        const currentEntry = getStudioTimetableEntriesForDay(
+          getDocument(),
+          studioStore.getState().runtimeValues,
+          dayId,
+        )[entryIndex];
+        if (!currentEntry || (currentEntry[field] ?? "") === value) return;
+        captureHistory();
+        setRuntimeValues((currentValues) =>
+          setStudioTimetableEntryField(
+            getDocument(),
+            currentValues,
+            dayId,
+            entryIndex,
+            field,
+            value,
+          ),
+        );
+      }}
     />
   );
 
@@ -2682,7 +3032,7 @@ export function TemplateStudioClient({
     onUpdateAsset,
     onUpdateInput,
   }: {
-    object: StudioTimetableCompositionObject;
+    object: StudioTimetableGraphNode;
     label: string;
     assetId?: string | null;
     inputId?: string | null;
@@ -2691,12 +3041,12 @@ export function TemplateStudioClient({
     inputLabel?: string;
     sourceLocked?: "asset" | "input";
     onUpdateAsset: (
-      object: StudioTimetableCompositionObject,
+      object: StudioTimetableGraphNode,
       assetId: string | null,
       fit: StudioImageFit,
     ) => void;
     onUpdateInput?: (
-      object: StudioTimetableCompositionObject,
+      object: StudioTimetableGraphNode,
       inputId: string,
       fit: StudioImageFit,
     ) => void;
@@ -2721,10 +3071,9 @@ export function TemplateStudioClient({
     };
 
     const uploadAsset = (file: File) => {
-      const cropGeometry = resolveStudioTimetableObjectGeometry(
-        timetableComposition,
+      const cropGeometry = resolveStudioTimetableGraphGeometry(
+        document,
         object.id,
-        getStudioTimetablePreviewSize(document.domains?.timetable),
       );
 
       requestStudioImageCrop(file, cropGeometry, (croppedSrc) => {
@@ -2754,12 +3103,12 @@ export function TemplateStudioClient({
         renderInputSourceSlot={renderTimetableInputSourceSlot}
         sourceLocked={sourceLocked}
         onSelectAsset={(nextAssetId) =>
-          updateTimetableCompositionObject(object.id, (currentObject) => {
+          updateTimetableObject(object.id, ({ node: currentObject }) => {
             onUpdateAsset(currentObject, nextAssetId, fit ?? defaultFit);
           })
         }
         onSelectFit={(nextFit) =>
-          updateTimetableCompositionObject(object.id, (currentObject) => {
+          updateTimetableObject(object.id, ({ node: currentObject }) => {
             if (inputId && onUpdateInput) {
               onUpdateInput(currentObject, inputId, nextFit);
               return;
@@ -2781,12 +3130,16 @@ export function TemplateStudioClient({
    * 이어 붙인다.
    */
   const renderTimetableAssetSlotOfKind = (
-    object: StudioTimetableCompositionObject,
+    object: StudioTimetableGraphNode,
     kind: StudioAssetSlotKind,
   ) =>
     renderTimetableAssetSlot({
       object,
-      ...resolveStudioAssetSlotSpec(object, kind),
+      ...resolveStudioGraphAssetSlotSpec(
+        object,
+        kind,
+        getStudioTimetableNodeExtension(document, object.id),
+      ),
     });
 
   const renderStatusCardBackgroundAssetSlot = (node: StudioGraphNode) => {
@@ -2842,6 +3195,8 @@ export function TemplateStudioClient({
   const buildNodeInspectorSections = (): StudioPropertyItem[] =>
     buildStudioCardNodeInspectorSections({
       document,
+      runtimeValues: cardAuthoringRuntimeValues,
+      runtimeContext: { dayId: activeRuntimeDayId, entryIndex: 0 },
       selectedNode,
       fontFamilies,
       isSectionOpen: (sectionKey) => inspectorSections[sectionKey],
@@ -2867,11 +3222,14 @@ export function TemplateStudioClient({
       activeRuntimeEntry,
       activeRuntimeEntryIndex,
       componentOptions: cardComponentOptions,
-      dayCardsLayout: document.domains?.timetable
-        ? getStudioTimetableDayCardsLayout(document.domains.timetable)
-        : null,
+      dayCardsLayout:
+        document.domains?.timetable && !document.domains.timetable.team
+          ? getStudioTimetableDayCardsLayout(document.domains.timetable)
+          : null,
       days: timetableDays,
       document,
+      runtimeValues,
+      runtimeContext: { dayId: activeRuntimeDayId, entryIndex: activeRuntimeEntryIndex },
       fontFamilies,
       getEntryCardSize: getTimetableEntryCardSizeForDay,
       isSectionOpen: (sectionKey) => inspectorSections[sectionKey],
@@ -2884,11 +3242,45 @@ export function TemplateStudioClient({
       selectedLayerRotation: selectedTimetableLayerRotation,
       selection: timetableSelection,
       onAssignComponentSet: assignComponentSetToSelectedDay,
+      onSelectLayer: setSelectedTimetableLayerId,
+      onSelectEditingVariant: (objectId, value) => {
+        const object = timetableGraph.nodes[objectId];
+        if (
+          !object?.variantSet?.options.some((option) => option.value === value)
+        )
+          return;
+        setTimetableEditingVariants((current) => ({
+          ...current,
+          [objectId]: value,
+        }));
+      },
+      onEditDayCard: (dayId) => {
+        const target = resolveStudioTimetableDayCardEditorTarget(
+          document,
+          runtimeValues,
+          dayId,
+        );
+        if (!target) {
+          showShortcutStatus("Card design is unavailable");
+          return;
+        }
+        setNodePicker(null);
+        setSelectedRuntimeDayId(dayId);
+        setSelectedRuntimeEntryIndex(0);
+        setSelectedCardComponentId(target.componentId);
+        setSelectedCardStatusId(target.statusId);
+        restoreSelection([target.rootNodeId], target.rootNodeId);
+        setCollapsedLayerGroupIds((ids) =>
+          ids.filter((id) => id !== target.rootNodeId),
+        );
+        setWorkspaceMode("cards");
+        setPanelMode("layers");
+      },
       onToggleFitParent: toggleTimetableObjectFitParent,
       onToggleSection: toggleInspectorSection,
       onUpdateDayCardsLayout: updateTimetableDayCardsLayout,
       onUpdateLayerPosition: updateTimetableLayerPosition,
-      onUpdateObject: updateTimetableCompositionObject,
+      onUpdateObject: updateTimetableObject,
     });
 
   const buildPropertySections = (): StudioPropertyItem[] => [
@@ -2974,6 +3366,40 @@ export function TemplateStudioClient({
           ]
         : buildTimetableInspectorSections()),
 
+    ...(document.domains.timetable.team
+      ? [
+          buildInspectorSection(
+            "layout",
+            "Team",
+            <StudioTeamControls
+              document={document}
+              preview={runtimeValues.team}
+              onDefinitionChange={(team) => {
+                const candidate = cloneDocument(document);
+                candidate.domains!.timetable!.team = team;
+                const errors = validateStudioTeamDefinition(candidate);
+                if (errors.length) {
+                  showShortcutStatus(errors[0]);
+                  return;
+                }
+                updateDocument((next) => {
+                  next.domains!.timetable!.team = team;
+                });
+                const members = Object.fromEntries(
+                  Object.entries(runtimeValues.team?.members ?? {}).filter(
+                    ([id]) => team.memberSlotIds.includes(id),
+                  ),
+                );
+                setRuntimeValues({ ...runtimeValues, team: { members } });
+              }}
+              onPreviewChange={(team) =>
+                setRuntimeValues({ ...runtimeValues, team })
+              }
+            />,
+          ),
+        ]
+      : []),
+
     buildInspectorSection(
       "diagnostics",
       "Diagnostics",
@@ -3009,9 +3435,11 @@ export function TemplateStudioClient({
   return (
     <StudioEditorStoreProvider value={studioStore}>
       <StudioEditorShell
+        responsivePanels={Boolean(document.domains.timetable.team)}
         canvas={
           <section className="relative min-w-0 flex-1 overflow-hidden bg-[var(--canvas)]">
             <StudioCanvasViewport
+              autoFitOnResize={Boolean(document.domains.timetable.team)}
               canvasHeight={previewCanvasSize.height}
               canvasWidth={previewCanvasSize.width}
               fitRequestKey={fitRequestKey}
@@ -3073,11 +3501,12 @@ export function TemplateStudioClient({
                   }}
                 >
                   <StudioTimetablePreview
-                    document={document}
+                    document={storedDocument}
                     onSelectLayer={selectTimetableCanvasLayer}
                     runtimeValues={runtimeValues}
                     selectedLayerId={selectedTimetableLayerId}
                     variantMode="authoring"
+                    editingVariants={timetableEditingVariants}
                   />
                   {timetableGuideAsset && timetableGuide.visible ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -3199,8 +3628,9 @@ export function TemplateStudioClient({
                 activeWorkspaceMode === "timetable" ? (
                   <StudioTimetableLayerPanel
                     collapsedLayerIds={collapsedTimetableLayerIds}
-                    composition={timetableComposition}
-                    days={timetableDays}
+                    document={document}
+                    editingVariants={timetableEditingVariants}
+                    days={document.domains.timetable.team ? [] : timetableDays}
                     dropState={timetableLayerDropState}
                     selectedLayerId={selectedTimetableLayerId}
                     onFocusDay={focusTimetableRuntimeDay}
@@ -3443,6 +3873,7 @@ export function TemplateStudioClient({
               ) : null
             }
             tabs={cardsPanelTabs}
+            menuTabs={cardsPanelMenuTabs}
             onTabChange={(tabId) => setPanelMode(tabId as PanelMode)}
           />
         }
@@ -3460,15 +3891,39 @@ export function TemplateStudioClient({
               }
               onDismissToast={() => setOperationToast(null)}
             />
+            {storedDocument.domains?.timetable?.team &&
+              remoteTemplateId &&
+              templateStudioTemplateQuery.isSuccess && (
+                <StudioConnectedTeamPreview
+                  templateId={remoteTemplateId}
+                  document={storedDocument}
+                  week={connectedTeamWeek}
+                  onPreview={applyConnectedTeamPreview}
+                />
+              )}
             <StudioSettingsModal
               activeWorkspaceMode={activeWorkspaceMode}
               databaseTargetLabel={STUDIO_DATABASE_TARGET_LABEL}
-              document={document}
+              document={storedDocument}
               inputCount={inputs.length}
               isReloadDisabled={!remoteTemplateId || isRemoteSyncing}
               objectCount={activeObjectCount}
               open={settingsOpen}
               theme={theme}
+              teamConnection={
+                storedDocument.domains?.timetable?.team && settingsOpen ? (
+                  <StudioTeamConnectionPanel
+                    key={remoteTemplateId ?? "unsaved"}
+                    templateId={remoteTemplateId ?? ""}
+                    document={storedDocument}
+                    week={connectedTeamWeek}
+                    onWeekChange={setConnectedTeamWeek}
+                    onPreview={applyConnectedTeamPreview}
+                    onSaveDesign={saveDatabaseDraft}
+                    busy={isRemoteSyncing}
+                  />
+                ) : undefined
+              }
               onCardsCanvasChange={updateCardCanvasSize}
               onCardsGuideRemove={removeCardsGuide}
               onCardsGuideUpload={uploadCardsGuide}
@@ -3489,6 +3944,7 @@ export function TemplateStudioClient({
               onWebFontsChange={updateWebFonts}
               figmaImport={{
                 candidates: figmaCandidates,
+                frameCandidate: figmaFrameCandidate,
                 errorMessage: figmaErrorMessage,
                 figmaUrl,
                 isAnalyzing: figmaAnalysisPending,
@@ -3550,7 +4006,11 @@ export function TemplateStudioClient({
                   ? getStudioInputTypeLabel(selectedInput.type)
                   : "Inputs"
                 : activeWorkspaceMode === "timetable"
-                  ? "Timetable"
+                  ? timetableSelection.target?.kind === "dayCard"
+                    ? "Day Instance"
+                    : timetableSelection.isDayCards
+                      ? "Repeat Area"
+                      : "Timetable"
                   : selectedNode
                     ? getStudioGraphNodeTypeLabel(selectedNode.type)
                     : "Cards",
@@ -3585,10 +4045,10 @@ export function TemplateStudioClient({
 
                 if (activeWorkspaceMode === "timetable") {
                   if (!selectedTimetableCompositionObject) return;
-                  updateTimetableCompositionObject(
+                  updateTimetableObject(
                     selectedTimetableCompositionObject.id,
-                    (object) => {
-                      object.label = label;
+                    ({ node }) => {
+                      node.label = label;
                     },
                   );
                   return;
@@ -3608,7 +4068,12 @@ export function TemplateStudioClient({
           <StudioTopToolbar
             backAction={{
               title: "템플릿 목록으로",
-              onClick: () => router.push("/admin/template-studio"),
+              onClick: () =>
+                router.push(
+                  document.domains.timetable.team
+                    ? "/admin/team-timetable-studio"
+                    : "/admin/template-studio",
+                ),
             }}
             canvasSize={{
               width: previewCanvasSize.width,
@@ -3659,18 +4124,84 @@ export function TemplateStudioClient({
               </>
             }
             hiddenControls={
-              <input
-                accept="application/json,.json"
-                className="hidden"
-                ref={jsonImportInputRef}
-                type="file"
-                onChange={(event) => {
-                  const file = event.currentTarget.files?.[0];
-                  event.currentTarget.value = "";
-                  if (!file) return;
-                  void importStudioJsonFile(file);
-                }}
-              />
+              <>
+                <input
+                  accept="application/json,.json"
+                  className="hidden"
+                  ref={jsonImportInputRef}
+                  type="file"
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0];
+                    event.currentTarget.value = "";
+                    if (!file) return;
+                    void importStudioJsonFile(file);
+                  }}
+                />
+                {document.domains.timetable.team && (
+                  <div
+                    className="pointer-events-none fixed"
+                    style={{
+                      left: -20000,
+                      top: 0,
+                      width: document.domains.timetable.canvas?.width,
+                      height: document.domains.timetable.canvas?.height,
+                    }}
+                    aria-hidden="true"
+                  >
+                    <div className="relative" ref={teamExportRef}>
+                      <StudioTimetablePreview
+                        document={document}
+                        runtimeValues={runtimeValues}
+                      />
+                    </div>
+                  </div>
+                )}
+              </>
+            }
+            extraActions={
+              document.domains.timetable.team && (
+                <button
+                  type="button"
+                  title="PNG 다운로드"
+                  aria-label="PNG 다운로드"
+                  disabled={teamExportBusy}
+                  className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-md border border-[var(--border)]"
+                  onClick={async () => {
+                    if (!teamExportRef.current) return;
+                    setTeamExportBusy(true);
+                    try {
+                      const size = getStudioTimetablePreviewSize(
+                        document.domains.timetable,
+                      );
+                      const fileName = buildStudioExportFileName(
+                        document.metadata.name,
+                      );
+                      const blob = await renderStudioPng(
+                        teamExportRef.current,
+                        {
+                          ...size,
+                          pixelRatio: 1,
+                          background:
+                            document.domains.timetable.canvas
+                              ?.backgroundColor ?? null,
+                          fileName,
+                        },
+                      );
+                      downloadStudioPng(blob, fileName);
+                    } catch (error) {
+                      showShortcutStatus(
+                        error instanceof Error
+                          ? error.message
+                          : "PNG 내보내기에 실패했습니다.",
+                      );
+                    } finally {
+                      setTeamExportBusy(false);
+                    }
+                  }}
+                >
+                  <Download size={14} />
+                </button>
+              )
             }
             previewAction={{
               title: "Open runtime preview",

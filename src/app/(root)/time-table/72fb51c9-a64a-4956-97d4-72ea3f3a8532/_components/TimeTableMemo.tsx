@@ -1,7 +1,10 @@
+"use client";
+
 import { AutoResizeText } from '@/components/AutoResizeTextCard';
 import { getWeekDateRange, padZero } from '@/utils/date-formatter';
-import { Imgs } from '../_img/imgs';
+import { Imgs as LocalImgs } from '../_img/imgs';
 import { COMP_COLORS, COMP_FONTS } from '../_settings/settings';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface TimeTableMemoProps {
   isMemo: boolean;
@@ -10,6 +13,7 @@ interface TimeTableMemoProps {
 }
 
 const TimeTableMemo = ({ weekDates, isMemo, memoText }: TimeTableMemoProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const { start, end } = getWeekDateRange(weekDates);
   return (
     <>

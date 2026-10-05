@@ -2,6 +2,7 @@ const trimSlashes = (value: string): string => value.replace(/^\/+|\/+$/g, "");
 
 const TEMPLATE_STUDIO_ASSET_MIME_EXTENSIONS: Record<string, string> = {
   "image/jpeg": "jpg",
+  "image/gif": "gif",
   "image/png": "png",
   "image/svg+xml": "svg",
   "image/webp": "webp",

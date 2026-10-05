@@ -76,6 +76,7 @@ import { StudioRuntimeField } from "./ui/studio-runtime-field";
 import { StudioRuntimeImageCropModal } from "./ui/studio-runtime-image-crop-modal";
 import { StudioRuntimeTimePicker } from "./ui/studio-runtime-time-picker";
 import { StudioRuntimeToggle } from "./ui/studio-runtime-toggle";
+import { StudioTeamControls } from "../studio-team-controls";
 
 interface TemplateStudioRuntimeFormProps {
   document: StudioTemplateDocument;
@@ -840,19 +841,19 @@ export function TemplateStudioRuntimeForm({
               : undefined
           }
         >
-          {inlineImageInput ? null : (
-            group.contentInputs.map((input) =>
-              renderInput(
-                input,
-                {},
-                {
-                  hideLabel: hideContentLabels,
-                  imageUploadOnly: input.type === "image",
-                  allowImageRemoval: isStudioProfileBlockImageInput(input),
-                },
-              ),
-            )
-          )}
+          {inlineImageInput
+            ? null
+            : group.contentInputs.map((input) =>
+                renderInput(
+                  input,
+                  {},
+                  {
+                    hideLabel: hideContentLabels,
+                    imageUploadOnly: input.type === "image",
+                    allowImageRemoval: isStudioProfileBlockImageInput(input),
+                  },
+                ),
+              )}
         </StudioRuntimeGlobalInputCard>
       );
     });
@@ -963,6 +964,80 @@ export function TemplateStudioRuntimeForm({
       </StudioRuntimeEntryCard>
     );
   };
+
+  if (document.domains?.timetable?.team)
+    return (
+      <aside
+        className="flex h-[60vh] min-h-[320px] w-full shrink-0 flex-col border-t border-[var(--runtime-border)] bg-[var(--runtime-form-bg)] p-4 text-[var(--runtime-fg)] md:h-full md:w-[380px] md:border-l md:border-t-0"
+        data-testid="template-studio-team-runtime-form"
+        style={
+          {
+            "--field-border": "var(--runtime-border)",
+            "--field": "var(--runtime-input-bg)",
+            "--fg": "var(--runtime-fg)",
+            "--fg2": "var(--runtime-fg)",
+            "--border": "var(--runtime-border)",
+          } as React.CSSProperties
+        }
+      >
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <label className="mb-3 grid gap-1 text-xs">
+            {copy.week}
+            <input
+              aria-label="팀 주 시작일"
+              type="date"
+              className="h-9 rounded-md border border-[var(--runtime-border)] bg-[var(--runtime-input-bg)] px-2"
+              value={runtimeValues.timetable.weekStartDate ?? ""}
+              onChange={(event) => {
+                const weekStartDate = event.target.value;
+                if (weekStartDate)
+                  setRuntimeValues((current) => ({
+                    ...current,
+                    timetable: { ...current.timetable, weekStartDate },
+                  }));
+              }}
+            />
+          </label>
+          <StudioTeamControls
+            document={document}
+            preview={runtimeValues.team}
+            definitionEditable={false}
+            onDefinitionChange={() => {}}
+            onPreviewChange={(team) =>
+              setRuntimeValues((current) => ({ ...current, team }))
+            }
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-t border-[var(--runtime-border)] pt-3">
+          <button
+            type="button"
+            title="Reset"
+            aria-label="Reset"
+            onClick={onReset}
+          >
+            <RotateCcw size={16} />
+          </button>
+          {onSaveValues && (
+            <button
+              type="button"
+              className="rounded-md border border-[var(--runtime-border)] px-3 py-2 text-xs"
+              disabled={isSavingValues}
+              onClick={onSaveValues}
+            >
+              {isSavingValues ? copy.saving : copy.save}
+            </button>
+          )}
+          <button
+            type="button"
+            className="rounded-md border border-[var(--runtime-border)] px-3 py-2 text-xs"
+            disabled={!onSaveImage || isSavingImage}
+            onClick={onSaveImage}
+          >
+            {isSavingImage ? copy.savingImage : copy.saveImage}
+          </button>
+        </div>
+      </aside>
+    );
 
   return (
     <>

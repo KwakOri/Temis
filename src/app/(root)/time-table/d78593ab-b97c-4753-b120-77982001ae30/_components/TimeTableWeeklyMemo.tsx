@@ -1,9 +1,13 @@
+"use client";
+
 import { AutoResizeText } from '@/components/AutoResizeTextCard';
 import { useTimeTableData } from '@/contexts/TimeTableContext';
-import { Imgs } from '../_img/imgs';
+import { Imgs as LocalImgs } from '../_img/imgs';
 import { BASE_COLORS, COMP_FONTS } from '../_settings/settings';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 const TimeTableWeeklyMemo = () => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const { isMemoTextVisible, memoText } = useTimeTableData();
 
   return (
@@ -39,7 +43,7 @@ const TimeTableWeeklyMemo = () => {
         )}
         <img
           className="object-cover w-full h-full"
-          src={Imgs['first']['memo'].src.replace('./', '/')}
+          src={Imgs['first']['memo'].src}
           draggable={false}
           alt="memo"
         />

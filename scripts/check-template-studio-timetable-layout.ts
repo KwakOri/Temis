@@ -1,13 +1,17 @@
 import assert from "node:assert/strict";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 import {
   getStudioTimetableDayCardGeometries,
+  getStudioTimetableDayCardGeometry,
+  StudioTimetablePreview,
   getStudioTimetableDayCardsBounds,
   getStudioTimetableEntryCardSize,
   getStudioTimetableRotatedRectangleBounds,
   getStudioTimetableThreeByThreeEmptySlotIndexes,
 } from "../src/app/(root)/template-studio/_components/studio-timetable-preview";
-import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
+import { createInitialStudioRuntimeValues, createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
 import {
   applyStudioTimetableComponentFrames,
   getStudioTimetableComponentFrame,
@@ -291,5 +295,27 @@ assert.deepEqual(
   { left: 160, top: 120, width: 780, height: 500 },
   "A fixed card component must keep its explicit shared frame.",
 );
+
+
+
+// Custom ignores the previous grid, group origin, spacing and slot map.
+const customLayout = { ...mixedLayout, gridPreset: "custom" as const, dayOffsets: {}, slots: [mixedDays[2].id, mixedDays[0].id, mixedDays[1].id] };
+const customGeometries = getStudioTimetableDayCardGeometries(customLayout, mixedDays, () => 1, dayId => mixedSizes[dayId]);
+for (const day of mixedDays) {
+  assert.equal(customGeometries[day.id].left, 0);
+  assert.equal(customGeometries[day.id].top, 0);
+}
+const absoluteLayout = { ...customLayout, dayOffsets: { [mixedDays[1].id]: { left: 143, top: -29, rotateDeg: 25 } } };
+assert.deepEqual(getStudioTimetableDayCardGeometry(absoluteLayout, mixedDays[1].id, 1, 1, mixedSizes[mixedDays[1].id]), { left: 143, top: -29, ...mixedSizes[mixedDays[1].id] });
+const canvas = {width: 1600, height: 900};
+assert.deepEqual(getStudioTimetableDayCardsBounds(absoluteLayout, mixedDays, () => 1, dayId => mixedSizes[dayId], canvas), {left: 0, top: 0, ...canvas}, "Custom's group stays canvas-sized even with moved or rotated cards");
+assert.deepEqual(getStudioTimetableDayCardsBounds(absoluteLayout, [], () => 1, entryCardSize, canvas), {left: 0, top: 0, ...canvas});
+
+timetable.canvas = {...timetable.canvas, ...canvas};
+timetable.dayCardsLayout = absoluteLayout;
+const customMarkup = renderToStaticMarkup(React.createElement(StudioTimetablePreview, {document, runtimeValues: createInitialStudioRuntimeValues(document)}));
+assert.match(customMarkup, /data-node-id="day-cards"[^>]*left:0;top:0;width:1600px;height:900px/);
+assert.match(customMarkup, new RegExp(`data-node-id="day-card:${mixedDays[1].id}"[^>]*left:143px;top:-29px;`));
+assert.match(customMarkup, /rotate\(25deg\)/);
 
 console.log("Template Studio timetable layout checks passed.");

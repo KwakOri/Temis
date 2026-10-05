@@ -1,3 +1,5 @@
+"use client";
+
 import { AutoResizeText } from "@/components/AutoResizeTextCard";
 import {
   BASE_COLORS,
@@ -5,10 +7,12 @@ import {
   COMP_COLORS,
   COMP_FONTS,
 } from "../_settings/settings";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import { useTimeTableData } from "@/contexts/TimeTableContext";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 const WeeklyMemoCard = () => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const { isMemoTextVisible, memoText } = useTimeTableData();
 
   return (
@@ -43,7 +47,7 @@ const WeeklyMemoCard = () => {
           </div>
           <img
             className="absolute inset-0 z-10"
-            src={Imgs["first"]["weekly_memo"].src.replace("./", "/")}
+            src={Imgs["first"]["weekly_memo"].src}
             alt="memo"
           />
         </div>

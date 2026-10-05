@@ -1,7 +1,10 @@
+"use client";
+
 import { TTheme } from '@/types/time-table/theme';
 import { PropsWithChildren } from 'react';
-import { Imgs } from '../_img/imgs';
+import { Imgs as LocalImgs } from '../_img/imgs';
 import { CARD_SIZES } from '../_settings/settings';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface ProfileBackPlateProps {
   currentTheme?: TTheme;
@@ -17,6 +20,7 @@ interface TimeTableProfileProps {
 }
 
 const ProfileBackPlate = () => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -26,7 +30,7 @@ const ProfileBackPlate = () => {
       }}
     >
       <img
-        src={Imgs['first']['profile_board'].src.replace('./', '/')}
+        src={Imgs['first']['profile_board'].src}
         alt="profile_board"
         className="object-cover"
         draggable={false}
@@ -58,6 +62,7 @@ const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
 };
 
 const ProfileFrame = () => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -67,7 +72,7 @@ const ProfileFrame = () => {
       }}
     >
       <img
-        src={Imgs['first']['profile_frame'].src.replace('./', '/')}
+        src={Imgs['first']['profile_frame'].src}
         alt="frame"
         className="object-cover"
         draggable={false}

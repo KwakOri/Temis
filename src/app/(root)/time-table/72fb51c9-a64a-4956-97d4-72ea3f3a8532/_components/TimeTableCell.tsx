@@ -1,3 +1,5 @@
+"use client";
+
 import React, { CSSProperties } from 'react';
 
 import AutoResizeText from '@/components/AutoResizeTextCard/AutoResizeText';
@@ -8,7 +10,7 @@ import { weekdays } from '@/utils/time-table/data';
 
 import { VerticalResizeText } from '@/components/AutoResizeTextCard';
 import { padZero } from '@/utils/date-formatter';
-import { Imgs } from '../_img/imgs';
+import { Imgs as LocalImgs } from '../_img/imgs';
 import { placeholders } from '../_settings/general';
 import {
   CARD_SIZES,
@@ -17,6 +19,7 @@ import {
   MAX_FONT_SIZES,
   weekdayOption,
 } from '../_settings/settings';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 type TCARD = 'a' | 'b';
 
@@ -363,12 +366,13 @@ const OnlineCardBG = ({
   day,
   isMultiple = false,
 }: OnlineCardBGProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const prefix = isMultiple ? 'multi_' : 'online_';
   return (
     <div className="absolute -z-10">
       <img
         className="object-cover w-full h-full"
-        src={Imgs['first'][prefix + cardType].src.replace('./', '/')}
+        src={Imgs['first'][prefix + cardType].src}
         alt="online"
       />
     </div>
@@ -520,10 +524,11 @@ const ScheduleCard = ({ weekDate, time }: ScheduleCardProps) => {
 };
 
 const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div style={{}} key={day} className="absolute">
       <img
-        src={Imgs[currentTheme || 'first']['offline'].src.replace('./', '/')}
+        src={Imgs[currentTheme || 'first']['offline'].src}
         alt="offline"
         style={{}}
       />

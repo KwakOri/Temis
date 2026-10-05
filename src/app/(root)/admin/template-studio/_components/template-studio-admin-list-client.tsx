@@ -9,7 +9,10 @@ import {
 } from "@/hooks/query/useTemplateStudio";
 import { cn } from "@/lib/utils";
 import type { TemplateStudioTemplateRecord } from "@/services/server/templateStudioPersistenceService";
-import type { StudioTemplateKind } from "@/types/template-studio";
+import type {
+  StudioTemplateKind,
+  StudioTimetableTemplateMode,
+} from "@/types/template-studio";
 import {
   ArrowUpRight,
   Copy,
@@ -265,16 +268,29 @@ const RowActions = ({
 
 export function TemplateStudioAdminListClient({
   templateKind = "timetable",
+  templateMode = "personal",
 }: {
   templateKind?: StudioTemplateKind;
+  templateMode?: StudioTimetableTemplateMode;
 } = {}) {
   const isThumbnail = templateKind === "thumbnail";
+  const isTeam = !isThumbnail && templateMode === "team";
+  const studioName = isThumbnail
+    ? "Thumbnail Studio"
+    : isTeam
+      ? "Team Studio"
+      : "Template Studio";
   const basePath = isThumbnail
     ? "/admin/thumbnail-studio"
-    : "/admin/template-studio";
+    : isTeam
+      ? "/admin/team-timetable-studio"
+      : "/admin/template-studio";
   const createHref = `${basePath}/create`;
   const router = useRouter();
-  const templatesQuery = useTemplateStudioTemplates(templateKind);
+  const templatesQuery = useTemplateStudioTemplates(
+    templateKind,
+    isThumbnail ? undefined : templateMode,
+  );
   const deleteTemplateMutation = useDeleteTemplateStudioTemplate();
   const duplicateTemplateMutation = useDuplicateTemplateStudioTemplate();
   const renameTemplateMutation = useRenameTemplateStudioTemplate();
@@ -359,10 +375,12 @@ export function TemplateStudioAdminListClient({
         description={
           isThumbnail
             ? "썸네일 템플릿을 만들고 초안, 게시, 미리보기 상태를 관리하세요"
-            : "시간표 템플릿을 만들고 초안, 게시, 미리보기 상태를 관리하세요"
+            : isTeam
+              ? "팀 시간표 템플릿을 만들고 초안, 게시, 미리보기 상태를 관리하세요"
+              : "시간표 템플릿을 만들고 초안, 게시, 미리보기 상태를 관리하세요"
         }
         icon={LayoutTemplate}
-        title={isThumbnail ? "Thumbnail Studio" : "Template Studio"}
+        title={studioName}
       >
         <div className="bg-quaternary px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border">
           <span className="text-[#F4FDFF] font-semibold text-sm sm:text-base">
@@ -436,9 +454,7 @@ export function TemplateStudioAdminListClient({
                   <td className="px-6 py-12 text-center" colSpan={3}>
                     <LayoutTemplate className="mx-auto h-10 w-10 text-gray-300 mb-3" />
                     <p className="text-gray-500 text-sm mb-4">
-                      {isThumbnail
-                        ? "아직 생성된 Thumbnail Studio 템플릿이 없습니다."
-                        : "아직 생성된 Template Studio 템플릿이 없습니다."}
+                      아직 생성된 {studioName} 템플릿이 없습니다.
                     </p>
                     <Link
                       className="inline-flex items-center gap-1.5 bg-primary text-[#F4FDFF] px-4 py-2 rounded-md font-medium text-sm hover:bg-secondary transition-colors"
@@ -486,11 +502,13 @@ export function TemplateStudioAdminListClient({
                           duplicateTemplateMutation.isPending &&
                           duplicateTemplateMutation.variables === template.id
                         }
-                        showDuplicate={isThumbnail}
+                        showDuplicate={isThumbnail || isTeam}
                         template={template}
                         onDelete={handleDelete}
                         onDuplicate={handleDuplicate}
-                        onEditInfo={isThumbnail ? handleEditInfo : undefined}
+                        onEditInfo={
+                          isThumbnail || isTeam ? handleEditInfo : undefined
+                        }
                       />
                     </td>
                   </tr>
@@ -520,9 +538,7 @@ export function TemplateStudioAdminListClient({
             <div className="px-4 py-12 text-center">
               <LayoutTemplate className="mx-auto h-10 w-10 text-gray-300 mb-3" />
               <p className="text-gray-500 text-sm mb-4">
-                {isThumbnail
-                  ? "아직 생성된 Thumbnail Studio 템플릿이 없습니다."
-                  : "아직 생성된 Template Studio 템플릿이 없습니다."}
+                아직 생성된 {studioName} 템플릿이 없습니다.
               </p>
               <Link
                 className="inline-flex items-center gap-1.5 bg-primary text-[#F4FDFF] px-4 py-2 rounded-md font-medium text-sm hover:bg-secondary transition-colors"
@@ -563,11 +579,13 @@ export function TemplateStudioAdminListClient({
                     duplicateTemplateMutation.isPending &&
                     duplicateTemplateMutation.variables === template.id
                   }
-                  showDuplicate={isThumbnail}
+                  showDuplicate={isThumbnail || isTeam}
                   template={template}
                   onDelete={handleDelete}
                   onDuplicate={handleDuplicate}
-                  onEditInfo={isThumbnail ? handleEditInfo : undefined}
+                  onEditInfo={
+                    isThumbnail || isTeam ? handleEditInfo : undefined
+                  }
                 />
               </div>
             ))

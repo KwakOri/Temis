@@ -1,3 +1,4 @@
+import { createStudioTimetableGraphDocument } from "../src/utils/template-studio/timetable-graph-document";
 import assert from "node:assert/strict";
 
 import type { StudioTemplateDocument } from "../src/types/template-studio";
@@ -76,57 +77,10 @@ assert.equal(
   false,
 );
 
-// --- v6 -> v7 문서 마이그레이션 ---
-
-const legacyDocument = JSON.parse(
-  JSON.stringify(createSampleStudioDocument()),
-) as Record<string, unknown>;
-legacyDocument.version = 6;
-delete (legacyDocument.metadata as Record<string, unknown>).kind;
-
-const first = migrateStudioTemplateDocument(legacyDocument);
-assert.equal(first.ok, true);
-assert.equal(first.document.version, STUDIO_TEMPLATE_DOCUMENT_VERSION);
-assert.equal(
-  first.document.metadata.kind,
-  "timetable",
-  "kind 없는 기존 문서는 timetable로 기록된다.",
-);
-assert.ok(
-  first.warnings.some((warning) => /template kind timetable/.test(warning)),
-  "kind 기록을 warning으로 보고한다.",
-);
-
-const second = migrateStudioTemplateDocument(first.document);
-assert.equal(second.ok, true);
-assert.equal(second.document.metadata.kind, "timetable");
-assert.equal(
-  second.warnings.some((warning) => /template kind/.test(warning)),
-  false,
-  "이미 kind가 있으면 다시 기록하지 않는다.",
-);
-assert.deepEqual(
-  second.document.metadata,
-  first.document.metadata,
-  "두 번째 마이그레이션은 metadata를 바꾸지 않는다.",
-);
-
-// 원본을 변형하지 않는다.
-assert.equal(
-  (legacyDocument.metadata as Record<string, unknown>).kind,
-  undefined,
-  "마이그레이션은 입력 문서를 수정하지 않는다.",
-);
-
-// v7 문서도 그대로 통과한다.
-const alreadyCurrent = migrateStudioTemplateDocument(
-  createSampleStudioDocument(),
-);
-assert.equal(alreadyCurrent.ok, true);
-assert.equal(
-  alreadyCurrent.warnings.some((warning) => /from version/.test(warning)),
-  false,
-);
+// Timetable recipes are unsupported; v8 is the canonical document.
+const legacyDocument = createSampleStudioDocument();
+assert.equal(migrateStudioTemplateDocument(legacyDocument).ok, false);
+assert.equal(migrateStudioTemplateDocument(createStudioTimetableGraphDocument()).ok, true);
 
 // 지원하지 않는 버전은 거부한다.
 const futureDocument = JSON.parse(

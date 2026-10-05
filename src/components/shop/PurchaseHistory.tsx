@@ -7,7 +7,7 @@ import {
   useUpdatePurchaseRequest,
 } from "@/hooks/query/usePurchaseHistory";
 import { TemplatePurchaseRequestWithRelations } from "@/types/purchaseHistory";
-import Image from "next/image";
+import { ManagedCatalogImage } from "@/components/common/ManagedCatalogImage";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -168,7 +168,7 @@ export default function PurchaseHistory() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="h-10 w-16 flex-shrink-0">
-                          <Image
+                          <ManagedCatalogImage
                             src={`/thumbnail/${request.template?.id}.png`}
                             alt={request.template?.name || ""}
                             width={64}

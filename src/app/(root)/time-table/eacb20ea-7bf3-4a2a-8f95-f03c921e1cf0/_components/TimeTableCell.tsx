@@ -1,3 +1,5 @@
+"use client";
+
 import { CSSProperties, PropsWithChildren } from 'react';
 
 import { AutoResizeText } from '@/components/AutoResizeTextCard';
@@ -5,9 +7,10 @@ import { TDefaultCard } from '@/types/time-table/data';
 import { TTheme } from '@/types/time-table/theme';
 import { padZero } from '@/utils/date-formatter';
 import { formatTime } from '@/utils/time-formatter';
-import { Imgs } from '../_img/imgs';
+import { Imgs as LocalImgs } from '../_img/imgs';
 import { placeholders } from '../_settings/general';
 import { COMP_FONTS } from '../_settings/settings';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 // type TCARD = "A" | "B" | "C" | "D";
 
@@ -575,6 +578,7 @@ const OnlineCardBG = ({
   offlineMemo,
   day,
 }: OnlineCardBGProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const cardSubfix =
     offlineMemo && isOffline
       ? '_memo'
@@ -593,7 +597,7 @@ const OnlineCardBG = ({
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs['first'][days[day] + cardSubfix].src.replace('./', '/')}
+        src={Imgs['first'][days[day] + cardSubfix].src}
         alt="online"
       />
     </div>
