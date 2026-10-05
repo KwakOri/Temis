@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import type {
   StudioBuiltinFieldId,
   StudioGraphNode,
+  StudioRuntimeValues,
   StudioTemplateDocument,
 } from "@/types/template-studio";
 import {
@@ -34,10 +35,9 @@ import {
   getStudioAvailableBuiltinFields,
   getStudioBuiltinField,
 } from "@/utils/template-studio/builtin-fields";
-import {
-  getStudioInputScopeLabel,
-  STUDIO_INPUT_SCOPE_OPTIONS,
-} from "@/utils/template-studio/input-scope";
+import { getStudioInputScopeLabel } from "@/utils/template-studio/input-scope";
+import type { StudioRuntimeContext } from "@/utils/template-studio/input-values";
+import { StudioBindingSourcePicker } from "@/components/studio/inspector/studio-binding-source-picker";
 import { getStudioInputTypeLabel } from "@/utils/template-studio/input-commands";
 import {
   getStudioOpacityPercent,
@@ -66,6 +66,8 @@ export type StudioCardNodeInspectorSectionKey =
 
 export interface StudioCardNodeInspectorModel {
   document: StudioTemplateDocument;
+  runtimeValues?: StudioRuntimeValues;
+  runtimeContext?: StudioRuntimeContext;
   /** 고른 노드. 없으면 안내만 보여준다. */
   selectedNode: StudioGraphNode | null;
   /** 폰트 후보. 문서의 웹 폰트와 기본 폰트를 합친 목록이다. */
@@ -112,6 +114,8 @@ const STUDIO_CARD_ALIGN_ACTIONS = [
  */
 export const buildStudioCardNodeInspectorSections = ({
   document,
+  runtimeValues,
+  runtimeContext,
   selectedNode,
   fontFamilies,
   isSectionOpen,
@@ -168,16 +172,6 @@ export const buildStudioCardNodeInspectorSections = ({
   ).filter((field) =>
     isStudioBuiltinFieldCompatibleWithNode(field, selectedNode),
   );
-  const compatibleInputGroups = STUDIO_INPUT_SCOPE_OPTIONS.map((scope) => ({
-    scope,
-    inputs: compatibleInputs.filter((input) => input.scope === scope),
-  })).filter((group) => group.inputs.length > 0);
-  const compatibleBuiltinFieldGroups = STUDIO_INPUT_SCOPE_OPTIONS.map(
-    (scope) => ({
-      scope,
-      fields: compatibleBuiltinFields.filter((field) => field.scope === scope),
-    }),
-  ).filter((group) => group.fields.length > 0);
 
   const bindingInputId = getStudioBindingInputId(selectedNode.binding);
   const selectedNodeBoundInput = bindingInputId
@@ -206,13 +200,30 @@ export const buildStudioCardNodeInspectorSections = ({
       ? selectedNode.binding.fieldId
       : null;
   const isBoundBinding = Boolean(bindingInputId || bindingBuiltinFieldId);
-  const compatibleBindingCount =
-    compatibleBuiltinFields.length + compatibleInputs.length;
   const bindingSourceValue = bindingBuiltinFieldId
-    ? `builtin:${bindingBuiltinFieldId}`
+    ? `builtin:${bindingBuiltinFieldId === "day.short_label" ? "day.label" : bindingBuiltinFieldId}`
     : bindingInputId
       ? `input:${bindingInputId}`
       : "";
+  const selectBindingSource = (value: string) => {
+    if (value.startsWith("builtin:")) {
+      bindToBuiltinField(
+        value.slice("builtin:".length) as StudioBuiltinFieldId,
+      );
+    } else if (value.startsWith("input:")) {
+      bindToInput(value.slice("input:".length));
+    }
+  };
+  const bindingPickerProps = {
+    document,
+    node: selectedNode,
+    fields: compatibleBuiltinFields,
+    inputs: compatibleInputs,
+    value: bindingSourceValue,
+    runtimeValues,
+    context: runtimeContext,
+    onSelect: selectBindingSource,
+  };
   const opacityPercent = getStudioOpacityPercent(styleRecord.opacity);
 
   const sections: (StudioPropertyItem | null)[] = [
@@ -349,27 +360,11 @@ export const buildStudioCardNodeInspectorSections = ({
               >
                 Static
               </button>
-              <button
-                className={cn(
-                  "h-7 rounded-[5px] text-[11.5px] font-semibold transition",
-                  isBoundBinding
-                    ? "bg-[var(--accent)] text-white"
-                    : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
-                  compatibleBindingCount === 0 &&
-                    "cursor-not-allowed opacity-45 hover:bg-transparent hover:text-[var(--fg2)]",
-                )}
-                disabled={compatibleBindingCount === 0}
-                type="button"
-                onClick={() => {
-                  if (compatibleBuiltinFields[0]) {
-                    bindToBuiltinField(compatibleBuiltinFields[0].id);
-                  } else if (compatibleInputs[0]) {
-                    bindToInput(compatibleInputs[0].id);
-                  }
-                }}
-              >
-                Bound
-              </button>
+              <StudioBindingSourcePicker
+                {...bindingPickerProps}
+                key={`binding-mode:${selectedNode.id}`}
+                mode="tab"
+              />
             </div>
 
             {!isBoundBinding ? (
@@ -430,62 +425,13 @@ export const buildStudioCardNodeInspectorSections = ({
               </>
             ) : (
               <>
-                <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+                <div className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
                   <span>Binding Source</span>
-                  <select
-                    className="h-8 w-full min-w-0 max-w-full rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)] disabled:text-[var(--fg3)]"
-                    disabled={compatibleBindingCount === 0}
-                    value={bindingSourceValue}
-                    onChange={(event) => {
-                      const value = event.currentTarget.value;
-                      if (value.startsWith("builtin:")) {
-                        bindToBuiltinField(
-                          value.replace(
-                            /^builtin:/,
-                            "",
-                          ) as StudioBuiltinFieldId,
-                        );
-                        return;
-                      }
-
-                      if (value.startsWith("input:")) {
-                        bindToInput(value.replace(/^input:/, ""));
-                      }
-                    }}
-                  >
-                    {compatibleBindingCount === 0 ? (
-                      <option value="">No compatible binding</option>
-                    ) : null}
-                    {compatibleBuiltinFieldGroups.map((group) => (
-                      <optgroup
-                        key={`builtin:${group.scope}`}
-                        label={`Built-in · ${getStudioInputScopeLabel(group.scope)}`}
-                      >
-                        {group.fields.map((field) => (
-                          <option key={field.id} value={`builtin:${field.id}`}>
-                            {field.label} · Built-in ·{" "}
-                            {getStudioInputScopeLabel(field.scope)} ·{" "}
-                            {field.type}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                    {compatibleInputGroups.map((group) => (
-                      <optgroup
-                        key={`input:${group.scope}`}
-                        label={`Custom · ${getStudioInputScopeLabel(group.scope)}`}
-                      >
-                        {group.inputs.map((input) => (
-                          <option key={input.id} value={`input:${input.id}`}>
-                            {input.label} · Custom ·{" "}
-                            {getStudioInputScopeLabel(input.scope)} ·{" "}
-                            {getStudioInputTypeLabel(input.type)}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                </label>
+                  <StudioBindingSourcePicker
+                    {...bindingPickerProps}
+                    key={`binding-source:${selectedNode.id}`}
+                  />
+                </div>
 
                 {selectedNodeBuiltinField ? (
                   <>
@@ -509,18 +455,24 @@ export const buildStudioCardNodeInspectorSections = ({
                         <StudioDayLabelFormatField
                           fieldId={selectedNode.binding.fieldId}
                           value={selectedNode.binding.dayLabelFormat}
-                          onChange={(dayLabelFormat) =>
+                          template={selectedNode.binding.dayLabelTemplate}
+                          day={runtimeContext?.dayId ? document.domains?.timetable?.days[runtimeContext.dayId] : undefined}
+                          onChange={(dayLabelFormat, dayLabelTemplate) =>
                             updateNode(selectedNode.id, (node) => {
                               if (node.binding?.kind !== "builtinField") return;
 
                               applyStudioBindingFormatPatch(node, {
                                 dayLabelFormat,
+                                dayLabelTemplate,
                               });
                             })
                           }
                         />
                         <StudioBuiltinFieldFormatControls
                           binding={selectedNode.binding}
+                          document={document}
+                          runtimeValues={runtimeValues}
+                          context={runtimeContext}
                           onChange={(patch) =>
                             updateNode(selectedNode.id, (node) =>
                               applyStudioBindingFormatPatch(node, patch),

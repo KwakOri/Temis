@@ -26,12 +26,14 @@ export type StudioBuiltinFieldId =
 
 export type StudioDayLabelFormat =
   | "default"
+  | "documentShort"
   | "long"
   | "short"
   | "shortUpper"
   | "shortLower"
   | "koreanLong"
-  | "koreanShort";
+  | "koreanShort"
+  | "custom";
 
 export type StudioTimeFormat = "half" | "full";
 
@@ -41,6 +43,8 @@ export type StudioTimeFormat = "half" | "full";
  * `template_engine`(렌더링 엔진)과는 다른 축이다. 두 값을 하나로 합치지 않는다.
  */
 export type StudioTemplateKind = "timetable" | "thumbnail";
+
+export type StudioTimetableTemplateMode = "personal" | "team";
 
 export type StudioInputScope = "global" | "day" | "entry";
 export type StudioInputType = "text" | "image" | "select";
@@ -251,6 +255,7 @@ export type StudioBinding =
       kind: "builtinField";
       fieldId: StudioBuiltinFieldId;
       dayLabelFormat?: StudioDayLabelFormat;
+      dayLabelTemplate?: string;
       dateRangeFormat?: string;
       dateRangeTemplate?: string;
       timeFormat?: StudioTimeFormat;

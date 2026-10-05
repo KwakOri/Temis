@@ -28,6 +28,7 @@ export type StudioBindingFormatPatch = Partial<
     | "timeAmText"
     | "timePmText"
     | "dayLabelFormat"
+    | "dayLabelTemplate"
   >
 >;
 
@@ -50,10 +51,24 @@ export const applyStudioBindingFormatPatch = (
     if ("timeAmText" in patch) binding.timeAmText = patch.timeAmText;
     if ("timePmText" in patch) binding.timePmText = patch.timePmText;
   }
-  if (features.dayLabelFormat && "dayLabelFormat" in patch) {
-    const value = normalizeStudioDayLabelFormat(patch.dayLabelFormat);
-    if (value === "default") delete binding.dayLabelFormat;
-    else binding.dayLabelFormat = value;
+  if (
+    features.dayLabelFormat &&
+    ("dayLabelFormat" in patch || "dayLabelTemplate" in patch)
+  ) {
+    if (binding.fieldId === "day.short_label") {
+      binding.fieldId = "day.label";
+      if (normalizeStudioDayLabelFormat(binding.dayLabelFormat) === "default")
+        binding.dayLabelFormat = "documentShort";
+    }
+    if ("dayLabelFormat" in patch) {
+      const value = normalizeStudioDayLabelFormat(patch.dayLabelFormat);
+      if (value === "default") delete binding.dayLabelFormat;
+      else binding.dayLabelFormat = value;
+      // A preset reset must clear the previous custom template as well.
+      if (!("dayLabelTemplate" in patch)) delete binding.dayLabelTemplate;
+    }
+    if ("dayLabelTemplate" in patch)
+      binding.dayLabelTemplate = patch.dayLabelTemplate;
   }
   target.binding = binding;
 };

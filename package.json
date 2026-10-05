@@ -5,6 +5,9 @@
   "scripts": {
     "check:studio:team-v8": "node --import tsx scripts/check-studio-team-v8.tsx",
     "check:studio:team-v8:browser": "node scripts/check-studio-team-v8-browser.mjs",
+    "check:studio:team-connection": "node --import tsx scripts/check-team-studio-connection.ts",
+    "check:studio:team-connection:browser": "node --import tsx scripts/check-team-studio-connection-browser.ts",
+    "check:studio:team-connection:local": "node --import tsx scripts/check-team-studio-connection-local.ts --allow-local-fixtures --browser",
     "check:studio:team-runtime": "node --import tsx scripts/check-team-studio-runtime.tsx",
     "check:studio:team-runtime:browser": "node --import tsx scripts/check-team-studio-runtime-browser.mjs",
     "dev": "npm run dev:local",
@@ -28,6 +31,7 @@
     "check:legacy-assets:held-cleanup": "node --import tsx scripts/check-legacy-template-held-cleanup.ts",
     "check:project-assets": "node --import tsx scripts/check-project-assets.tsx",
     "check:project-assets:browser": "node --import tsx scripts/check-project-assets-browser.mjs",
+    "check:project-assets:local-browser": "node scripts/check-project-assets-local-browser.mjs",
     "migrate:project-assets": "node --import tsx scripts/migrate-legacy-template-assets.ts --project-assets --all",
     "migrate:legacy-assets": "node --import tsx scripts/migrate-legacy-template-assets.ts",
     "check:legacy-assets": "node --import tsx scripts/check-legacy-template-assets.ts",

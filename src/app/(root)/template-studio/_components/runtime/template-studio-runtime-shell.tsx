@@ -116,8 +116,10 @@ export function TemplateStudioRuntimeShell({
   const backHref =
     backHrefProp ??
     (templateId
-      ? `/admin/template-studio/${templateId}/edit`
-      : "/admin/template-studio");
+      ? `${timetable?.team ? "/admin/team-timetable-studio" : "/admin/template-studio"}/${templateId}/edit`
+      : timetable?.team
+        ? "/admin/team-timetable-studio"
+        : "/admin/template-studio");
 
   useEffect(() => {
     const queryLocale = new URLSearchParams(window.location.search).get("lang");

@@ -1,5 +1,5 @@
 "use client";
-import {
+import React, {
   createContext,
   useContext,
   useMemo,
@@ -12,7 +12,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   useLegacyAssetPreview,
   useLegacyAssetRuntime,
-  useProjectAssetManifest,
 } from "@/hooks/query/useLegacyTemplateAssets";
 import type {
   LegacyAssetChange,
@@ -23,8 +22,6 @@ import { parseLegacyAssetOwner } from "@/utils/legacy-template-assets/contracts"
 
 const Context = createContext<LegacyAssetRuntime | null>(null);
 export function HomepageAssetsProvider({ children }: PropsWithChildren) {
-  const enabled = process.env.NEXT_PUBLIC_PROJECT_ASSETS_R2_ENABLED === "true";
-  const query = useProjectAssetManifest(enabled);
   const [preview, setPreview] = useState(false);
   useEffect(() => {
     setPreview(
@@ -39,23 +36,8 @@ export function HomepageAssetsProvider({ children }: PropsWithChildren) {
         {children}
       </LegacyTemplateAssetsProvider>
     );
-  if (enabled && query.isError)
-    return (
-      <p role="alert" className="p-5 text-red-700">
-        {query.error.message}
-      </p>
-    );
-  if (enabled && query.isPending)
-    return (
-      <p role="status" className="p-5">
-        이미지 불러오는 중...
-      </p>
-    );
-  return (
-    <Context.Provider value={enabled ? (query.data?.homepage ?? null) : null}>
-      {children}
-    </Context.Provider>
-  );
+  // The public homepage renders bundled/static assets without a manifest request.
+  return <Context.Provider value={null}>{children}</Context.Provider>;
 }
 export function LegacyTemplateAssetsRoute({
   children,

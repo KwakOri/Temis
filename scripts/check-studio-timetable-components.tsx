@@ -148,8 +148,8 @@ assert.ok(
   "요일 필드에는 표기 선택이 나타난다.",
 );
 assert.ok(
-  dayLabelMarkup.includes("Stored on this text binding only."),
-  "고른 표기가 이 바인딩에만 저장된다는 안내가 유지된다.",
+  dayLabelMarkup.includes(">Template<"),
+  "요일도 날짜처럼 템플릿을 편집할 수 있다.",
 );
 assert.ok(
   dayLabelMarkup.includes('selected=""'),

@@ -40,6 +40,10 @@ import {
   validateStudioTeamDefinition,
 } from "@/utils/template-studio/team-timetable";
 import { StudioTeamControls } from "./studio-team-controls";
+import {
+  StudioTeamConnectionPanel,
+  StudioConnectedTeamPreview,
+} from "./studio-team-connection-panel";
 import { Download } from "lucide-react";
 import {
   renderStudioPng,
@@ -185,11 +189,15 @@ import {
   getStudioTimetableEffectiveMaxEntriesPerDay,
   getStudioTimetableEntriesForDay,
   resolveStudioTimetableComponentVariant,
+  setStudioTimetableEntryField,
   validateStudioRuntimeValuesForDocument,
 } from "@/utils/template-studio/timetable-runtime";
 import { getStudioRuntimeSuppressedInputIds } from "@/utils/template-studio/runtime-global-input-groups";
 import { getStudioRuntimeInputMultiline } from "@/utils/template-studio/runtime-input-presentation";
-import { withStudioCurrentRuntimeWeekStartDate } from "@/utils/template-studio/runtime-week";
+import {
+  getStudioNearestPastMonday,
+  withStudioCurrentRuntimeWeekStartDate,
+} from "@/utils/template-studio/runtime-week";
 import { applyStudioTimetableComponentFrames } from "@/utils/template-studio/entry-groups";
 import {
   getStudioAvailableTimetableStatuses,
@@ -698,6 +706,10 @@ export function TemplateStudioClient({
     [studioStore],
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [connectedTeamWeek, setConnectedTeamWeek] = useState(
+    getStudioNearestPastMonday,
+  );
+  const connectedTeamBindingsRef = useRef<Record<string, number>>({});
   const [stylePropagationOpen, setStylePropagationOpen] = useState(false);
   const [fitRequestKey, setFitRequestKey] = useState(0);
   const [nodePicker, setNodePicker] = useState<NodePickerState | null>(null);
@@ -1217,27 +1229,20 @@ export function TemplateStudioClient({
     activeWorkspaceMode === "cards" ? cardsGuide : timetableGuide;
   const activeGuideAsset =
     activeWorkspaceMode === "cards" ? cardsGuideAsset : timetableGuideAsset;
-  const activePanelMode: PanelMode =
-    activeWorkspaceMode === "timetable" && panelMode === "timetable"
-      ? "layers"
-      : panelMode;
+  const activePanelMode: PanelMode = panelMode;
   const isInputPanelActive = activePanelMode === "inputs";
   // 좌측 패널 탭은 시간표 도메인이 소유한다. 공통 프레임은 목록만 받는다.
   const cardsPanelTabs = useMemo<StudioPanelTab[]>(() => {
     const tabs: StudioPanelTab[] = [
       { id: "layers", label: "Layers", icon: <Layers3 size={14} /> },
       { id: "presets", label: "Presets", icon: <Plus size={14} /> },
-      { id: "inputs", label: "Inputs", icon: <ListChecks size={14} /> },
     ];
-    if (activeWorkspaceMode === "cards") {
-      tabs.push({
-        id: "timetable",
-        label: "Table",
-        icon: <CalendarDays size={14} />,
-      });
-    }
     return tabs;
-  }, [activeWorkspaceMode]);
+  }, []);
+  const cardsPanelMenuTabs: StudioPanelTab[] = [
+    { id: "inputs", label: "Inputs", icon: <ListChecks size={14} /> },
+    { id: "timetable", label: "Sample Data", icon: <CalendarDays size={14} /> },
+  ];
   const assets = useMemo(
     () => Object.values(document.assets),
     [document.assets],
@@ -1575,6 +1580,8 @@ export function TemplateStudioClient({
     openSavedPreview,
   } = useStudioTemplatePersistence({
     expectedDocumentVersion: 8,
+    previewPathForTemplate: (templateId) =>
+      `${studioStore.getState().document.domains?.timetable?.team ? "/admin/team-timetable-studio" : "/admin/template-studio"}/${templateId}/preview`,
     getDocument: useCallback(
       () => studioStore.getState().document,
       [studioStore],
@@ -1616,6 +1623,35 @@ export function TemplateStudioClient({
       [setInspectorSections],
     ),
   });
+
+  const applyConnectedTeamPreview = useCallback(
+    (values: StudioRuntimeValues, bindings: Record<string, number>) => {
+      const current = studioStore.getState().runtimeValues;
+      // Preserve manually supplied preview images by user ID when slots move.
+      const images = new Map(
+        Object.entries(connectedTeamBindingsRef.current).map(([slot, userId]) => [
+          userId,
+          current.team?.members[slot]?.image ?? "",
+        ]),
+      );
+      const members = Object.fromEntries(
+        Object.entries(values.team?.members ?? {}).map(([slot, member]) => [
+          slot,
+          { ...member, image: images.get(bindings[slot]) ?? member.image },
+        ]),
+      );
+      connectedTeamBindingsRef.current = bindings;
+      studioStore.getState().setRuntimeValues({
+        ...current,
+        team: { members },
+        timetable: {
+          ...current.timetable,
+          weekStartDate: values.timetable.weekStartDate,
+        },
+      });
+    },
+    [studioStore],
+  );
 
   const updateDocument = useCallback(
     (
@@ -2910,6 +2946,25 @@ export function TemplateStudioClient({
       onSelectDay={focusTimetableRuntimeDay}
       onSelectEntryIndex={setSelectedRuntimeEntryIndex}
       onUpdateEntryStatus={updateEntryStatus}
+      onUpdateEntryField={(dayId, entryIndex, field, value) => {
+        const currentEntry = getStudioTimetableEntriesForDay(
+          getDocument(),
+          studioStore.getState().runtimeValues,
+          dayId,
+        )[entryIndex];
+        if (!currentEntry || (currentEntry[field] ?? "") === value) return;
+        captureHistory();
+        setRuntimeValues((currentValues) =>
+          setStudioTimetableEntryField(
+            getDocument(),
+            currentValues,
+            dayId,
+            entryIndex,
+            field,
+            value,
+          ),
+        );
+      }}
     />
   );
 
@@ -3140,6 +3195,8 @@ export function TemplateStudioClient({
   const buildNodeInspectorSections = (): StudioPropertyItem[] =>
     buildStudioCardNodeInspectorSections({
       document,
+      runtimeValues: cardAuthoringRuntimeValues,
+      runtimeContext: { dayId: activeRuntimeDayId, entryIndex: 0 },
       selectedNode,
       fontFamilies,
       isSectionOpen: (sectionKey) => inspectorSections[sectionKey],
@@ -3171,6 +3228,8 @@ export function TemplateStudioClient({
           : null,
       days: timetableDays,
       document,
+      runtimeValues,
+      runtimeContext: { dayId: activeRuntimeDayId, entryIndex: activeRuntimeEntryIndex },
       fontFamilies,
       getEntryCardSize: getTimetableEntryCardSizeForDay,
       isSectionOpen: (sectionKey) => inspectorSections[sectionKey],
@@ -3814,6 +3873,7 @@ export function TemplateStudioClient({
               ) : null
             }
             tabs={cardsPanelTabs}
+            menuTabs={cardsPanelMenuTabs}
             onTabChange={(tabId) => setPanelMode(tabId as PanelMode)}
           />
         }
@@ -3831,6 +3891,16 @@ export function TemplateStudioClient({
               }
               onDismissToast={() => setOperationToast(null)}
             />
+            {storedDocument.domains?.timetable?.team &&
+              remoteTemplateId &&
+              templateStudioTemplateQuery.isSuccess && (
+                <StudioConnectedTeamPreview
+                  templateId={remoteTemplateId}
+                  document={storedDocument}
+                  week={connectedTeamWeek}
+                  onPreview={applyConnectedTeamPreview}
+                />
+              )}
             <StudioSettingsModal
               activeWorkspaceMode={activeWorkspaceMode}
               databaseTargetLabel={STUDIO_DATABASE_TARGET_LABEL}
@@ -3840,6 +3910,20 @@ export function TemplateStudioClient({
               objectCount={activeObjectCount}
               open={settingsOpen}
               theme={theme}
+              teamConnection={
+                storedDocument.domains?.timetable?.team && settingsOpen ? (
+                  <StudioTeamConnectionPanel
+                    key={remoteTemplateId ?? "unsaved"}
+                    templateId={remoteTemplateId ?? ""}
+                    document={storedDocument}
+                    week={connectedTeamWeek}
+                    onWeekChange={setConnectedTeamWeek}
+                    onPreview={applyConnectedTeamPreview}
+                    onSaveDesign={saveDatabaseDraft}
+                    busy={isRemoteSyncing}
+                  />
+                ) : undefined
+              }
               onCardsCanvasChange={updateCardCanvasSize}
               onCardsGuideRemove={removeCardsGuide}
               onCardsGuideUpload={uploadCardsGuide}
@@ -3984,7 +4068,12 @@ export function TemplateStudioClient({
           <StudioTopToolbar
             backAction={{
               title: "템플릿 목록으로",
-              onClick: () => router.push("/admin/template-studio"),
+              onClick: () =>
+                router.push(
+                  document.domains.timetable.team
+                    ? "/admin/team-timetable-studio"
+                    : "/admin/template-studio",
+                ),
             }}
             canvasSize={{
               width: previewCanvasSize.width,

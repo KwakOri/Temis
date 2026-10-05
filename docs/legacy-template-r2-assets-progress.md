@@ -189,6 +189,13 @@ bucket 공개 설정과 CORS는 별개이며 R2는 객체별 public-read ACL로 
 
 ## 대표 썸네일 및 홈 에셋 확장
 
+후속 정책 변경(2026-10-04): 일반 메인페이지는 로딩 경로를 유지하기 위해 샘플·배경·기능
+이미지 14개의 프로젝트 원본을 사용한다. `HomepageAssetsProvider`는 일반 요청에서
+manifest API를 조회하거나 기다리지 않으며, R2 flag와 DB 모드에도 영향받지 않는다.
+관리자의 명시적 후보 미리보기는 유지한다. 이미 등록한 R2 파일/메타데이터는 삭제하지
+않으며 대표 썸네일과 시간표 내부 이미지의 R2 사용은 별개로 유지한다.
+아래 홈 R2 이관/활성화 검증 결과는 이 정책 변경 전의 기록이다.
+
 후속 승인에 따라 내부 이미지(`runtime`), 대표 썸네일(`cover`), 홈페이지(`site`) 목적을 분리했다.
 부모 catalog는 변경하지 않으며 새 에셋 세트에 `purpose`/`site_key`를 추가하는 후속 migration을 사용한다.
 기존 세트는 `purpose=runtime`이며 기존 경로와 슬롯 계약은 유지한다.
@@ -260,3 +267,18 @@ LEGACY_TEMPLATE_ASSET_ENV=production npm run migrate:project-assets -- \
 npm run check:project-assets:browser -- --allow-read-only-production \
   --env-dir /Users/kwakori/projects/promotion/temis
 ```
+
+## 홈페이지 원격 에셋 제거 (2026-10-05 JST)
+
+사용자 요청에 따라 temis 운영 프로젝트 `ajlgjdwkjyayrnocdfpj`에서 홈 에셋만 제거했다.
+
+- 홈페이지 `purpose=site/site_key=homepage` 세트 1개, 버전 14개, revision 1개를 단일 트랜잭션으로 삭제했다. temis 계정 토큰의 Management API를 사용했으며 schema/권한 변경과 다른 migration 적용은 하지 않았다.
+- 검증한 `legacy-template-assets/production/site/homepage/site/assets/`의 R2 객체 14개를 삭제했고 해당 경로가 비었음을 확인했다.
+- 삭제 전 R2 바이트와 로컬 원본의 SHA-256·크기를 모두 대조했다. 홈 원본 14개는 보존했다.
+- 다른 DB 세트 196개·버전 1,024개·revision 196개의 전체 행 fingerprint가 전후 동일하다.
+- `createProjectAssetTemplates`에서 홈 seed를 제외했다. `migrate:project-assets`는 이제 대표 이미지 97개만 선택하며 홈페이지를 재등록하지 않는다.
+- 운영 브라우저 검사도 홈 등록 404와 에셋 세트 196개를 기대하도록 수정했다.
+- `check:legacy-assets:migration`, `check:project-assets`, TypeScript 검사와 lint 통과. lint는 기존 경고를 출력했다. 운영 브라우저 전체 검사는 이번 제거 작업에서 실행하지 않았다.
+- 실제 삭제 결과와 사전 대상 snapshot은 `output/analysis/2026-10-05/homepage-remote-removal-{plan,result}.json`에 저장했다.
+
+위의 197개 세트·1,038개 버전 및 홈 이관 기록은 삭제 전 이력이다. 일반 홈은 프로젝트 원본을 사용하는 기존 정책을 유지한다. 홈페이지 전용 schema/API의 호환 계약은 이번 작업에서 제거하지 않았다.

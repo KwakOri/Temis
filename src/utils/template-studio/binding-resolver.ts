@@ -141,6 +141,7 @@ export const resolveStudioTextBinding = (
       context,
       {
         dayLabelFormat: binding.dayLabelFormat,
+        dayLabelTemplate: binding.dayLabelTemplate,
         dateRangeFormat: binding.dateRangeFormat,
         dateRangeTemplate: binding.dateRangeTemplate,
         timeFormat: binding.timeFormat,

@@ -57,6 +57,7 @@ const legacy: StudioTimetableCompositionObject = {
 composition.objects[legacy.id] = legacy;
 composition.rootObjectIds.push(legacy.id);
 const values = createInitialStudioRuntimeValues(document);
+values.timetable.weekStartDate = "2026-09-28";
 // Establish the old renderer's style-pair precedence independently of the adapter.
 const expected = resolveStudioWeekDateText(document, {
   format: "custom",

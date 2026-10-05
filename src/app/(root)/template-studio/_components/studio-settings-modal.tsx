@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Monitor } from "lucide-react";
+import { CalendarDays, Monitor, Users } from "lucide-react";
 // jsx: "preserve" 환경의 체크 스크립트가 클래식 변환을 타므로 React 심볼이 필요하다.
 import React from "react";
 
@@ -44,6 +44,7 @@ interface StudioSettingsModalProps {
   objectCount: number;
   open: boolean;
   theme: StudioTheme;
+  teamConnection?: React.ReactNode;
   onCardsCanvasChange: (nextSize: {
     width?: number;
     height?: number;
@@ -120,6 +121,7 @@ export function StudioSettingsModal({
   objectCount,
   open,
   theme,
+  teamConnection,
   onCardsCanvasChange,
   onCardsGuideRemove,
   onCardsGuideUpload,
@@ -336,8 +338,19 @@ export function StudioSettingsModal({
     },
   ];
 
+  if (document.domains?.timetable?.team && teamConnection) {
+    domainSections.push({
+      id: "team-connection",
+      label: "팀 연결",
+      description: "팀 선택 · 멤버 배치",
+      navIcon: Users,
+      content: teamConnection,
+    });
+  }
+
   return (
     <StudioSettingsDialog
+      compactMobile={Boolean(document.domains?.timetable?.team)}
       common={{
         theme,
         onThemeChange,

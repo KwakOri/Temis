@@ -172,20 +172,20 @@ export function StudioCardsPresetsPanel({
         <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--fg2)]">
           Cards Presets
         </div>
-        <div className="mt-1 text-[11px] font-medium text-[var(--fg3)]">
-          Add objects and reusable bundles
-        </div>
       </div>
-      <div className="grid grid-cols-4 gap-1.5 px-3 py-3">
+      <div className="grid grid-cols-2 gap-1.5 px-3 py-3">
         {STUDIO_CARD_NODE_TYPES.map((type) => (
           <button
-            className="flex h-10 items-center justify-center rounded-[9px] border border-[var(--field-border)] bg-[var(--field)] text-xs font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
+            className="flex h-10 items-center gap-2 rounded-[9px] border border-[var(--field-border)] bg-[var(--field)] px-3 text-xs font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
             key={type}
             title={`Add ${getStudioGraphNodeTypeLabel(type)}`}
             type="button"
             onClick={() => onAddNode(type)}
           >
-            <StudioNodeTypeIcon size={17} type={type} />
+            <span aria-hidden="true">
+              <StudioNodeTypeIcon size={17} type={type} />
+            </span>
+            {getStudioGraphNodeTypeLabel(type)}
           </button>
         ))}
       </div>
@@ -198,9 +198,11 @@ export function StudioCardsPresetsPanel({
           groups.map((group) => (
             <section className="grid gap-1.5" key={group.title}>
               <div className="text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--fg3)]">
-                {group.title}
+                {group.title === "Context Objects"
+                  ? "Timetable Elements"
+                  : group.title}
               </div>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid gap-1.5">
                 {group.presets.map(
                   ({ definition, disabledReason, existingTargetId }) => {
                     const canInsert =
@@ -212,7 +214,7 @@ export function StudioCardsPresetsPanel({
                     return (
                       <button
                         className={cn(
-                          "flex h-9 min-w-0 items-center justify-center gap-1 rounded-[8px] border border-[var(--field-border)] bg-[var(--field)] px-2 text-[11px] font-bold text-[var(--fg2)] transition",
+                          "flex min-h-10 min-w-0 items-center gap-2 rounded-[8px] border border-[var(--field-border)] bg-[var(--field)] px-3 py-2 text-[12px] font-semibold text-[var(--fg2)] transition",
                           canInsert
                             ? "hover:border-[var(--accent)] hover:text-[var(--fg)]"
                             : "cursor-not-allowed opacity-55",
@@ -242,10 +244,17 @@ export function StudioCardsPresetsPanel({
                           }
                         }}
                       >
-                        <span className="truncate">{definition.label}</span>
+                        <span className="min-w-0 flex-1 text-left">
+                          {definition.label}
+                        </span>
                         {existingTargetId ? (
-                          <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-300" />
-                        ) : null}
+                          <span className="flex shrink-0 items-center gap-1 text-[10px] text-emerald-300">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Added
+                          </span>
+                        ) : (
+                          <Plus className="h-3.5 w-3.5 shrink-0" />
+                        )}
                       </button>
                     );
                   },

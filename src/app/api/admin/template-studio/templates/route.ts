@@ -4,6 +4,8 @@ import {
   listTemplateStudioTemplates,
 } from "@/services/server/templateStudioPersistenceService";
 import { isStudioTemplateKind } from "@/utils/template-studio/template-kind";
+import { createStudioTeamDocument } from "@/utils/template-studio/team-timetable";
+import { createStudioInitialRuntimeValues } from "@/utils/template-studio/input-values";
 import {
   THUMBNAIL_CANVAS_PRESETS,
   createThumbnailStudioDocument,
@@ -26,15 +28,29 @@ export async function GET(request: NextRequest) {
 
   try {
     const rawKind = request.nextUrl.searchParams.get("kind");
+    const rawMode = request.nextUrl.searchParams.get("mode");
     if (rawKind && !isStudioTemplateKind(rawKind)) {
       return NextResponse.json(
         { error: "유효한 Template Studio 템플릿 종류가 필요합니다." },
         { status: 400 },
       );
     }
+    if (
+      rawMode &&
+      ((rawMode !== "personal" && rawMode !== "team") ||
+        rawKind !== "timetable")
+    ) {
+      return NextResponse.json(
+        { error: "시간표 템플릿의 유효한 모드가 필요합니다." },
+        { status: 400 },
+      );
+    }
     const templates = await listTemplateStudioTemplates(undefined, {
       templateKind:
         rawKind && isStudioTemplateKind(rawKind) ? rawKind : undefined,
+      templateMode:
+        rawMode === "personal" || rawMode === "team" ? rawMode : undefined,
+      userId: actor.userId,
     });
 
     return NextResponse.json({
@@ -69,11 +85,23 @@ export async function POST(request: NextRequest) {
     const name = getStringField(payload, "name");
     const description = getStringField(payload, "description") ?? "";
     const templateKind = payload.templateKind;
+    const templateMode = payload.templateMode;
     const canvasPresetId = getStringField(payload, "canvasPresetId");
 
     if (templateKind !== undefined && !isStudioTemplateKind(templateKind)) {
       return NextResponse.json(
         { error: "유효한 Template Studio 템플릿 종류가 필요합니다." },
+        { status: 400 },
+      );
+    }
+
+    if (
+      templateMode !== undefined &&
+      ((templateMode !== "personal" && templateMode !== "team") ||
+        templateKind === "thumbnail")
+    ) {
+      return NextResponse.json(
+        { error: "시간표 템플릿의 유효한 모드가 필요합니다." },
         { status: 400 },
       );
     }
@@ -104,6 +132,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const initialDocument =
+      templateMode === "team"
+        ? createStudioTeamDocument()
+        : canvasPreset
+          ? createThumbnailStudioDocument({
+              name,
+              description,
+              width: canvasPreset.width,
+              height: canvasPreset.height,
+            })
+          : undefined;
+    if (initialDocument) {
+      initialDocument.metadata.name = name;
+      initialDocument.metadata.description = description;
+    }
     const template = await createTemplateStudioTemplate({
       name,
       description,
@@ -111,13 +154,9 @@ export async function POST(request: NextRequest) {
       templateKind: isStudioTemplateKind(templateKind)
         ? templateKind
         : "timetable",
-      initialDocument: canvasPreset
-        ? createThumbnailStudioDocument({
-            name,
-            description,
-            width: canvasPreset.width,
-            height: canvasPreset.height,
-          })
+      initialDocument,
+      initialRuntimeValues: initialDocument
+        ? createStudioInitialRuntimeValues(initialDocument)
         : undefined,
     });
 

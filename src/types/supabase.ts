@@ -672,6 +672,42 @@ export type Database = {
           },
         ];
       };
+      team_studio_connections: {
+        Row: {
+          template_id: string;
+          team_id: string;
+          member_bindings: Json;
+          updated_at: string;
+        };
+        Insert: {
+          template_id: string;
+          team_id: string;
+          member_bindings?: Json;
+          updated_at?: string;
+        };
+        Update: {
+          template_id?: string;
+          team_id?: string;
+          member_bindings?: Json;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "team_studio_connections_template_id_fkey";
+            columns: ["template_id"];
+            isOneToOne: true;
+            referencedRelation: "templates";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "team_studio_connections_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       relations_team_template_and_team: {
         Row: {
           created_at: string;

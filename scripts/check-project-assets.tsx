@@ -133,6 +133,26 @@ async function main() {
   );
   process.env.NEXT_PUBLIC_PROJECT_ASSETS_R2_ENABLED = "true";
   assert.equal(render().split('src="https://assets.invalid').length - 1, 2);
+  const { HomepageAssetsProvider, useLegacyAssetUrl, useLegacyTemplateImages } =
+    await import("../src/contexts/LegacyTemplateAssetsContext");
+  const localImages = { first: { bg: { src: "/local-home-bg.png" } } };
+  function LocalHomeProbe() {
+    assert.equal(useLegacyTemplateImages(localImages), localImages);
+    const src = useLegacyAssetUrl(
+      "site",
+      "feature_money",
+      "/landing/money.png",
+    );
+    return <img src={src} alt="local home" />;
+  }
+  // No QueryClientProvider: the normal homepage must not need the asset query.
+  assert.ok(
+    renderToStaticMarkup(
+      <HomepageAssetsProvider>
+        <LocalHomeProbe />
+      </HomepageAssetsProvider>,
+    ).includes('src="/landing/money.png"'),
+  );
   client.clear();
   const route = await import("../src/app/api/project-assets/route");
   assert.equal(typeof route.GET, "function");
@@ -140,7 +160,7 @@ async function main() {
   assert.equal("PUT" in route, false);
   assert.equal("DELETE" in route, false);
   console.log(
-    "Project asset checks passed: public allowlist, private/local exclusion, version ownership, 14 home slots, cached flag isolation and GET-only API.",
+    "Project asset checks passed: public allowlist, private/local exclusion, version ownership, 14 home slots, local homepage without manifest dependency, cached flag isolation and GET-only API.",
   );
 }
 main().catch((error) => {

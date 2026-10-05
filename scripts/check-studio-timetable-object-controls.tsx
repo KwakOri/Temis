@@ -400,12 +400,7 @@ applyRecipes(dateObject, (onUpdateObject) => {
     ...nativeControlProps(dateObject),
     onUpdateObject,
   });
-  const textarea = findAll(
-    element,
-    () => true,
-    "textarea",
-  )[0] as unknown as React.ReactElement<{ onChange: (event: unknown) => void }>;
-  textarea.props.onChange({ currentTarget: { value: "custom one" } });
+  (element as React.ReactElement<{ onApply: (value: { format: string; template: string }) => void }>).props.onApply({ format: "custom", template: "custom one" });
 });
 assert.equal(
   getDateBinding(dateObject).dateRangeTemplate,
@@ -435,12 +430,7 @@ applyRecipes(presetObject, (onUpdateObject) => {
     ...nativeControlProps(presetObject),
     onUpdateObject,
   });
-  const select = findAll(
-    element,
-    () => true,
-    "select",
-  )[0] as unknown as React.ReactElement<{ onChange: (event: unknown) => void }>;
-  select.props.onChange({ currentTarget: { value: "long" } });
+  (element as React.ReactElement<{ onApply: (value: { format: string; template: string }) => void }>).props.onApply({ format: "long", template: STUDIO_WEEK_DATE_FORMAT_PRESETS[0].template });
 });
 assert.equal(getDateBinding(presetObject).dateRangeFormat, "long");
 assert.notEqual(
@@ -449,7 +439,7 @@ assert.notEqual(
   "프리셋을 고르면 그 프리셋의 틀로 바꾼다.",
 );
 
-// 토큰 버튼은 이미 적은 틀 뒤에 붙인다.
+// 블록 편집 모달에서 적용한 틀은 기존 바인딩에 저장한다.
 const tokenObject = createObject({
   presetId: "weekDates",
   binding: { kind: "builtinField", fieldId: "week.date_range" },
@@ -460,12 +450,7 @@ applyRecipes(tokenObject, (onUpdateObject) => {
     ...nativeControlProps(tokenObject),
     onUpdateObject,
   });
-  const tokenButton = findAll(
-    element,
-    (props) => props.type === "button",
-    "button",
-  )[0] as unknown as React.ReactElement<{ onClick: () => void }>;
-  tokenButton.props.onClick();
+  (element as React.ReactElement<{ onApply: (value: { format: string; template: string }) => void }>).props.onApply({ format: "custom", template: "start ${start.YYYY}" });
 });
 assert.ok(
   getDateBinding(tokenObject)
@@ -582,16 +567,11 @@ for (const fieldId of [
     ...nativeControlProps(object),
     onUpdateObject: (recipe) => applyGraphRecipe(object, recipe),
   });
-  const textarea = findAll(
-    element,
-    () => true,
-    "textarea",
-  )[0] as unknown as React.ReactElement<{ onChange: (event: unknown) => void }>;
   const template =
     fieldId === "week.date_range"
       ? "${start.YYYY}/${start.MM}/${start.DD} ~ ${end.MM}/${end.DD}"
       : "${YYYY}/${MM}/${DD}";
-  textarea.props.onChange({ currentTarget: { value: template } });
+  (element as React.ReactElement<{ onApply: (value: { format: string; template: string }) => void }>).props.onApply({ format: "custom", template });
   assert.equal(object.binding?.kind, "builtinField");
   if (object.binding?.kind !== "builtinField")
     throw new Error("Missing date binding");

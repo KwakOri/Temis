@@ -482,7 +482,7 @@ const weekRangeBindingMarkup = markupOf(
 assert.ok(
   weekRangeBindingMarkup.includes("Date Format") &&
     weekRangeBindingMarkup.includes("${start.YYYY}") &&
-    weekRangeBindingMarkup.includes("Split lines"),
+    weekRangeBindingMarkup.includes("두 줄 날짜 범위"),
   "week.date_range 바인딩에는 기간 프리셋과 start/end 토큰이 나타난다.",
 );
 
@@ -501,7 +501,7 @@ const weekStartBindingMarkup = markupOf(
 assert.ok(
   weekStartBindingMarkup.includes("Date Format") &&
     weekStartBindingMarkup.includes("${YYYY}") &&
-    weekStartBindingMarkup.includes("2026.07.01"),
+    weekStartBindingMarkup.includes("연·월·일"),
   "week.start_date 바인딩에는 단일 날짜 프리셋과 토큰이 나타난다.",
 );
 

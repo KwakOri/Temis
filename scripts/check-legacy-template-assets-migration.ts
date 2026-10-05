@@ -69,8 +69,8 @@ try {
   const projectRun = run(["--project-assets", "--all"]);
   assert.equal(projectRun.status, 0, projectRun.stderr);
   const project = JSON.parse(projectRun.stdout);
-  assert.equal(project.selectedTemplates, 98);
-  assert.equal(project.selectedAssets, 111);
+  assert.equal(project.selectedTemplates, 97);
+  assert.equal(project.selectedAssets, 97);
   assert.equal(
     project.templates.filter(
       (item: { purpose: string }) => item.purpose === "cover",
@@ -78,10 +78,10 @@ try {
     97,
   );
   assert.equal(
-    project.templates.find(
+    project.templates.some(
       (item: { purpose: string }) => item.purpose === "site",
-    ).slots,
-    14,
+    ),
+    false,
   );
   const failures = [
     ["--concurrency", "0"],

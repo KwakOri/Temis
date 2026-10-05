@@ -10,6 +10,7 @@ const browser = await chromium.launch({ channel: "chrome", headless: true });
 let phase = "startup",
   proxyCalls = 0,
   draft = null;
+let created = false;
 const errors = [];
 let page;
 try {
@@ -82,8 +83,24 @@ try {
         },
       });
     }
-    if (request.method() === "POST" && url.pathname.endsWith("/templates"))
+    if (url.pathname.endsWith("/templates") && request.method() === "GET") {
+      assert.equal(url.searchParams.get("kind"), "timetable");
+      assert.ok(["team", "personal"].includes(url.searchParams.get("mode")));
+      return route.fulfill({
+        json: {
+          success: true,
+          templates:
+            created && url.searchParams.get("mode") === "team"
+              ? [template]
+              : [],
+        },
+      });
+    }
+    if (request.method() === "POST" && url.pathname.endsWith("/templates")) {
+      assert.equal(request.postDataJSON().templateMode, "team");
+      created = true;
       return route.fulfill({ json: { success: true, template } });
+    }
     if (request.method() === "GET")
       return route.fulfill({
         json: {
@@ -107,7 +124,18 @@ try {
       ? route.fulfill({ body: imageBytes, contentType: "image/png" })
       : route.abort("failed"),
   );
+  phase = "team-list-and-create";
   await page.goto(`${base}/admin/team-timetable-studio`, { timeout: 120000 });
+  await page
+    .getByText("아직 생성된 Team Studio 템플릿이 없습니다.")
+    .first()
+    .waitFor();
+  assert.equal(await page.locator("[data-team-controls]").count(), 0);
+  await page.screenshot({ path: path.join(output, "list-empty.png") });
+  await page.getByRole("link", { name: "새 템플릿", exact: true }).click();
+  await page.getByLabel("이름", { exact: true }).fill(template.name);
+  await page.getByRole("button", { name: "생성 후 편집", exact: true }).click();
+  await page.waitForURL(`${base}/admin/team-timetable-studio/${id}/edit`);
   await page.locator("[data-team-controls]").waitFor({ timeout: 120000 });
   const canvas = page
     .locator("[data-studio-preview-canvas-root] [data-team-generator]")
@@ -305,7 +333,7 @@ try {
   );
   phase = "team-runtime-form";
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto(`${base}/admin/template-studio/${id}/preview`, {
+  await page.goto(`${base}/admin/team-timetable-studio/${id}/preview`, {
     timeout: 120000,
   });
   await page
@@ -335,9 +363,40 @@ try {
     2,
   );
   await page.screenshot({ path: path.join(output, "runtime-desktop.png") });
+  phase = "return-to-team-list";
+  await page.getByRole("link", { name: "뒤로가기", exact: true }).click();
+  await page.locator("[data-team-controls]").waitFor();
+  await page.getByTitle("템플릿 목록으로", { exact: true }).click();
+  await page.waitForURL(`${base}/admin/team-timetable-studio`);
+  await page.getByText(template.name, { exact: true }).first().waitFor();
+  await page.screenshot({ path: path.join(output, "list-desktop.png") });
+  await page
+    .getByRole("button", { name: `${template.name} 작업 메뉴` })
+    .first()
+    .click();
+  assert.equal(
+    await page
+      .getByRole("menuitem", { name: "정보 수정", exact: true })
+      .count(),
+    1,
+  );
+  assert.equal(
+    await page.getByRole("menuitem", { name: "복제", exact: true }).count(),
+    1,
+  );
+  assert.equal(
+    await page.getByRole("menuitem", { name: "삭제", exact: true }).count(),
+    1,
+  );
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: path.join(output, "list-mobile.png") });
+  await page.getByRole("link", { name: "편집", exact: true }).last().click();
+  await page.waitForURL(`${base}/admin/team-timetable-studio/${id}/edit`);
+  await page.locator("[data-team-generator]").first().waitFor();
   assert.deepEqual(errors, []);
   console.log(
-    `PASS actual v8 Team editor: layouts, shared undo/redo/save/reopen/JSON, remote PNG (${pixels.red} red pixels, ${proxyCalls} proxy calls), desktop/mobile, no page errors; API fixture only`,
+    `PASS Team list/create/edit/preview/return, desktop/mobile management, v8 layouts, undo/redo/save/reopen/JSON, remote PNG (${pixels.red} red pixels, ${proxyCalls} proxy calls), no page errors; API fixture only`,
   );
 } catch (error) {
   console.error(`Team browser phase: ${phase}`);

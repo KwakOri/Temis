@@ -14,6 +14,39 @@ import {
   type StudioCommonSettingsModel,
 } from "@/components/studio/settings/studio-common-settings";
 import { cn } from "@/lib/utils";
+import { cva } from "class-variance-authority";
+
+const settingsLayout = cva("flex min-h-0 flex-1", {
+  variants: { compactMobile: { true: "flex-col sm:flex-row", false: "" } },
+});
+const settingsNavigation = cva("", {
+  variants: {
+    compactMobile: {
+      true: "w-full shrink-0 border-b border-[var(--border)] bg-[var(--field)]/15 p-3 sm:w-52 sm:border-b-0 sm:border-r",
+      false:
+        "w-44 shrink-0 border-r border-[var(--border)] bg-[var(--field)]/15 p-3 sm:w-52",
+    },
+  },
+});
+const settingsTabList = cva("", {
+  variants: {
+    compactMobile: {
+      true: "flex gap-1 overflow-x-auto sm:grid",
+      false: "grid gap-1",
+    },
+  },
+});
+const settingsTabSize = cva("", {
+  variants: {
+    compactMobile: { true: "w-auto shrink-0 sm:w-full", false: "w-full" },
+  },
+});
+const settingsTabDescription = cva(
+  "truncate text-[10px] font-semibold text-[var(--fg3)]",
+  {
+    variants: { compactMobile: { true: "hidden sm:block", false: "block" } },
+  },
+);
 
 /** 설정 패널 컨테이너 공통 클래스. */
 export const STUDIO_SETTINGS_PANEL_CLASS =
@@ -50,6 +83,7 @@ export interface StudioSettingsDialogProps {
    * 썸네일 캔버스를 넣는다.
    */
   domainSections?: StudioSettingsSection[];
+  compactMobile?: boolean;
   onClose: () => void;
 }
 
@@ -66,6 +100,7 @@ export function StudioSettingsDialog({
   description,
   common,
   domainSections = [],
+  compactMobile = false,
   onClose,
 }: StudioSettingsDialogProps) {
   const sections = [
@@ -130,13 +165,13 @@ export function StudioSettingsDialog({
           </button>
         </header>
 
-        <div className="flex min-h-0 flex-1">
+        <div className={settingsLayout({ compactMobile })}>
           <nav
             aria-label="Settings categories"
-            className="w-44 shrink-0 border-r border-[var(--border)] bg-[var(--field)]/15 p-3 sm:w-52"
+            className={settingsNavigation({ compactMobile })}
           >
             <div
-              className="grid gap-1"
+              className={settingsTabList({ compactMobile })}
               role="tablist"
               aria-orientation="vertical"
             >
@@ -151,7 +186,8 @@ export function StudioSettingsDialog({
                     aria-controls={`studio-settings-panel-${id}`}
                     aria-selected={activeSectionId === id}
                     className={cn(
-                      "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition",
+                      "flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition",
+                      settingsTabSize({ compactMobile }),
                       activeSectionId === id
                         ? "bg-[var(--sel)] text-[var(--fg)] shadow-[inset_0_0_0_1px_var(--field-border)]"
                         : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
@@ -170,7 +206,9 @@ export function StudioSettingsDialog({
                     />
                     <span className="min-w-0">
                       <span className="block text-xs font-bold">{label}</span>
-                      <span className="block truncate text-[10px] font-semibold text-[var(--fg3)]">
+                      <span
+                        className={settingsTabDescription({ compactMobile })}
+                      >
                         {navDescription}
                       </span>
                     </span>

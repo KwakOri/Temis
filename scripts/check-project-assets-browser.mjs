@@ -143,7 +143,7 @@ try {
     return response.json();
   };
   const list = await get("/api/admin/legacy-template-assets");
-  assert.equal(list.sets.length, 197);
+  assert.equal(list.sets.length, 196);
   assert.ok(list.sets.every((set) => set.mode === "local"));
   const publicResponse = await browser.newContext();
   const publicManifest = await publicResponse.request.get(
@@ -164,11 +164,10 @@ try {
         `/api/admin/legacy-template-assets/timetable/${id}?purpose=runtime`,
       ),
     );
-  const homepage = await get(
-    "/api/admin/legacy-template-assets/site/homepage?purpose=site",
+  const homepage = await context.request.get(
+    `${base}/api/admin/legacy-template-assets/site/homepage?purpose=site`,
   );
-  assert.equal(homepage.set.mode, "local");
-  assert.equal(homepage.versions.length, 14);
+  assert.equal(homepage.status(), 404);
   const cover = await get(
     `/api/admin/legacy-template-assets/timetable/${ids[2]}?purpose=cover`,
   );
@@ -344,7 +343,7 @@ try {
     );
     await page.setViewportSize({ width: 1440, height: 1000 });
   }
-  phase = "public-home-r2-preview";
+  phase = "public-home-local-assets";
   const sets = await db
     .from("legacy_template_asset_sets")
     .select("*")
@@ -391,18 +390,18 @@ try {
       (image) =>
         image.complete &&
         image.naturalWidth > 0 &&
-        image.src.includes("legacy-template-assets/production/"),
+        !image.src.includes("legacy-template-assets/production/"),
     ),
   );
   await home.waitForFunction(
     () =>
       [...document.images].filter((image) =>
-        image.src.includes("/site/homepage/site/"),
-      ).length >= 4,
+        new URL(image.src).pathname.startsWith("/landing/"),
+      ).length >= 3,
   );
   await home.waitForFunction(() =>
     [...document.images]
-      .filter((image) => image.src.includes("/site/homepage/site/"))
+      .filter((image) => new URL(image.src).pathname.startsWith("/landing/"))
       .every((image) => image.complete && image.naturalWidth > 0),
   );
   await home.screenshot({
@@ -415,7 +414,7 @@ try {
     [...document.images].some(
       (image) =>
         image.alt === "Sample" &&
-        image.src.includes("/site/homepage/site/") &&
+        new URL(image.src).pathname === "/landing/sample.png" &&
         image.complete &&
         image.naturalWidth > 0,
     ),
@@ -430,7 +429,7 @@ try {
     ),
     false,
   );
-  assert.equal(manifestRequests, 1, "Homepage duplicated manifest reads");
+  assert.equal(manifestRequests, 0, "Homepage requested an asset manifest");
   await anonymous.close();
   phase = "management-cover-fixture";
   const fixtureFile = path.join(directory, "cover.json");
@@ -529,7 +528,7 @@ try {
       adminSets: after.sets.length,
       heldTemplatePngs: captures,
       publicCovers: 97,
-      homepageSlots: 14,
+      homepageRemoteRemoved: true,
       anonymousHomepage: true,
       manifestRequests,
       fixtureApplied: 1,

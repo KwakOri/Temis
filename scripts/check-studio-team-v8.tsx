@@ -290,8 +290,120 @@ async function serverCheck() {
   assert.deepEqual(published.document.document, document);
   assert.deepEqual(published.document.runtimeValues, values);
   assert.equal(calls[1].p_document_version, 8);
+
+  assert.equal(
+    service.validateTemplateStudioDocumentForPersistence(
+      createStudioTeamDocument(),
+      createStudioInitialRuntimeValues(createStudioTeamDocument()),
+    ).ok,
+    true,
+    "new team templates can persist before entering the editor",
+  );
+  const templateIds = [
+    "personal",
+    "team",
+    "own-team",
+    "own-personal",
+    "other-draft",
+    "empty",
+  ];
+  const records = templateIds.map((id) => ({
+    id,
+    name: id,
+    description: "",
+    status: "draft",
+    template_kind: "timetable",
+    created_by: 1,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }));
+  const publishedModes = [
+    { template_id: "personal", team: null },
+    { template_id: "team", team: "day-columns" },
+    { template_id: "own-team", team: null },
+    { template_id: "own-personal", team: "day-columns" },
+  ];
+  const draftModes = [
+    { template_id: "team", user_id: 2, team: null },
+    { template_id: "own-team", user_id: 1, team: "member-rows" },
+    { template_id: "own-personal", user_id: 1, team: null },
+    { template_id: "other-draft", user_id: 2, team: "day-grid" },
+  ];
+  let modeError = false;
+  const listMock = {
+    from: (table: string) => {
+      const data =
+        table === "templates"
+          ? records
+          : table === "template_studio_documents"
+            ? publishedModes
+            : draftModes;
+      const query = {
+        select: (columns: string) => {
+          if (table !== "templates") {
+            assert.ok(
+              columns.includes(
+                "team:document->domains->timetable->team->layout",
+              ),
+            );
+            assert.ok(!columns.includes("runtime_values"));
+          }
+          return query;
+        },
+        eq: () => query,
+        in: (column: string, ids: string[]) => {
+          assert.equal(column, "template_id");
+          assert.deepEqual(ids, templateIds);
+          return query;
+        },
+        order: () => query,
+        then: (resolve: (result: unknown) => unknown) =>
+          Promise.resolve({
+            data,
+            error:
+              modeError && table === "template_studio_documents"
+                ? { message: "mode lookup failed" }
+                : null,
+          }).then(resolve),
+      };
+      return query;
+    },
+  } as unknown as NonNullable<
+    Parameters<typeof service.listTemplateStudioTemplates>[0]
+  >;
+  const listOptions = { templateKind: "timetable" as const, userId: 1 };
+  assert.deepEqual(
+    (
+      await service.listTemplateStudioTemplates(listMock, {
+        ...listOptions,
+        templateMode: "team",
+      })
+    ).map((item) => item.id),
+    ["team", "own-team", "other-draft"],
+  );
+  assert.deepEqual(
+    (
+      await service.listTemplateStudioTemplates(listMock, {
+        ...listOptions,
+        templateMode: "personal",
+      })
+    ).map((item) => item.id),
+    ["personal", "own-personal", "empty"],
+  );
+  assert.equal(
+    (await service.listTemplateStudioTemplates(listMock)).length,
+    records.length,
+  );
+  modeError = true;
+  await assert.rejects(
+    service.listTemplateStudioTemplates(listMock, {
+      ...listOptions,
+      templateMode: "team",
+    }),
+    /mode lookup failed/,
+  );
   console.log(
-    "PASS Team Studio v8: native graph, 3 layouts, shared render/history/JSON/runtime, schedules, validation and actual persistence with mock DB",
+    "PASS Team Studio v8: graph, layouts, history/JSON/runtime, persistence, team/personal lists with draft precedence and lookup errors",
   );
 }
 serverCheck().catch((error) => {

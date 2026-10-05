@@ -3,7 +3,7 @@
 import BackButton from "@/components/BackButton";
 import ThumbnailCustomOrderForm from "@/components/shop/ThumbnailCustomOrderForm";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAdminOptions } from "@/hooks/query/useAdminOptions";
+import { useCustomOrderIntake } from "@/hooks/query/useCustomOrderIntake";
 import {
   useEstimatedThumbnailCustomOrderDeadline,
   useSubmitThumbnailCustomOrder,
@@ -43,39 +43,37 @@ const thumbnailOrderFeatures = [
 
 export default function ThumbnailCustomOrderPage() {
   const { user } = useAuth();
-  const { data: generalOptions, isLoading: isLoadingOptions } =
-    useAdminOptions("general");
-  const { data: intakeData, isLoading: isLoadingIntake } =
+  const intake = useCustomOrderIntake("thumbnail");
+  const { data: intakeData, isLoading: isLoadingDeadline } =
     useEstimatedThumbnailCustomOrderDeadline(Boolean(user));
   const submitMutation = useSubmitThumbnailCustomOrder();
   const [showOrderForm, setShowOrderForm] = useState(false);
-  const isThumbnailOrderEnabled = generalOptions?.some(
-    (option) => option.value === "custom_thumbnail_orders" && option.is_enabled,
-  );
-  // TODO: 로컬 테스트가 끝나면 임시 override를 제거하거나 false로 바꾸세요.
-  const isLocalIntakeTestOverride = process.env.NODE_ENV === "development";
-  const isIntakeReady = isLocalIntakeTestOverride
-    ? true
-    : user
-      ? Boolean(isThumbnailOrderEnabled && intakeData?.accepting)
-      : Boolean(isThumbnailOrderEnabled);
-  const isCheckingIntake = isLocalIntakeTestOverride
-    ? false
-    : isLoadingOptions || (Boolean(user) && isLoadingIntake);
-  const intakeStatus = isCheckingIntake
-    ? "접수 상태 확인 중"
-    : isIntakeReady
-      ? "신청 가능"
-      : "신청 준비 중";
-  const estimatedDeadlineLabel = isCheckingIntake
-    ? "확인 중..."
-    : formatDisplayDate(intakeData?.estimatedDeadline) ||
-      (user ? "문의 후 안내" : "로그인 후 확인");
+  const [isOpeningForm, setIsOpeningForm] = useState(false);
+  const isIntakeReady = intake.accepting;
+  const isCheckingIntake = intake.isLoading || isOpeningForm;
+  const intakeStatus = intake.status;
+  const estimatedDeadlineLabel =
+    isCheckingIntake || (Boolean(user) && isLoadingDeadline)
+      ? "확인 중..."
+      : formatDisplayDate(intakeData?.estimatedDeadline) ||
+        (user ? "문의 후 안내" : "로그인 후 확인");
 
   const handleOrderSubmit = async (formData: ThumbnailCustomOrderFormData) => {
     await submitMutation.mutateAsync(formData);
     window.alert("맞춤형 썸네일 제작 신청이 완료되었습니다!");
     setShowOrderForm(false);
+  };
+
+  const handleOpenOrderForm = async () => {
+    setIsOpeningForm(true);
+    try {
+      const result = await intake.refetch();
+      if (!result.isError && result.data?.thumbnail.accepting) {
+        setShowOrderForm(true);
+      }
+    } finally {
+      setIsOpeningForm(false);
+    }
   };
 
   if (showOrderForm) {
@@ -168,6 +166,13 @@ export default function ThumbnailCustomOrderPage() {
               신청은 제작 요청 입력, 가격 선택, 입금 안내 확인의 3단계로
               진행됩니다.
             </p>
+            {!isCheckingIntake && !isIntakeReady && (
+              <p className="mt-2" role="status">
+                {intake.isError
+                  ? "접수 상태를 확인하지 못했습니다. 잠시 후 다시 시도해주세요."
+                  : intake.message}
+              </p>
+            )}
           </div>
 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -185,12 +190,12 @@ export default function ThumbnailCustomOrderPage() {
                 disabled
                 className="w-full cursor-not-allowed rounded-lg bg-slate-300 px-6 py-3 font-semibold text-slate-500 sm:w-auto"
               >
-                신청 준비 중
+                {intakeStatus}
               </button>
             ) : user ? (
               <button
                 type="button"
-                onClick={() => setShowOrderForm(true)}
+                onClick={handleOpenOrderForm}
                 className="w-full rounded-lg bg-secondary px-6 py-3 font-semibold text-white transition-colors hover:bg-secondary/90 sm:w-auto"
               >
                 제작 신청하기

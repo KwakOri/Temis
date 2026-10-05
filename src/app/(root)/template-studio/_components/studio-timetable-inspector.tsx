@@ -11,6 +11,7 @@ import {
 } from "@/components/studio/inspector/studio-inspector-fields";
 import type {
   StudioInputDefinition,
+  StudioRuntimeValues,
   StudioTemplateDocument,
   StudioTimetableComponentDefinition,
   StudioTimetableDayCardsLayout,
@@ -18,6 +19,7 @@ import type {
   StudioTimetableRuntimeEntry,
 } from "@/types/template-studio";
 import { getStudioInputScopeLabel } from "@/utils/template-studio/input-scope";
+import type { StudioRuntimeContext } from "@/utils/template-studio/input-values";
 import { applyStudioObjectHidden } from "@/utils/template-studio/object-style";
 import type { StudioTimetableGraphRecipe } from "@/utils/template-studio/timetable-graph-commands";
 import type { StudioAssetSlotKind } from "@/utils/template-studio/timetable-asset-slot-specs";
@@ -69,6 +71,8 @@ export interface StudioTimetableInspectorModel {
   selectedLayerRotation: number;
   /** 폰트 굵기 후보를 찾는 데 쓴다. */
   document: StudioTemplateDocument;
+  runtimeValues?: StudioRuntimeValues;
+  runtimeContext?: StudioRuntimeContext;
   fontFamilies: string[];
   /** 요일에 붙일 수 있는 Component Set 목록. */
   componentOptions: StudioTimetableComponentDefinition[];
@@ -156,6 +160,8 @@ export const buildStudioTimetableInspectorSections = ({
   layerGeometry,
   selectedLayerRotation,
   document,
+  runtimeValues,
+  runtimeContext,
   fontFamilies,
   componentOptions,
   getEntryCardSize,
@@ -386,12 +392,15 @@ export const buildStudioTimetableInspectorSections = ({
                   <StudioDayLabelFormatField
                     fieldId={textObject.binding.fieldId}
                     value={textObject.binding.dayLabelFormat}
-                    onChange={(dayLabelFormat) =>
+                    template={textObject.binding.dayLabelTemplate}
+                    day={day ?? (runtimeContext?.dayId ? document.domains?.timetable?.days[runtimeContext.dayId] : undefined)}
+                    onChange={(dayLabelFormat, dayLabelTemplate) =>
                       onUpdateObject(textObject.id, ({ node: target }) => {
                         if (target.binding?.kind !== "builtinField") return;
 
                         applyStudioBindingFormatPatch(target, {
                           dayLabelFormat,
+                          dayLabelTemplate,
                         });
                       })
                     }
@@ -400,6 +409,9 @@ export const buildStudioTimetableInspectorSections = ({
                 {formatBinding?.kind === "builtinField" && textObject ? (
                   <StudioBuiltinFieldFormatControls
                     binding={formatBinding}
+                    document={document}
+                    runtimeValues={runtimeValues}
+                    context={day ? { ...runtimeContext, dayId: day.id } : runtimeContext}
                     onChange={(patch) =>
                       onUpdateObject(textObject.id, ({ node: target }) => {
                         applyStudioBindingFormatPatch(target, patch);

@@ -13,13 +13,21 @@ import { TemplateStudioRuntimeService } from "@/services/templateStudioRuntimeSe
 import type {
   StudioRuntimeValues,
   StudioTemplateKind,
+  StudioTimetableTemplateMode,
 } from "@/types/template-studio";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-export const useTemplateStudioTemplates = (templateKind?: StudioTemplateKind) =>
+export const useTemplateStudioTemplates = (
+  templateKind?: StudioTemplateKind,
+  templateMode?: StudioTimetableTemplateMode,
+) =>
   useQuery({
-    queryKey: queryKeys.admin.templateStudioTemplates(templateKind),
-    queryFn: () => TemplateStudioService.listTemplates(templateKind),
+    queryKey: queryKeys.admin.templateStudioTemplates(
+      templateKind,
+      templateMode,
+    ),
+    queryFn: () =>
+      TemplateStudioService.listTemplates(templateKind, templateMode),
     staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
   });
@@ -122,6 +130,9 @@ export const useSaveTemplateStudioDraft = () => {
       payload: TemplateStudioSaveDraftPayload;
     }) => TemplateStudioService.saveDraft(templateId, payload),
     onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.templateStudioTemplates(),
+      });
       queryClient.invalidateQueries({
         queryKey: queryKeys.admin.templateStudioTemplate(variables.templateId),
       });

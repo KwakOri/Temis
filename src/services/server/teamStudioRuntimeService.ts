@@ -6,9 +6,17 @@ import type {
   TeamStudioWeek,
 } from "@/types/team-studio-runtime";
 import type { StudioTemplateDocument } from "@/types/template-studio";
-import { normalizeTeamTimeTableData } from "@/types/team-timetable";
 import { isTeamStudioMonday } from "@/utils/template-studio/team-runtime";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
+
+import {
+  TEAM_STUDIO_UUID as UUID,
+  TeamStudioRuntimeError,
+  readTeamStudioConnection,
+  readTeamStudioTeamWeek,
+  isMissingTeamStudioConnections,
+} from "./teamStudioDataService";
+export { TeamStudioRuntimeError } from "./teamStudioDataService";
 
 type Actor = Pick<JWTPayload, "userId" | "role" | "email">;
 type Dependencies = {
@@ -25,16 +33,6 @@ type Dependencies = {
     publishedRevisionNo: number | null;
   } | null>;
 };
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-export class TeamStudioRuntimeError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
-
 export function createTeamStudioRuntimeService(deps: Dependencies) {
   return {
     async options(actor: Actor): Promise<TeamStudioOptions> {
@@ -122,14 +120,35 @@ export function createTeamStudioRuntimeService(deps: Dependencies) {
             : [];
         }),
       );
+      const connections = await deps.db
+        .from("team_studio_connections")
+        .select("template_id, team_id")
+        .in(
+          "template_id",
+          templates.data.map((row) => row.id),
+        );
+      if (
+        connections.error &&
+        !isMissingTeamStudioConnections(connections.error)
+      )
+        throw connections.error;
+      const connectedTeams = new Map(
+        (connections.data ?? []).map((row) => [row.template_id, row.team_id]),
+      );
+      const availableTeams = new Set((teams.data ?? []).map((row) => row.id));
       return {
         templates: templates.data.flatMap((row) =>
-          counts.has(row.id)
+          counts.has(row.id) &&
+          (!connectedTeams.has(row.id) ||
+            availableTeams.has(connectedTeams.get(row.id)!))
             ? [
                 {
                   id: row.id,
                   name: row.name,
                   memberSlotCount: counts.get(row.id)!,
+                  ...(connectedTeams.has(row.id)
+                    ? { connectedTeamId: connectedTeams.get(row.id)! }
+                    : {}),
                 },
               ]
             : [],
@@ -151,7 +170,7 @@ export function createTeamStudioRuntimeService(deps: Dependencies) {
         throw new TeamStudioRuntimeError(400, "유효하지 않은 사용자입니다.");
       if (
         !UUID.test(templateId) ||
-        !UUID.test(teamId) ||
+        (teamId !== "" && !UUID.test(teamId)) ||
         !isTeamStudioMonday(weekStartDate)
       )
         throw new TeamStudioRuntimeError(
@@ -161,6 +180,17 @@ export function createTeamStudioRuntimeService(deps: Dependencies) {
       const access = await deps.entitlement(templateId, actor);
       if (!access.hasAccess)
         throw new TeamStudioRuntimeError(403, "접근 권한이 없습니다.");
+      const connection = await readTeamStudioConnection(deps.db, templateId);
+      if (connection) {
+        if (teamId && teamId !== connection.teamId)
+          throw new TeamStudioRuntimeError(
+            403,
+            "이 템플릿에 연결된 팀을 선택해 주세요.",
+          );
+        teamId = connection.teamId;
+      }
+      if (!UUID.test(teamId))
+        throw new TeamStudioRuntimeError(400, "팀을 선택해 주세요.");
       if (!access.isAdmin) {
         const membership = await deps.db
           .from("team_members")
@@ -195,73 +225,13 @@ export function createTeamStudioRuntimeService(deps: Dependencies) {
           422,
           "팀 템플릿 문서가 유효하지 않습니다.",
         );
-      const team = await deps.db
-        .from("teams")
-        .select("id, name")
-        .eq("id", teamId)
-        .eq("is_active", true)
-        .maybeSingle();
-      if (team.error) throw team.error;
-      if (!team.data)
-        throw new TeamStudioRuntimeError(404, "활성 팀을 찾을 수 없습니다.");
-      const memberRows = await deps.db
-        .from("team_members")
-        .select("user_id, users(id, name)")
-        .eq("team_id", teamId)
-        .order("created_at")
-        .order("user_id")
-        .limit(201);
-      if (memberRows.error) throw memberRows.error;
-      if ((memberRows.data?.length ?? 0) > 200)
-        throw new TeamStudioRuntimeError(
-          422,
-          "팀 멤버 수가 조회 한도를 초과합니다.",
-        );
-      const members = (memberRows.data ?? []).flatMap((row) =>
-        row.users ? [{ userId: row.user_id, name: row.users.name }] : [],
-      );
-      const scheduleRows = members.length
-        ? await deps.db
-            .from("team_schedules")
-            .select(
-              "id, user_id, week_start_date, schedule_data, created_at, updated_at",
-            )
-            .in(
-              "user_id",
-              members.map((row) => row.userId),
-            )
-            .eq("week_start_date", weekStartDate)
-        : { data: [], error: null };
-      if (scheduleRows.error) throw scheduleRows.error;
-      const byUser = new Map(
-        (scheduleRows.data ?? []).map((row) => [row.user_id, row]),
-      );
+      const week = await readTeamStudioTeamWeek(deps.db, teamId, weekStartDate);
       return {
+        ...week,
         template: { id: templateId, name: template.name },
-        team: team.data,
         document: published.document,
         revisionNo: published.publishedRevisionNo,
-        weekStartDate,
-        members,
-        schedules: members.map((member) => {
-          const row = byUser.get(member.userId);
-          const data = normalizeTeamTimeTableData(row?.schedule_data);
-          return {
-            user_id: member.userId,
-            success: Boolean(row && data),
-            schedule:
-              row && data
-                ? {
-                    id: row.id,
-                    user_id: row.user_id,
-                    week_start_date: row.week_start_date,
-                    created_at: row.created_at,
-                    updated_at: row.updated_at,
-                    schedule_data: data,
-                  }
-                : null,
-          };
-        }),
+        connection,
       };
     },
   };

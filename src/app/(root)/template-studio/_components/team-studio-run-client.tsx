@@ -30,17 +30,26 @@ export function TeamStudioRunClient({
     Record<string, Record<string, number>>
   >({});
   const [images, setImages] = useState<Record<number, string>>({});
-  const teamId = selectedTeam || options.data?.teams[0]?.id || "";
   const chosenTemplate = templateId || options.data?.templates[0]?.id || "";
+  const configuredTeamId = options.data?.templates.find(
+    (item) => item.id === chosenTemplate,
+  )?.connectedTeamId;
+  const teamId =
+    configuredTeamId || selectedTeam || options.data?.teams[0]?.id || "";
   const result = useTeamStudioWeek(chosenTemplate, teamId, week);
   const data = result.data;
   const context = `${chosenTemplate}:${teamId}`;
   const defaults = useMemo(
     () =>
-      data ? getDefaultTeamStudioBindings(data.document, data.members) : {},
+      data
+        ? (data.connection?.memberBindings ??
+          getDefaultTeamStudioBindings(data.document, data.members))
+        : {},
     [data],
   );
-  const bindings = bindingsByContext[context] ?? defaults;
+  const bindings = data?.connection
+    ? defaults
+    : (bindingsByContext[context] ?? defaults);
   const connected = useMemo(
     () =>
       data ? createConnectedTeamStudioValues(data, bindings, images) : null,
@@ -89,6 +98,7 @@ export function TeamStudioRunClient({
             aria-label="실제 팀"
             className={field}
             value={teamId}
+            disabled={Boolean(configuredTeamId || data?.connection)}
             onChange={(event) => setSelectedTeam(event.target.value)}
           >
             <option value="" disabled>
@@ -101,6 +111,11 @@ export function TeamStudioRunClient({
             ))}
           </select>
         </label>
+        {data?.connection && (
+          <p className="text-xs">
+            에디터에서 저장한 팀과 멤버 배치를 사용합니다.
+          </p>
+        )}
         <label className="grid gap-1 text-xs">
           주 시작일
           <input
@@ -160,6 +175,7 @@ export function TeamStudioRunClient({
                     aria-label={`멤버 슬롯 ${index + 1}`}
                     className={field}
                     value={bindings[slot] ?? ""}
+                    disabled={Boolean(data.connection)}
                     onChange={(event) => {
                       const id = Number(event.target.value),
                         next = { ...bindings };

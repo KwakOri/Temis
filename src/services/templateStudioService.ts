@@ -10,6 +10,7 @@ import type {
   StudioRuntimeValues,
   StudioTemplateDocument,
   StudioTemplateKind,
+  StudioTimetableTemplateMode,
 } from "@/types/template-studio";
 import type {
   StudioFigmaAnalyzeResponse,
@@ -34,6 +35,7 @@ export interface TemplateStudioCreateTemplatePayload {
   description?: string;
   templateKind?: StudioTemplateKind;
   canvasPresetId?: string;
+  templateMode?: StudioTimetableTemplateMode;
 }
 
 export interface TemplateStudioCreateTemplateResponse {
@@ -294,8 +296,12 @@ export class TemplateStudioService {
 
   static async listTemplates(
     templateKind?: StudioTemplateKind,
+    templateMode?: StudioTimetableTemplateMode,
   ): Promise<TemplateStudioTemplateListResponse> {
-    const query = templateKind ? `?kind=${templateKind}` : "";
+    const params = new URLSearchParams();
+    if (templateKind) params.set("kind", templateKind);
+    if (templateMode) params.set("mode", templateMode);
+    const query = params.size ? `?${params}` : "";
     const response = await fetch(`${this.baseUrl}${query}`);
     return parseJsonResponse<TemplateStudioTemplateListResponse>(
       response,

@@ -45,6 +45,12 @@ async function main() {
     published = true,
     revision: number | null = 1,
     source = document;
+  let missingConnectionStorage = false;
+  let connection: {
+    template_id: string;
+    team_id: string;
+    member_bindings: Record<string, number>;
+  } | null = null;
   const days = Array.from({ length: 7 }, (_, day) => ({
     day,
     isOffline: day === 1,
@@ -64,6 +70,10 @@ async function main() {
         events.push(event);
         const result = () => {
           let data: unknown[] = [];
+          if (table === "team_studio_connections" && missingConnectionStorage)
+            return { data, error: { code: "PGRST205" } };
+          if (table === "team_studio_connections")
+            data = connection ? [connection] : [];
           if (table === "template_access") data = [{ template_id: id }];
           if (table === "template_artists") data = [];
           if (table === "templates")
@@ -220,6 +230,55 @@ async function main() {
   const options = await service.options(actor);
   assert.equal(options.templates[0].memberSlotCount, 3);
   assert.equal(options.teams[0].id, teamId);
+  missingConnectionStorage = true;
+  assert.equal((await service.options(actor)).templates[0].id, id);
+  assert.equal(
+    (await service.week(actor, id, teamId, "2026-09-21")).connection,
+    null,
+  );
+  missingConnectionStorage = false;
+  connection = {
+    template_id: id,
+    team_id: teamId,
+    member_bindings: { "member-a": 9, "member-b": 7, "member-c": 8 },
+  };
+  assert.equal(
+    (await service.options(actor)).templates[0].connectedTeamId,
+    teamId,
+  );
+  const configuredWeek = await service.week(actor, id, "", "2026-09-21");
+  assert.equal(
+    configuredWeek.team.id,
+    teamId,
+    "saved team is resolved without a client team ID",
+  );
+  assert.deepEqual(
+    configuredWeek.connection?.memberBindings,
+    connection.member_bindings,
+  );
+  const beforeMismatch = events.filter(
+    (event) => event.table === "team_schedules",
+  ).length;
+  await fail(
+    403,
+    service.week(
+      actor,
+      id,
+      "00000000-0000-4000-8000-000000000010",
+      "2026-09-21",
+    ),
+  );
+  assert.equal(
+    events.filter((event) => event.table === "team_schedules").length,
+    beforeMismatch,
+  );
+  connection.team_id = "00000000-0000-4000-8000-000000000010";
+  assert.equal(
+    (await service.options(actor)).templates.length,
+    0,
+    "do not list templates assigned to another team",
+  );
+  connection = null;
   const week = await service.week(actor, id, teamId, "2026-09-21");
   assert.equal(week.members.length, 4);
   assert.equal(week.schedules[1].success, false);

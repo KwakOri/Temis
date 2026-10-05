@@ -1,7 +1,7 @@
 "use client";
 
 import BackButton from "@/components/BackButton";
-import { useAdminOptions } from "@/hooks/query/useAdminOptions";
+import { useCustomOrderIntake } from "@/hooks/query/useCustomOrderIntake";
 import { ArrowRight, ImageIcon, Palette } from "lucide-react";
 import Link from "next/link";
 
@@ -50,24 +50,8 @@ function CustomOrderChoice({
 }
 
 export default function CustomOrderSelectionPage() {
-  const { data: generalOptions, isLoading } = useAdminOptions("general");
-  const isTimetableOrderEnabled = generalOptions?.some(
-    (option) => option.value === "custom_timetable_orders" && option.is_enabled,
-  );
-  const isThumbnailOrderEnabled = generalOptions?.some(
-    (option) => option.value === "custom_thumbnail_orders" && option.is_enabled,
-  );
-
-  const timetableStatus = isLoading
-    ? "확인 중"
-    : isTimetableOrderEnabled
-      ? "신청 가능"
-      : "접수 마감";
-  const thumbnailStatus = isLoading
-    ? "확인 중"
-    : isThumbnailOrderEnabled
-      ? "신청 가능"
-      : "접수 마감";
+  const timetableIntake = useCustomOrderIntake("timetable");
+  const thumbnailIntake = useCustomOrderIntake("thumbnail");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-light via-timetable-card-bg to-tertiary px-4 py-6 sm:px-6 md:py-12 lg:px-8">
@@ -92,13 +76,11 @@ export default function CustomOrderSelectionPage() {
               href="/custom-order/timetable"
               title="맞춤형 시간표"
               description="나만의 디자인과 방송 정보를 담은 시간표를 제작합니다."
-              status={timetableStatus}
+              status={timetableIntake.status}
               statusClassName={
-                isLoading
-                  ? "bg-slate-100 text-slate-600"
-                  : isTimetableOrderEnabled
-                    ? "bg-primary/10 text-primary"
-                    : "bg-slate-100 text-slate-600"
+                timetableIntake.accepting
+                  ? "bg-primary/10 text-primary"
+                  : "bg-slate-100 text-slate-600"
               }
               icon={<Palette className="h-7 w-7" />}
             />
@@ -106,13 +88,11 @@ export default function CustomOrderSelectionPage() {
               href="/custom-order/thumbnail"
               title="맞춤형 썸네일"
               description="나만의 디자인을 담은 미리보기 썸네일를 제작합니다."
-              status={thumbnailStatus}
+              status={thumbnailIntake.status}
               statusClassName={
-                isLoading
-                  ? "bg-slate-100 text-slate-600"
-                  : isThumbnailOrderEnabled
-                    ? "bg-secondary/10 text-secondary"
-                    : "bg-slate-100 text-slate-600"
+                thumbnailIntake.accepting
+                  ? "bg-secondary/10 text-secondary"
+                  : "bg-slate-100 text-slate-600"
               }
               icon={<ImageIcon className="h-7 w-7" />}
             />
