@@ -45,6 +45,7 @@ export interface InventoryAsset {
   width: number | null;
   height: number | null;
   readError: boolean;
+  sourceRemoved?: boolean;
 }
 export interface InventoryTemplate {
   ownerKind: OwnerKind;
@@ -71,6 +72,8 @@ export interface LegacyAssetInventory {
     templates: number;
     slots: number;
     templateImageFiles: number;
+    removedTemplateImageFiles: number;
+    removedTemplateBytes: number;
     projectImageFiles: number;
     templateBytes: number;
     unboundTemplateImages: number;
@@ -145,10 +148,31 @@ export function createLegacyAssetInventory(
   const sizeOf = requireFromProject("next/dist/compiled/image-size") as (
     bytes: Buffer,
   ) => { width?: number; height?: number };
+  const archivePath = path.join(
+    rootDir,
+    "scripts/data/legacy-template-removed-sources.json",
+  );
+  const archivedTemplates: Array<
+    Pick<InventoryTemplate, "ownerKind" | "templateId" | "assets">
+  > = existsSync(archivePath)
+    ? JSON.parse(readFileSync(archivePath, "utf8"))
+    : [];
+  const archivedAssets = new Map(
+    archivedTemplates
+      .flatMap((template) => template.assets)
+      .map((asset) => [asset.file, asset]),
+  );
+  const removedSourceFiles = new Set<string>();
   const assetCache = new Map<string, InventoryAsset>();
   const asset = (file: string): InventoryAsset => {
     const cached = assetCache.get(file);
     if (cached) return cached;
+    const archived = archivedAssets.get(relative(file));
+    if (!existsSync(file) && archived && removedSourceFiles.has(file)) {
+      const removed = { ...archived, exists: false, sourceRemoved: true };
+      assetCache.set(file, removed);
+      return removed;
+    }
     const extension = path.extname(file).slice(1).toLowerCase();
     const result: InventoryAsset = {
       assetId: sha256(relative(file)),
@@ -260,6 +284,58 @@ export function createLegacyAssetInventory(
             imported.set(statement.importClause.name.text, file);
           }
         }
+        // Converted declarations retain the original path-based IDs and slot keys.
+        const archivedTemplate = archivedTemplates.find(
+          (item) =>
+            item.ownerKind === ownerKind && item.templateId === entry.name,
+        );
+        for (const statement of source.statements) {
+          if (!ts.isVariableStatement(statement)) continue;
+          for (const declaration of statement.declarationList.declarations) {
+            const call = declaration.initializer;
+            if (
+              !ts.isIdentifier(declaration.name) ||
+              !call ||
+              !ts.isCallExpression(call) ||
+              !ts.isIdentifier(call.expression) ||
+              call.expression.text !== "legacyR2ImageSlot"
+            )
+              continue;
+            const id = call.arguments[0];
+            if (!id || !ts.isStringLiteral(id)) continue;
+            const original = archivedTemplate?.assets.find(
+              (item) => item.assetId === id.text,
+            );
+            if (original)
+              imported.set(
+                declaration.name.text,
+                path.join(rootDir, original.file),
+              );
+          }
+        }
+        const convertedSource =
+          imported.size > 0 &&
+          source.statements.some(
+            (node) =>
+              ts.isVariableStatement(node) &&
+              node.declarationList.declarations.some(
+                (declaration) =>
+                  declaration.initializer &&
+                  ts.isCallExpression(declaration.initializer) &&
+                  declaration.initializer.expression.getText(source) ===
+                    "legacyR2ImageSlot",
+              ),
+          ) &&
+          !source.statements.some(
+            (node) =>
+              ts.isImportDeclaration(node) &&
+              ts.isStringLiteral(node.moduleSpecifier) &&
+              IMAGE_PATTERN.test(node.moduleSpecifier.text),
+          );
+        if (convertedSource) {
+          for (const original of archivedTemplate?.assets ?? [])
+            removedSourceFiles.add(path.join(rootDir, original.file));
+        }
         let found = false;
         const visit = (node: ts.Node): void => {
           if (
@@ -331,10 +407,20 @@ export function createLegacyAssetInventory(
       const images = new Set([
         ...files.filter((file) => IMAGE_PATTERN.test(file)),
         ...imported.values(),
+        ...(imported.size &&
+        readFileSync(manifest, "utf8").includes("legacyR2ImageSlot")
+          ? (
+              archivedTemplates.find(
+                (item) =>
+                  item.ownerKind === ownerKind &&
+                  item.templateId === entry.name,
+              )?.assets ?? []
+            ).map((item) => path.join(rootDir, item.file))
+          : []),
       ]);
       template.assets = [...images].sort().map(asset);
       for (const image of template.assets) {
-        if (!image.exists)
+        if (!image.exists && !image.sourceRemoved)
           issue(
             "MISSING_IMAGE",
             path.join(rootDir, image.file),
@@ -462,7 +548,7 @@ export function createLegacyAssetInventory(
     }));
   const allAssets = templates
     .flatMap((template) => template.assets)
-    .filter((image) => image.exists);
+    .filter((image) => image.exists || image.sourceRemoved);
   return {
     schemaVersion: 1,
     templates,
@@ -479,6 +565,12 @@ export function createLegacyAssetInventory(
         0,
       ),
       templateImageFiles: allAssets.length,
+      removedTemplateImageFiles: allAssets.filter(
+        (image) => image.sourceRemoved,
+      ).length,
+      removedTemplateBytes: allAssets
+        .filter((image) => image.sourceRemoved)
+        .reduce((sum, image) => sum + image.byteSize, 0),
       projectImageFiles: projectAssets.length,
       templateBytes: allAssets.reduce((sum, image) => sum + image.byteSize, 0),
       unboundTemplateImages: templates.reduce(

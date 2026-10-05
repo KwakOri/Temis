@@ -16,6 +16,8 @@ import {
   validateLegacyAssetBindings,
 } from "@/utils/legacy-template-assets/contracts";
 
+import { requiresLegacyAssetR2 } from "@/utils/legacy-template-assets/source-policy";
+
 // The checked-in generated DB types predate this migration, as with Studio persistence.
 export const legacyAssetDb =
   supabaseAdminServer as unknown as TemplateStudioPersistenceClient;
@@ -178,6 +180,16 @@ export function buildLegacyAssetRuntime(
   const revision = detail.revisions.find(
     (item) => item.id === detail.set.active_revision_id,
   );
+  if (
+    !bindings &&
+    detail.set.mode === "local" &&
+    requiresLegacyAssetR2(detail.set)
+  ) {
+    throw new LegacyAssetError(
+      "로컬 원본이 제거된 템플릿입니다. R2 적용 상태를 확인해 주세요.",
+      503,
+    );
+  }
   if (!bindings && detail.set.mode === "local")
     return {
       mode: "local",
@@ -240,6 +252,12 @@ export async function applyLegacyAssetRevision(
   note: string,
   mode: "local" | "r2" = "r2",
 ): Promise<string> {
+  if (mode === "local" && requiresLegacyAssetR2(detail.set)) {
+    throw new LegacyAssetError(
+      "로컬 원본이 제거된 템플릿은 로컬 모드로 전환할 수 없습니다.",
+      409,
+    );
+  }
   if (expectedRevisionId !== detail.set.active_revision_id)
     throw new LegacyAssetError(
       "다른 변경이 적용되었습니다. 새로고침해 주세요.",

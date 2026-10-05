@@ -119,6 +119,29 @@ try {
     ),
   );
 
+  // An archive must not hide an accidental missing file behind a static import.
+  write(
+    "scripts/data/legacy-template-removed-sources.json",
+    JSON.stringify([template]),
+  );
+  rmSync(path.join(fixture, `${directory}/_img/main/frame.PNG`));
+  write(
+    `${directory}/_img/imgs.ts`,
+    'import frame from "./main/frame.PNG"; export const Imgs = { first: { frame } };',
+  );
+  const missingOriginal = createLegacyAssetInventory(fixture, options)
+    .templates[0];
+  assert.ok(
+    missingOriginal.issues.some((issue) => issue.code === "MISSING_IMAGE"),
+  );
+  assert.equal(
+    missingOriginal.assets.find(
+      (asset) => asset.originalFilename === "frame.PNG",
+    )?.sourceRemoved,
+    undefined,
+  );
+  write(`${directory}/_img/main/frame.PNG`, png);
+
   write(`${directory}/_img/main/broken.png`, "not an image");
   write(
     `${directory}/_img/imgs.ts`,

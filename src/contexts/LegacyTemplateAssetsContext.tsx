@@ -20,6 +20,11 @@ import type {
 } from "@/types/legacy-template-assets";
 import { parseLegacyAssetOwner } from "@/utils/legacy-template-assets/contracts";
 
+import {
+  requiresLegacyAssetR2,
+  resolveLegacyTemplateImages,
+} from "@/utils/legacy-template-assets/source-policy";
+
 const Context = createContext<LegacyAssetRuntime | null>(null);
 export function HomepageAssetsProvider({ children }: PropsWithChildren) {
   const [preview, setPreview] = useState(false);
@@ -78,7 +83,9 @@ export function LegacyTemplateAssetsProvider({
       }
     }
   }, []);
-  const enabled = process.env.NEXT_PUBLIC_LEGACY_TEMPLATE_R2_ENABLED === "true";
+  const r2Only = requiresLegacyAssetR2(owner);
+  const enabled =
+    r2Only || process.env.NEXT_PUBLIC_LEGACY_TEMPLATE_R2_ENABLED === "true";
   const runtime = useLegacyAssetRuntime(owner, enabled && !changes);
   const preview = useLegacyAssetPreview(owner, changes);
   if (loading && (enabled || changes))
@@ -113,31 +120,23 @@ export function LegacyTemplateAssetsProvider({
         이미지 불러오는 중...
       </p>
     );
+  if (r2Only && query.data?.mode !== "r2") {
+    return (
+      <p role="alert" className="p-5 text-red-700">
+        등록된 R2 이미지를 불러오지 못했습니다.
+      </p>
+    );
+  }
   return (
     <Context.Provider value={query.data ?? null}>{children}</Context.Provider>
   );
 }
 export function useLegacyTemplateImages<T>(localImages: T): T {
   const runtime = useContext(Context);
-  return useMemo(() => {
-    if (!runtime || runtime.mode === "local") return localImages;
-    return Object.fromEntries(
-      Object.entries(runtime.images).map(([theme, slots]) => [
-        theme,
-        Object.fromEntries(
-          Object.entries(slots).map(([key, image]) => [
-            key,
-            {
-              ...(localImages as Record<string, Record<string, object>>)[
-                theme
-              ]?.[key],
-              ...image,
-            },
-          ]),
-        ),
-      ]),
-    ) as T;
-  }, [localImages, runtime]);
+  return useMemo(
+    () => resolveLegacyTemplateImages(localImages, runtime),
+    [localImages, runtime],
+  );
 }
 export function useLegacyAssetUrl(
   theme: string,

@@ -282,3 +282,11 @@ npm run check:project-assets:browser -- --allow-read-only-production \
 - 실제 삭제 결과와 사전 대상 snapshot은 `output/analysis/2026-10-05/homepage-remote-removal-{plan,result}.json`에 저장했다.
 
 위의 197개 세트·1,038개 버전 및 홈 이관 기록은 삭제 전 이력이다. 일반 홈은 프로젝트 원본을 사용하는 기존 정책을 유지한다. 홈페이지 전용 schema/API의 호환 계약은 이번 작업에서 제거하지 않았다.
+
+## 템플릿 내부 원본 제거 (2026-10-05 JST)
+
+복구 기준 `874232d2`에서 별도 `codex/r2-template-source-removal` 워크트리를 생성했다.
+99개 runtime 템플릿의 정적 import를 메타데이터 선언으로 전환한 뒤 원본 927개를 제거했다.
+홈·대표 썸네일·아이콘은 유지하며, 운영 DB/R2 변경 및 배포는 실행하지 않았다.
+R2 존재/크기, 99개 실제 runtime API/999개 슬롯, 일반·팀·썸네일 4종의 기존/새 PNG 픽셀 일치를 확인했다.
+검증 범위와 배포 전 확인·복구 절차는 [원본 제거 기록](./legacy-template-local-source-removal.md)을 참고한다.

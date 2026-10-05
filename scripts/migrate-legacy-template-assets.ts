@@ -169,6 +169,15 @@ async function main() {
     );
     return;
   }
+  if (
+    templates.some((template) =>
+      template.assets.some((asset) => asset.sourceRemoved),
+    )
+  ) {
+    throw new Error(
+      "로컬 원본이 제거된 템플릿은 재이관할 수 없습니다. 원본을 복구하거나 관리자 이미지 교체를 사용해 주세요.",
+    );
+  }
   if (args.includes("--env-dir"))
     loadEnvConfig(path.resolve(value("--env-dir")), true, {
       info: () => {},

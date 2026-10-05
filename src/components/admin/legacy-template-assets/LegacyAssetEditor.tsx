@@ -24,6 +24,7 @@ import type {
   LegacyAssetOwner,
 } from "@/types/legacy-template-assets";
 import { ownerLabels, purposeLabels } from "./LegacyAssetList";
+import { requiresLegacyAssetR2 } from "@/utils/legacy-template-assets/source-policy";
 
 const button = cva(
   "inline-flex items-center justify-center gap-2 rounded border px-3 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed",
@@ -92,6 +93,7 @@ function Editor({
   );
   const versions = new Map(detail.versions.map((item) => [item.id, item]));
   const busy = Object.values(mutations).some((mutation) => mutation.isPending);
+  const r2Only = requiresLegacyAssetR2(owner);
   const slots = Object.entries(detail.set.expected_slots).flatMap(
     ([slotTheme, keys]) =>
       keys.map((key) => ({
@@ -213,7 +215,17 @@ function Editor({
           <input
             type="checkbox"
             checked={detail.set.mode === "r2"}
-            disabled={busy || !!changes.length || !revision}
+            title={
+              r2Only
+                ? "로컬 원본이 제거되어 R2 이미지를 사용합니다."
+                : undefined
+            }
+            disabled={
+              busy ||
+              !!changes.length ||
+              !revision ||
+              (r2Only && detail.set.mode === "r2")
+            }
             onChange={(event) => {
               const mode = event.target.checked ? "r2" : "local";
               void perform(() =>

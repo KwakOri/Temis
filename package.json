@@ -26,6 +26,8 @@
     "start": "next start",
     "lint": "next lint",
     "inventory:legacy-assets": "node --import tsx scripts/inventory-legacy-template-assets.ts",
+    "check:legacy-assets:source-removal": "node --import tsx scripts/check-legacy-template-source-removal.ts",
+    "check:legacy-assets:source-removal:browser": "node scripts/check-legacy-template-source-removal-browser.mjs",
     "check:legacy-assets:inventory": "node --import tsx scripts/check-legacy-template-asset-inventory.ts",
     "check:legacy-assets:migration": "node --import tsx scripts/check-legacy-template-assets-migration.ts",
     "check:legacy-assets:held-cleanup": "node --import tsx scripts/check-legacy-template-held-cleanup.ts",
