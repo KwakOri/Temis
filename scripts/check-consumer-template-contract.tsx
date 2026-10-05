@@ -128,8 +128,24 @@ for (const invalid of [
   );
 }
 
+const coverClient = new QueryClient();
+const coverUrl = "https://assets.example.test/legacy-cover.png";
+coverClient.setQueryData(
+  ["legacy-template-assets", "public-project-manifest"],
+  {
+    covers: {
+      [`/thumbnail/${LEGACY_TEMPLATE_ID}.png`]: {
+        src: coverUrl,
+        width: 1280,
+        height: 720,
+      },
+    },
+    homepage: { mode: "local", revisionId: null, images: {} },
+  },
+);
+process.env.NEXT_PUBLIC_PROJECT_ASSETS_R2_ENABLED = "false";
 const timetableMarkup = renderToStaticMarkup(
-  <QueryClientProvider client={new QueryClient()}>
+  <QueryClientProvider client={coverClient}>
     <ConsumerTemplateCard template={legacy} showEngineBadge />
   </QueryClientProvider>,
 );
@@ -141,9 +157,11 @@ assert.ok(timetableMarkup.includes("시간표"));
 assert.ok(timetableMarkup.includes("시간표 만들기"));
 assert.ok(timetableMarkup.includes("Legacy"));
 assert.ok(timetableMarkup.includes("LITE"));
+assert.ok(timetableMarkup.includes(`src="${coverUrl}"`));
 assert.ok(
-  timetableMarkup.includes(`src="/thumbnail/${LEGACY_TEMPLATE_ID}.png"`),
+  !timetableMarkup.includes(`src="/thumbnail/${LEGACY_TEMPLATE_ID}.png"`),
 );
+coverClient.clear();
 assert.ok(!timetableMarkup.includes('role="button"'));
 assert.ok(!timetableMarkup.includes("onClick"));
 assert.ok(!timetableMarkup.includes("innerHTML"));

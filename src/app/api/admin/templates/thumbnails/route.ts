@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/middleware';
 import { access } from 'fs/promises';
 import { join } from 'path';
-import { UUID_PATTERN } from '@/utils/legacy-template-assets/contracts';
+import { LegacyAssetError, UUID_PATTERN } from '@/utils/legacy-template-assets/contracts';
 import { getProjectAssetManifest } from '@/services/server/projectAssetManifestService';
+import { requiresCatalogCoverR2 } from '@/utils/legacy-template-assets/source-policy';
+import { legacyAssetErrorResponse } from '@/app/api/admin/legacy-template-assets/_utils';
 
 export async function GET(request: NextRequest) {
   const adminCheck = await requireAdmin(request);
@@ -24,11 +26,14 @@ export async function GET(request: NextRequest) {
     }
 
     const localUrl = `/thumbnail/${templateId}.png`;
-    if (process.env.NEXT_PUBLIC_PROJECT_ASSETS_R2_ENABLED === 'true') {
+    if (requiresCatalogCoverR2(localUrl)) {
       const image = (await getProjectAssetManifest()).covers[localUrl];
-      if (image) return NextResponse.json({ success: true, thumbnail: { templateId, url: image.src, exists: true } });
+      if (!image) {
+        throw new LegacyAssetError('등록된 R2 대표 이미지가 없습니다. R2 적용 상태를 확인해 주세요.', 503);
+      }
+      return NextResponse.json({ success: true, thumbnail: { templateId, url: image.src, exists: true } });
     }
-    // Preserve static lookup for unregistered/local-mode covers.
+    // Preserve static lookup for covers outside the R2-only allowlist.
     const thumbnailPath = join(process.cwd(), 'public', 'thumbnail', `${templateId}.png`);
     
     try {
@@ -57,6 +62,7 @@ export async function GET(request: NextRequest) {
     }
 
   } catch (error) {
+    if (error instanceof LegacyAssetError) return legacyAssetErrorResponse(error);
     console.error('Thumbnail check error:', error);
     return NextResponse.json(
       { error: '썸네일 확인 중 오류가 발생했습니다.' },

@@ -7,6 +7,7 @@ import React, { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { ConsumerTemplateKind } from "@/utils/templates/consumer-template";
 import { useManagedCatalogUrl } from "@/hooks/query/useLegacyTemplateAssets";
+import { requiresCatalogCoverR2 } from "@/utils/legacy-template-assets/source-policy";
 
 export interface TemplateCoverProps {
   src: string | null;
@@ -33,7 +34,7 @@ export function TemplateCover({
     setImageFailed(false);
   }, [managed.src]);
 
-  const showImage = Boolean(src) && !imageFailed;
+  const showImage = Boolean(managed.src) && !imageFailed;
 
   return (
     <div
@@ -45,7 +46,19 @@ export function TemplateCover({
       aria-label={`${alt} 대표 이미지`}
       data-template-cover-kind={kind}
     >
-      {managed.error ? <span role="alert" className="px-4 text-xs text-red-700">{managed.error.message}</span> : showImage ? (
+      {managed.error ? (
+        <span role="alert" className="px-4 text-xs text-red-700">
+          {managed.error.message}
+        </span>
+      ) : managed.isLoading ? (
+        <span role="status" className="px-4 text-xs text-dark-gray/50">
+          대표 이미지 불러오는 중...
+        </span>
+      ) : imageFailed && requiresCatalogCoverR2(src) ? (
+        <span role="alert" className="px-4 text-xs text-red-700">
+          R2 대표 이미지를 표시하지 못했습니다.
+        </span>
+      ) : showImage ? (
         <img
           src={managed.src ?? undefined}
           alt={alt}

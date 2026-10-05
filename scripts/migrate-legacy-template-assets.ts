@@ -140,6 +140,8 @@ const parents = {
   team_timetable: "team_templates",
   thumbnail: "thumbnails",
 };
+const removedSourceMessage =
+  "로컬 원본이 제거된 템플릿은 재이관할 수 없습니다. 원본을 복구하거나 관리자 이미지 교체를 사용해 주세요.";
 async function main() {
   if (!args.includes("--apply")) {
     console.log(
@@ -174,9 +176,7 @@ async function main() {
       template.assets.some((asset) => asset.sourceRemoved),
     )
   ) {
-    throw new Error(
-      "로컬 원본이 제거된 템플릿은 재이관할 수 없습니다. 원본을 복구하거나 관리자 이미지 교체를 사용해 주세요.",
-    );
+    throw new Error(removedSourceMessage);
   }
   if (args.includes("--env-dir"))
     loadEnvConfig(path.resolve(value("--env-dir")), true, {
@@ -447,7 +447,11 @@ async function main() {
   );
   if (failures) process.exitCode = 1;
 }
-main().catch(() => {
-  console.error("에셋 이관을 완료하지 못했습니다.");
+main().catch((error) => {
+  console.error(
+    error instanceof Error && error.message === removedSourceMessage
+      ? removedSourceMessage
+      : "에셋 이관을 완료하지 못했습니다.",
+  );
   process.exitCode = 1;
 });

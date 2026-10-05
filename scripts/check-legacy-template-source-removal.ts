@@ -10,6 +10,7 @@ import {
   resolveLegacyTemplateImages,
 } from "../src/utils/legacy-template-assets/source-policy";
 import type { LegacyAssetDetail } from "../src/types/legacy-template-assets";
+import publicCovers from "../src/utils/legacy-template-assets/public-project-covers.json";
 
 async function main() {
   const root = process.cwd();
@@ -41,7 +42,14 @@ async function main() {
 
   for (const saved of archive) {
     assert.ok(requiresLegacyAssetR2(saved));
-    assert.equal(requiresLegacyAssetR2({ ...saved, purpose: "cover" }), false);
+    assert.equal(
+      requiresLegacyAssetR2({ ...saved, purpose: "cover" }),
+      publicCovers.some(
+        (cover) =>
+          cover.ownerKind === saved.ownerKind &&
+          cover.templateId === saved.templateId,
+      ),
+    );
     const current = inventory.templates.find(
       (item) =>
         item.ownerKind === saved.ownerKind &&

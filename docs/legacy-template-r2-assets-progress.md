@@ -1,5 +1,8 @@
 # 레거시 R2 에셋 구현 및 운영 전환
 
+최신 대표 썸네일 정책: [대표 썸네일 R2 전용 전환](./legacy-cover-r2-only.md).
+아래 대표 썸네일의 환경 변수/local fallback 설명은 전환 전 기록이며, 현재 등록된 97개 대표 이미지는 R2만 사용한다.
+
 기준 커밋: `5e8dd916` (`.src` 정리와 구현 계획)
 구현 브랜치: `codex/legacy-template-r2-assets`
 작업 위치: `/Users/kwakori/.codex/worktrees/legacy-template-r2-assets/temis`

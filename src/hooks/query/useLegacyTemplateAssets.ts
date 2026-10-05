@@ -7,6 +7,10 @@ import type {
 } from "@/types/legacy-template-assets";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
+import {
+  requiresCatalogCoverR2,
+  resolveCatalogCoverUrl,
+} from "@/utils/legacy-template-assets/source-policy";
 
 export const legacyAssetQueryKeys = {
   all: ["legacy-template-assets"] as const,
@@ -30,9 +34,7 @@ export const legacyAssetQueryKeys = {
       owner.purpose ?? "runtime",
     ] as const,
 };
-export function useProjectAssetManifest(
-  enabled = process.env.NEXT_PUBLIC_PROJECT_ASSETS_R2_ENABLED === "true",
-) {
+export function useProjectAssetManifest(enabled = true) {
   return useQuery({
     queryKey: ["legacy-template-assets", "public-project-manifest"],
     queryFn: service.projectManifest,
@@ -42,14 +44,27 @@ export function useProjectAssetManifest(
   });
 }
 export function useManagedCatalogUrl(src: string | null | undefined) {
-  const enabled =
-    process.env.NEXT_PUBLIC_PROJECT_ASSETS_R2_ENABLED === "true" &&
-    !!src &&
-    /^\/(?:thumbnail|team-thumbnails)\/[a-f0-9-]{36}\.png$/i.test(src);
+  const enabled = requiresCatalogCoverR2(src);
   const query = useProjectAssetManifest(enabled);
+  let resolved: string | null | undefined = src;
+  let error = enabled ? query.error : null;
+  if (enabled) {
+    resolved = null;
+    if (!error) {
+      try {
+        resolved = resolveCatalogCoverUrl(src, query.data);
+      } catch (cause) {
+        error =
+          cause instanceof Error
+            ? cause
+            : new Error("대표 이미지 조회에 실패했습니다.");
+      }
+    }
+  }
   return {
-    src: enabled && src ? (query.data?.covers[src]?.src ?? src) : src,
-    error: enabled ? query.error : null,
+    src: resolved,
+    error,
+    isLoading: enabled && query.isPending,
   };
 }
 function useAssetIdentity() {

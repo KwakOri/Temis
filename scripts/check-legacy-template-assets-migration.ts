@@ -83,6 +83,10 @@ try {
     ),
     false,
   );
+  const removedCovers = run(["--project-assets", "--all", "--apply"]);
+  assert.notEqual(removedCovers.status, 0);
+  assert.match(removedCovers.stderr, /로컬 원본이 제거된/);
+  assert.equal(removedCovers.stdout, "");
   const failures = [
     ["--concurrency", "0"],
     ["--concurrency", "5"],
