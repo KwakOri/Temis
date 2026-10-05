@@ -172,6 +172,17 @@ const RowActions = ({
         <Edit className="h-3.5 w-3.5" />
         편집
       </Link>
+      {onEditInfo ? (
+        <button
+          type="button"
+          aria-label={`${template.name} 이름 수정`}
+          className="inline-flex items-center gap-1 rounded border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+          onClick={(event) => onEditInfo(template, event.currentTarget)}
+        >
+          <Edit className="h-3.5 w-3.5" />
+          이름 수정
+        </button>
+      ) : null}
       {template.status === "published" ? (
         <Link
           className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium transition-colors bg-[#F5F0ED] text-[#2d2d2d] border border-[#E6DBD4] hover:bg-[#EDE5E0]"
@@ -506,9 +517,7 @@ export function TemplateStudioAdminListClient({
                         template={template}
                         onDelete={handleDelete}
                         onDuplicate={handleDuplicate}
-                        onEditInfo={
-                          isThumbnail || isTeam ? handleEditInfo : undefined
-                        }
+                        onEditInfo={handleEditInfo}
                       />
                     </td>
                   </tr>
@@ -583,9 +592,7 @@ export function TemplateStudioAdminListClient({
                   template={template}
                   onDelete={handleDelete}
                   onDuplicate={handleDuplicate}
-                  onEditInfo={
-                    isThumbnail || isTeam ? handleEditInfo : undefined
-                  }
+                  onEditInfo={handleEditInfo}
                 />
               </div>
             ))

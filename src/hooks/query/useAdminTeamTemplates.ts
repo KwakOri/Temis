@@ -44,6 +44,7 @@ export const useConnectTeam = () => {
       data: ConnectTeamData;
     }) => AdminTeamTemplateService.connectTeam(teamTemplateId, data),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.teams() });
       queryClient.invalidateQueries({
         queryKey: queryKeys.admin.teamTemplates(),
       });
@@ -63,6 +64,7 @@ export const useDisconnectTeam = () => {
       teamId: string;
     }) => AdminTeamTemplateService.disconnectTeam(teamTemplateId, teamId),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.teams() });
       queryClient.invalidateQueries({
         queryKey: queryKeys.admin.teamTemplates(),
       });

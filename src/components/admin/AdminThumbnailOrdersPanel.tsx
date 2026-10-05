@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  AdminOrderListPagination,
+  type AdminOrderListState,
+} from "@/components/admin/AdminOrderListControls";
 import ThumbnailOrderDetailModal from "@/components/admin/ThumbnailOrderDetailModal";
 import {
   useAdminThumbnailOrders,
@@ -47,16 +51,19 @@ const getStatusIcon = (status: string) => {
   return <Clock className="h-4 w-4 text-indigo-600" />;
 };
 
-export default function AdminThumbnailOrdersPanel() {
+export default function AdminThumbnailOrdersPanel({
+  list,
+  onPageChange,
+}: {
+  list: AdminOrderListState;
+  onPageChange: (page: number) => void;
+}) {
   const [selectedOrder, setSelectedOrder] =
     useState<ThumbnailCustomOrder | null>(null);
   const [showModal, setShowModal] = useState(false);
   const { data, isLoading, error } = useAdminThumbnailOrders({
-    status: "all",
-    page: 1,
-    limit: 50,
-    sortBy: "created_at",
-    sortOrder: "desc",
+    ...list,
+    limit: 10,
   });
   const updateMutation = useUpdateAdminThumbnailOrder();
   const completeMutation = useCompleteThumbnailCustomOrder();
@@ -142,8 +149,7 @@ export default function AdminThumbnailOrdersPanel() {
           </div>
         ) : error ? (
           <div className="p-6 text-sm leading-relaxed text-gray-500">
-            썸네일 주문 데이터를 불러오지 못했습니다. migration 적용 후 다시
-            확인해주세요.
+            썸네일 주문을 불러오지 못했습니다. 다시 시도해 주세요.
           </div>
         ) : orders.length === 0 ? (
           <div className="p-8 text-center text-sm text-gray-500">
@@ -217,6 +223,10 @@ export default function AdminThumbnailOrdersPanel() {
             })}
           </div>
         )}
+        <AdminOrderListPagination
+          pagination={data?.pagination}
+          onPageChange={onPageChange}
+        />
       </section>
 
       {showModal && selectedOrder && (

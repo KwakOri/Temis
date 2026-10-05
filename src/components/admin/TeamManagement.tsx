@@ -12,7 +12,7 @@ import {
   useUpdateTeam,
   useUserSearch,
 } from "@/hooks/query/useTeamManagement";
-import { teamManagementService } from "@/services/admin/teamManagementService";
+import type { AdminTeamScope, AdminTeamUsage } from "@/utils/admin-team-usage";
 import { Tables } from "@/types/supabase";
 import { TeamWithMembers } from "@/types/team-timetable";
 import {
@@ -56,10 +56,18 @@ interface MemberFormData {
   selectedUser?: Tables<"users">;
 }
 
-const TeamManagement = () => {
+const usageLabels: Record<AdminTeamUsage, string> = {
+  legacy: "레거시 전용",
+  studio: "새 에디터 전용",
+  mixed: "혼합",
+  unconnected: "미연결",
+};
+
+const TeamManagement = ({ scope = "all" }: { scope?: AdminTeamScope }) => {
+  const [usageFilter, setUsageFilter] = useState<AdminTeamUsage | "all">("all");
   // State
   const [activeModal, setActiveModal] = useState<ModalType>(ModalType.NONE);
-  const [selectedTeam, setSelectedTeam] = useState<TeamWithMembers | null>(
+  const [selectedTeamSnapshot, setSelectedTeam] = useState<TeamWithMembers | null>(
     null
   );
   const [searchTerm, setSearchTerm] = useState("");
@@ -78,7 +86,7 @@ const TeamManagement = () => {
     data: teams = [],
     isLoading: teamsLoading,
     error: teamsError,
-  } = useAllTeams();
+  } = useAllTeams(scope);
 
   const { data: searchedUsers = [], isLoading: usersLoading } = useUserSearch(
     userSearchQuery,
@@ -92,6 +100,9 @@ const TeamManagement = () => {
   const updateMemberRoleMutation = useUpdateMemberRole();
   const removeMemberMutation = useRemoveTeamMember();
   const toggleTeamActiveMutation = useToggleTeamActive();
+
+  const selectedTeam =
+    teams.find((team) => team.id === selectedTeamSnapshot?.id) ?? selectedTeamSnapshot;
 
   // Handlers
   const handleCreateTeam = () => {
@@ -164,13 +175,6 @@ const TeamManagement = () => {
           role: memberFormData.role,
         },
       });
-
-      // 팀 정보를 다시 조회하여 selectedTeam 업데이트
-      const updatedTeams = await teamManagementService.getAllTeams();
-      const updatedTeam = updatedTeams.find(t => t.id === selectedTeam.id);
-      if (updatedTeam) {
-        setSelectedTeam(updatedTeam);
-      }
 
       setMemberFormData({ email: "", role: MemberRole.MEMBER });
       setUserSearchQuery("");
@@ -257,10 +261,11 @@ const TeamManagement = () => {
     if (!teams) return [];
     return teams.filter(
       (team) =>
-        team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        team.description?.toLowerCase().includes(searchTerm.toLowerCase())
+        (usageFilter === "all" || team.editorUsage === usageFilter) &&
+        (team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          team.description?.toLowerCase().includes(searchTerm.toLowerCase())),
     );
-  }, [teams, searchTerm]);
+  }, [teams, searchTerm, usageFilter]);
 
   // Loading state
   if (teamsLoading) {
@@ -294,8 +299,14 @@ const TeamManagement = () => {
   return (
     <div className="space-y-4 sm:space-y-6">
       <AdminTabHeader
-        title="팀 관리"
-        description="팀을 생성하고 팀원을 관리하세요"
+        title={
+          scope === "legacy"
+            ? "레거시 팀 관리"
+            : scope === "studio"
+              ? "새 에디터 팀 관리"
+              : "팀 관리"
+        }
+        description="팀을 생성하고 팀원을 관리하세요. 혼합 팀과 미연결 팀은 양쪽 목록에 표시됩니다."
         icon={UserCheck}
       >
         <button
@@ -306,6 +317,44 @@ const TeamManagement = () => {
         </button>
       </AdminTabHeader>
 
+      <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+        팀 이름·멤버·활성 상태는 공유됩니다. 혼합 팀을 수정하거나 삭제하면
+        레거시와 새 에디터 양쪽에 적용됩니다.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <label
+          htmlFor="team-usage-filter"
+          className="text-sm font-medium text-gray-700"
+        >
+          연결 용도
+        </label>
+        <select
+          id="team-usage-filter"
+          value={usageFilter}
+          onChange={(event) =>
+            setUsageFilter(event.target.value as AdminTeamUsage | "all")
+          }
+          className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+        >
+          <option value="all">전체</option>
+          {Object.entries(usageLabels)
+            .filter(
+              ([usage]) =>
+                scope === "all" ||
+                usage === scope ||
+                usage === "mixed" ||
+                usage === "unconnected",
+            )
+            .map(([usage, label]) => (
+              <option key={usage} value={usage}>
+                {label}
+              </option>
+            ))}
+        </select>
+        <span className="text-sm text-gray-500">
+          총 {filteredTeams.length}팀
+        </span>
+      </div>
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -325,6 +374,9 @@ const TeamManagement = () => {
             key={team.id}
             className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
           >
+            <div className="mb-3 text-xs font-semibold text-secondary">
+              {team.editorUsage ? usageLabels[team.editorUsage] : "미연결"}
+            </div>
             <div className="flex justify-between items-start mb-4">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-primary/10 rounded-lg">

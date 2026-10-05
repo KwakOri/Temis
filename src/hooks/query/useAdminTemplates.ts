@@ -16,7 +16,7 @@ import {
 } from "@tanstack/react-query";
 
 const invalidateAdminTemplateRelatedQueries = (
-  queryClient: ReturnType<typeof useQueryClient>
+  queryClient: ReturnType<typeof useQueryClient>,
 ) => {
   queryClient.invalidateQueries({
     queryKey: queryKeys.admin.templates(),
@@ -83,8 +83,20 @@ export const useUpdateTemplate = () => {
       templateId: string;
       data: UpdateTemplateData;
     }) => AdminTemplateService.updateTemplate(templateId, data),
-    onSuccess: () => {
+    onSuccess: (_, { templateId }) => {
       invalidateAdminTemplateRelatedQueries(queryClient);
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.templateStudioTemplates(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.templateStudioTemplate(templateId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.template.detail(templateId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.template.shopDetail(templateId),
+      });
     },
   });
 };

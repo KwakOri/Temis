@@ -1,107 +1,115 @@
 "use client";
 
+import AdminSectionTabs from "@/components/admin/AdminSectionTabs";
+import {
+  AdminOrderListFilters,
+  AdminOrderListPagination,
+  DEFAULT_ADMIN_ORDER_LIST_STATE,
+  type AdminOrderListState,
+} from "@/components/admin/AdminOrderListControls";
 import AdminTabHeader from "@/components/admin/AdminTabHeader";
 import AdminThumbnailOrdersPanel from "@/components/admin/AdminThumbnailOrdersPanel";
 import OrderDetailModal from "@/components/admin/OrderDetailModal";
 import {
   useAdminCustomOrders,
-  useAdminCustomOrdersCalendar,
-  useAdminLegacyOrdersCalendar,
   useAdminMigrationStatus,
   useMigrateCustomOrders,
-  useUpdateCustomOrderDeadline,
   useUpdateCustomOrderStatus,
 } from "@/hooks/query/useAdminOrders";
-import { usePriceOptions } from "@/hooks/query/usePricing";
-import { getFileUrl } from "@/lib/r2";
-import type {
-  CustomOrderWithUser,
-  FileData,
-  LegacyOrder as LegacyOrderType,
-} from "@/types/admin";
-import { getStatusIconHelper } from "@/utils/custom-order";
-import { getOptionDisplayLabel } from "@/utils/optionLabelHelper";
+import type { CustomOrderWithUser } from "@/types/admin";
 import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  Download,
-  ExternalLink,
   Eye,
-  File,
-  FileText,
-  Image as ImageIcon,
-  Package,
   Palette,
   XCircle,
 } from "lucide-react";
 import { useState } from "react";
 
 export default function CustomOrderManagement() {
-  const [selectedStatus, setSelectedStatus] = useState<string>("default");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [sortBy, setSortBy] = useState<string>("created_at");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [activeTab, setActiveTab] = useState<"thumbnail" | "timetable">(
+    "thumbnail",
+  );
+  const [lists, setLists] = useState({
+    thumbnail: { ...DEFAULT_ADMIN_ORDER_LIST_STATE },
+    timetable: { ...DEFAULT_ADMIN_ORDER_LIST_STATE },
+  });
+  const list = lists[activeTab];
+  const changeList = (value: AdminOrderListState) => {
+    setLists((previous) => ({ ...previous, [activeTab]: value }));
+  };
+  const panelProps = {
+    list,
+    onPageChange: (page: number) => changeList({ ...list, page }),
+  };
+
+  return (
+    <div className="space-y-6">
+      <AdminTabHeader
+        title="맞춤형 주문 관리"
+        description="고객의 맞춤형 썸네일·시간표 제작 주문을 관리합니다."
+        icon={Palette}
+      />
+      <AdminSectionTabs
+        id="custom-orders"
+        label="맞춤 제작 주문 종류"
+        items={[
+          { value: "thumbnail", label: "썸네일 주문 제작" },
+          { value: "timetable", label: "시간표 주문 제작" },
+        ]}
+        value={activeTab}
+        onChange={setActiveTab}
+      />
+      <div
+        role="tabpanel"
+        id={`custom-orders-panel-${activeTab}`}
+        aria-labelledby={`custom-orders-tab-${activeTab}`}
+        className="space-y-6"
+      >
+        <AdminOrderListFilters value={list} onChange={changeList} />
+        {activeTab === "thumbnail" ? (
+          <AdminThumbnailOrdersPanel {...panelProps} />
+        ) : (
+          <TimetableOrdersPanel {...panelProps} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TimetableOrdersPanel({
+  list,
+  onPageChange,
+}: {
+  list: AdminOrderListState;
+  onPageChange: (page: number) => void;
+}) {
   const [selectedOrder, setSelectedOrder] =
     useState<CustomOrderWithUser | null>(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
-  const [showDeadlineModal, setShowDeadlineModal] = useState(false);
-  const [selectedOrderForDeadline, setSelectedOrderForDeadline] = useState<
-    CustomOrderWithUser | LegacyOrderType | null
-  >(null);
-  const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
-
   // React Query hooks
   const {
     data: ordersData,
     isLoading: loading,
     error: ordersError,
   } = useAdminCustomOrders({
-    status: selectedStatus,
-    page: currentPage,
+    status: list.status,
+    page: list.page,
     limit: 10,
-    sortBy,
-    sortOrder,
+    sortBy: list.sortBy,
+    sortOrder: list.sortOrder,
   });
 
   const updateOrderMutation = useUpdateCustomOrderStatus();
-  const updateDeadlineMutation = useUpdateCustomOrderDeadline();
   const migrateMutation = useMigrateCustomOrders();
 
-  const { data: migrationStatus, isLoading: migrationLoading } =
-    useAdminMigrationStatus();
-
-  const { data: calendarOrders = [], isLoading: loadingCustomCalendar } =
-    useAdminCustomOrdersCalendar(
-      currentCalendarDate.getFullYear(),
-      currentCalendarDate.getMonth(),
-    );
-
-  const { data: legacyOrders = [], isLoading: loadingLegacyCalendar } =
-    useAdminLegacyOrdersCalendar(
-      currentCalendarDate.getFullYear(),
-      currentCalendarDate.getMonth(),
-    );
+  const { data: migrationStatus } = useAdminMigrationStatus();
 
   const orders = ordersData?.orders || [];
   const pagination = ordersData?.pagination;
   const updating = updateOrderMutation.isPending;
   const migrating = migrateMutation.isPending;
-  const loadingCalendar = loadingCustomCalendar || loadingLegacyCalendar;
-
-  // 긴급 작업 계산 (3일 이내) - main orders 데이터에서 계산
-  const urgentOrders = orders.filter((order: CustomOrderWithUser) => {
-    if (!order.deadline) return false;
-    const deadline = new Date(order.deadline);
-    const now = new Date();
-    const diffTime = deadline.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays <= 3 && diffDays >= 0;
-  });
-
-  // For now, set urgentLegacyOrders to empty array as we don't have this data
-  const urgentLegacyOrders: LegacyOrderType[] = [];
-
   const handleMigration = async () => {
     try {
       await migrateMutation.mutateAsync();
@@ -185,12 +193,6 @@ export default function CustomOrderManagement() {
 
   return (
     <div className="space-y-6">
-      <AdminTabHeader
-        title="맞춤형 주문 관리"
-        description="고객의 맞춤형 시간표 제작 주문을 관리합니다."
-        icon={Palette}
-      />
-
       {/* 마이그레이션 상태 및 버튼 */}
       {migrationStatus && migrationStatus.needsMigration > 0 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
@@ -209,93 +211,16 @@ export default function CustomOrderManagement() {
         </div>
       )}
 
-      {/* 필터링 */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-        <div className="flex flex-col gap-4">
-          {/* 주문 상태 필터 */}
-          <div>
-            <label className="block text-sm font-medium text-primary mb-3">
-              주문 상태
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { value: "default", label: "기본", color: "gray" },
-                { value: "all", label: "전체", color: "gray" },
-                { value: "pending", label: "대기 중", color: "yellow" },
-                { value: "accepted", label: "접수됨", color: "blue" },
-                { value: "in_progress", label: "진행 중", color: "indigo" },
-                { value: "completed", label: "완료", color: "green" },
-                { value: "cancelled", label: "취소", color: "red" },
-              ].map((status) => (
-                <button
-                  key={status.value}
-                  onClick={() => {
-                    setSelectedStatus(status.value);
-                    setCurrentPage(1);
-                  }}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md border transition-colors ${
-                    selectedStatus === status.value
-                      ? status.color === "gray"
-                        ? "bg-primary text-[#F4FDFF] border-primary"
-                        : status.color === "yellow"
-                          ? "bg-yellow-100 text-yellow-800 border-yellow-200"
-                          : status.color === "blue"
-                            ? "bg-blue-100 text-blue-800 border-blue-200"
-                            : status.color === "indigo"
-                              ? "bg-indigo-100 text-indigo-800 border-indigo-200"
-                              : status.color === "green"
-                                ? "bg-green-100 text-green-800 border-green-200"
-                                : "bg-red-100 text-red-800 border-red-200"
-                      : "bg-white text-secondary border-gray-300 hover:bg-gray-50"
-                  }`}
-                >
-                  {status.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 정렬 기준 */}
-          <div>
-            <label className="block text-sm font-medium text-primary mb-3">
-              정렬 기준
-            </label>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <select
-                value={sortBy}
-                onChange={(e) => {
-                  setSortBy(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-              >
-                <option value="created_at">접수 날짜</option>
-                <option value="deadline">마감 날짜</option>
-              </select>
-              <select
-                value={sortOrder}
-                onChange={(e) => {
-                  setSortOrder(e.target.value as "asc" | "desc");
-                  setCurrentPage(1);
-                }}
-                className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-              >
-                <option value="desc">최신순</option>
-                <option value="asc">오래된순</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <AdminThumbnailOrdersPanel />
-
       {/* 주문 목록 */}
       <div className="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden">
         {loading ? (
           <div className="p-8 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
             <p className="mt-2 text-gray-500">로딩 중...</p>
+          </div>
+        ) : ordersError ? (
+          <div role="alert" className="p-8 text-center text-red-600">
+            시간표 주문을 불러오지 못했습니다. 다시 시도해 주세요.
           </div>
         ) : orders.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
@@ -538,128 +463,11 @@ export default function CustomOrderManagement() {
           </>
         )}
 
-        {/* 페이지네이션 */}
-        {pagination && pagination.totalPages > 1 && (
-          <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 flex justify-between sm:hidden">
-                <button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage <= 1}
-                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                >
-                  이전
-                </button>
-                <button
-                  onClick={() =>
-                    setCurrentPage(
-                      Math.min(pagination.totalPages, currentPage + 1),
-                    )
-                  }
-                  disabled={currentPage >= pagination.totalPages}
-                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                >
-                  다음
-                </button>
-              </div>
-              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm text-gray-700">
-                    총 <span className="font-medium">{pagination.total}</span>개
-                    중{" "}
-                    <span className="font-medium">
-                      {(currentPage - 1) * pagination.limit + 1}
-                    </span>
-                    -
-                    <span className="font-medium">
-                      {Math.min(
-                        currentPage * pagination.limit,
-                        pagination.total,
-                      )}
-                    </span>
-                    개 표시
-                  </p>
-                </div>
-                <div>
-                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                    <button
-                      onClick={() =>
-                        setCurrentPage(Math.max(1, currentPage - 1))
-                      }
-                      disabled={currentPage <= 1}
-                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      이전
-                    </button>
-                    {Array.from(
-                      { length: pagination.totalPages },
-                      (_, i) => i + 1,
-                    )
-                      .filter((page) => {
-                        const diff = Math.abs(page - currentPage);
-                        return (
-                          diff <= 2 ||
-                          page === 1 ||
-                          page === pagination.totalPages
-                        );
-                      })
-                      .map((page, index, array) => {
-                        const showEllipsis =
-                          index > 0 && array[index - 1] < page - 1;
-                        return (
-                          <div key={page}>
-                            {showEllipsis && (
-                              <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-                                ...
-                              </span>
-                            )}
-                            <button
-                              onClick={() => setCurrentPage(page)}
-                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                currentPage === page
-                                  ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
-                                  : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
-                              }`}
-                            >
-                              {page}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    <button
-                      onClick={() =>
-                        setCurrentPage(
-                          Math.min(pagination.totalPages, currentPage + 1),
-                        )
-                      }
-                      disabled={currentPage >= pagination.totalPages}
-                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      다음
-                    </button>
-                  </nav>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <AdminOrderListPagination
+          pagination={pagination}
+          onPageChange={onPageChange}
+        />
       </div>
-
-      {/* 데드라인 캘린더 뷰 - Temporarily disabled for type resolution */}
-      {/* <DeadlineCalendarView
-        orders={[]}
-        legacyOrders={[]}
-        urgentOrders={urgentOrders}
-        urgentLegacyOrders={urgentLegacyOrders}
-        allOrders={orders} // 미등록 작업 표시용
-        onOrderClick={(order) => {
-          setSelectedOrderForDeadline(order);
-          setShowDeadlineModal(true);
-        }}
-        currentDate={currentCalendarDate}
-        onDateChange={setCurrentCalendarDate}
-        loading={loadingCalendar}
-      /> */}
 
       {/* 주문 상세 모달 */}
       {showOrderModal && selectedOrder && (

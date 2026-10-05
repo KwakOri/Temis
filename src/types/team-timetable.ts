@@ -89,6 +89,7 @@ export interface TeamSchedulesResponse {
 
 // Team with members info for display
 export interface TeamWithMembers extends Team {
+  editorUsage?: import("@/utils/admin-team-usage").AdminTeamUsage;
   members?: TeamMemberWithUser[];
   memberCount?: number;
 }

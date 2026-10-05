@@ -3,11 +3,13 @@
 import { useAuth } from "@/contexts/AuthContext";
 import {
   AdminTabId,
+  LEGACY_ADMIN_TAB_IDS,
   getAdminPathByTabId,
   getAdminTabIdBySegment,
 } from "@/lib/adminTabs";
 import {
   AlertTriangle,
+  Archive,
   ArrowLeft,
   BarChart3,
   Briefcase,
@@ -56,16 +58,14 @@ const defaultTabs = [
     icon: LayoutList,
   },
   { id: "artists" as AdminTabId, name: "작가 관리", icon: UserRound },
-  { id: "thumbnails" as AdminTabId, name: "썸네일 관리", icon: Image },
-  {
-    id: "legacyTemplateAssets" as AdminTabId,
-    name: "레거시 에셋",
-    icon: Image,
-  },
   { id: "portfolios" as AdminTabId, name: "포트폴리오 관리", icon: Briefcase },
   { id: "users" as AdminTabId, name: "사용자 관리", icon: Users },
-  { id: "teams" as AdminTabId, name: "팀 관리", icon: UserCheck },
-  { id: "teamTemplates" as AdminTabId, name: "팀 템플릿", icon: FileText },
+  {
+    id: "studioTeams" as AdminTabId,
+    name: "새 에디터 팀 관리",
+    icon: UserCheck,
+  },
+  { id: "legacy" as AdminTabId, name: "레거시", icon: Archive },
   { id: "emailPreview" as AdminTabId, name: "이메일 미리보기", icon: MailOpen },
   { id: "access" as AdminTabId, name: "접근 권한 관리", icon: Shield },
   { id: "settings" as AdminTabId, name: "설정", icon: Settings },
@@ -84,7 +84,11 @@ export default function AdminDashboardShell({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const currentSegment = pathname.split("/")[2] || "";
-  const activeTab = getAdminTabIdBySegment(currentSegment);
+  const currentTab = getAdminTabIdBySegment(currentSegment);
+  const activeTab =
+    currentTab && LEGACY_ADMIN_TAB_IDS.includes(currentTab)
+      ? "legacy"
+      : currentTab;
 
   const isAdmin = user?.isAdmin || false;
   const tabs = defaultTabs;

@@ -1,6 +1,5 @@
 "use client";
 
-import type { TemplateStudioTemplateRecord } from "@/services/server/templateStudioPersistenceService";
 import { Loader2, X } from "lucide-react";
 import {
   useEffect,
@@ -18,7 +17,7 @@ export function TemplateStudioTemplateInfoDialog({
   onClose,
   onSubmit,
 }: {
-  template: TemplateStudioTemplateRecord | null;
+  template: { id: string; name: string | null } | null;
   isSubmitting: boolean;
   error: string | null;
   restoreFocusElement?: HTMLElement | null;
@@ -39,7 +38,7 @@ export function TemplateStudioTemplateInfoDialog({
       (document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null);
-    setName(template.name);
+    setName(template.name ?? "");
     setValidationError(null);
 
     const frameId = window.requestAnimationFrame(() => {
@@ -80,7 +79,7 @@ export function TemplateStudioTemplateInfoDialog({
 
     const focusableElements = Array.from(
       dialogRef.current?.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), input:not([disabled])',
+        "button:not([disabled]), input:not([disabled])",
       ) ?? [],
     );
     if (focusableElements.length === 0) return;
@@ -128,7 +127,7 @@ export function TemplateStudioTemplateInfoDialog({
               className="mt-1 text-sm text-gray-500"
               id="template-studio-template-info-description"
             >
-              Thumbnail Studio 목록과 상품에 표시되는 이름을 수정합니다.
+              목록에 표시되는 템플릿 이름을 수정합니다.
             </p>
           </div>
           <button
@@ -184,7 +183,9 @@ export function TemplateStudioTemplateInfoDialog({
               disabled={isSubmitting}
               type="submit"
             >
-              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : null}
               저장
             </button>
           </div>

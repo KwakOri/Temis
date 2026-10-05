@@ -1,5 +1,6 @@
 "use client";
 
+import { TemplateStudioTemplateInfoDialog } from "@/app/(root)/admin/template-studio/_components/template-studio-template-info-dialog";
 import AdminTabHeader from "@/components/admin/AdminTabHeader";
 import {
   useAdminArtists,
@@ -22,7 +23,7 @@ import type {
   TemplateWithShopTemplateAndPlans,
 } from "@/types/admin";
 import type { ShopTemplateWithPlans as ShopTemplateDetailData } from "@/types/templateDetail";
-import { FileText } from "lucide-react";
+import { FileText, Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -57,6 +58,24 @@ const ITEMS_PER_PAGE = 20;
 
 export default function TemplateManagement() {
   const router = useRouter();
+  const [editingInfo, setEditingInfo] =
+    useState<TemplateWithShopTemplateAndPlans | null>(null);
+  const [infoTrigger, setInfoTrigger] = useState<HTMLElement | null>(null);
+  const renameMutation = useUpdateAdminTemplate();
+  const openInfo = (
+    template: TemplateWithShopTemplateAndPlans,
+    trigger: HTMLElement,
+  ) => {
+    renameMutation.reset();
+    setInfoTrigger(trigger);
+    setEditingInfo(template);
+  };
+  const closeInfo = () => {
+    if (renameMutation.isPending) return;
+    setEditingInfo(null);
+    setInfoTrigger(null);
+    renameMutation.reset();
+  };
   const [activeTab, setActiveTab] = useState<TemplateTab>("public");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -891,6 +910,17 @@ export default function TemplateManagement() {
                         <div className="text-sm font-medium text-gray-900 truncate">
                           {template.name}
                         </div>
+                        <button
+                          type="button"
+                          aria-label={`${template.name} 이름 수정`}
+                          onClick={(event) =>
+                            openInfo(template, event.currentTarget)
+                          }
+                          className="mt-1 inline-flex items-center gap-1 text-xs text-secondary hover:underline"
+                        >
+                          <Pencil className="h-3 w-3" />
+                          이름 수정
+                        </button>
                         {template.description && (
                           <div className="text-xs text-gray-500 truncate mt-1">
                             {template.description}
@@ -1097,6 +1127,17 @@ export default function TemplateManagement() {
                     <div className="text-sm font-medium text-gray-900 truncate">
                       {template.name}
                     </div>
+                    <button
+                      type="button"
+                      aria-label={`${template.name} 이름 수정`}
+                      onClick={(event) =>
+                        openInfo(template, event.currentTarget)
+                      }
+                      className="mt-1 inline-flex items-center gap-1 text-xs text-secondary hover:underline"
+                    >
+                      <Pencil className="h-3 w-3" />
+                      이름 수정
+                    </button>
                     {template.description && (
                       <div className="text-xs text-gray-500 mt-1 truncate">
                         {template.description}
@@ -2018,6 +2059,29 @@ export default function TemplateManagement() {
           </div>
         </div>
       )}
+      <TemplateStudioTemplateInfoDialog
+        template={editingInfo}
+        isSubmitting={renameMutation.isPending}
+        error={
+          renameMutation.error instanceof Error
+            ? renameMutation.error.message
+            : null
+        }
+        restoreFocusElement={infoTrigger}
+        onClose={closeInfo}
+        onSubmit={(name) => {
+          if (!editingInfo) return;
+          renameMutation.mutate(
+            { templateId: editingInfo.id, data: { name } },
+            {
+              onSuccess: () => {
+                setEditingInfo(null);
+                setInfoTrigger(null);
+              },
+            },
+          );
+        }}
+      />
     </div>
   );
 }

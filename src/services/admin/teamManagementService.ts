@@ -1,4 +1,5 @@
 import { Team, TeamMember, TeamMemberWithUser, TeamWithMembers } from "@/types/team-timetable";
+import type { AdminTeamScope } from "@/utils/admin-team-usage";
 import { Tables } from "@/types/supabase";
 
 // API 응답 타입 정의
@@ -32,8 +33,8 @@ export class TeamManagementService {
   /**
    * 모든 팀 조회 (관리자용)
    */
-  static async getAllTeams(): Promise<TeamWithMembers[]> {
-    const response = await fetch(`${this.baseUrl}/teams`, {
+  static async getAllTeams(scope: AdminTeamScope = "all"): Promise<TeamWithMembers[]> {
+    const response = await fetch(`${this.baseUrl}/teams${scope === "all" ? "" : `?scope=${scope}`}`, {
       credentials: "include",
     });
 

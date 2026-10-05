@@ -1,4 +1,5 @@
 import { requireAdmin } from "@/lib/auth/middleware";
+import { listAdminTeams } from "@/services/server/adminTeamManagementService";
 import { teamService } from "@/services/server/teamService";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -10,17 +11,25 @@ export async function GET(request: NextRequest) {
       return adminCheck;
     }
 
-    const teams = await teamService.getAllTeams();
+    const scope = request.nextUrl.searchParams.get("scope") ?? "all";
+    if (scope !== "all" && scope !== "legacy" && scope !== "studio") {
+      return NextResponse.json(
+        { error: "팀 관리 범위를 확인해 주세요." },
+        { status: 400 },
+      );
+    }
+    const teams = await listAdminTeams(scope);
     return NextResponse.json({ success: true, teams });
   } catch (error) {
     console.error("Error fetching teams:", error);
     return NextResponse.json(
       {
-        error: error instanceof Error
-          ? error.message
-          : "팀 목록을 가져오는데 실패했습니다."
+        error:
+          error instanceof Error
+            ? error.message
+            : "팀 목록을 가져오는데 실패했습니다.",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

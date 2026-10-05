@@ -157,7 +157,7 @@ export function StudioTeamConnectionPanel({
         시간표에 적용됩니다. 새로 추가한 슬롯은 디자인 발행 후 표시됩니다.
       </p>
       <Link
-        href="/admin/teams"
+        href="/admin/studio-teams"
         target="_blank"
         className="text-xs text-[var(--accent)] underline"
       >
