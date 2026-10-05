@@ -85,26 +85,66 @@ const statusValues = (value: unknown, key = ""): string[] => {
   });
 };
 
+const parseVariantNameSuffix = (value: string): {
+  family: string | null;
+  status: StudioFigmaGridVariantStatus;
+} | null => {
+  const variantValue = value.split("=").at(-1)?.trim() ?? value.trim();
+  const standaloneState = variantValue.match(/^(online|offline|on|off)$/i);
+  const familyState = variantValue.match(/^(.*?)(?:[_\s-]+)(online|offline|on|off)$/i);
+  const family = standaloneState ? "" : familyState?.[1];
+  const state = (standaloneState?.[1] ?? familyState?.[2])?.toLowerCase();
+  if (state === undefined || family === undefined) return null;
+  const status = state === "on" || state === "online"
+    ? "online"
+    : state === "off" || state === "offline"
+      ? "offline"
+      : null;
+  if (!status) return null;
+  return {
+    family: family.trim() || null,
+    status,
+  };
+};
+
+const statusFromVariantValue = (value: string): StudioFigmaGridVariantStatus | null =>
+  parseVariantNameSuffix(value)?.status ?? null;
+
 export const inferFigmaGridVariantStatus = (input: unknown): StudioFigmaGridVariantStatus | null => {
-  const values = statusValues(input).map((value) => value.trim().toLowerCase());
-  if (values.length === 0 || values.some((value) => !["online", "offline"].includes(value))) return null;
+  const values = statusValues(input).map(statusFromVariantValue);
+  if (values.length === 0 || values.some((value) => value === null)) return null;
   const unique = new Set(values);
-  return unique.size === 1 ? values[0] as StudioFigmaGridVariantStatus : null;
+  return unique.size === 1 ? values[0]! : null;
 };
 
 const statusFromSource = (input: unknown): StudioFigmaGridVariantStatus | "invalid" | undefined => {
-  const values = statusValues(input).map((value) => value.trim().toLowerCase());
+  const values = statusValues(input).map(statusFromVariantValue);
   if (values.length === 0) return undefined;
-  if (values.some((value) => !["online", "offline"].includes(value))) return "invalid";
+  if (values.some((value) => value === null)) return "invalid";
   const unique = new Set(values);
-  return unique.size === 1 ? values[0] as StudioFigmaGridVariantStatus : "invalid";
+  return unique.size === 1 ? values[0]! : "invalid";
 };
 
 const statusFromName = (value: unknown): StudioFigmaGridVariantStatus | undefined => {
   if (typeof value !== "string") return undefined;
+  const parsedSuffix = parseVariantNameSuffix(value);
+  if (parsedSuffix) return parsedSuffix.status;
+
   const matches = [...value.toLowerCase().matchAll(/\b(online|offline)\b/g)].map((match) => match[1]);
   const unique = new Set(matches);
-  return unique.size === 1 ? [...unique][0] as StudioFigmaGridVariantStatus : undefined;
+  if (unique.size === 1) return [...unique][0] as StudioFigmaGridVariantStatus;
+  return undefined;
+};
+
+/**
+ * Figma component names can encode an opaque family label before the state
+ * suffix, such as LONG_ON/LONG_OFF or A_ON/A_OFF. Preserve the label as-is;
+ * callers validate that each family has exactly one origin for each state.
+ */
+export const inferFigmaGridOriginVariantFamily = (
+  origin: Pick<FigmaOriginComponentRef, "componentName">,
+): string | null => {
+  return parseVariantNameSuffix(origin.componentName)?.family ?? null;
 };
 
 const originSubtreeComponentProperties = (root: FigmaNormalizedNode): unknown[] => {

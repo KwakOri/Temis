@@ -10,6 +10,7 @@ import type {
 const DATA_IMAGE_URL_PATTERN = /^data:(image\/[^;,]+)((?:;[^,]+)*),([\s\S]*)$/;
 const DATA_IMAGE_EXTENSION: Record<string, string> = {
   "image/jpeg": "jpg",
+  "image/gif": "gif",
   "image/png": "png",
   "image/svg+xml": "svg",
   "image/webp": "webp",

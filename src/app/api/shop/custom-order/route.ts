@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { getCurrentUserId } from "@/lib/auth/jwt";
+import { getTimetableOrderIntakeStatus } from "@/services/server/customOrderIntakeService";
 import {
   hasConflictingOtherOptions,
   normalizeOtherOptionValue,
@@ -16,6 +17,11 @@ export async function POST(request: NextRequest) {
         { error: "로그인이 필요합니다." },
         { status: 401 }
       );
+    }
+
+    const intake = await getTimetableOrderIntakeStatus();
+    if (!intake.accepting) {
+      return NextResponse.json({ error: intake.message }, { status: 409 });
     }
 
     // 요청 본문 파싱

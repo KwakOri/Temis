@@ -11,7 +11,7 @@ import {
   createStudioProfileBlockPresetObjects,
   createStudioStructuredTextPresetObjects,
   getStudioTimetableObjectRenderableChildIds,
-} from "../src/utils/template-studio/timetable-composition";
+} from "./helpers/studio-timetable-recipe";
 
 const storedChildIds = [
   "profile-block:back-plate-object",

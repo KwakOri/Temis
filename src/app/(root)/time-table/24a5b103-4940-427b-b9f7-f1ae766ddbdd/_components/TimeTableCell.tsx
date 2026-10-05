@@ -1,3 +1,5 @@
+"use client";
+
 import React, { CSSProperties, PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
@@ -6,9 +8,10 @@ import { TTheme } from "@/types/time-table/theme";
 import { formatTime } from "@/utils/time-formatter";
 import { weekdays } from "@/utils/time-table/data";
 
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import { COMP_COLORS, COMP_FONTS, weekdayOption } from "../_settings/settings";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 type TCARD = "A" | "B" | "C" | "D";
 
@@ -273,6 +276,7 @@ const CardSubTitle = ({ cardType, content, day }: CardSubTitleProps) => {
 
 
 const OnlineCardBG = ({ cardType, day }: OnlineCardBGProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -282,7 +286,7 @@ const OnlineCardBG = ({ cardType, day }: OnlineCardBGProps) => {
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs["first"]["online" + cardType].src.replace("./", "/")}
+        src={Imgs["first"]["online" + cardType].src}
         alt="online"
       />
     </div>
@@ -393,6 +397,7 @@ const MultipleCard = ({ time }: MultipleCardProps) => {
 }
 
 const OfflineCard = ({ cardType, day, currentTheme }: OfflineCardProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const singleCardWrapperStyles = {
     0: { rotate: "4deg", left: 40, top: 130 },
     1: { rotate: "-3.2deg", left: 1248, top: 200 },
@@ -413,7 +418,7 @@ const OfflineCard = ({ cardType, day, currentTheme }: OfflineCardProps) => {
       <img
         src={Imgs[currentTheme || "first"][
           "offline" + cardType
-        ].src.replace("./", "/")}
+        ].src}
         alt="offline"
         style={{
           ...cardSizes[cardType],

@@ -11,41 +11,12 @@ import {
 } from "../src/utils/template-studio/component-sets";
 import {
   migrateStudioTemplateDocument,
-  STUDIO_TEMPLATE_DOCUMENT_VERSION,
 } from "../src/utils/template-studio/migrations";
 import { validateStudioDocument } from "../src/utils/template-studio/validator";
 
 const document = createSampleStudioDocument();
 assert.equal(document.styles.style_background.border, undefined);
 assert.equal(document.styles.style_background.boxShadow, undefined);
-const legacyBorderDocument = structuredClone(document);
-legacyBorderDocument.styles.style_background.border =
-  "1px solid rgba(148, 163, 184, 0.35)";
-legacyBorderDocument.styles.style_background.boxShadow =
-  "0 24px 80px rgba(15, 23, 42, 0.18)";
-const borderMigration = migrateStudioTemplateDocument(legacyBorderDocument);
-assert.ok(borderMigration.ok);
-assert.equal(
-  borderMigration.document.styles.style_background.border,
-  undefined,
-);
-assert.equal(
-  borderMigration.document.styles.style_background.boxShadow,
-  undefined,
-);
-legacyBorderDocument.styles.style_background.border = "2px solid red";
-legacyBorderDocument.styles.style_background.boxShadow = "0 2px 4px #123456";
-const customBorderMigration =
-  migrateStudioTemplateDocument(legacyBorderDocument);
-assert.ok(customBorderMigration.ok);
-assert.equal(
-  customBorderMigration.document.styles.style_background.border,
-  "2px solid red",
-);
-assert.equal(
-  customBorderMigration.document.styles.style_background.boxShadow,
-  "0 2px 4px #123456",
-);
 const timetable = document.domains?.timetable;
 assert.ok(timetable);
 const [mondayId, tuesdayId] = timetable.dayIds;
@@ -132,16 +103,6 @@ assert.ok(
   ),
 );
 
-const legacyDocument = createSampleStudioDocument();
-(legacyDocument as unknown as { version: number }).version = 3;
-(legacyDocument.domains!.timetable as unknown as { version: number }).version =
-  1;
-const migration = migrateStudioTemplateDocument(legacyDocument);
-if (!migration.ok) throw new Error(migration.message);
-assert.equal(migration.document.version, STUDIO_TEMPLATE_DOCUMENT_VERSION);
-assert.equal(migration.document.domains?.timetable?.version, 2);
-assert.ok(
-  migration.warnings.includes("Migrated timetable domain to version 2."),
-);
+assert.equal(migrateStudioTemplateDocument(createSampleStudioDocument()).ok, false);
 
 console.log("Template Studio component set checks passed.");

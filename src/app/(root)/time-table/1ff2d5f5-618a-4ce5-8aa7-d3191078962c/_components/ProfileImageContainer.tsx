@@ -1,7 +1,10 @@
+"use client";
+
 import { TTheme } from '@/types/time-table/theme';
 import { PropsWithChildren } from 'react';
-import { Imgs } from '../_img/imgs';
+import { Imgs as LocalImgs } from '../_img/imgs';
 import { CARD_SIZES } from '../_settings/settings';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface ProfileBackPlateProps {
   currentTheme?: TTheme;
@@ -20,6 +23,7 @@ interface ProfileImageSectionProps {
 }
 
 const ProfileBackPlate = ({ currentTheme }: ProfileBackPlateProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -28,7 +32,7 @@ const ProfileBackPlate = ({ currentTheme }: ProfileBackPlateProps) => {
       className="absolute inset-0"
     >
       <img
-        src={Imgs[currentTheme || 'first']['profileBG'].src.replace('./', '/')}
+        src={Imgs[currentTheme || 'first']['profileBG'].src}
         alt="profileBG"
         className="object-cover w-full h-full"
         draggable={false}
@@ -61,6 +65,7 @@ const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
 };
 
 const ProfileFrame = () => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -70,7 +75,7 @@ const ProfileFrame = () => {
       }}
     >
       <img
-        src={Imgs['first']['profileFrame'].src.replace('./', '/')}
+        src={Imgs['first']['profileFrame'].src}
         alt="frame"
         className="object-cover"
         draggable={false}

@@ -1,3 +1,4 @@
+import { createTimetableGraphFixture } from "./helpers/studio-timetable-fixture";
 import assert from "node:assert/strict";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -13,7 +14,7 @@ import { ensureStudioTimetableCapabilityStatus } from "../src/utils/template-stu
 import {
   createStudioProfileBlockPresetObjects,
   getStudioTimetableComposition,
-} from "../src/utils/template-studio/timetable-composition";
+} from "./helpers/studio-timetable-recipe";
 import {
   addStudioTimetableEntry,
   setStudioTimetableEntryField,
@@ -61,7 +62,10 @@ runtimeValues = setStudioTimetableEntryField(
 );
 
 const markup = renderToStaticMarkup(
-  <StudioTimetablePreview document={document} runtimeValues={runtimeValues} />,
+  <StudioTimetablePreview
+    document={createTimetableGraphFixture(document)}
+    runtimeValues={runtimeValues}
+  />,
 );
 
 assert.equal(countOccurrences(markup, "First authored entry"), 1);
@@ -106,7 +110,7 @@ profileTimetable.composition = profileComposition;
 const initialProfileValues = createStudioInitialRuntimeValues(profileDocument);
 const authoringProfileMarkup = renderToStaticMarkup(
   <StudioTimetablePreview
-    document={profileDocument}
+    document={createTimetableGraphFixture(profileDocument)}
     runtimeValues={initialProfileValues}
     variantMode="authoring"
   />,
@@ -119,7 +123,7 @@ assert.equal(
 
 const runtimeProfileMarkup = renderToStaticMarkup(
   <StudioTimetablePreview
-    document={profileDocument}
+    document={createTimetableGraphFixture(profileDocument)}
     runtimeValues={initialProfileValues}
   />,
 );
@@ -142,7 +146,7 @@ const uploadedProfileValues = setStudioRuntimeInputValue(
 );
 const uploadedProfileMarkup = renderToStaticMarkup(
   <StudioTimetablePreview
-    document={profileDocument}
+    document={createTimetableGraphFixture(profileDocument)}
     runtimeValues={uploadedProfileValues}
   />,
 );

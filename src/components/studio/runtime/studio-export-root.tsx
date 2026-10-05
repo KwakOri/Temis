@@ -8,14 +8,12 @@ import type {
 } from "@/types/template-studio";
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
 import type { StudioWebFontLoadState } from "@/components/studio/canvas/studio-web-font-loader";
+import type { StudioRuntimeImageOverrides } from "@/utils/thumbnail-studio/runtime-image-transform";
 
 interface StudioExportRootProps {
   document: StudioTemplateDocument;
   runtimeValues: StudioRuntimeValues;
-  runtimeImageOverrides?: Record<
-    string,
-    { fit?: "cover" | "contain" | "fill"; objectPosition?: string }
-  >;
+  runtimeImageOverrides?: StudioRuntimeImageOverrides;
   onFontLoadStateChange?: (state: StudioWebFontLoadState) => void;
 }
 

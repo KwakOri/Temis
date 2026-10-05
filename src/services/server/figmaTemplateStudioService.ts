@@ -3,9 +3,11 @@ import type {
   FigmaNormalizedNode,
   FigmaNodeResponse,
   FigmaTransientAsset,
+  StudioFigmaFrameCandidate,
 } from "@/types/template-studio-figma";
 import {
   groupFigmaGridPlacements,
+  inferFigmaGridOriginVariantFamily,
   inferFigmaGridOriginVariantStatus,
   inferFigmaGridVariantStatus,
   resolveFigmaOriginComponent,
@@ -19,8 +21,8 @@ import {
 import { isFigmaVectorType } from "@/utils/template-studio/figma-import/figma-visual";
 
 const FIGMA_API_BASE_URL = "https://api.figma.com/v1";
-const MAX_FIGMA_ASSET_SIZE_BYTES = 10 * 1024 * 1024;
-const ALLOWED_GRID_ROOT_TYPES = new Set(["FRAME", "COMPONENT", "INSTANCE"]);
+const MAX_FIGMA_ASSET_SIZE_BYTES = 50 * 1024 * 1024;
+const ALLOWED_GRID_ROOT_TYPES = new Set(["FRAME", "COMPONENT", "INSTANCE", "GROUP"]);
 const ALLOWED_CARD_TYPES = new Set([...ALLOWED_GRID_ROOT_TYPES, "GROUP"]);
 const EXCLUDED_GRID_ROOTS = new Set([
   "profile",
@@ -185,6 +187,150 @@ const isSupportedGridRoot = (node: FigmaNormalizedNode): boolean =>
   normalizeLayerName(node.name) === "grid" &&
   ALLOWED_GRID_ROOT_TYPES.has(node.type);
 
+const isGridLayer = (node: FigmaNormalizedNode): boolean =>
+  normalizeLayerName(node.name) === "grid" &&
+  node.visible !== false &&
+  ALLOWED_GRID_ROOT_TYPES.has(node.type);
+
+const absoluteFrame = (
+  node: FigmaNormalizedNode,
+  rendered = false,
+) => rendered
+  ? node.absoluteRenderBounds ?? node.absoluteBounds ?? node.frame
+  : node.absoluteBounds ?? node.frame;
+
+const frameLocalBounds = (
+  node: FigmaNormalizedNode,
+  frame: FigmaNormalizedNode,
+  rendered = false,
+) => {
+  const bounds = absoluteFrame(node, rendered);
+  const rootBounds = absoluteFrame(frame);
+  if (!bounds || !rootBounds) return null;
+  return {
+    left: bounds.left - rootBounds.left,
+    top: bounds.top - rootBounds.top,
+    width: bounds.width,
+    height: bounds.height,
+  };
+};
+
+const containsGridLayer = (node: FigmaNormalizedNode): boolean =>
+  node.visible !== false &&
+  (isGridLayer(node) || node.children?.some(containsGridLayer) === true);
+
+const findGridLayers = (node: FigmaNormalizedNode): FigmaNormalizedNode[] => {
+  if (node.visible === false) return [];
+  return [
+    ...(isGridLayer(node) ? [node] : []),
+    ...(node.children?.flatMap(findGridLayers) ?? []),
+  ];
+};
+
+export const createFigmaFrameCandidate = (
+  node: FigmaNormalizedNode,
+): StudioFigmaFrameCandidate => {
+  if (node.type !== "FRAME" || isSupportedGridRoot(node)) {
+    throw new FigmaGridScopeError();
+  }
+  const frameBounds = absoluteFrame(node);
+  if (!frameBounds || frameBounds.width <= 0 || frameBounds.height <= 0) {
+    throw new FigmaGridScopeError();
+  }
+
+  const gridLayers = findGridLayers(node);
+  const gridNode = gridLayers[0];
+  const warnings: string[] = [];
+  if (gridLayers.length > 1) {
+    warnings.push("Multiple GRID layers were found; only the first visible GRID is used.");
+  }
+  let zIndex = 0;
+  let gridZIndex = -1;
+  const imageRoots: Array<{ node: FigmaNormalizedNode; zIndex: number }> = [];
+  const collectImageRoots = (layer: FigmaNormalizedNode) => {
+    if (layer.visible === false) return;
+    if (isGridLayer(layer)) {
+      if (layer.id === gridNode?.id) gridZIndex = zIndex++;
+      return;
+    }
+    if (!containsGridLayer(layer)) {
+      imageRoots.push({ node: layer, zIndex: zIndex++ });
+      return;
+    }
+    layer.children?.forEach(collectImageRoots);
+  };
+  node.children?.forEach(collectImageRoots);
+  const layers = imageRoots.flatMap(({ node: layer, zIndex: layerZIndex }) => {
+      const bounds = frameLocalBounds(layer, node, true);
+      return bounds && bounds.width > 0 && bounds.height > 0
+        ? [{ sourceNodeId: layer.id, label: layer.name, bounds, zIndex: layerZIndex }]
+        : [];
+    });
+
+  let grid: StudioFigmaFrameCandidate["grid"] = null;
+  if (gridNode) {
+    const bounds = frameLocalBounds(gridNode, node);
+    if (bounds && bounds.width > 0 && bounds.height > 0) {
+      const placements = (gridNode.children ?? [])
+        .filter((child) => child.visible !== false && child.type === "INSTANCE")
+        .flatMap((child) => {
+          const rotatedBounds = frameLocalBounds(child, node);
+          if (!rotatedBounds || rotatedBounds.width <= 0 || rotatedBounds.height <= 0) {
+            return [];
+          }
+          const width = child.localSize?.width ?? rotatedBounds.width;
+          const height = child.localSize?.height ?? rotatedBounds.height;
+          const placementBounds = {
+            left: rotatedBounds.left + (rotatedBounds.width - width) / 2,
+            top: rotatedBounds.top + (rotatedBounds.height - height) / 2,
+            width,
+            height,
+          };
+          return width > 0 && height > 0
+            ? [{
+                sourceNodeId: child.id,
+                bounds: placementBounds,
+                ...(child.rotateDeg !== undefined ? { rotateDeg: child.rotateDeg } : {}),
+              }]
+            : [];
+        });
+      grid = {
+        sourceNodeId: gridNode.id,
+        bounds,
+        zIndex: gridZIndex >= 0 ? gridZIndex : zIndex,
+        placements,
+      };
+      if (placements.length === 0) {
+        warnings.push("GRID contains no visible component instances; its layout will use the current timetable cards.");
+      }
+    } else {
+      warnings.push("GRID bounds are unavailable; its layout will use the current timetable cards.");
+    }
+  } else {
+    warnings.push("No visible GRID layer was found; the current timetable card layout is preserved.");
+  }
+
+  return {
+    candidateId: node.id,
+    label: node.name,
+    frame: {
+      width: node.localSize?.width ?? frameBounds.width,
+      height: node.localSize?.height ?? frameBounds.height,
+    },
+    layers,
+    grid,
+    warnings,
+  };
+};
+
+export const fetchFigmaFrameCandidate = async (source: {
+  fileKey: string;
+  nodeId: string;
+}): Promise<StudioFigmaFrameCandidate> => {
+  const { node } = await fetchFigmaGridNode(source);
+  return createFigmaFrameCandidate(node);
+};
+
 const readFigmaAssetBytes = async (response: Response): Promise<Uint8Array> => {
   const declaredSize = Number(response.headers.get("content-length"));
   if (
@@ -254,12 +400,12 @@ export const fetchFigmaGridNode = async (source: {
   };
 };
 
-export const exportFigmaNodeAsDataUrl = async (
+export const exportFigmaNodeAsBytes = async (
   fileKey: string,
   nodeId: string,
   format: "png" | "svg",
 ): Promise<{
-  src: string;
+  bytes: Buffer;
   mimeType: "image/png" | "image/svg+xml";
   byteSize: number;
 }> => {
@@ -274,13 +420,30 @@ export const exportFigmaNodeAsDataUrl = async (
   const assetResponse = await fetch(temporaryUrl);
   if (!assetResponse.ok) throw new Error("Figma asset download failed.");
 
-  const bytes = await readFigmaAssetBytes(assetResponse);
+  const bytes = Buffer.from(await readFigmaAssetBytes(assetResponse));
 
   const mimeType = format === "png" ? "image/png" : "image/svg+xml";
   return {
-    src: `data:${mimeType};base64,${Buffer.from(bytes).toString("base64")}`,
+    bytes,
     mimeType,
     byteSize: bytes.byteLength,
+  };
+};
+
+export const exportFigmaNodeAsDataUrl = async (
+  fileKey: string,
+  nodeId: string,
+  format: "png" | "svg",
+): Promise<{
+  src: string;
+  mimeType: "image/png" | "image/svg+xml";
+  byteSize: number;
+}> => {
+  const exported = await exportFigmaNodeAsBytes(fileKey, nodeId, format);
+  return {
+    src: `data:${exported.mimeType};base64,${exported.bytes.toString("base64")}`,
+    mimeType: exported.mimeType,
+    byteSize: exported.byteSize,
   };
 };
 
@@ -352,7 +515,7 @@ export const fetchFigmaGridCandidates = async (source: {
             candidateWarnings.push(
               error instanceof Error &&
                 error.message === "Figma asset exceeds the maximum size."
-                ? "A decorative asset exceeded 10 MiB and was omitted."
+                ? "A decorative asset exceeded 50 MiB and was omitted."
                 : "A decorative asset could not be exported and was omitted.",
             );
           }
@@ -430,7 +593,7 @@ const createOriginAssets = async (input: {
     } catch (error) {
       warnings.push(
         error instanceof Error && error.message === "Figma asset exceeds the maximum size."
-          ? "A decorative asset exceeded 10 MiB and was omitted."
+          ? "A decorative asset exceeded 50 MiB and was omitted."
           : "A decorative asset could not be exported and was omitted.",
       );
     }
@@ -526,10 +689,14 @@ export const fetchFigmaGridOriginCandidates = async (source: {
 
   for (const group of Object.values(groups)) {
     const groupPlacements = placements.filter(({ origin }) => origin.componentSetNodeId === group.componentSetNodeId);
-    const originStatusByComponentId = new Map<string, "online" | "offline">();
-    const originDataByComponentId = new Map<string, FigmaOriginNodeData>();
     const groupWarnings: string[] = [];
     let complete = true;
+    const resolvedOrigins: Array<{
+      origin: (typeof group.origins)[number];
+      status: "online" | "offline";
+      family: string | null;
+      data: FigmaOriginNodeData;
+    }> = [];
     for (const origin of group.origins) {
       const originData = originNodes.get(origin.componentNodeId);
       if (!originData) {
@@ -554,89 +721,101 @@ export const fetchFigmaGridOriginCandidates = async (source: {
         groupWarnings.push(warning);
         continue;
       }
-      originStatusByComponentId.set(origin.componentId, status);
-      originDataByComponentId.set(origin.componentId, originData);
-    }
-    if (new Set(originStatusByComponentId.values()).size !== 2) complete = false;
-    const byStatus = new Map<"online" | "offline", typeof groupPlacements>();
-    for (const placement of groupPlacements) {
-      const authoritativeStatus = originStatusByComponentId.get(placement.origin.componentId);
-      if (!authoritativeStatus) continue;
-      if (placement.placementStatus && placement.placementStatus !== authoritativeStatus) {
-        const warning = "A GRID placement status disagreed with its explicit origin status; origin status remained authoritative.";
-        warnings.push(warning);
-        groupWarnings.push(warning);
-      }
-      const bucket = byStatus.get(authoritativeStatus) ?? [];
-      bucket.push(placement);
-      byStatus.set(authoritativeStatus, bucket);
-    }
-    const variants = {} as FigmaGridCandidateSource["variants"];
-    const evidenceByPath = new Map<string, FigmaGridCandidateSource["variants"]["online"]["placementEvidence"][string]>();
-    for (const status of ["online", "offline"] as const) {
-      const statusPlacements = byStatus.get(status) ?? [];
-      const originIds = group.origins
-        .filter((origin) => originStatusByComponentId.get(origin.componentId) === status)
-        .map((origin) => origin.componentId);
-      if (originIds.length !== 1) {
-        complete = false;
-        continue;
-      }
-      const origin = statusPlacements[0]?.origin;
-      const originData = origin ? originDataByComponentId.get(origin.componentId) : undefined;
-      const root = originData?.root;
-      if (!origin || !originData || !root) {
-        complete = false;
-        continue;
-      }
-      const exported = await createOriginAssets({ fileKey: source.fileKey, root, getImageUrls });
-      const mapped = mapFigmaPlacementNodesToOrigin({
-        origin: root,
-        placements: statusPlacements.map(({ instance }) => ({
-          instanceId: instance.id,
-          status,
-          root: instance,
-        })),
-      });
-      aggregateSemanticEvidence(evidenceByPath, mapped.evidenceByOriginNodeId, root);
-      variants[status] = {
-        status,
+      resolvedOrigins.push({
         origin,
-        root,
-        assets: exported.assets,
-        placementEvidence: mapped.evidenceByOriginNodeId,
-        originMetadata: {
-          component: originData.components[origin.componentId] ?? Object.values(originData.components).find((metadata) =>
-            metadata.node_id === origin.componentNodeId || metadata.nodeId === origin.componentNodeId,
-          ),
-          componentSet: originData.componentSets[origin.componentSetNodeId],
-        },
-        warnings: [...exported.warnings, ...mapped.warnings],
-      };
-    }
-    for (const variant of Object.values(variants)) {
-      variant.componentSetEvidence = evidenceByNodePath(variant.root, evidenceByPath);
-      variant.semanticReviews = inferFigmaSemanticEvidence({
-        origin: variant.root,
-        evidenceByOriginNodeId: variant.placementEvidence,
-        componentSetEvidence: variant.componentSetEvidence,
+        status,
+        family: inferFigmaGridOriginVariantFamily(origin),
+        data: originData,
       });
     }
     if (!complete) {
       warnings.push("A GRID component set was excluded because it did not resolve to exactly one online and one offline origin.");
       continue;
     }
-    const online = variants.online;
-    candidates.push({
-      candidateId: group.componentSetNodeId,
-      label: online.origin.componentSetName ?? online.origin.componentName,
-      frame: online.root.frame ?? online.root.absoluteBounds ?? { left: 0, top: 0, width: 0, height: 0 },
-      placementInstanceIds: group.placementInstanceIds,
-      variants,
-      root: online.root,
-      assets: online.assets,
-      warnings: [...groupWarnings, ...online.warnings, ...variants.offline.warnings],
-    });
+
+    const familyKeys = [...new Set(resolvedOrigins.map(({ family }) => family ?? ""))];
+    for (const familyKey of familyKeys) {
+      const family = familyKey || null;
+      const familyOrigins = resolvedOrigins.filter((entry) => entry.family === family);
+      const familyComponentIds = new Set(familyOrigins.map(({ origin }) => origin.componentId));
+      const familyPlacements = groupPlacements.filter(({ origin }) => familyComponentIds.has(origin.componentId));
+      const familyWarnings: string[] = [];
+      const originsByStatus = new Map<"online" | "offline", typeof familyOrigins>();
+      familyOrigins.forEach((entry) => {
+        const bucket = originsByStatus.get(entry.status) ?? [];
+        bucket.push(entry);
+        originsByStatus.set(entry.status, bucket);
+      });
+      const variants = {} as FigmaGridCandidateSource["variants"];
+      const evidenceByPath = new Map<string, FigmaGridCandidateSource["variants"]["online"]["placementEvidence"][string]>();
+      let familyComplete = true;
+      for (const status of ["online", "offline"] as const) {
+        const statusOrigins = originsByStatus.get(status) ?? [];
+        if (statusOrigins.length !== 1) {
+          familyComplete = false;
+          continue;
+        }
+        const resolved = statusOrigins[0]!;
+        const origin = resolved.origin;
+        const originData = resolved.data;
+        const root = originData.root;
+        const statusPlacements = familyPlacements.filter(({ origin: placementOrigin }) =>
+          placementOrigin.componentId === origin.componentId,
+        );
+        if (statusPlacements.some(({ placementStatus }) => placementStatus && placementStatus !== status)) {
+          const warning = "A GRID placement status disagreed with its explicit origin status; origin status remained authoritative.";
+          warnings.push(warning);
+          familyWarnings.push(warning);
+        }
+        const exported = await createOriginAssets({ fileKey: source.fileKey, root, getImageUrls });
+        const mapped = mapFigmaPlacementNodesToOrigin({
+          origin: root,
+          placements: statusPlacements.map(({ instance }) => ({
+            instanceId: instance.id,
+            status,
+            root: instance,
+          })),
+        });
+        aggregateSemanticEvidence(evidenceByPath, mapped.evidenceByOriginNodeId, root);
+        variants[status] = {
+          status,
+          origin,
+          root,
+          assets: exported.assets,
+          placementEvidence: mapped.evidenceByOriginNodeId,
+          originMetadata: {
+            component: originData.components[origin.componentId] ?? Object.values(originData.components).find((metadata) =>
+              metadata.node_id === origin.componentNodeId || metadata.nodeId === origin.componentNodeId,
+            ),
+            componentSet: originData.componentSets[origin.componentSetNodeId],
+          },
+          warnings: [...exported.warnings, ...mapped.warnings],
+        };
+      }
+      if (!familyComplete) {
+        warnings.push("A GRID component set was excluded because it did not resolve to exactly one online and one offline origin.");
+        continue;
+      }
+      for (const variant of Object.values(variants)) {
+        variant.componentSetEvidence = evidenceByNodePath(variant.root, evidenceByPath);
+        variant.semanticReviews = inferFigmaSemanticEvidence({
+          origin: variant.root,
+          evidenceByOriginNodeId: variant.placementEvidence,
+          componentSetEvidence: variant.componentSetEvidence,
+        });
+      }
+      const online = variants.online;
+      candidates.push({
+        candidateId: family ? `${group.componentSetNodeId}:${family}` : group.componentSetNodeId,
+        label: `${online.origin.componentSetName ?? online.origin.componentName}${family ? ` ${family}` : ""}`,
+        frame: online.root.frame ?? online.root.absoluteBounds ?? { left: 0, top: 0, width: 0, height: 0 },
+        placementInstanceIds: familyPlacements.map(({ instance }) => instance.id),
+        variants,
+        root: online.root,
+        assets: online.assets,
+        warnings: [...groupWarnings, ...familyWarnings, ...online.warnings, ...variants.offline.warnings],
+      });
+    }
   }
   if (candidates.length === 0 && warnings.length === 0) {
     warnings.push("No complete GRID origin component sets were found.");

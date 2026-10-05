@@ -55,6 +55,7 @@ const panelProps: StudioTimetableDayPanelProps = {
   onAddEntry: noop,
   onRemoveEntry: noop,
   onUpdateEntryStatus: noop,
+  onUpdateEntryField: noop,
   onChangeInput: noop,
   onRequestImageCrop: noop,
 };

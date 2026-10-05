@@ -395,7 +395,7 @@ assert.ok(
   "캔버스 탭은 현재 작업 모드를 배지로 보여준다.",
 );
 assert.ok(
-  timetableSettingsMarkup.includes("컴포넌트 카드 링크"),
+  timetableSettingsMarkup.includes("data-studio-figma-component-import"),
   "Timetable settings includes the transient Figma component import panel.",
 );
 

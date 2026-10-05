@@ -1,3 +1,5 @@
+"use client";
+
 import React, { PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
@@ -5,7 +7,7 @@ import { TDefaultCard, TEntry } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { formatTime } from "@/utils/time-formatter";
 import { weekdays } from "@/utils/time-table/data";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import {
   colors,
@@ -13,6 +15,7 @@ import {
   Settings,
   weekdayOption,
 } from "../_settings/settings";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface DayTextProps {
   currentTheme?: TTheme;
@@ -202,6 +205,7 @@ interface OnlineCardBGProps {
 }
 
 const OnlineCardBG = ({ day, entriesLength }: OnlineCardBGProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -214,7 +218,7 @@ const OnlineCardBG = ({ day, entriesLength }: OnlineCardBGProps) => {
         className="object-cover w-full h-full"
         src={Imgs["first"][
           entriesLength !== 1 ? "bigOnline" : "online"
-        ].src.replace("./", "/")}
+        ].src}
         alt="online"
       />
     </div>
@@ -222,6 +226,7 @@ const OnlineCardBG = ({ day, entriesLength }: OnlineCardBGProps) => {
 };
 
 const OfflineCard = ({ day, currentTheme, offlineMemo }: OfflineCardProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       className=" flex justify-center items-center pointer-events-none"
@@ -257,7 +262,7 @@ const OfflineCard = ({ day, currentTheme, offlineMemo }: OfflineCardProps) => {
       <img
         src={Imgs[currentTheme || "first"][
           offlineMemo ? "offlineMemo" : "offline"
-        ].src.replace("./", "/")}
+        ].src}
         alt="offline"
         className="object-cover"
       />
@@ -285,6 +290,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   weekDate,
   currentTheme,
 }) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   if (!weekDate) return "Loading";
 
   // 새로운 데이터 구조에서 첫 번째 엔트리를 기본값으로 사용
@@ -313,7 +319,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       >
         <StreamingDate date={weekDate.getDate()} />
         <img
-          src={Imgs["first"].star.src.replace("./", "/")}
+          src={Imgs["first"].star.src}
           alt="star"
           style={{ width: 42, height: 42, marginTop: 8 }}
           className="relative bottom-1.5"

@@ -1,3 +1,4 @@
+import { applyStudioObjectHidden } from "./object-style";
 import type {
   StudioGraphNode,
   StudioTemplateDocument,
@@ -452,7 +453,7 @@ export const applyStudioToggleNodeHidden = (
   plan.nodeIds.forEach((nodeId) => {
     const node = draft.graph.nodes[nodeId];
     if (!node) return;
-    node.hidden = plan.nextHidden;
+    applyStudioObjectHidden(node, plan.nextHidden);
   });
 };
 

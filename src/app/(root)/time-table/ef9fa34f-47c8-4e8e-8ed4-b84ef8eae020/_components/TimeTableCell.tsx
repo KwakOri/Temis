@@ -1,10 +1,12 @@
+"use client";
+
 import React from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { getFormattedTime, weekdays } from "@/utils/time-table/data";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import {
   colors,
@@ -15,6 +17,7 @@ import {
   onlineCardWidth,
   weekdayOption,
 } from "../_settings/settings";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface TimeTableCellProps {
   time: TDefaultCard;
@@ -28,6 +31,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   weekDate,
   currentTheme,
 }) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   if (!weekDate) return "Loading";
 
   // 새로운 데이터 구조에서 첫 번째 엔트리를 기본값으로 사용
@@ -47,7 +51,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         key={time.day}
       >
         <img
-          src={Imgs[currentTheme]["offline"].src.replace("./", "/")}
+          src={Imgs[currentTheme]["offline"].src}
           alt="offline"
           style={{
             width: 228,
@@ -149,7 +153,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         </div>
         <img
           className="absolute inset-0 -z-10"
-          src={Imgs[currentTheme]["online"].src.replace("./", "/")}
+          src={Imgs[currentTheme]["online"].src}
           alt="online"
         />
       </div>

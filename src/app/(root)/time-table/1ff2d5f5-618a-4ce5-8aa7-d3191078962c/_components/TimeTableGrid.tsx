@@ -1,20 +1,24 @@
+"use client";
+
 import React, { Fragment } from 'react';
 
 import { AutoResizeText } from '@/components/AutoResizeTextCard';
 import { useTimeTableData } from '@/contexts/TimeTableContext';
 import { TDefaultCard } from '@/types/time-table/data';
 import { TTheme } from '@/types/time-table/theme';
-import { Imgs } from '../_img/imgs';
+import { Imgs as LocalImgs } from '../_img/imgs';
 import { CARD_SIZES, COMP_COLORS, COMP_FONTS } from '../_settings/settings';
 import TimeTableCell from './TimeTableCell';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 const WeeklyMemoCard = () => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const { isMemoTextVisible, memoText } = useTimeTableData();
 
   return (
     <>
       <img
-        src={Imgs['first']['memoObject'].src.replace('./', '/')}
+        src={Imgs['first']['memoObject'].src}
         alt="memoObject"
         className="absolute z-40"
         style={{
@@ -50,7 +54,7 @@ const WeeklyMemoCard = () => {
           </div>
           <img
             className="object-cover w-full h-full"
-            src={Imgs['first']['memo'].src.replace('./', '/')}
+            src={Imgs['first']['memo'].src}
             alt="memo"
           />
         </div>

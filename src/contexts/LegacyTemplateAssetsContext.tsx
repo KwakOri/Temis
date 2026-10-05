@@ -1,0 +1,151 @@
+"use client";
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  useEffect,
+  type PropsWithChildren,
+} from "react";
+import { usePathname } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  useLegacyAssetPreview,
+  useLegacyAssetRuntime,
+} from "@/hooks/query/useLegacyTemplateAssets";
+import type {
+  LegacyAssetChange,
+  LegacyAssetOwner,
+  LegacyAssetRuntime,
+} from "@/types/legacy-template-assets";
+import { parseLegacyAssetOwner } from "@/utils/legacy-template-assets/contracts";
+
+import {
+  requiresLegacyAssetR2,
+  resolveLegacyTemplateImages,
+} from "@/utils/legacy-template-assets/source-policy";
+
+const Context = createContext<LegacyAssetRuntime | null>(null);
+export function HomepageAssetsProvider({ children }: PropsWithChildren) {
+  const [preview, setPreview] = useState(false);
+  useEffect(() => {
+    setPreview(
+      new URLSearchParams(window.location.search).has("legacyAssetPreview"),
+    );
+  }, []);
+  if (preview)
+    return (
+      <LegacyTemplateAssetsProvider
+        owner={{ ownerKind: "site", templateId: "homepage", purpose: "site" }}
+      >
+        {children}
+      </LegacyTemplateAssetsProvider>
+    );
+  // The public homepage renders bundled/static assets without a manifest request.
+  return <Context.Provider value={null}>{children}</Context.Provider>;
+}
+export function LegacyTemplateAssetsRoute({
+  children,
+  ownerKind,
+}: PropsWithChildren<{ ownerKind: LegacyAssetOwner["ownerKind"] }>) {
+  const pathname = usePathname();
+  const id = pathname.split("/")[2];
+  let owner;
+  try {
+    owner = parseLegacyAssetOwner(ownerKind, id ?? "");
+  } catch {
+    return <>{children}</>;
+  }
+  return (
+    <LegacyTemplateAssetsProvider key={`${ownerKind}:${id}`} owner={owner}>
+      {children}
+    </LegacyTemplateAssetsProvider>
+  );
+}
+export function LegacyTemplateAssetsProvider({
+  children,
+  owner,
+}: PropsWithChildren<{ owner: LegacyAssetOwner }>) {
+  const { user, loading } = useAuth();
+  const [changes, setChanges] = useState<LegacyAssetChange[] | null>(null);
+  const [previewError, setPreviewError] = useState("");
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get(
+      "legacyAssetPreview",
+    );
+    if (raw !== null) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed) || parsed.length > 2000) throw new Error();
+        setChanges(parsed);
+      } catch {
+        setPreviewError("미리보기 정보가 올바르지 않습니다.");
+      }
+    }
+  }, []);
+  const r2Only = requiresLegacyAssetR2(owner);
+  const enabled =
+    r2Only || process.env.NEXT_PUBLIC_LEGACY_TEMPLATE_R2_ENABLED === "true";
+  const runtime = useLegacyAssetRuntime(owner, enabled && !changes);
+  const preview = useLegacyAssetPreview(owner, changes);
+  if (loading && (enabled || changes))
+    return (
+      <p role="status" className="p-5">
+        이미지 권한 확인 중...
+      </p>
+    );
+  const query = changes ? preview : runtime;
+  const error =
+    previewError ||
+    (changes && !user?.isAdmin
+      ? "관리자만 교체 후보를 미리볼 수 있습니다."
+      : "") ||
+    (query.error instanceof Error ? query.error.message : "");
+  if (error)
+    return (
+      <div role="alert" className="p-5 text-red-700">
+        {error}
+        <button className="ml-3 underline" onClick={() => query.refetch()}>
+          다시 시도
+        </button>
+      </div>
+    );
+  if (
+    (enabled || changes) &&
+    query.isPending &&
+    (user || owner.ownerKind === "thumbnail")
+  )
+    return (
+      <p role="status" className="p-5">
+        이미지 불러오는 중...
+      </p>
+    );
+  if (r2Only && query.data?.mode !== "r2") {
+    return (
+      <p role="alert" className="p-5 text-red-700">
+        등록된 R2 이미지를 불러오지 못했습니다.
+      </p>
+    );
+  }
+  return (
+    <Context.Provider value={query.data ?? null}>{children}</Context.Provider>
+  );
+}
+export function useLegacyTemplateImages<T>(localImages: T): T {
+  const runtime = useContext(Context);
+  return useMemo(
+    () => resolveLegacyTemplateImages(localImages, runtime),
+    [localImages, runtime],
+  );
+}
+export function useLegacyAssetUrl(
+  theme: string,
+  key: string,
+  localUrl: string,
+): string {
+  const runtime = useContext(Context);
+  if (!runtime || runtime.mode === "local") return localUrl;
+  const image = runtime.images[theme]?.[key];
+  if (!image) throw new Error(`등록된 이미지가 없습니다: ${theme}/${key}`);
+  return image.src;
+}

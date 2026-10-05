@@ -122,9 +122,11 @@ export function StudioRuntimePreviewWorkspace({
           >
             <div
               ref={contentRef}
-              className="relative"
+              className="relative select-none"
               data-testid="studio-runtime-preview-content"
+              draggable={false}
               style={{ height: previewSize.height, width: previewSize.width }}
+              onDragStart={(event) => event.preventDefault()}
             >
               {children}
             </div>

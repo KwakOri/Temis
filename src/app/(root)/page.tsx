@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { keyFeatureList, reviews } from "./_constants";
 import TestComponent from "./_sample/TestComponent";
+import { HomepageAssetsProvider } from "@/contexts/LegacyTemplateAssetsContext";
 
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
@@ -390,8 +391,10 @@ export default function Home() {
       {/* 메인 콘텐츠 */}
       <div className="flex flex-col items-center w-full">
         <NavBar />
-        <TestComponent />
-        <KeyFeaturesSection items={keyFeatureList} />
+        <HomepageAssetsProvider>
+          <TestComponent />
+          <KeyFeaturesSection items={keyFeatureList} />
+        </HomepageAssetsProvider>
         <ReviewSection items={reviews} />
         <GallerySection />
       </div>

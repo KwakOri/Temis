@@ -1,3 +1,5 @@
+import { createTimetableGraphFixture } from "./helpers/studio-timetable-fixture";
+import { resolveStudioTimetableGraphSelection } from "../src/utils/template-studio/timetable-graph-selection";
 /**
  * 시간표 인스펙터 섹션 구성의 기준선 가드.
  *
@@ -20,7 +22,7 @@ import type {
   StudioTimetableComposition,
   StudioTimetableCompositionObject,
 } from "../src/types/template-studio";
-import { STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID } from "../src/utils/template-studio/timetable-composition";
+import { STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID } from "./helpers/studio-timetable-recipe";
 import { resolveStudioTimetableSelection } from "../src/utils/template-studio/timetable-selection";
 
 const createObject = (
@@ -98,6 +100,10 @@ const build = (
     objects: Object.fromEntries(objects.map((object) => [object.id, object])),
   } as unknown as StudioTimetableComposition;
 
+  const graphDocument = createTimetableGraphFixture({
+    ...document,
+    domains: { timetable: { ...document.domains!.timetable!, composition } },
+  });
   return buildStudioTimetableInspectorSections({
     activeRuntimeDayLabel: "Monday",
     activeRuntimeEntry: null,
@@ -120,12 +126,14 @@ const build = (
     selectedLayerId,
     selectedLayerLabel: selectedLayerId ?? "Timetable Composition",
     selectedLayerRotation: 0,
-    selection: resolveStudioTimetableSelection(
-      document,
-      composition,
+    selection: resolveStudioTimetableGraphSelection(
+      graphDocument,
       selectedLayerId,
     ),
     onAssignComponentSet: () => {},
+    onEditDayCard: () => {},
+    onSelectLayer: () => {},
+    onSelectEditingVariant: () => {},
     onToggleFitParent: () => {},
     onToggleSection: () => {},
     onUpdateDayCardsLayout: () => {},
@@ -167,8 +175,8 @@ assert.deepEqual(
 assert.deepEqual(
   sectionIds(build("day-card:mon")),
   [
-    "componentSet:Component Set",
     "position:Position",
+    "componentSet:Component Set",
     "runtime:Timetable Context",
   ],
   "요일 카드는 Component Set과 자리를 편집한다.",
@@ -258,16 +266,19 @@ const textSections = build("t", {
 assert.deepEqual(
   sectionIds(textSections),
   [
-    "input:Text",
-    "appearance:Appearance",
     "position:Position",
+    "input:Data & Format",
     "typography:Typography",
+    "appearance:Style",
+    "settings:Visibility & State",
     "runtime:Timetable Context",
   ],
-  "글자 객체의 섹션 종류와 순서가 바뀌면 안 된다.",
+  "배치, 데이터, 스타일, 표시 순서로 글자 객체를 편집한다.",
 );
 assert.ok(
-  markupOf(findSection(textSections, "input:Text")).includes('value="hello"'),
+  markupOf(findSection(textSections, "input:Data & Format")).includes(
+    'value="hello"',
+  ),
   "묶이지 않은 글자는 직접 적는다.",
 );
 
@@ -281,17 +292,19 @@ const boundSections = build("t", {
   ],
 });
 assert.ok(
-  sectionIds(boundSections).includes("runtime:Preview Inputs"),
+  sectionIds(boundSections).includes("runtime:User Preview Values"),
   "묶인 글자에는 미리보기 입력 편집이 나타난다.",
 );
 assert.ok(
-  markupOf(findSection(boundSections, "input:Text")).includes(
+  markupOf(findSection(boundSections, "input:Data & Format")).includes(
     'data-input-slot="input_text"',
   ),
   "묶인 입력 편집 UI는 받은 것을 그대로 놓는다.",
 );
 assert.ok(
-  !markupOf(findSection(boundSections, "input:Text")).includes("<input"),
+  !markupOf(findSection(boundSections, "input:Data & Format")).includes(
+    "<input",
+  ),
   "묶인 글자를 직접 적게 하면 안 된다.",
 );
 
@@ -304,7 +317,9 @@ const builtinSections = build("t", {
     } as never),
   ],
 });
-const builtinMarkup = markupOf(findSection(builtinSections, "input:Text"));
+const builtinMarkup = markupOf(
+  findSection(builtinSections, "input:Data & Format"),
+);
 assert.ok(
   builtinMarkup.includes("Built-in Source"),
   "어떤 기본 필드에 묶였는지 보여준다.",
@@ -314,7 +329,7 @@ assert.ok(
   "요일 필드에는 표기 선택이 함께 나타난다.",
 );
 assert.ok(
-  !sectionIds(builtinSections).includes("runtime:Preview Inputs"),
+  !sectionIds(builtinSections).includes("runtime:User Preview Values"),
   "기본 필드는 사용자 입력이 아니라 미리보기 입력 편집이 없다.",
 );
 assert.ok(
@@ -338,7 +353,7 @@ const timeBuiltinMarkup = markupOf(
         } as never),
       ],
     }),
-    "input:Text",
+    "input:Data & Format",
   ),
 );
 assert.ok(
@@ -356,11 +371,11 @@ const weekDatesMarkup = markupOf(
         createObject("t", {
           kind: "text",
           presetId: "weekDates",
-          binding: { kind: "builtinField", fieldId: "day.label" },
+          binding: { kind: "builtinField", fieldId: "week.date_range" },
         } as never),
       ],
     }),
-    "input:Text",
+    "input:Data & Format",
   ),
 );
 assert.ok(
@@ -418,7 +433,12 @@ const groupAppearance = markupOf(
   ),
 );
 assert.ok(
-  groupAppearance.includes("<span>Visible</span>"),
+  markupOf(
+    findSection(
+      build("g", { objects: [createObject("g", { kind: "group" })] }),
+      "settings:",
+    ),
+  ).includes("<span>Visible</span>"),
   "묶음도 보임과 투명도는 편집한다.",
 );
 
@@ -439,33 +459,6 @@ assert.ok(
 assert.ok(
   !groupAppearance.includes("data-asset-slot"),
   "묶음에는 자식의 이미지 자리를 보여주지 않는다.",
-);
-
-// 예전 프로필 묶음은 사진과 테두리, 마스크를 함께 편집한다.
-const legacyProfileAppearance = markupOf(
-  findSection(
-    build("p", {
-      objects: [
-        createObject("p", {
-          kind: "profileBlock",
-          presetId: "profileBlock",
-        } as never),
-      ],
-    }),
-    "appearance:",
-  ),
-);
-assert.ok(
-  legacyProfileAppearance.includes('data-asset-slot="profileImage"'),
-  "예전 프로필 묶음에는 사진 자리가 있다.",
-);
-assert.ok(
-  legacyProfileAppearance.includes('data-asset-slot="profileFrame"'),
-  "예전 프로필 묶음에는 테두리 자리가 있다.",
-);
-assert.ok(
-  legacyProfileAppearance.includes("<span>Mask</span>"),
-  "예전 프로필 묶음에는 마스크 편집이 있다.",
 );
 
 // 사용자 사진 자식에도 마스크 편집이 붙는다.
@@ -595,14 +588,14 @@ assert.ok(
         } as never),
       ],
     }),
-  ).includes("settings:Object State"),
+  ).includes("settings:Visibility & State"),
   "상태를 가진 객체에는 상태 선택이 나타난다.",
 );
 assert.ok(
-  !sectionIds(build("o", { objects: [createObject("o")] })).includes(
-    "settings:Object State",
-  ),
-  "상태가 없는 객체에는 상태 선택이 없다.",
+  !markupOf(
+    findSection(build("o", { objects: [createObject("o")] }), "settings:"),
+  ).includes("Editing design state:"),
+  "상태가 없는 객체에는 표시 설정만 나타난다.",
 );
 
 // --- 맥락 ---
@@ -641,5 +634,143 @@ const toggleSections = build("day-card:mon", {
 const togglePosition = findSection(toggleSections, "position:");
 if (togglePosition.kind !== "block") togglePosition.onToggle();
 assert.deepEqual(toggled, ["position"], "섹션을 누르면 그 섹션 키로 알린다.");
+
+// 프리셋과 무관하게 연결된 필드에 맞는 formatter를 노출한다.
+for (const fieldId of [
+  "week.date_range",
+  "week.start_date",
+  "week.end_date",
+  "day.date",
+] as const) {
+  const sections = build("date", {
+    objects: [
+      createObject("date", { binding: { kind: "builtinField", fieldId } }),
+    ],
+  });
+  const markup = markupOf(findSection(sections, "input:"));
+  assert.ok(
+    markup.includes("Date Format"),
+    `${fieldId}에는 날짜 포맷을 제공한다.`,
+  );
+  assert.equal(
+    markup.includes("${start.YYYY}"),
+    fieldId === "week.date_range",
+    "기간과 단일 날짜 토큰을 구분한다.",
+  );
+}
+const misleadingPreset = build("date", {
+  objects: [
+    createObject("date", {
+      presetId: "weekDates",
+      binding: { kind: "builtinField", fieldId: "day.label" },
+    }),
+  ],
+});
+assert.ok(
+  !markupOf(findSection(misleadingPreset, "input:")).includes("Date Format"),
+  "날짜 프리셋 이름보다 실제 데이터 원본을 따른다.",
+);
+
+const owner = createObject("artist", {
+  kind: "group",
+  label: "Artist",
+  childIds: ["on", "off"],
+  variantSet: {
+    defaultValue: "on",
+    activeValue: "on",
+    options: [
+      { value: "on", label: "On" },
+      { value: "off", label: "Off" },
+    ],
+    rootByValue: { on: "on", off: "off" },
+  },
+});
+const nestedStateObjects = [
+  owner,
+  createObject("on", { kind: "group", parentId: "artist", childIds: ["text"] }),
+  createObject("text", { parentId: "on" }),
+];
+const beforeStateEdit = JSON.stringify(nestedStateObjects);
+const nestedSections = build("text", { objects: nestedStateObjects });
+assert.equal(
+  nestedSections[0].id,
+  "editingState:context",
+  "자식 선택에도 접히지 않는 상태 컨텍스트를 보여준다.",
+);
+assert.match(markupOf(nestedSections[0]), /Artist.*Editing design:.*On/);
+assert.equal(
+  JSON.stringify(nestedStateObjects),
+  beforeStateEdit,
+  "인스펙터 생성은 문서를 바꾸지 않는다.",
+);
+
+const findControl = (
+  node: React.ReactNode,
+  matches: (element: React.ReactElement) => boolean,
+): React.ReactElement | null => {
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const result = findControl(child, matches);
+      if (result) return result;
+    }
+  } else if (React.isValidElement(node)) {
+    if (matches(node)) return node;
+    return findControl(
+      (node.props as { children?: React.ReactNode }).children,
+      matches,
+    );
+  }
+  return null;
+};
+const editedDays: string[] = [];
+const editButton = findControl(
+  findSection(
+    build("day-card:mon", {
+      overrides: { onEditDayCard: (day) => editedDays.push(day) },
+    }),
+    "componentSet:",
+  ).content,
+  (element) =>
+    element.type === "button" &&
+    (element.props as { children?: string }).children === "Edit card design",
+);
+assert.ok(editButton);
+(editButton.props as { onClick: () => void }).onClick();
+assert.deepEqual(editedDays, ["mon"], "카드 디자인 연결은 선택된 요일을 연다.");
+
+const updatedOwners: string[] = [];
+const selectedOwners: string[] = [];
+const stateControl = findControl(
+  findSection(
+    build("text", {
+      objects: nestedStateObjects,
+      overrides: {
+        onSelectEditingVariant: (id, value) => {
+          updatedOwners.push(`${id}:${value}`);
+        },
+        onSelectLayer: (id) => selectedOwners.push(id),
+      },
+    }),
+    "settings:",
+  ).content,
+  (element) =>
+    (element.props as { object?: StudioTimetableCompositionObject }).object
+      ?.id === "artist",
+);
+assert.ok(stateControl);
+(
+  stateControl.props as { onSelectEditingValue: (value: string) => void }
+).onSelectEditingValue("off");
+assert.deepEqual(updatedOwners, ["artist:off"]);
+assert.deepEqual(
+  selectedOwners,
+  ["artist"],
+  "자식에서 상태를 바꾸면 숨겨질 자식 대신 상태 소유자를 선택한다.",
+);
+assert.equal(
+  JSON.stringify(nestedStateObjects),
+  beforeStateEdit,
+  "상태 선택은 문서를 바꾸지 않는다.",
+);
 
 console.log("Studio timetable inspector baseline checks passed.");

@@ -11,7 +11,6 @@ import TimeTableGrid from '../TimeTableGrid';
 import TimeTableProfile from '../TimeTableProfile';
 import TimeTableTopObject from '../TimeTableTopObject';
 import TimeTableWeekFlag from '../TimeTableWeekFlag';
-import TimeTableWeeklyMemo from '../TimeTableWeeklyMemo';
 
 export interface TimeTableContentProps {
   currentTheme: TTheme;
@@ -46,7 +45,6 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
         profileTextPlaceholder={placeholders.profileText}
         isProfileTextVisible={isProfileTextVisible}
       />
-      <TimeTableWeeklyMemo />
       <TimeTableWeekFlag currentTheme={currentTheme} weekDates={weekDates} />
 
       <TimeTableGrid

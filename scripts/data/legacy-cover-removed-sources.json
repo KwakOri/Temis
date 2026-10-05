@@ -1,0 +1,2912 @@
+[
+  {
+    "ownerKind": "team_timetable",
+    "templateId": "34d14470-65c6-4e46-a76b-dec8e16c20e9",
+    "purpose": "cover",
+    "manifestFile": "public/team-thumbnails/34d14470-65c6-4e46-a76b-dec8e16c20e9.png",
+    "bindings": {
+      "first": {
+        "cover": "1603512b0d276b644862ce1c2eba4e8c3fb1706808fa718aa75a12146cc2b5cf"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "1603512b0d276b644862ce1c2eba4e8c3fb1706808fa718aa75a12146cc2b5cf",
+        "file": "public/team-thumbnails/34d14470-65c6-4e46-a76b-dec8e16c20e9.png",
+        "originalFilename": "34d14470-65c6-4e46-a76b-dec8e16c20e9.png",
+        "exists": true,
+        "contentHash": "9d4832e7bf995d0ecf7889e37b64a71a8d8afe7cc1202b6c09688b91f5ca9d2f",
+        "byteSize": 951928,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "team_timetable",
+    "templateId": "68a3f4af-626a-473a-8fdb-e2954e6873c7",
+    "purpose": "cover",
+    "manifestFile": "public/team-thumbnails/68a3f4af-626a-473a-8fdb-e2954e6873c7.png",
+    "bindings": {
+      "first": {
+        "cover": "95087534c8fcb8821474389b608224c3bafafb982ad5d1bf54731a588e090a9d"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "95087534c8fcb8821474389b608224c3bafafb982ad5d1bf54731a588e090a9d",
+        "file": "public/team-thumbnails/68a3f4af-626a-473a-8fdb-e2954e6873c7.png",
+        "originalFilename": "68a3f4af-626a-473a-8fdb-e2954e6873c7.png",
+        "exists": true,
+        "contentHash": "f9b7bb00963399ac563ebb9d6e990e3b485f00becd1cce6e743aba23f3d73adb",
+        "byteSize": 849016,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "team_timetable",
+    "templateId": "776b2b6c-3126-45b4-b1f7-65014c85f97a",
+    "purpose": "cover",
+    "manifestFile": "public/team-thumbnails/776b2b6c-3126-45b4-b1f7-65014c85f97a.png",
+    "bindings": {
+      "first": {
+        "cover": "af3197828de1e111b7e4b8ed227f0b1fd8a0e0dba284fa0b27647523853ff5a1"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "af3197828de1e111b7e4b8ed227f0b1fd8a0e0dba284fa0b27647523853ff5a1",
+        "file": "public/team-thumbnails/776b2b6c-3126-45b4-b1f7-65014c85f97a.png",
+        "originalFilename": "776b2b6c-3126-45b4-b1f7-65014c85f97a.png",
+        "exists": true,
+        "contentHash": "7f4bc93196b7375bbb6bd98174febfd1994edb4d46e30e0511fae241f84bd09e",
+        "byteSize": 3265935,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1320,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "team_timetable",
+    "templateId": "c13d435c-27db-4712-a713-f18ca9d56674",
+    "purpose": "cover",
+    "manifestFile": "public/team-thumbnails/c13d435c-27db-4712-a713-f18ca9d56674.png",
+    "bindings": {
+      "first": {
+        "cover": "c22eb2e6424c8d9f02dade865317c8c2e23be75e60cdfabc2af3d19f66db2f6f"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "c22eb2e6424c8d9f02dade865317c8c2e23be75e60cdfabc2af3d19f66db2f6f",
+        "file": "public/team-thumbnails/c13d435c-27db-4712-a713-f18ca9d56674.png",
+        "originalFilename": "c13d435c-27db-4712-a713-f18ca9d56674.png",
+        "exists": true,
+        "contentHash": "f7d6cc243380587854df6e6c2c2abce668fcbded4d3ff62dc2fdda90332d5075",
+        "byteSize": 3281405,
+        "mimeType": "image/png",
+        "width": 2078,
+        "height": 2215,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "team_timetable",
+    "templateId": "e792576d-41ba-4324-9085-33c4ad162469",
+    "purpose": "cover",
+    "manifestFile": "public/team-thumbnails/e792576d-41ba-4324-9085-33c4ad162469.png",
+    "bindings": {
+      "first": {
+        "cover": "6cbf88757b26db399dc1157869c5aa72bb36fb6148d2423d330de1d36be07cc1"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "6cbf88757b26db399dc1157869c5aa72bb36fb6148d2423d330de1d36be07cc1",
+        "file": "public/team-thumbnails/e792576d-41ba-4324-9085-33c4ad162469.png",
+        "originalFilename": "e792576d-41ba-4324-9085-33c4ad162469.png",
+        "exists": true,
+        "contentHash": "ddac733c393ef97d8071dd4b2bec610742d4c8d22c2a85b0c5a9a88909e31a19",
+        "byteSize": 9261544,
+        "mimeType": "image/png",
+        "width": 4000,
+        "height": 2250,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "team_timetable",
+    "templateId": "ed524dfa-8477-4a2e-a117-4eb656a025be",
+    "purpose": "cover",
+    "manifestFile": "public/team-thumbnails/ed524dfa-8477-4a2e-a117-4eb656a025be.png",
+    "bindings": {
+      "first": {
+        "cover": "965d2aa974f2f80d02aaebfd45c48388688da7d2453ee8f08ecda2d633d44ab1"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "965d2aa974f2f80d02aaebfd45c48388688da7d2453ee8f08ecda2d633d44ab1",
+        "file": "public/team-thumbnails/ed524dfa-8477-4a2e-a117-4eb656a025be.png",
+        "originalFilename": "ed524dfa-8477-4a2e-a117-4eb656a025be.png",
+        "exists": true,
+        "contentHash": "9929159bba0c11ef935780a983e45e95f600c2d8ac95aa376fceeb7bdabeb4e6",
+        "byteSize": 9569043,
+        "mimeType": "image/png",
+        "width": 7998,
+        "height": 4500,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "06d6401a-1b2a-4e98-a5d2-363984b3bfbb",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/06d6401a-1b2a-4e98-a5d2-363984b3bfbb.png",
+    "bindings": {
+      "first": {
+        "cover": "7c2bebd2a6790f476bd8deeb514f7a838f7226a3b039914ae9a505b67bffd7b2"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "7c2bebd2a6790f476bd8deeb514f7a838f7226a3b039914ae9a505b67bffd7b2",
+        "file": "public/thumbnail/06d6401a-1b2a-4e98-a5d2-363984b3bfbb.png",
+        "originalFilename": "06d6401a-1b2a-4e98-a5d2-363984b3bfbb.png",
+        "exists": true,
+        "contentHash": "9c97fd0ed7d2da2ef9e0a1cd4e9c0afbd04aaa23c3f5ba035c73f6f733ca52f0",
+        "byteSize": 2629641,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "0932a3c6-24be-41f7-b5f4-8e2f5632bb0d",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/0932a3c6-24be-41f7-b5f4-8e2f5632bb0d.png",
+    "bindings": {
+      "first": {
+        "cover": "d6b83d07d55ffa2faab673b16de3ffc5fd63f249d49f46cc597a51d55d0e0039"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "d6b83d07d55ffa2faab673b16de3ffc5fd63f249d49f46cc597a51d55d0e0039",
+        "file": "public/thumbnail/0932a3c6-24be-41f7-b5f4-8e2f5632bb0d.png",
+        "originalFilename": "0932a3c6-24be-41f7-b5f4-8e2f5632bb0d.png",
+        "exists": true,
+        "contentHash": "6284a7ae871b3601f37c24d0d8f3678b1b033411dd5c40e15e45bfab38037922",
+        "byteSize": 3276000,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "09cd2c49-ca11-4708-bf9f-2e6856632ca9",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/09cd2c49-ca11-4708-bf9f-2e6856632ca9.png",
+    "bindings": {
+      "first": {
+        "cover": "d47597995ab84314b4be6e49b8f781044c2eee004de8f284e4cf779e8d55b92f"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "d47597995ab84314b4be6e49b8f781044c2eee004de8f284e4cf779e8d55b92f",
+        "file": "public/thumbnail/09cd2c49-ca11-4708-bf9f-2e6856632ca9.png",
+        "originalFilename": "09cd2c49-ca11-4708-bf9f-2e6856632ca9.png",
+        "exists": true,
+        "contentHash": "22be39c01b560c399bcd6af0ba26a0ffbdc8e0512d4118176649b797ae9f6774",
+        "byteSize": 2757305,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "0b96260c-d19a-41d5-99f0-ea1fe7b21699",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/0b96260c-d19a-41d5-99f0-ea1fe7b21699.png",
+    "bindings": {
+      "first": {
+        "cover": "21c572cb26409533ff8a973d4a56bf3160c07940b89b3d21e336c404d8e17f18"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "21c572cb26409533ff8a973d4a56bf3160c07940b89b3d21e336c404d8e17f18",
+        "file": "public/thumbnail/0b96260c-d19a-41d5-99f0-ea1fe7b21699.png",
+        "originalFilename": "0b96260c-d19a-41d5-99f0-ea1fe7b21699.png",
+        "exists": true,
+        "contentHash": "fd1efadb60c24e1d89736c43cf048e06e0f315d960a7f0df79f8fd9972258f99",
+        "byteSize": 2588806,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "0c10c964-b83c-4309-a81b-76550aba17b0",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/0c10c964-b83c-4309-a81b-76550aba17b0.png",
+    "bindings": {
+      "first": {
+        "cover": "25317e471114062a0764a73cf598eb790705559352071971f158528d9fbe38af"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "25317e471114062a0764a73cf598eb790705559352071971f158528d9fbe38af",
+        "file": "public/thumbnail/0c10c964-b83c-4309-a81b-76550aba17b0.png",
+        "originalFilename": "0c10c964-b83c-4309-a81b-76550aba17b0.png",
+        "exists": true,
+        "contentHash": "5d36bc9ea61b2b0e9b537009e819c5c0d85b0302d5e9e2c7167690ca63406b3f",
+        "byteSize": 1862897,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "11e95afc-0b9f-4ae9-91bc-19aa4c7b38a1",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/11e95afc-0b9f-4ae9-91bc-19aa4c7b38a1.png",
+    "bindings": {
+      "first": {
+        "cover": "c80c76f6834e8b3f1abec25b3fc912d24719073aef8d7d91c2a8fbb82f1b1d7f"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "c80c76f6834e8b3f1abec25b3fc912d24719073aef8d7d91c2a8fbb82f1b1d7f",
+        "file": "public/thumbnail/11e95afc-0b9f-4ae9-91bc-19aa4c7b38a1.png",
+        "originalFilename": "11e95afc-0b9f-4ae9-91bc-19aa4c7b38a1.png",
+        "exists": true,
+        "contentHash": "fce7f6ff03eb8ac58f1d77cb6aab82f2d5dac474c7a00ea87d3d7cacfec7203c",
+        "byteSize": 1520301,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "12a1e344-da8c-4ca4-b2cc-716222291234",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/12a1e344-da8c-4ca4-b2cc-716222291234.png",
+    "bindings": {
+      "first": {
+        "cover": "f9a8d4c5a9f78bfb422a1ea506ea75cc31321f3bd5db6b08cb478be9007a42d2"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "f9a8d4c5a9f78bfb422a1ea506ea75cc31321f3bd5db6b08cb478be9007a42d2",
+        "file": "public/thumbnail/12a1e344-da8c-4ca4-b2cc-716222291234.png",
+        "originalFilename": "12a1e344-da8c-4ca4-b2cc-716222291234.png",
+        "exists": true,
+        "contentHash": "50288418cc70ffa05582d3496a1ea67f007bcb1dd2db27f73e5f42797f2a876c",
+        "byteSize": 1323005,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "1b097aba-1f4b-4633-9d30-64f2eba0cc50",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/1b097aba-1f4b-4633-9d30-64f2eba0cc50.png",
+    "bindings": {
+      "first": {
+        "cover": "81919747398d0d63bf1892b1dba8a62ccf4df39c3827534b1eed10ed294b4cf5"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "81919747398d0d63bf1892b1dba8a62ccf4df39c3827534b1eed10ed294b4cf5",
+        "file": "public/thumbnail/1b097aba-1f4b-4633-9d30-64f2eba0cc50.png",
+        "originalFilename": "1b097aba-1f4b-4633-9d30-64f2eba0cc50.png",
+        "exists": true,
+        "contentHash": "f6a8d9e4c3c8d6b8ffa1d514a52f4e66e6e50204578e120e6450e41e8161bbd5",
+        "byteSize": 2875960,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "1c8344c7-d5c1-487b-99e8-976ff28b96ed",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/1c8344c7-d5c1-487b-99e8-976ff28b96ed.png",
+    "bindings": {
+      "first": {
+        "cover": "ddd538c79c24df798f74379b16fb98ab1059feb247952818a395b859a9ed4edb"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "ddd538c79c24df798f74379b16fb98ab1059feb247952818a395b859a9ed4edb",
+        "file": "public/thumbnail/1c8344c7-d5c1-487b-99e8-976ff28b96ed.png",
+        "originalFilename": "1c8344c7-d5c1-487b-99e8-976ff28b96ed.png",
+        "exists": true,
+        "contentHash": "9b778380af95a5ee5540480b79e81e2446ea62580c5d858b9887d0029a19e37f",
+        "byteSize": 1512301,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "1dc23337-0344-460c-88b8-6c45e0154011",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/1dc23337-0344-460c-88b8-6c45e0154011.png",
+    "bindings": {
+      "first": {
+        "cover": "3566a502204748dd62c7fa73670dc38041f573a6189ef418c3334ec6bdefc68b"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "3566a502204748dd62c7fa73670dc38041f573a6189ef418c3334ec6bdefc68b",
+        "file": "public/thumbnail/1dc23337-0344-460c-88b8-6c45e0154011.png",
+        "originalFilename": "1dc23337-0344-460c-88b8-6c45e0154011.png",
+        "exists": true,
+        "contentHash": "4f0aba71842a2feff9809299c248d58c68b6662deaa55c0aed00f9501bfff12b",
+        "byteSize": 745804,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "1dceeb23-90be-4660-acb5-91f0e28b7e7e",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/1dceeb23-90be-4660-acb5-91f0e28b7e7e.png",
+    "bindings": {
+      "first": {
+        "cover": "b98afe87d392254ebd170be9821a45be8553e40411cf273b5b1eb92c1244ac73"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "b98afe87d392254ebd170be9821a45be8553e40411cf273b5b1eb92c1244ac73",
+        "file": "public/thumbnail/1dceeb23-90be-4660-acb5-91f0e28b7e7e.png",
+        "originalFilename": "1dceeb23-90be-4660-acb5-91f0e28b7e7e.png",
+        "exists": true,
+        "contentHash": "cd5b290ac75091a060be2e54b5468a3bc6c184c6f6f59ebd2ff8213d0261a413",
+        "byteSize": 658374,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "1ff2d5f5-618a-4ce5-8aa7-d3191078962c",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/1ff2d5f5-618a-4ce5-8aa7-d3191078962c.png",
+    "bindings": {
+      "first": {
+        "cover": "bd3cbeed0deeeb62961b850899af99a3079ea7c7419baa32ca6384405d673b91"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "bd3cbeed0deeeb62961b850899af99a3079ea7c7419baa32ca6384405d673b91",
+        "file": "public/thumbnail/1ff2d5f5-618a-4ce5-8aa7-d3191078962c.png",
+        "originalFilename": "1ff2d5f5-618a-4ce5-8aa7-d3191078962c.png",
+        "exists": true,
+        "contentHash": "5f0b3470f62110cceddd0f9cc8b14332802a9e7f233fe491e31d6ca368b16ca5",
+        "byteSize": 2785776,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "20f5b568-d683-4c86-a6ce-58e92d68910f",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/20f5b568-d683-4c86-a6ce-58e92d68910f.png",
+    "bindings": {
+      "first": {
+        "cover": "6712b54953f363bfb831a676db7022143ad8fd77e82060159ee42167318ef389"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "6712b54953f363bfb831a676db7022143ad8fd77e82060159ee42167318ef389",
+        "file": "public/thumbnail/20f5b568-d683-4c86-a6ce-58e92d68910f.png",
+        "originalFilename": "20f5b568-d683-4c86-a6ce-58e92d68910f.png",
+        "exists": true,
+        "contentHash": "3e7c916d0531a229ea7341c212f086333290b19470934d0aa04610201c3a83c4",
+        "byteSize": 1300739,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "24a5b103-4940-427b-b9f7-f1ae766ddbdd",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/24a5b103-4940-427b-b9f7-f1ae766ddbdd.png",
+    "bindings": {
+      "first": {
+        "cover": "08c5596834171ab8601482953d68fa3c2868e872e3d0a09b03bcc95208e9c58f"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "08c5596834171ab8601482953d68fa3c2868e872e3d0a09b03bcc95208e9c58f",
+        "file": "public/thumbnail/24a5b103-4940-427b-b9f7-f1ae766ddbdd.png",
+        "originalFilename": "24a5b103-4940-427b-b9f7-f1ae766ddbdd.png",
+        "exists": true,
+        "contentHash": "35a041eb20d4b3688b7188fb081a916fc638ac7fafd38c3d07f0703d79384ccf",
+        "byteSize": 2704447,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "24dacf02-9032-4def-ab0f-5d38244f9c05",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/24dacf02-9032-4def-ab0f-5d38244f9c05.png",
+    "bindings": {
+      "first": {
+        "cover": "caf2b7da70998de904e104c85b5ef550cf375d440e8a69b10e965470e2eb0b67"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "caf2b7da70998de904e104c85b5ef550cf375d440e8a69b10e965470e2eb0b67",
+        "file": "public/thumbnail/24dacf02-9032-4def-ab0f-5d38244f9c05.png",
+        "originalFilename": "24dacf02-9032-4def-ab0f-5d38244f9c05.png",
+        "exists": true,
+        "contentHash": "0797e5d2c33926e9cc1e09dcd82e20b79502ac976bd538187a96efcb30dd4121",
+        "byteSize": 356306,
+        "mimeType": "image/png",
+        "width": 640,
+        "height": 360,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "28c2b9fb-9d7e-4aaa-822d-96909d384032",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/28c2b9fb-9d7e-4aaa-822d-96909d384032.png",
+    "bindings": {
+      "first": {
+        "cover": "0230603009b7ae672cc95bcce246683c894b24ce3df2d076fd6d3d9af8a7deba"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "0230603009b7ae672cc95bcce246683c894b24ce3df2d076fd6d3d9af8a7deba",
+        "file": "public/thumbnail/28c2b9fb-9d7e-4aaa-822d-96909d384032.png",
+        "originalFilename": "28c2b9fb-9d7e-4aaa-822d-96909d384032.png",
+        "exists": true,
+        "contentHash": "91189855bfa8fa138ad2e776988abba2fbcb4973e6e30447041abdab21a22ae5",
+        "byteSize": 1498885,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "35c8ce95-c718-4997-9cd6-328e22d37a45",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/35c8ce95-c718-4997-9cd6-328e22d37a45.png",
+    "bindings": {
+      "first": {
+        "cover": "832af6dae32c22109119e13296211830dfcbf58b499be9647135fa08b89f8cc3"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "832af6dae32c22109119e13296211830dfcbf58b499be9647135fa08b89f8cc3",
+        "file": "public/thumbnail/35c8ce95-c718-4997-9cd6-328e22d37a45.png",
+        "originalFilename": "35c8ce95-c718-4997-9cd6-328e22d37a45.png",
+        "exists": true,
+        "contentHash": "03a957e1668bca578096693d79751513b8e0553cab46733b95ce800c7fcd1e05",
+        "byteSize": 3104251,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "39fc5668-36d2-4031-9ea5-6cae8b5f2cc6",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/39fc5668-36d2-4031-9ea5-6cae8b5f2cc6.png",
+    "bindings": {
+      "first": {
+        "cover": "b7840f44e5d395d7a56d08ed061ab47a00cb6ab14c21eb26ebdcb3650e2b351e"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "b7840f44e5d395d7a56d08ed061ab47a00cb6ab14c21eb26ebdcb3650e2b351e",
+        "file": "public/thumbnail/39fc5668-36d2-4031-9ea5-6cae8b5f2cc6.png",
+        "originalFilename": "39fc5668-36d2-4031-9ea5-6cae8b5f2cc6.png",
+        "exists": true,
+        "contentHash": "9e5ccefc8abb070fb1005843f6f4c1363fad762a0cc943aa9d328bcfc41e1c1b",
+        "byteSize": 1756145,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "3aec489f-da90-408a-a1dd-d75360867607",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/3aec489f-da90-408a-a1dd-d75360867607.png",
+    "bindings": {
+      "first": {
+        "cover": "8f356c62594a5547d1beb713a4d22126ba381f0e0cc01081f47657a76d8bcd22"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "8f356c62594a5547d1beb713a4d22126ba381f0e0cc01081f47657a76d8bcd22",
+        "file": "public/thumbnail/3aec489f-da90-408a-a1dd-d75360867607.png",
+        "originalFilename": "3aec489f-da90-408a-a1dd-d75360867607.png",
+        "exists": true,
+        "contentHash": "c0211408336a0f55af70b17a1770a33f44514f46da1f0b475580d31213a45af8",
+        "byteSize": 2402427,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "thumbnail",
+    "templateId": "3e94a961-d6de-4c59-aa6e-0375c4b75954",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/3e94a961-d6de-4c59-aa6e-0375c4b75954.png",
+    "bindings": {
+      "first": {
+        "cover": "49191dbc3df59ceafc6453717a6ce3d9f9c2d168d644f68fe09a113aff546288"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "49191dbc3df59ceafc6453717a6ce3d9f9c2d168d644f68fe09a113aff546288",
+        "file": "public/thumbnail/3e94a961-d6de-4c59-aa6e-0375c4b75954.png",
+        "originalFilename": "3e94a961-d6de-4c59-aa6e-0375c4b75954.png",
+        "exists": true,
+        "contentHash": "598cdbfad684db0cb57abd3c64e64bfcd30be6f379c4285b77368e39bf442f20",
+        "byteSize": 1274936,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "408415ea-e897-44dd-9c98-7499e5d40669",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/408415ea-e897-44dd-9c98-7499e5d40669.png",
+    "bindings": {
+      "first": {
+        "cover": "98372110870ea90c89d15b0b52b67163451bb6182f3e4b4cd514999834adaf0a"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "98372110870ea90c89d15b0b52b67163451bb6182f3e4b4cd514999834adaf0a",
+        "file": "public/thumbnail/408415ea-e897-44dd-9c98-7499e5d40669.png",
+        "originalFilename": "408415ea-e897-44dd-9c98-7499e5d40669.png",
+        "exists": true,
+        "contentHash": "7ad24c7160e7a5cb04dcd2246419326b09bac5cc62caa61ebc80f0bdaed0ece6",
+        "byteSize": 1623281,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1079,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "47d9b0fa-ad98-46ae-b849-374e9ae09445",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/47d9b0fa-ad98-46ae-b849-374e9ae09445.png",
+    "bindings": {
+      "first": {
+        "cover": "e048c8c8ab582913bccda553b8fd12ab826c433f94b6443eb9f4aa2f79b9f485"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "e048c8c8ab582913bccda553b8fd12ab826c433f94b6443eb9f4aa2f79b9f485",
+        "file": "public/thumbnail/47d9b0fa-ad98-46ae-b849-374e9ae09445.png",
+        "originalFilename": "47d9b0fa-ad98-46ae-b849-374e9ae09445.png",
+        "exists": true,
+        "contentHash": "f654dd02d285e740d07208ac57c2642419b016c54f093484df4e5123420902e3",
+        "byteSize": 1593282,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "49e1dfb4-ff79-466d-9982-06ea9ec17064",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/49e1dfb4-ff79-466d-9982-06ea9ec17064.png",
+    "bindings": {
+      "first": {
+        "cover": "c64bf24d71d3c38b149c8eb0483922753edcb49ab9432c131674779c4f80cf63"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "c64bf24d71d3c38b149c8eb0483922753edcb49ab9432c131674779c4f80cf63",
+        "file": "public/thumbnail/49e1dfb4-ff79-466d-9982-06ea9ec17064.png",
+        "originalFilename": "49e1dfb4-ff79-466d-9982-06ea9ec17064.png",
+        "exists": true,
+        "contentHash": "f3d137d0c3f1c899cadb5a0ffc762024a9a919d4674b768ad66a3a7eabc3743d",
+        "byteSize": 723961,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "507499ff-2fe5-480a-86fa-b7e54076d87e",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/507499ff-2fe5-480a-86fa-b7e54076d87e.png",
+    "bindings": {
+      "first": {
+        "cover": "8454fc000554f189130567f79545b5bdf2f6484ff939df4410f5cf552fd65608"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "8454fc000554f189130567f79545b5bdf2f6484ff939df4410f5cf552fd65608",
+        "file": "public/thumbnail/507499ff-2fe5-480a-86fa-b7e54076d87e.png",
+        "originalFilename": "507499ff-2fe5-480a-86fa-b7e54076d87e.png",
+        "exists": true,
+        "contentHash": "e10a0d4cabca5e5776209f7e93868b363f3b18311a32d67d1cd63f35e2097148",
+        "byteSize": 632495,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "54f499aa-983a-444a-8f97-f10554d50c72",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/54f499aa-983a-444a-8f97-f10554d50c72.png",
+    "bindings": {
+      "first": {
+        "cover": "6c4b1b5da863cb9bc66bf2cbb1421d2d3c218abac331df5795af732fe9e3739e"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "6c4b1b5da863cb9bc66bf2cbb1421d2d3c218abac331df5795af732fe9e3739e",
+        "file": "public/thumbnail/54f499aa-983a-444a-8f97-f10554d50c72.png",
+        "originalFilename": "54f499aa-983a-444a-8f97-f10554d50c72.png",
+        "exists": true,
+        "contentHash": "451b57f78b13ee011b43ea0a9e42a96ecbdcee05a48cc57a8ebe9d5da75ab225",
+        "byteSize": 3053966,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "54f5a81b-b884-4061-8328-79bb9a3b0558",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/54f5a81b-b884-4061-8328-79bb9a3b0558.png",
+    "bindings": {
+      "first": {
+        "cover": "a3eaa8cb1b90a74a0249dc975e10c7d5314a79a06d658782d8780ad73aa2863d"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "a3eaa8cb1b90a74a0249dc975e10c7d5314a79a06d658782d8780ad73aa2863d",
+        "file": "public/thumbnail/54f5a81b-b884-4061-8328-79bb9a3b0558.png",
+        "originalFilename": "54f5a81b-b884-4061-8328-79bb9a3b0558.png",
+        "exists": true,
+        "contentHash": "bdef2629795ed8a65835d6b0c52b93c6a098c749bd36055eda99809732dcd51c",
+        "byteSize": 3056045,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "5bbe51f4-9ab1-4f52-b23b-29e2de9b8eef",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/5bbe51f4-9ab1-4f52-b23b-29e2de9b8eef.png",
+    "bindings": {
+      "first": {
+        "cover": "a4a90b75925a04b8a658722953133e2f85b9ee0730540b7a9002cea058ddc1ae"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "a4a90b75925a04b8a658722953133e2f85b9ee0730540b7a9002cea058ddc1ae",
+        "file": "public/thumbnail/5bbe51f4-9ab1-4f52-b23b-29e2de9b8eef.png",
+        "originalFilename": "5bbe51f4-9ab1-4f52-b23b-29e2de9b8eef.png",
+        "exists": true,
+        "contentHash": "433ae0f3c28d92e76626dcfb1f7f1b7a870c9bd996f105a7cd938774cfea6a1b",
+        "byteSize": 3123099,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "5bed0188-31e5-4fd1-bf52-a9a2c945ebf0",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/5bed0188-31e5-4fd1-bf52-a9a2c945ebf0.png",
+    "bindings": {
+      "first": {
+        "cover": "952c627394e9bba1dcd062118f049f4f1b285ef0e146ceb2ab62ebfba584c63f"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "952c627394e9bba1dcd062118f049f4f1b285ef0e146ceb2ab62ebfba584c63f",
+        "file": "public/thumbnail/5bed0188-31e5-4fd1-bf52-a9a2c945ebf0.png",
+        "originalFilename": "5bed0188-31e5-4fd1-bf52-a9a2c945ebf0.png",
+        "exists": true,
+        "contentHash": "c8baa8a25d0011994d3ffcb4e7316e875c7ad0e48a9e86907aa838a558b644cd",
+        "byteSize": 2330875,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "62b8576a-2415-4092-9834-e0c372f81673",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/62b8576a-2415-4092-9834-e0c372f81673.png",
+    "bindings": {
+      "first": {
+        "cover": "e027812d0d6b255d507d2c3f799fabb37f7a65ead93375838bb12cc10ed57e2a"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "e027812d0d6b255d507d2c3f799fabb37f7a65ead93375838bb12cc10ed57e2a",
+        "file": "public/thumbnail/62b8576a-2415-4092-9834-e0c372f81673.png",
+        "originalFilename": "62b8576a-2415-4092-9834-e0c372f81673.png",
+        "exists": true,
+        "contentHash": "e16f5d2fff2b5de17218c8e755f4257f1c45b0411511d781537e8e14b4b84e91",
+        "byteSize": 2047788,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "69a0dcfe-ab5d-4bef-b181-539b995fd73e",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/69a0dcfe-ab5d-4bef-b181-539b995fd73e.png",
+    "bindings": {
+      "first": {
+        "cover": "5a4054980a84eee497567b90e2b125819e8fa7a80f2b5527f918f40cc5b3e906"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "5a4054980a84eee497567b90e2b125819e8fa7a80f2b5527f918f40cc5b3e906",
+        "file": "public/thumbnail/69a0dcfe-ab5d-4bef-b181-539b995fd73e.png",
+        "originalFilename": "69a0dcfe-ab5d-4bef-b181-539b995fd73e.png",
+        "exists": true,
+        "contentHash": "c5cd5e44a7363c3c438e4bcb6085730349eab47776ca35aae014e5aa55d13c4a",
+        "byteSize": 1377786,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "6bfebe89-5187-4c57-b48b-2136df97e63f",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/6bfebe89-5187-4c57-b48b-2136df97e63f.png",
+    "bindings": {
+      "first": {
+        "cover": "9b45899c7a62247883708318d1980779e4b30a1a74ef4e60265678923e49afd3"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "9b45899c7a62247883708318d1980779e4b30a1a74ef4e60265678923e49afd3",
+        "file": "public/thumbnail/6bfebe89-5187-4c57-b48b-2136df97e63f.png",
+        "originalFilename": "6bfebe89-5187-4c57-b48b-2136df97e63f.png",
+        "exists": true,
+        "contentHash": "c9a000c5329b06e6bb1f087c41389ffcc623637a5a91560238e57eb53ea61013",
+        "byteSize": 1532416,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "6c828fb3-1746-489d-8ec4-89490a109ccf",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/6c828fb3-1746-489d-8ec4-89490a109ccf.png",
+    "bindings": {
+      "first": {
+        "cover": "75e5db84901d2465a821fdbe9e8da33b66c2fdab5f3748902d20a86e04b8d480"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "75e5db84901d2465a821fdbe9e8da33b66c2fdab5f3748902d20a86e04b8d480",
+        "file": "public/thumbnail/6c828fb3-1746-489d-8ec4-89490a109ccf.png",
+        "originalFilename": "6c828fb3-1746-489d-8ec4-89490a109ccf.png",
+        "exists": true,
+        "contentHash": "edd6ab349682cf6e9304953385c1b209468122336f8a0020bab0f78189290983",
+        "byteSize": 625203,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "6f9c6525-e830-4a0b-b2d7-5eda8f7f554d",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/6f9c6525-e830-4a0b-b2d7-5eda8f7f554d.png",
+    "bindings": {
+      "first": {
+        "cover": "96e5e7358636c0d78232758eaf09e64a2b330a72963da2a7c300e9800d738e0f"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "96e5e7358636c0d78232758eaf09e64a2b330a72963da2a7c300e9800d738e0f",
+        "file": "public/thumbnail/6f9c6525-e830-4a0b-b2d7-5eda8f7f554d.png",
+        "originalFilename": "6f9c6525-e830-4a0b-b2d7-5eda8f7f554d.png",
+        "exists": true,
+        "contentHash": "1a37b6d6cba5543cfd8d0ad3ed424621c0b152f9f2d7337b28297bfaf6343e0b",
+        "byteSize": 2503028,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "70cc7003-8f64-4aba-a761-da33c50eb1d5",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/70cc7003-8f64-4aba-a761-da33c50eb1d5.png",
+    "bindings": {
+      "first": {
+        "cover": "88e43fa2380a9351432ef1f5ba7345f9289aba8f807708f5cbaf29980faacff5"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "88e43fa2380a9351432ef1f5ba7345f9289aba8f807708f5cbaf29980faacff5",
+        "file": "public/thumbnail/70cc7003-8f64-4aba-a761-da33c50eb1d5.png",
+        "originalFilename": "70cc7003-8f64-4aba-a761-da33c50eb1d5.png",
+        "exists": true,
+        "contentHash": "8b98661c2496e2085a8f3e7951971126def3b6168b87ab40423128e2672c18ce",
+        "byteSize": 1128608,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "72fb51c9-a64a-4956-97d4-72ea3f3a8532",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/72fb51c9-a64a-4956-97d4-72ea3f3a8532.png",
+    "bindings": {
+      "first": {
+        "cover": "3117dc4b965001d0040f93f2dfbf4cc4a6938754cf399e98e625dfe5126e031f"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "3117dc4b965001d0040f93f2dfbf4cc4a6938754cf399e98e625dfe5126e031f",
+        "file": "public/thumbnail/72fb51c9-a64a-4956-97d4-72ea3f3a8532.png",
+        "originalFilename": "72fb51c9-a64a-4956-97d4-72ea3f3a8532.png",
+        "exists": true,
+        "contentHash": "b6bd0982b24535e00ad9217af1c83d5673102d9201c6d3659f203ed223966a2e",
+        "byteSize": 2641824,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "7544f576-1e78-433a-a30c-fd73ac772c8c",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/7544f576-1e78-433a-a30c-fd73ac772c8c.png",
+    "bindings": {
+      "first": {
+        "cover": "5bf232dfa348992e975cf3f7297921c61071e83a45936e48d7df48adfab34063"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "5bf232dfa348992e975cf3f7297921c61071e83a45936e48d7df48adfab34063",
+        "file": "public/thumbnail/7544f576-1e78-433a-a30c-fd73ac772c8c.png",
+        "originalFilename": "7544f576-1e78-433a-a30c-fd73ac772c8c.png",
+        "exists": true,
+        "contentHash": "371244b14a41d1aa11f9fb125d0fda41a9daf7339b30ff5ac02202378e4d78e9",
+        "byteSize": 1548257,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "75e91923-7fde-4ee8-84f5-daed62b838d0",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/75e91923-7fde-4ee8-84f5-daed62b838d0.png",
+    "bindings": {
+      "first": {
+        "cover": "49e2f89ab80633c3134545698b0265ddd53d2b2ec6f884e811273956ba688c26"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "49e2f89ab80633c3134545698b0265ddd53d2b2ec6f884e811273956ba688c26",
+        "file": "public/thumbnail/75e91923-7fde-4ee8-84f5-daed62b838d0.png",
+        "originalFilename": "75e91923-7fde-4ee8-84f5-daed62b838d0.png",
+        "exists": true,
+        "contentHash": "4e676aa3925bfb0ea59e1453fa7466eaf5c8f75703eebd596a16a9c5e1c13853",
+        "byteSize": 3574793,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "75ff19ce-8366-40de-b9a6-41d35045ec08",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/75ff19ce-8366-40de-b9a6-41d35045ec08.png",
+    "bindings": {
+      "first": {
+        "cover": "fca5c8622ef5e577d3955c980154f4a77ec5838fe70d1c9eb12d9b513144e5f8"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "fca5c8622ef5e577d3955c980154f4a77ec5838fe70d1c9eb12d9b513144e5f8",
+        "file": "public/thumbnail/75ff19ce-8366-40de-b9a6-41d35045ec08.png",
+        "originalFilename": "75ff19ce-8366-40de-b9a6-41d35045ec08.png",
+        "exists": true,
+        "contentHash": "3d283c7e96f92119efbab9c76519bdb7d8c871fdff1d1d34f0d0c366e781ba2d",
+        "byteSize": 2335851,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "7c11cfb1-7bfd-4bf4-b241-d756afa745d9",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/7c11cfb1-7bfd-4bf4-b241-d756afa745d9.png",
+    "bindings": {
+      "first": {
+        "cover": "7531fcc626a042e20342c461d0616d7d8a0a614176926ede648a4d26a45d7cef"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "7531fcc626a042e20342c461d0616d7d8a0a614176926ede648a4d26a45d7cef",
+        "file": "public/thumbnail/7c11cfb1-7bfd-4bf4-b241-d756afa745d9.png",
+        "originalFilename": "7c11cfb1-7bfd-4bf4-b241-d756afa745d9.png",
+        "exists": true,
+        "contentHash": "ec021ce372715a18cddf1b01c164b46e2a5663bc816c49aa860b5b1131f32f53",
+        "byteSize": 321335,
+        "mimeType": "image/png",
+        "width": 640,
+        "height": 360,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "7c75387c-99c7-4971-9dcd-2931a0651016",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/7c75387c-99c7-4971-9dcd-2931a0651016.png",
+    "bindings": {
+      "first": {
+        "cover": "0de11382a62079bd4e2a9c7e936a66993a65648526a5b0efe2eb7664d62f3da6"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "0de11382a62079bd4e2a9c7e936a66993a65648526a5b0efe2eb7664d62f3da6",
+        "file": "public/thumbnail/7c75387c-99c7-4971-9dcd-2931a0651016.png",
+        "originalFilename": "7c75387c-99c7-4971-9dcd-2931a0651016.png",
+        "exists": true,
+        "contentHash": "0898c2453d3787b627ff6a53da008a974b31b023ac6c6d66d7ab3aeed763d928",
+        "byteSize": 1585900,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "7db115f4-b595-4dc3-9843-c151e9f089be",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/7db115f4-b595-4dc3-9843-c151e9f089be.png",
+    "bindings": {
+      "first": {
+        "cover": "292dcd8468d367ab4512196b2f8c6412f0857f9f7c748f198308457abe3f6f36"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "292dcd8468d367ab4512196b2f8c6412f0857f9f7c748f198308457abe3f6f36",
+        "file": "public/thumbnail/7db115f4-b595-4dc3-9843-c151e9f089be.png",
+        "originalFilename": "7db115f4-b595-4dc3-9843-c151e9f089be.png",
+        "exists": true,
+        "contentHash": "89b4083da44c956646ed28ae2b0c3dbb0408a66728560ab7a3ba6c2348b1f387",
+        "byteSize": 2358141,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "80676be0-017d-49ce-a1d5-564bd7a70de3",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/80676be0-017d-49ce-a1d5-564bd7a70de3.png",
+    "bindings": {
+      "first": {
+        "cover": "b55f4f4fce3dcb01e076f9bc61d8300832ed3f336adbe95d1d158da3756b65e2"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "b55f4f4fce3dcb01e076f9bc61d8300832ed3f336adbe95d1d158da3756b65e2",
+        "file": "public/thumbnail/80676be0-017d-49ce-a1d5-564bd7a70de3.png",
+        "originalFilename": "80676be0-017d-49ce-a1d5-564bd7a70de3.png",
+        "exists": true,
+        "contentHash": "b44b92038220802aa6a03a876411910393a74c5e42b58111b1559a005d05ff80",
+        "byteSize": 775312,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "812812bb-3184-412b-9295-7f3faaa61f2c",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/812812bb-3184-412b-9295-7f3faaa61f2c.png",
+    "bindings": {
+      "first": {
+        "cover": "051df76db5bd56f8968e436c0d562319c4d7172e216d8dbb159ec529124cd9a8"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "051df76db5bd56f8968e436c0d562319c4d7172e216d8dbb159ec529124cd9a8",
+        "file": "public/thumbnail/812812bb-3184-412b-9295-7f3faaa61f2c.png",
+        "originalFilename": "812812bb-3184-412b-9295-7f3faaa61f2c.png",
+        "exists": true,
+        "contentHash": "c6c7592a80ce6764e45246302c36870ce67a5f3dfe74cf650790783f61d46f78",
+        "byteSize": 660868,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "83b56e00-b93b-4dc0-81ff-0521c891ee26",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/83b56e00-b93b-4dc0-81ff-0521c891ee26.png",
+    "bindings": {
+      "first": {
+        "cover": "3f3de42f65a9f2ffbacbfeded8f2ea8122d68a0e098a80434fb29a8c6d040909"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "3f3de42f65a9f2ffbacbfeded8f2ea8122d68a0e098a80434fb29a8c6d040909",
+        "file": "public/thumbnail/83b56e00-b93b-4dc0-81ff-0521c891ee26.png",
+        "originalFilename": "83b56e00-b93b-4dc0-81ff-0521c891ee26.png",
+        "exists": true,
+        "contentHash": "6f95cf9df2c2173d567ba2182f2a64a82ee42dae2e6d8e40bd783b61f9b8b85e",
+        "byteSize": 411420,
+        "mimeType": "image/png",
+        "width": 640,
+        "height": 360,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "83d1ab6d-165a-4e6d-bf85-7f7e155de2c0",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/83d1ab6d-165a-4e6d-bf85-7f7e155de2c0.png",
+    "bindings": {
+      "first": {
+        "cover": "b2bb6b3fbefaaf8389bd5064ef7a7625408c9cdea16e24551b4e63a6882b3196"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "b2bb6b3fbefaaf8389bd5064ef7a7625408c9cdea16e24551b4e63a6882b3196",
+        "file": "public/thumbnail/83d1ab6d-165a-4e6d-bf85-7f7e155de2c0.png",
+        "originalFilename": "83d1ab6d-165a-4e6d-bf85-7f7e155de2c0.png",
+        "exists": true,
+        "contentHash": "9829722cd43a8c8e477820641a853ff1c969f5f67aaa7dea903fe6dd4497232b",
+        "byteSize": 3119223,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "8613f677-21f1-41ae-80a6-a5c3aeb0d422",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/8613f677-21f1-41ae-80a6-a5c3aeb0d422.png",
+    "bindings": {
+      "first": {
+        "cover": "fc8e7b5845dca531eda6ee190589875a6f0bcbc661b4927e5947f83cfb729060"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "fc8e7b5845dca531eda6ee190589875a6f0bcbc661b4927e5947f83cfb729060",
+        "file": "public/thumbnail/8613f677-21f1-41ae-80a6-a5c3aeb0d422.png",
+        "originalFilename": "8613f677-21f1-41ae-80a6-a5c3aeb0d422.png",
+        "exists": true,
+        "contentHash": "1c4ed85525214d59a885a2172ca1d0cda4858f30dc3a8cbeb172de572733d927",
+        "byteSize": 1426163,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "88cd8bfc-4e01-4ae4-864d-a00639b764ee",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/88cd8bfc-4e01-4ae4-864d-a00639b764ee.png",
+    "bindings": {
+      "first": {
+        "cover": "927e05a57d5c11c21f697cc4828eb29723872759717b36dcf332691b9e313f0e"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "927e05a57d5c11c21f697cc4828eb29723872759717b36dcf332691b9e313f0e",
+        "file": "public/thumbnail/88cd8bfc-4e01-4ae4-864d-a00639b764ee.png",
+        "originalFilename": "88cd8bfc-4e01-4ae4-864d-a00639b764ee.png",
+        "exists": true,
+        "contentHash": "239ace0747c35d5b63a9dccd807909a4724d0a200de5dc22abc5d0d9946a65b1",
+        "byteSize": 1153373,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "8f9bb89d-34f5-45c1-b923-16366197af33",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/8f9bb89d-34f5-45c1-b923-16366197af33.png",
+    "bindings": {
+      "first": {
+        "cover": "f62fa88157bc984bf5701b1f1e67418301bfc0e14f2279b18a3c8a40f05dbd34"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "f62fa88157bc984bf5701b1f1e67418301bfc0e14f2279b18a3c8a40f05dbd34",
+        "file": "public/thumbnail/8f9bb89d-34f5-45c1-b923-16366197af33.png",
+        "originalFilename": "8f9bb89d-34f5-45c1-b923-16366197af33.png",
+        "exists": true,
+        "contentHash": "62c50d9983ec8e3b7d2b6022713d3f2a2f30a86685eeed740929acd4be4109d3",
+        "byteSize": 12343892,
+        "mimeType": "image/png",
+        "width": 8000,
+        "height": 4500,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "935847b0-0ed2-4057-bba3-b250c99a7691",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/935847b0-0ed2-4057-bba3-b250c99a7691.png",
+    "bindings": {
+      "first": {
+        "cover": "3752403d52fb48a23bd9adb90c523470d3dcbfb56a65061b2e91d5dcc51d5848"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "3752403d52fb48a23bd9adb90c523470d3dcbfb56a65061b2e91d5dcc51d5848",
+        "file": "public/thumbnail/935847b0-0ed2-4057-bba3-b250c99a7691.png",
+        "originalFilename": "935847b0-0ed2-4057-bba3-b250c99a7691.png",
+        "exists": true,
+        "contentHash": "dd513ce0519696145861f3b0b14d82dc5969031d18e1cdf62f8a162df0ebb5ba",
+        "byteSize": 1449847,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "94ee8efd-2991-4945-a024-06a29a96eebf",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/94ee8efd-2991-4945-a024-06a29a96eebf.png",
+    "bindings": {
+      "first": {
+        "cover": "4b5810e4cca3c7da0bab67f6dd879dca99572181e6ea0ec06dd586bff4e143f0"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "4b5810e4cca3c7da0bab67f6dd879dca99572181e6ea0ec06dd586bff4e143f0",
+        "file": "public/thumbnail/94ee8efd-2991-4945-a024-06a29a96eebf.png",
+        "originalFilename": "94ee8efd-2991-4945-a024-06a29a96eebf.png",
+        "exists": true,
+        "contentHash": "de057142f3ea56d171f7937a0b793fb8035d1478bf2d0ec4b50c0a8d1b542962",
+        "byteSize": 2544347,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "98ca9ff9-c303-4433-b118-2f330554d8d9",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/98ca9ff9-c303-4433-b118-2f330554d8d9.png",
+    "bindings": {
+      "first": {
+        "cover": "652f12b9ec7a88e4ed09dfdcb5b3f8e5f52cd889f14a4ce16e21d5f98e726d9f"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "652f12b9ec7a88e4ed09dfdcb5b3f8e5f52cd889f14a4ce16e21d5f98e726d9f",
+        "file": "public/thumbnail/98ca9ff9-c303-4433-b118-2f330554d8d9.png",
+        "originalFilename": "98ca9ff9-c303-4433-b118-2f330554d8d9.png",
+        "exists": true,
+        "contentHash": "ea6a1708ceea43dd3b23dfc2ef12d33ed1a7b05b490635e9d1cb09bb541e5935",
+        "byteSize": 758505,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "9ccd8914-6951-4d1f-a80f-56ed492be54b",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/9ccd8914-6951-4d1f-a80f-56ed492be54b.png",
+    "bindings": {
+      "first": {
+        "cover": "4486930f7f81323af6ba454bfa794efe6b6116fab7eeccef0dbd055c2b7c646f"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "4486930f7f81323af6ba454bfa794efe6b6116fab7eeccef0dbd055c2b7c646f",
+        "file": "public/thumbnail/9ccd8914-6951-4d1f-a80f-56ed492be54b.png",
+        "originalFilename": "9ccd8914-6951-4d1f-a80f-56ed492be54b.png",
+        "exists": true,
+        "contentHash": "6b87e04ac2f96113215b6e27a5a0b9730a6e89fed458b63b6c04865a7bcf4d54",
+        "byteSize": 642109,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "a15f9a09-1999-4467-9eb5-cdf0e1f23df9",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/a15f9a09-1999-4467-9eb5-cdf0e1f23df9.png",
+    "bindings": {
+      "first": {
+        "cover": "18af2eab9ce3bbd6bcbc0c016e8198fe224557b02a153922da670921bcfe7a4a"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "18af2eab9ce3bbd6bcbc0c016e8198fe224557b02a153922da670921bcfe7a4a",
+        "file": "public/thumbnail/a15f9a09-1999-4467-9eb5-cdf0e1f23df9.png",
+        "originalFilename": "a15f9a09-1999-4467-9eb5-cdf0e1f23df9.png",
+        "exists": true,
+        "contentHash": "57e8769d8e747589620ffda2c3c4cdb7afa49eb8290e1fb51cb284bc74dd1293",
+        "byteSize": 1727685,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "a195bebe-d335-4624-9f7a-a70e342b8ad3",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/a195bebe-d335-4624-9f7a-a70e342b8ad3.png",
+    "bindings": {
+      "first": {
+        "cover": "6b76447a5b2a1d75c9ac60325b10c50566571c7937200f7e2c4db1b3094356a9"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "6b76447a5b2a1d75c9ac60325b10c50566571c7937200f7e2c4db1b3094356a9",
+        "file": "public/thumbnail/a195bebe-d335-4624-9f7a-a70e342b8ad3.png",
+        "originalFilename": "a195bebe-d335-4624-9f7a-a70e342b8ad3.png",
+        "exists": true,
+        "contentHash": "cd5b290ac75091a060be2e54b5468a3bc6c184c6f6f59ebd2ff8213d0261a413",
+        "byteSize": 658374,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "abb577db-3372-4d58-958d-ea99d02ba2ea",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/abb577db-3372-4d58-958d-ea99d02ba2ea.png",
+    "bindings": {
+      "first": {
+        "cover": "e07afe0ab80f76e2b86f9e830485f2d16dcf5af6894e47f3d91d68713a319264"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "e07afe0ab80f76e2b86f9e830485f2d16dcf5af6894e47f3d91d68713a319264",
+        "file": "public/thumbnail/abb577db-3372-4d58-958d-ea99d02ba2ea.png",
+        "originalFilename": "abb577db-3372-4d58-958d-ea99d02ba2ea.png",
+        "exists": true,
+        "contentHash": "409ad46d181a336e2cf608a11e99950412cdd2299ffcba658dc5acfe4318c7be",
+        "byteSize": 1951423,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "add1e8ad-3fcc-4916-8c3b-e3b95e6b2fea",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/add1e8ad-3fcc-4916-8c3b-e3b95e6b2fea.png",
+    "bindings": {
+      "first": {
+        "cover": "0336dd0f38e6583729c0d97c66264666f747290d27c6496cd94c6db5277daf5c"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "0336dd0f38e6583729c0d97c66264666f747290d27c6496cd94c6db5277daf5c",
+        "file": "public/thumbnail/add1e8ad-3fcc-4916-8c3b-e3b95e6b2fea.png",
+        "originalFilename": "add1e8ad-3fcc-4916-8c3b-e3b95e6b2fea.png",
+        "exists": true,
+        "contentHash": "43aa41db926f89af1ba3ad1d645487e8ecf1350bddee22c6685e633892f2bec2",
+        "byteSize": 758637,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "aebbc0ff-0256-493c-9902-85e53264c7b5",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/aebbc0ff-0256-493c-9902-85e53264c7b5.png",
+    "bindings": {
+      "first": {
+        "cover": "ec4e1b9101039481abb36d16f061ecc180df1dd5026f057215c19230d34bbf3b"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "ec4e1b9101039481abb36d16f061ecc180df1dd5026f057215c19230d34bbf3b",
+        "file": "public/thumbnail/aebbc0ff-0256-493c-9902-85e53264c7b5.png",
+        "originalFilename": "aebbc0ff-0256-493c-9902-85e53264c7b5.png",
+        "exists": true,
+        "contentHash": "624c403139ae946529046ca657181f5e2a7e16220686ca0e77ba6fa669f55ca5",
+        "byteSize": 1713021,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "aedc0cce-62ac-469e-932f-8598b5c36d58",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/aedc0cce-62ac-469e-932f-8598b5c36d58.png",
+    "bindings": {
+      "first": {
+        "cover": "671c573d4e78bf218fc2ecebc3ae4910f2dba6117f94a53f3787b7bf11d70425"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "671c573d4e78bf218fc2ecebc3ae4910f2dba6117f94a53f3787b7bf11d70425",
+        "file": "public/thumbnail/aedc0cce-62ac-469e-932f-8598b5c36d58.png",
+        "originalFilename": "aedc0cce-62ac-469e-932f-8598b5c36d58.png",
+        "exists": true,
+        "contentHash": "0b1d228238d3b947bc00c51ee1fdc9b98ac705d5a0115b71703617a06183014c",
+        "byteSize": 3193017,
+        "mimeType": "image/png",
+        "width": 4000,
+        "height": 2250,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "bee27a39-ef1c-4cc5-b28d-f95643e5e942",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/bee27a39-ef1c-4cc5-b28d-f95643e5e942.png",
+    "bindings": {
+      "first": {
+        "cover": "ad28d506254310a66ae695ecc48cb9b754f1d722f06c37871f0443b4c91a1df3"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "ad28d506254310a66ae695ecc48cb9b754f1d722f06c37871f0443b4c91a1df3",
+        "file": "public/thumbnail/bee27a39-ef1c-4cc5-b28d-f95643e5e942.png",
+        "originalFilename": "bee27a39-ef1c-4cc5-b28d-f95643e5e942.png",
+        "exists": true,
+        "contentHash": "a73d735f5a9c3162f4e77b7f86493c443ad3ca7240763e524ad0ac3db1d3284a",
+        "byteSize": 652898,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "bf02c441-25d2-47d1-8514-ce3831cae748",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/bf02c441-25d2-47d1-8514-ce3831cae748.png",
+    "bindings": {
+      "first": {
+        "cover": "ccb066e413f826e06eb54119456adf5ca383b55cd0a2ed98cb972caf49245013"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "ccb066e413f826e06eb54119456adf5ca383b55cd0a2ed98cb972caf49245013",
+        "file": "public/thumbnail/bf02c441-25d2-47d1-8514-ce3831cae748.png",
+        "originalFilename": "bf02c441-25d2-47d1-8514-ce3831cae748.png",
+        "exists": true,
+        "contentHash": "08262530971b3c80f6dc9848a6779068a351790cdfce332bae2446456ec316bc",
+        "byteSize": 2168647,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "bf9446cd-ef2e-4b74-b620-be3fd145813e",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/bf9446cd-ef2e-4b74-b620-be3fd145813e.png",
+    "bindings": {
+      "first": {
+        "cover": "b792182d6c60c6182f74a9167a915a1c353e755d8e59182faa52ba2af5d3d776"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "b792182d6c60c6182f74a9167a915a1c353e755d8e59182faa52ba2af5d3d776",
+        "file": "public/thumbnail/bf9446cd-ef2e-4b74-b620-be3fd145813e.png",
+        "originalFilename": "bf9446cd-ef2e-4b74-b620-be3fd145813e.png",
+        "exists": true,
+        "contentHash": "a1d7e5acfee7d24a1dfcece27fd0bb804d0616f8434c8e11c3ab2242ed5c30f8",
+        "byteSize": 2917536,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "bfe9113e-5a17-4828-8eff-6227f344a876",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/bfe9113e-5a17-4828-8eff-6227f344a876.png",
+    "bindings": {
+      "first": {
+        "cover": "7e8449fc88ff003a83c44be142981c7d294aee732d46247804e192907310bdb4"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "7e8449fc88ff003a83c44be142981c7d294aee732d46247804e192907310bdb4",
+        "file": "public/thumbnail/bfe9113e-5a17-4828-8eff-6227f344a876.png",
+        "originalFilename": "bfe9113e-5a17-4828-8eff-6227f344a876.png",
+        "exists": true,
+        "contentHash": "c4bf4f1e591bb366f60b50cd6f0309d291101181308d082ad58e4ddc5e96ec41",
+        "byteSize": 1092141,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "c1f6bb18-d6c7-4319-b54e-b94d2be0f7dd",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/c1f6bb18-d6c7-4319-b54e-b94d2be0f7dd.png",
+    "bindings": {
+      "first": {
+        "cover": "75a7a0f74120c2a62b978b068b05cd8395e71e39279816103ae524a8ffaf625b"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "75a7a0f74120c2a62b978b068b05cd8395e71e39279816103ae524a8ffaf625b",
+        "file": "public/thumbnail/c1f6bb18-d6c7-4319-b54e-b94d2be0f7dd.png",
+        "originalFilename": "c1f6bb18-d6c7-4319-b54e-b94d2be0f7dd.png",
+        "exists": true,
+        "contentHash": "a33a3430db5fd879a0dafc349749d46e8a472ef5948e028a8924fe97c918d353",
+        "byteSize": 12395150,
+        "mimeType": "image/png",
+        "width": 8000,
+        "height": 4500,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "c2ddc644-64e6-4524-ae8b-7b6912f9e6aa",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/c2ddc644-64e6-4524-ae8b-7b6912f9e6aa.png",
+    "bindings": {
+      "first": {
+        "cover": "71257421aaf58ea383697cb1c057e906d98225c1e39924ecb1eaae371e9066e0"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "71257421aaf58ea383697cb1c057e906d98225c1e39924ecb1eaae371e9066e0",
+        "file": "public/thumbnail/c2ddc644-64e6-4524-ae8b-7b6912f9e6aa.png",
+        "originalFilename": "c2ddc644-64e6-4524-ae8b-7b6912f9e6aa.png",
+        "exists": true,
+        "contentHash": "1931f10748d394b9c777a5551ae4ec2e98fefe940d036d6fb7284ee895e6c6ff",
+        "byteSize": 252023,
+        "mimeType": "image/png",
+        "width": 640,
+        "height": 360,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "c42b8983-ebc1-4171-a89a-42392aa3c51d",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/c42b8983-ebc1-4171-a89a-42392aa3c51d.png",
+    "bindings": {
+      "first": {
+        "cover": "ef87affc3c8d6f82120415ec0a4f5203151334f33a3901518d9e4155c6241e0f"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "ef87affc3c8d6f82120415ec0a4f5203151334f33a3901518d9e4155c6241e0f",
+        "file": "public/thumbnail/c42b8983-ebc1-4171-a89a-42392aa3c51d.png",
+        "originalFilename": "c42b8983-ebc1-4171-a89a-42392aa3c51d.png",
+        "exists": true,
+        "contentHash": "9fe8248246aeeb62d99b2bef503789724f9f918430790dc2d14bc50090281507",
+        "byteSize": 358244,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "c7ef5b16-45e6-497a-b163-b0715a065263",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/c7ef5b16-45e6-497a-b163-b0715a065263.png",
+    "bindings": {
+      "first": {
+        "cover": "264ef435d7c04c30e54c1a10fa081dd5e92c3320dc0f99117fb2b8b4088e9177"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "264ef435d7c04c30e54c1a10fa081dd5e92c3320dc0f99117fb2b8b4088e9177",
+        "file": "public/thumbnail/c7ef5b16-45e6-497a-b163-b0715a065263.png",
+        "originalFilename": "c7ef5b16-45e6-497a-b163-b0715a065263.png",
+        "exists": true,
+        "contentHash": "edc0322f28317c2d259e10f6cf0bee5b03aea5a7d747595ed8a138c6441b909b",
+        "byteSize": 2979859,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "ce939e19-d3ff-4f61-b47b-71dd38ce86cd",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/ce939e19-d3ff-4f61-b47b-71dd38ce86cd.png",
+    "bindings": {
+      "first": {
+        "cover": "af63d2fd2f258715191005a4c6050b39d9e456997488bd3da7c5231932347aca"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "af63d2fd2f258715191005a4c6050b39d9e456997488bd3da7c5231932347aca",
+        "file": "public/thumbnail/ce939e19-d3ff-4f61-b47b-71dd38ce86cd.png",
+        "originalFilename": "ce939e19-d3ff-4f61-b47b-71dd38ce86cd.png",
+        "exists": true,
+        "contentHash": "8680b6ce107341206dc8231583cf02fa58b4160387f51f2e7709f6d573229adf",
+        "byteSize": 1974725,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "ceda8b80-9a3d-48d1-ad99-d6895f495e4e",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/ceda8b80-9a3d-48d1-ad99-d6895f495e4e.png",
+    "bindings": {
+      "first": {
+        "cover": "749545d5884de058cf68931ad1ef92388b9c96082a2299e27b896e060134eddd"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "749545d5884de058cf68931ad1ef92388b9c96082a2299e27b896e060134eddd",
+        "file": "public/thumbnail/ceda8b80-9a3d-48d1-ad99-d6895f495e4e.png",
+        "originalFilename": "ceda8b80-9a3d-48d1-ad99-d6895f495e4e.png",
+        "exists": true,
+        "contentHash": "c5af41413d398e5880e1f743b5d5616bcfb3c0d2f7794163b98745cef8c5bd6c",
+        "byteSize": 1696913,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "d78593ab-b97c-4753-b120-77982001ae30",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/d78593ab-b97c-4753-b120-77982001ae30.png",
+    "bindings": {
+      "first": {
+        "cover": "742257e3013fd1c20caf5470456c4fea235d571d26956fc733e498ba06d08a21"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "742257e3013fd1c20caf5470456c4fea235d571d26956fc733e498ba06d08a21",
+        "file": "public/thumbnail/d78593ab-b97c-4753-b120-77982001ae30.png",
+        "originalFilename": "d78593ab-b97c-4753-b120-77982001ae30.png",
+        "exists": true,
+        "contentHash": "6272710b67e31e3c2de013657ecd193fb74e75cb8b9030dd69207889144c3e6b",
+        "byteSize": 2588437,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "d886824b-7113-4f9a-8271-d5e5a76b485f",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/d886824b-7113-4f9a-8271-d5e5a76b485f.png",
+    "bindings": {
+      "first": {
+        "cover": "7d97708d3d6054c0d366da2ef1a962d86d25ed1ebc0bf9792dc296be41d1d0d0"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "7d97708d3d6054c0d366da2ef1a962d86d25ed1ebc0bf9792dc296be41d1d0d0",
+        "file": "public/thumbnail/d886824b-7113-4f9a-8271-d5e5a76b485f.png",
+        "originalFilename": "d886824b-7113-4f9a-8271-d5e5a76b485f.png",
+        "exists": true,
+        "contentHash": "21744627caaa3698789a50cc7109ac632cef86d7c57e7799f516310386ec0eaf",
+        "byteSize": 884647,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "da4e0772-be71-42de-a1cd-7d64c7216064",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/da4e0772-be71-42de-a1cd-7d64c7216064.png",
+    "bindings": {
+      "first": {
+        "cover": "be7f861326762c679561532d6f7c661a3775a59a9fad818cc7aa13657c376e88"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "be7f861326762c679561532d6f7c661a3775a59a9fad818cc7aa13657c376e88",
+        "file": "public/thumbnail/da4e0772-be71-42de-a1cd-7d64c7216064.png",
+        "originalFilename": "da4e0772-be71-42de-a1cd-7d64c7216064.png",
+        "exists": true,
+        "contentHash": "a3ed75d6ac15199defc834c64487cf584dc5dd71eb14ebccc5f05c938ce1e7ed",
+        "byteSize": 2938939,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "db8f0082-b6c4-4b8c-9dfc-ec336bea0566",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/db8f0082-b6c4-4b8c-9dfc-ec336bea0566.png",
+    "bindings": {
+      "first": {
+        "cover": "42b64424da48b1d52ba3dc24e3943b9398d2a79813213c7c5fce070c412375ac"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "42b64424da48b1d52ba3dc24e3943b9398d2a79813213c7c5fce070c412375ac",
+        "file": "public/thumbnail/db8f0082-b6c4-4b8c-9dfc-ec336bea0566.png",
+        "originalFilename": "db8f0082-b6c4-4b8c-9dfc-ec336bea0566.png",
+        "exists": true,
+        "contentHash": "e6779fd71461c9e1e75d6af8e95a1051421f610ed715439f9ae9e0c12ec6f9d8",
+        "byteSize": 3537329,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "dd1611a2-9773-447d-b711-e04ea77e2490",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/dd1611a2-9773-447d-b711-e04ea77e2490.png",
+    "bindings": {
+      "first": {
+        "cover": "9f4f9d5df6d71e6a536d0f1b7c6f96d19eae7dd62f949f720b926a635a1b8c1e"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "9f4f9d5df6d71e6a536d0f1b7c6f96d19eae7dd62f949f720b926a635a1b8c1e",
+        "file": "public/thumbnail/dd1611a2-9773-447d-b711-e04ea77e2490.png",
+        "originalFilename": "dd1611a2-9773-447d-b711-e04ea77e2490.png",
+        "exists": true,
+        "contentHash": "2786af6dac586d0561444f4386a57467fa4ae79c31e571ebb0423e92b586dd78",
+        "byteSize": 1189888,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "ddc90608-8f70-48a6-87da-78fadb76aece",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/ddc90608-8f70-48a6-87da-78fadb76aece.png",
+    "bindings": {
+      "first": {
+        "cover": "221e57f6093330472d6f4e712bcfe30e9d794db0c81e7fa463fbf5448583aa5d"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "221e57f6093330472d6f4e712bcfe30e9d794db0c81e7fa463fbf5448583aa5d",
+        "file": "public/thumbnail/ddc90608-8f70-48a6-87da-78fadb76aece.png",
+        "originalFilename": "ddc90608-8f70-48a6-87da-78fadb76aece.png",
+        "exists": true,
+        "contentHash": "94ca1c4a35d3f64302beec29f6a98894680aa1d04dda18f07d9a9590eb03d971",
+        "byteSize": 2170036,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "e02ab604-c132-4370-b9cd-9d72dd001a75",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/e02ab604-c132-4370-b9cd-9d72dd001a75.png",
+    "bindings": {
+      "first": {
+        "cover": "6a682e72da90ea0f21847a968ebe4ec48bb68f4972126b37d465998f61719d4c"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "6a682e72da90ea0f21847a968ebe4ec48bb68f4972126b37d465998f61719d4c",
+        "file": "public/thumbnail/e02ab604-c132-4370-b9cd-9d72dd001a75.png",
+        "originalFilename": "e02ab604-c132-4370-b9cd-9d72dd001a75.png",
+        "exists": true,
+        "contentHash": "02be945061547fb86c2e3b6dbee5e39219644dc6e4a2f29f94aa419c17881aba",
+        "byteSize": 903126,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "e0833c27-0ce9-4ca7-849c-3ee61774b582",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/e0833c27-0ce9-4ca7-849c-3ee61774b582.png",
+    "bindings": {
+      "first": {
+        "cover": "ce611a86b13545fb01d7725034d73703ad754fb73d260671adb73a7ef171d55c"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "ce611a86b13545fb01d7725034d73703ad754fb73d260671adb73a7ef171d55c",
+        "file": "public/thumbnail/e0833c27-0ce9-4ca7-849c-3ee61774b582.png",
+        "originalFilename": "e0833c27-0ce9-4ca7-849c-3ee61774b582.png",
+        "exists": true,
+        "contentHash": "5661993d75219b599836fbf2e16b215624ba7aba71d0e36eec51c65121670167",
+        "byteSize": 323561,
+        "mimeType": "image/png",
+        "width": 640,
+        "height": 360,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "e2b36c34-6a23-44ef-a846-016574339f0a",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/e2b36c34-6a23-44ef-a846-016574339f0a.png",
+    "bindings": {
+      "first": {
+        "cover": "ef2029bce94ea6b06ef6b2420a6f295174e897076d54dc3c87dd1a3d750f8161"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "ef2029bce94ea6b06ef6b2420a6f295174e897076d54dc3c87dd1a3d750f8161",
+        "file": "public/thumbnail/e2b36c34-6a23-44ef-a846-016574339f0a.png",
+        "originalFilename": "e2b36c34-6a23-44ef-a846-016574339f0a.png",
+        "exists": true,
+        "contentHash": "0026cbda036d9d5273ad6ac8077beb8914e1238b9c720a82ca5a2846d1f33080",
+        "byteSize": 2646428,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "e3053d98-d745-4adf-8b32-ce9210b9ee37",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/e3053d98-d745-4adf-8b32-ce9210b9ee37.png",
+    "bindings": {
+      "first": {
+        "cover": "50cffe0323b0d08d3514f73d6f3686bcfffab2339c03b48ee93e8e2b4f6a7515"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "50cffe0323b0d08d3514f73d6f3686bcfffab2339c03b48ee93e8e2b4f6a7515",
+        "file": "public/thumbnail/e3053d98-d745-4adf-8b32-ce9210b9ee37.png",
+        "originalFilename": "e3053d98-d745-4adf-8b32-ce9210b9ee37.png",
+        "exists": true,
+        "contentHash": "65749d5fba55b6dfd1d55b112864e5c1697337dcf297e6503b4eee13940a7096",
+        "byteSize": 312349,
+        "mimeType": "image/png",
+        "width": 640,
+        "height": 360,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "e5a17bc0-4036-4186-a017-9710edfd175a",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/e5a17bc0-4036-4186-a017-9710edfd175a.png",
+    "bindings": {
+      "first": {
+        "cover": "a98e35a8b2403ed9e3c6d273a3a882a3264ee96d4fa61c4fa39d33ad03c06044"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "a98e35a8b2403ed9e3c6d273a3a882a3264ee96d4fa61c4fa39d33ad03c06044",
+        "file": "public/thumbnail/e5a17bc0-4036-4186-a017-9710edfd175a.png",
+        "originalFilename": "e5a17bc0-4036-4186-a017-9710edfd175a.png",
+        "exists": true,
+        "contentHash": "f5284398df6915dd183cab69452e43b37bc14ba8539922805c4130f259d32dd5",
+        "byteSize": 2128960,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "e70b0fef-e2f6-4c0e-bea3-92b07bcfe7de",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/e70b0fef-e2f6-4c0e-bea3-92b07bcfe7de.png",
+    "bindings": {
+      "first": {
+        "cover": "abf2a4d02add017c5482f9939362ead94a3a093804fea5efcfed04a69f3478e1"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "abf2a4d02add017c5482f9939362ead94a3a093804fea5efcfed04a69f3478e1",
+        "file": "public/thumbnail/e70b0fef-e2f6-4c0e-bea3-92b07bcfe7de.png",
+        "originalFilename": "e70b0fef-e2f6-4c0e-bea3-92b07bcfe7de.png",
+        "exists": true,
+        "contentHash": "fcc5837e5f9813cc5337bdb84b02f42983dde62fa50b22eb733eed92ce2b2774",
+        "byteSize": 277836,
+        "mimeType": "image/png",
+        "width": 640,
+        "height": 360,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "e736d0c1-66e2-4231-bd72-43e988a70a5f",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/e736d0c1-66e2-4231-bd72-43e988a70a5f.png",
+    "bindings": {
+      "first": {
+        "cover": "0efce099ebb55b13e098b19214f8fd8e59fc4a729674325248ac93cd483b3580"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "0efce099ebb55b13e098b19214f8fd8e59fc4a729674325248ac93cd483b3580",
+        "file": "public/thumbnail/e736d0c1-66e2-4231-bd72-43e988a70a5f.png",
+        "originalFilename": "e736d0c1-66e2-4231-bd72-43e988a70a5f.png",
+        "exists": true,
+        "contentHash": "b06be2a3e04a11aa80f0b352cedd3234f552020fd397c84e3b7d66be3a1adee4",
+        "byteSize": 1164310,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "e835b217-4081-4425-a157-9931e09f397f",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/e835b217-4081-4425-a157-9931e09f397f.png",
+    "bindings": {
+      "first": {
+        "cover": "be6ca52b4f0d32d97c2e8f1fed5b1c527a340dab5d8186ce0c0d1145a6d720d4"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "be6ca52b4f0d32d97c2e8f1fed5b1c527a340dab5d8186ce0c0d1145a6d720d4",
+        "file": "public/thumbnail/e835b217-4081-4425-a157-9931e09f397f.png",
+        "originalFilename": "e835b217-4081-4425-a157-9931e09f397f.png",
+        "exists": true,
+        "contentHash": "7b53f5c8b07de990177f73712f42d19f55b90d7c1776bc22bca8cea7b6e66b0f",
+        "byteSize": 366673,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "eacb20ea-7bf3-4a2a-8f95-f03c921e1cf0",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/eacb20ea-7bf3-4a2a-8f95-f03c921e1cf0.png",
+    "bindings": {
+      "first": {
+        "cover": "a04b214a7a534baaeb0869b4beb50f6541f1f08562f2606ffe22b68b254429d5"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "a04b214a7a534baaeb0869b4beb50f6541f1f08562f2606ffe22b68b254429d5",
+        "file": "public/thumbnail/eacb20ea-7bf3-4a2a-8f95-f03c921e1cf0.png",
+        "originalFilename": "eacb20ea-7bf3-4a2a-8f95-f03c921e1cf0.png",
+        "exists": true,
+        "contentHash": "6a3215bcc6e2eeee07518a1691e6b68078ff4cf85c84bfb7592aa651cdae8ed7",
+        "byteSize": 2694640,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "ef9fa34f-47c8-4e8e-8ed4-b84ef8eae020",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/ef9fa34f-47c8-4e8e-8ed4-b84ef8eae020.png",
+    "bindings": {
+      "first": {
+        "cover": "bc08870dc0d52c9a391f35f59e2ced7322e8c1dae5492d4321bff965305182e6"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "bc08870dc0d52c9a391f35f59e2ced7322e8c1dae5492d4321bff965305182e6",
+        "file": "public/thumbnail/ef9fa34f-47c8-4e8e-8ed4-b84ef8eae020.png",
+        "originalFilename": "ef9fa34f-47c8-4e8e-8ed4-b84ef8eae020.png",
+        "exists": true,
+        "contentHash": "9855883b752d757812730929e577a602ee3edf0bf1c35fbf77747d40766e6dcb",
+        "byteSize": 374086,
+        "mimeType": "image/png",
+        "width": 640,
+        "height": 360,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "f156601a-2c4b-479c-bec7-19aed782d812",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/f156601a-2c4b-479c-bec7-19aed782d812.png",
+    "bindings": {
+      "first": {
+        "cover": "348b70930bd70d0ef2ecd018361f911ba54f8e9f2f3630745c9d29da542a3403"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "348b70930bd70d0ef2ecd018361f911ba54f8e9f2f3630745c9d29da542a3403",
+        "file": "public/thumbnail/f156601a-2c4b-479c-bec7-19aed782d812.png",
+        "originalFilename": "f156601a-2c4b-479c-bec7-19aed782d812.png",
+        "exists": true,
+        "contentHash": "b0a16d7c155681e0b7ac20b2aac2d4d6d7fab2237a59790ad991ce6dfa4ff4ab",
+        "byteSize": 2164047,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "f1ecd870-a161-4753-a726-d2c0fdf523c2",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/f1ecd870-a161-4753-a726-d2c0fdf523c2.png",
+    "bindings": {
+      "first": {
+        "cover": "d54428792c33b1737e0ec37d982ff897c1ad2b306de9e09eb989dc981ed18ac7"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "d54428792c33b1737e0ec37d982ff897c1ad2b306de9e09eb989dc981ed18ac7",
+        "file": "public/thumbnail/f1ecd870-a161-4753-a726-d2c0fdf523c2.png",
+        "originalFilename": "f1ecd870-a161-4753-a726-d2c0fdf523c2.png",
+        "exists": true,
+        "contentHash": "db116e22e937a80446cb8882513f43ec8a009428f00ea72f99603b4ad41c8ff4",
+        "byteSize": 6903034,
+        "mimeType": "image/png",
+        "width": 4000,
+        "height": 2250,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "f2e9ffe2-9a30-4c91-8bf8-4e6ae62db91e",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/f2e9ffe2-9a30-4c91-8bf8-4e6ae62db91e.png",
+    "bindings": {
+      "first": {
+        "cover": "113ebf31b6899507f3a5315184ca77157238e26ca128d5b201ca585e859b8de1"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "113ebf31b6899507f3a5315184ca77157238e26ca128d5b201ca585e859b8de1",
+        "file": "public/thumbnail/f2e9ffe2-9a30-4c91-8bf8-4e6ae62db91e.png",
+        "originalFilename": "f2e9ffe2-9a30-4c91-8bf8-4e6ae62db91e.png",
+        "exists": true,
+        "contentHash": "8809d92f6cd9945b7b3ce3e983216c708e2540bb81677f74f79966dcc49bca6d",
+        "byteSize": 865236,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "f697c062-844a-48c7-aad4-c05cee320c4e",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/f697c062-844a-48c7-aad4-c05cee320c4e.png",
+    "bindings": {
+      "first": {
+        "cover": "4282b9f6c512fd116e5844bcb9a554dac934ee639209347205f9a36619711cec"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "4282b9f6c512fd116e5844bcb9a554dac934ee639209347205f9a36619711cec",
+        "file": "public/thumbnail/f697c062-844a-48c7-aad4-c05cee320c4e.png",
+        "originalFilename": "f697c062-844a-48c7-aad4-c05cee320c4e.png",
+        "exists": true,
+        "contentHash": "c845e9699a44d66c2a35d426bfca8428ab51d6529d62eaa849ce23267138bc07",
+        "byteSize": 2509779,
+        "mimeType": "image/png",
+        "width": 1920,
+        "height": 1080,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "f8bb165b-a42b-4146-9322-64c6a2e78df5",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/f8bb165b-a42b-4146-9322-64c6a2e78df5.png",
+    "bindings": {
+      "first": {
+        "cover": "309b55939e25859ee94756b3c55cf789bc9a0ad11092819ad4425353433a8e64"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "309b55939e25859ee94756b3c55cf789bc9a0ad11092819ad4425353433a8e64",
+        "file": "public/thumbnail/f8bb165b-a42b-4146-9322-64c6a2e78df5.png",
+        "originalFilename": "f8bb165b-a42b-4146-9322-64c6a2e78df5.png",
+        "exists": true,
+        "contentHash": "83ab9d21f7f2866591820d7913cc6368440ccc588d2970fab8f31b89d63aa5fd",
+        "byteSize": 330144,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "f8da2116-87e2-4cf2-b04f-d1b639495abc",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/f8da2116-87e2-4cf2-b04f-d1b639495abc.png",
+    "bindings": {
+      "first": {
+        "cover": "7a61d73b3b5986a790d9f79dcc6c006ecddd938078afee585f398a744c7dc493"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "7a61d73b3b5986a790d9f79dcc6c006ecddd938078afee585f398a744c7dc493",
+        "file": "public/thumbnail/f8da2116-87e2-4cf2-b04f-d1b639495abc.png",
+        "originalFilename": "f8da2116-87e2-4cf2-b04f-d1b639495abc.png",
+        "exists": true,
+        "contentHash": "c8e10b97e508db6e2b89b1a4266ae7462c65832077c700a263b34cc5b39c0b10",
+        "byteSize": 623419,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  },
+  {
+    "ownerKind": "timetable",
+    "templateId": "f9e1366a-2a53-461c-874e-1fc75e4cfaa5",
+    "purpose": "cover",
+    "manifestFile": "public/thumbnail/f9e1366a-2a53-461c-874e-1fc75e4cfaa5.png",
+    "bindings": {
+      "first": {
+        "cover": "0016c964e7a9c629d6738a50b8738516b9ae72bede436a877ea53d7755255966"
+      }
+    },
+    "assets": [
+      {
+        "assetId": "0016c964e7a9c629d6738a50b8738516b9ae72bede436a877ea53d7755255966",
+        "file": "public/thumbnail/f9e1366a-2a53-461c-874e-1fc75e4cfaa5.png",
+        "originalFilename": "f9e1366a-2a53-461c-874e-1fc75e4cfaa5.png",
+        "exists": true,
+        "contentHash": "8f7690e4912eae8c3fdd0de243d4eadeaf21736110131b130931a9ccb25b75d1",
+        "byteSize": 1071256,
+        "mimeType": "image/png",
+        "width": 1280,
+        "height": 720,
+        "readError": false,
+        "category": "public"
+      }
+    ],
+    "issues": [],
+    "dynamicReferences": [],
+    "parentStatus": "not_checked",
+    "status": "ready"
+  }
+]

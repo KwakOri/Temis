@@ -1,4 +1,10 @@
 import type {
+  StudioTimetableGraphNode,
+  StudioTimetableNodeExtension,
+} from "@/types/studio-timetable-graph";
+import { getStudioTimetableNodeAsset } from "./timetable-graph-queries";
+import { setStudioTimetableGraphAsset } from "./timetable-graph-commands";
+import type {
   StudioImageFit,
   StudioTimetableCompositionObject,
 } from "@/types/template-studio";
@@ -195,4 +201,75 @@ export const resolveStudioAssetSlotSpec = (
     defaultFit: "contain",
     inputLabel: STUDIO_ARTIST_PROFILE_TEXT_ASSET_INPUT_LABEL,
   });
+};
+
+/** Presentation labels are shared; editor writes use the common graph contract. */
+export interface StudioGraphAssetSlotSpec extends Omit<
+  StudioAssetSlotSpec,
+  "onUpdateAsset" | "onUpdateInput"
+> {
+  onUpdateAsset: (
+    node: import("@/types/studio-timetable-graph").StudioTimetableGraphNode,
+    assetId: string | null,
+    fit: StudioImageFit,
+  ) => void;
+  onUpdateInput?: (
+    node: import("@/types/studio-timetable-graph").StudioTimetableGraphNode,
+    inputId: string,
+    fit: StudioImageFit,
+  ) => void;
+}
+export const resolveStudioGraphAssetSlotSpec = (
+  node: StudioTimetableGraphNode,
+  kind: StudioAssetSlotKind,
+  extension: StudioTimetableNodeExtension = {},
+): StudioGraphAssetSlotSpec => {
+  const background = kind === "background";
+  const slot = background
+    ? node.assetSlots?.asset
+    : getStudioTimetableNodeAsset(node);
+  const userImage =
+    kind === "profileChild" && extension.profileRole === "userImage";
+  const allowInput =
+    !["board", "structuredBackground"].includes(kind) &&
+    (kind !== "profileChild" || userImage);
+  const labels: Record<StudioAssetSlotKind, string> = {
+    background: "Background Asset",
+    structuredBackground: "Background Asset",
+    profileImage: "Profile Image",
+    profileFrame: "Frame Asset",
+    profileChild: getStudioProfileChildLabel(extension.profileRole),
+    topObject: "Object Asset",
+    board: "Board Image",
+    artistProfileText: "Text Asset",
+  };
+  const inputLabels: Partial<Record<StudioAssetSlotKind, string>> = {
+    background: STUDIO_WEEKLY_MEMO_BACKGROUND_INPUT_LABEL,
+    structuredBackground: STUDIO_WEEKLY_MEMO_BACKGROUND_INPUT_LABEL,
+    profileChild: STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL,
+    topObject: STUDIO_TOP_OBJECT_IMAGE_INPUT_LABEL,
+    artistProfileText: STUDIO_ARTIST_PROFILE_TEXT_ASSET_INPUT_LABEL,
+  };
+  const target = background ? "background" : "foreground";
+  return {
+    label: labels[kind],
+    assetId: slot?.assetId,
+    inputId: slot?.inputId,
+    fit: slot?.fit,
+    defaultFit:
+      background ||
+      userImage ||
+      kind === "board" ||
+      kind === "structuredBackground"
+        ? "cover"
+        : "contain",
+    inputLabel: inputLabels[kind],
+    sourceLocked: userImage ? "input" : allowInput ? undefined : "asset",
+    onUpdateAsset: (current, assetId, fit) =>
+      setStudioTimetableGraphAsset(current, target, { assetId }, fit),
+    onUpdateInput: allowInput
+      ? (current, inputId, fit) =>
+          setStudioTimetableGraphAsset(current, target, { inputId }, fit)
+      : undefined,
+  };
 };

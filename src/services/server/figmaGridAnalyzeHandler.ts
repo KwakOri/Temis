@@ -1,4 +1,5 @@
 import {
+  fetchFigmaFrameCandidate,
   fetchFigmaGridOriginCandidates,
   FigmaGridScopeError,
 } from "@/services/server/figmaTemplateStudioService";
@@ -161,6 +162,19 @@ export const createFigmaGridAnalyzeHandler = (dependencies: {
     }
 
     try {
+      try {
+        const frameCandidate = await fetchFigmaFrameCandidate(source);
+        const response: StudioFigmaAnalyzeResponse = {
+          success: true,
+          candidates: [],
+          frameCandidate,
+          warnings: frameCandidate.warnings,
+        };
+        return NextResponse.json(response);
+      } catch (error) {
+        if (!(error instanceof FigmaGridScopeError)) throw error;
+      }
+
       const normalized = await fetchFigmaGridOriginCandidates(source);
       const reviewedCandidates = await Promise.all(normalized.candidates.map(async (candidate) => {
         const reviewedVariants: FigmaGridCandidateSource["variants"] = {
@@ -229,7 +243,7 @@ export const createFigmaGridAnalyzeHandler = (dependencies: {
     } catch (error) {
       if (error instanceof FigmaGridScopeError) {
         return NextResponse.json(
-          { error: "The selected node must be a supported GRID component." },
+          { error: "The selected node must be a Figma frame or GRID component." },
           { status: 422 },
         );
       }

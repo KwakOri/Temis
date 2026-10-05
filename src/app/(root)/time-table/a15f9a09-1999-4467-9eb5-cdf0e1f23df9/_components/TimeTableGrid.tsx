@@ -1,10 +1,12 @@
+"use client";
+
 import React, { Fragment } from "react";
 
 import { AutoResizeText } from "@/components/AutoResizeTextCard";
 import { useTimeTableData } from "@/contexts/TimeTableContext";
 import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import {
   colors,
   fontOption,
@@ -12,6 +14,7 @@ import {
   onlineCardWidth,
 } from "../_settings/settings";
 import TimeTableCell from "./TimeTableCell";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface TimeTableGridProps {
   data: TDefaultCard[];
@@ -24,6 +27,7 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
   weekDates,
   currentTheme,
 }) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const { isMemoTextVisible, memoText } = useTimeTableData();
   const memoPlaceholder =
     "메모 적는 곳\n이렇게 보통\n4줄까지\n적을 수 있습니다";

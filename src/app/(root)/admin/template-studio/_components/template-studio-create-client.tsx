@@ -1,7 +1,10 @@
 "use client";
 
 import { useCreateTemplateStudioTemplate } from "@/hooks/query/useTemplateStudio";
-import type { StudioTemplateKind } from "@/types/template-studio";
+import type {
+  StudioTemplateKind,
+  StudioTimetableTemplateMode,
+} from "@/types/template-studio";
 import { THUMBNAIL_CANVAS_PRESETS } from "@/utils/thumbnail-studio/document-factory";
 import { ArrowLeft, Loader2, Plus } from "lucide-react";
 import Link from "next/link";
@@ -10,15 +13,29 @@ import { useState, type FormEvent } from "react";
 
 export function TemplateStudioCreateClient({
   templateKind = "timetable",
+  templateMode = "personal",
 }: {
   templateKind?: StudioTemplateKind;
+  templateMode?: StudioTimetableTemplateMode;
 } = {}) {
   const router = useRouter();
   const isThumbnail = templateKind === "thumbnail";
+  const isTeam = !isThumbnail && templateMode === "team";
+  const studioName = isThumbnail
+    ? "Thumbnail Studio"
+    : isTeam
+      ? "Team Studio"
+      : "Template Studio";
   const basePath = isThumbnail
     ? "/admin/thumbnail-studio"
-    : "/admin/template-studio";
-  const defaultName = isThumbnail ? "Untitled Thumbnail" : "Untitled Template";
+    : isTeam
+      ? "/admin/team-timetable-studio"
+      : "/admin/template-studio";
+  const defaultName = isThumbnail
+    ? "Untitled Thumbnail"
+    : isTeam
+      ? "Untitled Team Timetable"
+      : "Untitled Template";
   const createTemplateMutation = useCreateTemplateStudioTemplate();
   const [name, setName] = useState(defaultName);
   const [description, setDescription] = useState("");
@@ -34,6 +51,7 @@ export function TemplateStudioCreateClient({
         name: name.trim() || defaultName,
         description: description.trim(),
         templateKind,
+        ...(isTeam ? { templateMode: "team" as const } : {}),
         ...(isThumbnail ? { canvasPresetId } : {}),
       });
       router.replace(`${basePath}/${created.template.id}/edit`);
@@ -54,7 +72,7 @@ export function TemplateStudioCreateClient({
           href={basePath}
         >
           <ArrowLeft className="h-4 w-4" />
-          {isThumbnail ? "Thumbnail Studio 목록" : "Template Studio 목록"}
+          {studioName} 목록
         </Link>
 
         <header>
@@ -62,14 +80,14 @@ export function TemplateStudioCreateClient({
             Create
           </p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight">
-            {isThumbnail
-              ? "새 Thumbnail Studio 템플릿"
-              : "새 Template Studio 템플릿"}
+            새 {studioName} 템플릿
           </h1>
           <p className="mt-2 text-sm text-slate-400">
             {isThumbnail
               ? "썸네일 이름과 캔버스 형식을 정한 뒤 editor에서 디자인과 입력값을 구성합니다."
-              : "기본 정보를 만든 뒤 editor에서 캔버스와 입력값을 구성합니다."}
+              : isTeam
+                ? "팀 시간표의 기본 정보를 만든 뒤 editor에서 멤버와 시간표 구성을 편집합니다."
+                : "기본 정보를 만든 뒤 editor에서 캔버스와 입력값을 구성합니다."}
           </p>
         </header>
 

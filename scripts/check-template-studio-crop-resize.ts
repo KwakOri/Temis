@@ -1,13 +1,15 @@
+import { createTimetableGraphFixture } from "./helpers/studio-timetable-fixture";
 import assert from "node:assert/strict";
 
 import {
   fitStudioCropFrame,
   getStudioContainRect,
+  getStudioCropOutputSize,
   resizeStudioCropFrame,
 } from "../src/utils/template-studio/crop-resize";
 import { getStudioRuntimeProfileImageCropTarget } from "../src/utils/template-studio/runtime-image-crop";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
-import { getStudioTimetableComposition } from "../src/utils/template-studio/timetable-composition";
+import { getStudioTimetableComposition } from "./helpers/studio-timetable-recipe";
 
 const fitted = fitStudioCropFrame({ width: 1000, height: 600 }, 16 / 9);
 assert.equal(fitted.width, 952);
@@ -39,6 +41,34 @@ assert.deepEqual(
     200,
   ),
   { width: 452, height: 300 },
+);
+
+assert.deepEqual(
+  getStudioCropOutputSize(
+    { width: 360, height: 720 },
+    { width: 808, height: 508 },
+    false,
+  ),
+  { width: 360, height: 720 },
+  "Free crop output must preserve the selected pixels and aspect ratio.",
+);
+assert.deepEqual(
+  getStudioCropOutputSize(
+    { width: 360, height: 720 },
+    { width: 808, height: 508 },
+    true,
+  ),
+  { width: 808, height: 508 },
+  "Fixed profile crops must retain the template's output size.",
+);
+assert.deepEqual(
+  getStudioCropOutputSize(
+    { width: 20000, height: 4000 },
+    { width: 808, height: 508 },
+    false,
+  ),
+  { width: 10000, height: 2000 },
+  "The output size limit must scale both free crop dimensions together.",
 );
 
 assert.deepEqual(
@@ -81,13 +111,16 @@ runtimeTimetable.composition = runtimeComposition;
 
 assert.deepEqual(
   getStudioRuntimeProfileImageCropTarget(
-    runtimeDocument,
+    createTimetableGraphFixture(runtimeDocument),
     "profile-image-input",
   ),
   { objectId: "profile-image", width: 640, height: 800 },
 );
 assert.equal(
-  getStudioRuntimeProfileImageCropTarget(runtimeDocument, "other-image-input"),
+  getStudioRuntimeProfileImageCropTarget(
+    createTimetableGraphFixture(runtimeDocument),
+    "other-image-input",
+  ),
   null,
   "Only profile image inputs should use the fixed runtime crop modal.",
 );

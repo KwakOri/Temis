@@ -1,3 +1,5 @@
+"use client";
+
 import React, { CSSProperties } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
@@ -5,7 +7,7 @@ import { TDefaultCard, TEntry } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { padZero } from "@/utils/date-formatter";
 import { formatTime } from "@/utils/time-formatter";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import {
   BASE_COLORS,
@@ -15,6 +17,7 @@ import {
   COMP_FONTS,
 } from "../_settings/settings";
 import { createTextShadow, createTextStroke } from "@/utils/utils";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface CardOfflineMemoProps {
   content: string | null;
@@ -261,6 +264,7 @@ interface OnlineCardBGProps {
 }
 
 const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const cardName = "online";
   return (
     <div
@@ -271,7 +275,7 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs["first"][cardName].src.replace("./", "/")}
+        src={Imgs["first"][cardName].src}
         alt="online"
       />
     </div>
@@ -296,6 +300,7 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
 // };
 
 const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -305,7 +310,7 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
       className="-z-10"
     >
       <img
-        src={Imgs[currentTheme || "first"]["offline"].src.replace("./", "/")}
+        src={Imgs[currentTheme || "first"]["offline"].src}
         alt="offline"
         style={{
           ...CARD_SIZES.OFFLINE,
@@ -317,6 +322,7 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
 };
 
 const OfflineFrame = ({ day, currentTheme }: OfflineCardProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -326,10 +332,7 @@ const OfflineFrame = ({ day, currentTheme }: OfflineCardProps) => {
       className="absolute inset-0 z-30"
     >
       <img
-        src={Imgs[currentTheme || "first"]["offline_frame"].src.replace(
-          "./",
-          "/",
-        )}
+        src={Imgs[currentTheme || "first"]["offline_frame"].src}
         alt="offline"
         style={{
           ...CARD_SIZES.OFFLINE,

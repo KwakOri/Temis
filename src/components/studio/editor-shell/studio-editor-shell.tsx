@@ -1,7 +1,7 @@
 "use client";
 
 // jsx: "preserve" 환경의 체크 스크립트가 클래식 변환을 타므로 React 심볼이 필요하다.
-import React, { type CSSProperties, type ReactNode } from "react";
+import React, { useState, type CSSProperties, type ReactNode } from "react";
 
 export interface StudioEditorShellProps {
   /** 테마 CSS 변수 */
@@ -17,6 +17,7 @@ export interface StudioEditorShellProps {
    * 렌더해도 쌓이는 순서가 달라지지 않는다.
    */
   overlays?: ReactNode;
+  responsivePanels?: boolean;
 }
 
 /**
@@ -32,17 +33,63 @@ export function StudioEditorShell({
   canvas,
   propertiesPanel,
   overlays,
+  responsivePanels = false,
 }: StudioEditorShellProps) {
+  const [mobilePanel, setMobilePanel] = useState("canvas");
   return (
     <main
       className="flex h-screen w-full flex-col overflow-hidden bg-[var(--bg)] text-[var(--fg)]"
       style={themeStyle}
     >
       {topToolbar}
+      {responsivePanels && (
+        <nav
+          className="grid shrink-0 grid-cols-3 border-b border-[var(--border)] md:hidden"
+          aria-label="에디터 화면"
+        >
+          {[
+            { id: "layers", label: "레이어" },
+            { id: "canvas", label: "캔버스" },
+            { id: "properties", label: "속성" },
+          ].map((panel) => (
+            <button
+              key={panel.id}
+              type="button"
+              aria-pressed={mobilePanel === panel.id}
+              className={`h-10 text-xs ${mobilePanel === panel.id ? "bg-[var(--sel)] text-[var(--accent)]" : "text-[var(--fg2)]"}`}
+              onClick={() => setMobilePanel(panel.id)}
+            >
+              {panel.label}
+            </button>
+          ))}
+        </nav>
+      )}
       <div className="flex min-h-0 flex-1">
-        {leftSidebar}
-        {canvas}
-        {propertiesPanel}
+        {responsivePanels ? (
+          <>
+            <div
+              className={`${mobilePanel === "layers" ? "flex" : "hidden"} min-w-0 flex-1 max-md:[&>aside]:w-full md:contents`}
+            >
+              {leftSidebar}
+            </div>
+            <div
+              className={`${mobilePanel === "canvas" ? "flex" : "hidden"} min-w-0 flex-1 md:contents`}
+            >
+              {canvas}
+            </div>
+            <div
+              className={`${mobilePanel === "properties" ? "flex" : "hidden"} min-w-0 flex-1 max-md:[&>aside]:w-full md:contents`}
+            >
+              {propertiesPanel}
+            </div>
+          </>
+        ) : (
+          <>
+            {leftSidebar}
+            {canvas}
+            {propertiesPanel}
+          </>
+        )}
       </div>
       {overlays}
     </main>

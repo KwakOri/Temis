@@ -19,6 +19,10 @@ import {
 } from "@/utils/template-studio/timetable-capabilities";
 import { STUDIO_MULTI_ENTRY_SLOT_COUNT } from "@/utils/template-studio/entry-groups";
 import { getThumbnailWeekDatesInputId } from "@/utils/thumbnail-studio/week-dates";
+import {
+  isStudioTeamRuntimeValues,
+  validateStudioTeamRuntime,
+} from "./team-timetable";
 
 export interface StudioTimetableVariantResolution {
   requestedStatusId: StudioTimetableStatusId;
@@ -45,6 +49,7 @@ export const isStudioRuntimeValuesLike = (
     !isRecord(value.entries) ||
     !isRecord(value.timetable) ||
     !isRecord(value.timetable.entriesByDay) ||
+    (value.team !== undefined && !isStudioTeamRuntimeValues(value.team)) ||
     (value.timetable.weekStartDate !== undefined &&
       typeof value.timetable.weekStartDate !== "string") ||
     (value.timetable.offlineMemoByDay !== undefined &&
@@ -408,6 +413,14 @@ export const validateStudioRuntimeValuesForDocument = (
   values: StudioRuntimeValues,
 ): StudioDiagnostic[] => {
   const diagnostics: StudioDiagnostic[] = [];
+  validateStudioTeamRuntime(document, values.team).forEach((detail, index) =>
+    diagnostics.push({
+      id: `runtime-team:${index}`,
+      severity: "error",
+      title: "Invalid team runtime",
+      detail,
+    }),
+  );
   const thumbnailWeekDates = document.domains?.thumbnail?.weekDates;
   if (thumbnailWeekDates) {
     const inputId = getThumbnailWeekDatesInputId(document);

@@ -14,7 +14,7 @@ const ALLOWED_IMAGE_MIME_TYPES = new Set([
   "image/svg+xml",
   "image/webp",
 ]);
-const MAX_PREVIEW_ASSET_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_PREVIEW_ASSET_SIZE_BYTES = 50 * 1024 * 1024;
 
 type PreviewAssetMapping = {
   clientId: string;
@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
 
       if (file.size > MAX_PREVIEW_ASSET_SIZE_BYTES) {
         return NextResponse.json(
-          { error: `이미지 크기는 10MB 이하여야 합니다: ${file.name}` },
+          { error: `이미지 크기는 50MB 이하여야 합니다: ${file.name}` },
           { status: 400 },
         );
       }

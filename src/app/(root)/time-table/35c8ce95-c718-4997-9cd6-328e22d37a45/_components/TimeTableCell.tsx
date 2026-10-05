@@ -1,3 +1,5 @@
+"use client";
+
 import React, { PropsWithChildren } from 'react';
 
 import AutoResizeText from '@/components/AutoResizeTextCard/AutoResizeText';
@@ -6,7 +8,7 @@ import { TTheme } from '@/types/time-table/theme';
 import { padZero } from '@/utils/date-formatter';
 import { formatTime } from '@/utils/time-formatter';
 import { weekdays } from '@/utils/time-table/data';
-import { Imgs } from '../_img/imgs';
+import { Imgs as LocalImgs } from '../_img/imgs';
 import { placeholders } from '../_settings/general';
 import {
   CARD_SIZES,
@@ -15,6 +17,7 @@ import {
   MAX_FONT_SIZES,
   weekdayOption,
 } from '../_settings/settings';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 // type TCARD = "A" | "B" | "C" | "D";
 
@@ -122,6 +125,7 @@ const CardStreamingDay = ({ day }: CardStreamingDayProps) => {
 };
 
 const CardStreamingDate = ({ date, currentTheme }: CardStreamingDateProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -131,10 +135,7 @@ const CardStreamingDate = ({ date, currentTheme }: CardStreamingDateProps) => {
         left: 72,
         top: -4,
 
-        backgroundImage: `url(${Imgs['first']['topItem'].src.replace(
-          './',
-          '/'
-        )})`,
+        backgroundImage: `url(${Imgs['first']['topItem'].src})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
@@ -244,6 +245,7 @@ interface OnlineCardBGProps {
 }
 
 const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -253,7 +255,7 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs['first']['online'].src.replace('./', '/')}
+        src={Imgs['first']['online'].src}
         alt="online"
       />
     </div>
@@ -261,6 +263,7 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
 };
 
 const OfflineCardBG = ({ day, currentTheme }: OfflineCardProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -270,7 +273,7 @@ const OfflineCardBG = ({ day, currentTheme }: OfflineCardProps) => {
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs[currentTheme || 'first']['offline'].src.replace('./', '/')}
+        src={Imgs[currentTheme || 'first']['offline'].src}
         alt="offline"
       />
     </div>

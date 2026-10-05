@@ -348,24 +348,7 @@ assert.ok(
       diagnostic.id === "timetable-capability-status-missing:multi",
   ),
 );
-const migrationResult = migrateStudioTemplateDocument(migrationSource);
-if (!migrationResult.ok) throw new Error(migrationResult.message);
-assert.deepEqual(migrationResult.document.domains?.timetable?.statuses.multi, {
-  id: "multi",
-  label: "Multi",
-  kind: "derived",
-  baseStatus: "online",
-  fallbackStatusId: "online",
-});
-assert.deepEqual(
-  migrationResult.document.domains?.timetable?.statuses.offlineMemo,
-  {
-    id: "offlineMemo",
-    label: "Offline Memo",
-    kind: "derived",
-    baseStatus: "offline",
-    fallbackStatusId: "offline",
-  },
-);
+assert.equal(migrateStudioTemplateDocument(migrationSource).ok, false,
+  "Legacy timetable recipes must not be silently repaired or migrated.");
 
 console.log("Template Studio timetable runtime checks passed.");

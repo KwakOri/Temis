@@ -4,24 +4,19 @@ import React from "react";
 
 import { cn } from "@/lib/utils";
 import {
-  StudioAsset,
   StudioAssetSlot,
   StudioGraphNode,
-  StudioImageFit,
   StudioRuntimeValues,
-  StudioStyleRecord,
   StudioTemplateDocument,
 } from "@/types/template-studio";
 import {
   resolveStudioAsset,
+  resolveStudioAssetSlot,
   resolveStudioTextBinding,
 } from "@/utils/template-studio/binding-resolver";
 import { getStudioNodeBackgroundAssetSlot } from "@/utils/template-studio/graph-nodes";
 import { resolveStudioTextAppearance } from "@/utils/template-studio/text-appearance";
-import {
-  getStudioRuntimeInputValue,
-  type StudioRuntimeContext,
-} from "@/utils/template-studio/input-values";
+import { type StudioRuntimeContext } from "@/utils/template-studio/input-values";
 import { getStudioPaintOrder } from "@/utils/template-studio/layer-order";
 import { getStudioObjectRenderStyle } from "@/utils/template-studio/object-layout";
 import { getStudioNodeRuntimeContext } from "@/utils/template-studio/entry-groups";
@@ -36,8 +31,15 @@ import {
 } from "@/utils/thumbnail-studio/shape-fill";
 import { StudioWebFontLoader } from "@/components/studio/canvas/studio-web-font-loader";
 import { StudioText } from "@/components/studio/text/studio-text";
+import type { StudioRuntimeImageOverrides } from "@/utils/thumbnail-studio/runtime-image-transform";
+
+import {
+  getStudioObjectCssStyle,
+  getStudioBackgroundSizeForFit,
+} from "@/utils/template-studio/object-style";
 
 interface StudioRendererProps {
+  showImagePlaceholders?: boolean;
   document: StudioTemplateDocument;
   runtimeValues: StudioRuntimeValues;
   rootNodeIds?: string[];
@@ -60,36 +62,12 @@ interface StudioRendererProps {
     event?: React.MouseEvent<HTMLDivElement>,
   ) => void;
   /** Runtime-only image controls. The document itself remains immutable. */
-  runtimeImageOverrides?: Record<
-    string,
-    { fit?: StudioImageFit; objectPosition?: string }
-  >;
+  runtimeImageOverrides?: StudioRuntimeImageOverrides;
   backgroundOverride?: string | null;
   onFontLoadStateChange?: (
     state: import("./studio-web-font-loader").StudioWebFontLoadState,
   ) => void;
 }
-
-const toCssStyle = (styleRecord?: StudioStyleRecord): React.CSSProperties => {
-  if (!styleRecord) return { position: "absolute" };
-
-  const { rotateDeg, textWrapMode, ...rest } = styleRecord;
-  // textWrapMode는 Auto Text 렌더 옵션이므로 CSS 선언으로 흘리지 않는다.
-  void textWrapMode;
-  const style = { ...rest } as React.CSSProperties;
-
-  if (!style.position) {
-    style.position = "absolute";
-  }
-
-  if (typeof rotateDeg === "number" && rotateDeg !== 0) {
-    style.transform = [style.transform, `rotate(${rotateDeg}deg)`]
-      .filter(Boolean)
-      .join(" ");
-  }
-
-  return style;
-};
 
 /**
  * Text SVG and its logical HTML measurement span must use the same font metrics.
@@ -109,35 +87,8 @@ const getStudioTextTypography = (
   textAlign: style.textAlign,
 });
 
-const resolveStudioAssetSlotAsset = (
-  document: StudioTemplateDocument,
-  values: StudioRuntimeValues,
-  slot: StudioAssetSlot | null | undefined,
-  context?: StudioRuntimeContext,
-): StudioAsset | null => {
-  if (!slot) return null;
-
-  if (slot.inputId) {
-    const input = document.inputs[slot.inputId];
-    if (!input || input.type !== "image") return null;
-
-    const value = getStudioRuntimeInputValue(input, values, context);
-    if (!value) return null;
-
-    return {
-      id: `runtime:${input.id}`,
-      label: input.label,
-      src: value,
-    };
-  }
-
-  return slot.assetId ? (document.assets[slot.assetId] ?? null) : null;
-};
-
-const getBackgroundSizeForFit = (fit: StudioAssetSlot["fit"]): string =>
-  fit === "fill" ? "100% 100%" : (fit ?? "cover");
-
 export function StudioRenderer({
+  showImagePlaceholders = true,
   document,
   runtimeValues,
   rootNodeIds,
@@ -167,7 +118,7 @@ export function StudioRenderer({
     const styleRecord = node.styleId
       ? document.styles[node.styleId]
       : undefined;
-    const baseStyle = toCssStyle(
+    const baseStyle = getStudioObjectCssStyle(
       getStudioObjectRenderStyle(styleRecord ?? {}, node.layoutMode),
     );
     const style =
@@ -185,7 +136,7 @@ export function StudioRenderer({
     const backgroundSlot = resolveNodeBackgroundAssetSlot
       ? resolveNodeBackgroundAssetSlot(node, nodeRuntimeContext)
       : getStudioNodeBackgroundAssetSlot(node);
-    const backgroundAsset = resolveStudioAssetSlotAsset(
+    const backgroundAsset = resolveStudioAssetSlot(
       document,
       runtimeValues,
       backgroundSlot,
@@ -197,7 +148,7 @@ export function StudioRenderer({
           backgroundImage: `url(${JSON.stringify(backgroundAsset.src)})`,
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
-          backgroundSize: getBackgroundSizeForFit(backgroundSlot?.fit),
+          backgroundSize: getStudioBackgroundSizeForFit(backgroundSlot?.fit),
         }
       : style;
     const isSelected =
@@ -259,32 +210,75 @@ export function StudioRenderer({
         const runtimeImageOverride = imageInputId
           ? runtimeImageOverrides?.[imageInputId]
           : undefined;
+        const imageTransform = runtimeImageOverride?.transforms?.[node.id];
+        const intrinsicSize = runtimeImageOverride?.fit
+          ? undefined
+          : runtimeImageOverride?.intrinsicSize;
+        const image = asset?.src ? (
+          // eslint-disable-next-line @next/next/no-img-element -- Runtime images use local blob URLs or document assets.
+          <img
+            alt={asset.label}
+            className="h-full w-full"
+            draggable={false}
+            src={asset.src}
+            data-studio-runtime-image={imageInputId ?? undefined}
+            style={
+              imageTransform
+                ? {
+                    position: "absolute",
+                    left: `${imageTransform.left * 100}%`,
+                    top: `${imageTransform.top * 100}%`,
+                    width: `${imageTransform.width * 100}%`,
+                    height: `${imageTransform.height * 100}%`,
+                    maxWidth: "none",
+                    objectFit: "fill",
+                    transform: `rotate(${imageTransform.rotateDeg}deg)`,
+                    transformOrigin: "center",
+                  }
+                : intrinsicSize
+                  ? {
+                      position: "absolute",
+                      left: "50%",
+                      top: "50%",
+                      width: intrinsicSize.width,
+                      height: intrinsicSize.height,
+                      maxWidth: "none",
+                      objectFit: "fill",
+                      transform: "translate(-50%, -50%)",
+                    }
+                  : {
+                      objectFit:
+                        runtimeImageOverride?.fit ?? node.fit ?? "cover",
+                      objectPosition:
+                        runtimeImageOverride?.objectPosition ??
+                        formatStudioImageObjectPosition(objectPosition),
+                      borderRadius: getStudioImageBorderRadius(styleRecord),
+                    }
+            }
+          />
+        ) : null;
 
         return (
           <div key={node.id} {...commonProps}>
-            {asset?.src ? (
-              // eslint-disable-next-line @next/next/no-img-element -- Runtime image inputs are plain URL/data sources in Template Studio.
-              <img
-                alt={asset.label}
-                className="h-full w-full"
-                draggable={false}
-                src={asset.src}
-                style={{
-                  objectFit: node.fit ?? "cover",
-                  objectPosition: runtimeImageOverride?.objectPosition
-                    ? runtimeImageOverride.objectPosition
-                    : formatStudioImageObjectPosition(objectPosition),
-                  ...(runtimeImageOverride?.fit
-                    ? { objectFit: runtimeImageOverride.fit }
-                    : {}),
-                  borderRadius: getStudioImageBorderRadius(styleRecord),
-                }}
-              />
-            ) : (
+            {image ? (
+              imageInputId ? (
+                <div
+                  data-studio-image-slot={node.id}
+                  className="absolute inset-0 overflow-hidden"
+                  style={{
+                    borderRadius: getStudioImageBorderRadius(styleRecord),
+                  }}
+                >
+                  {image}
+                </div>
+              ) : (
+                image
+              )
+            ) : showImagePlaceholders ? (
               <div className="flex h-full w-full items-center justify-center bg-slate-100 text-xs font-semibold text-slate-400">
                 No image
               </div>
-            )}
+            ) : null}
             {children}
           </div>
         );

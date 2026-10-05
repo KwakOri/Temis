@@ -47,7 +47,7 @@ const groupsOf = (items: StudioPresetListItem[]): StudioPresetGroup[] =>
 // 넣을 수 없는 이유가 있으면 그것이 먼저다. 이유를 감추면 왜 눌리지 않는지 알 수 없다.
 assert.equal(
   getStudioPresetStatusLabel(
-    createItem({ kind: "timetableCompositionObject" }),
+    createItem({ kind: "timetableGraphObject" }),
   ),
   "Text",
   "넣을 수 있는 프리셋은 종류 이름을 보여준다.",
@@ -55,7 +55,7 @@ assert.equal(
 assert.equal(
   getStudioPresetStatusLabel(
     createItem(
-      { kind: "timetableCompositionObject" },
+      { kind: "timetableGraphObject" },
       { existingTargetId: "obj_1" },
     ),
   ),
@@ -65,7 +65,7 @@ assert.equal(
 assert.equal(
   getStudioPresetStatusLabel(
     createItem(
-      { kind: "timetableCompositionObject" },
+      { kind: "timetableGraphObject" },
       { disabledReason: "Needs a day card first", existingTargetId: "obj_1" },
     ),
   ),
@@ -76,7 +76,7 @@ assert.equal(
 const timetableMarkup = renderToStaticMarkup(
   <StudioTimetablePresetsPanel
     groups={groupsOf([
-      createItem({ kind: "timetableCompositionObject" }),
+      createItem({ kind: "timetableGraphObject" }),
       createItem({
         id: "preset_planned",
         label: "Planned",
@@ -86,7 +86,7 @@ const timetableMarkup = renderToStaticMarkup(
         {
           id: "preset_added",
           label: "Added Preset",
-          kind: "timetableCompositionObject",
+          kind: "timetableGraphObject",
         },
         { existingTargetId: "obj_1" },
       ),
@@ -94,7 +94,7 @@ const timetableMarkup = renderToStaticMarkup(
         {
           id: "preset_blocked",
           label: "Blocked",
-          kind: "timetableCompositionObject",
+          kind: "timetableGraphObject",
         },
         { disabledReason: "Needs a day card first" },
       ),
@@ -142,7 +142,7 @@ assert.ok(
     <StudioTimetablePresetsPanel
       groups={groupsOf([
         createItem({
-          kind: "timetableCompositionObject",
+          kind: "timetableGraphObject",
           description: "Adds the weekly memo block",
         }),
       ])}
@@ -305,7 +305,7 @@ const timetableCalls: string[] = [];
 findButtons(
   StudioTimetablePresetsPanel({
     groups: groupsOf([
-      createItem({ kind: "timetableCompositionObject" }),
+      createItem({ kind: "timetableGraphObject" }),
       createItem({ id: "planned", label: "Planned", kind: "planned" }),
     ]),
     onInsertPreset: (definition) => timetableCalls.push(definition.id),

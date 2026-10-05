@@ -430,7 +430,7 @@ export const getThumbnailOrderIntakeStatus =
         ? "썸네일 주문제작 신청이 가능합니다."
         : option?.is_enabled && !pricingReady
           ? "공개된 썸네일 가격 옵션이 없어 실제 신청은 준비 중입니다."
-          : "현재 썸네일 주문제작 접수가 준비 중입니다.",
+          : "현재 썸네일 주문제작 접수가 마감되었습니다.",
     };
   };
 

@@ -5,12 +5,10 @@ import {
   StudioRuntimeValues,
   StudioTemplateDocument,
   StudioTemplateKind,
+  StudioTimetableTemplateMode,
 } from "@/types/template-studio";
 import { createStudioInitialRuntimeValues } from "@/utils/template-studio/input-values";
-import {
-  migrateStudioTemplateDocument,
-  STUDIO_TEMPLATE_DOCUMENT_VERSION,
-} from "@/utils/template-studio/migrations";
+import { migrateStudioTemplateDocument } from "@/utils/template-studio/migrations";
 import {
   getStudioTemplateKind,
   isStudioTemplateKind,
@@ -36,6 +34,7 @@ type SupabaseResult<T> = {
 type SupabaseQueryBuilder<T> = PromiseLike<SupabaseResult<T>> & {
   delete(): SupabaseQueryBuilder<T>;
   eq(column: string, value: unknown): SupabaseQueryBuilder<T>;
+  in(column: string, values: readonly unknown[]): SupabaseQueryBuilder<T>;
   insert(value: unknown): SupabaseQueryBuilder<T>;
   limit(count: number): SupabaseQueryBuilder<T>;
   maybeSingle(): Promise<SupabaseResult<T | null>>;
@@ -655,7 +654,11 @@ export const renameTemplateStudioTemplate = async (
 
 export const listTemplateStudioTemplates = async (
   client?: TemplateStudioPersistenceClient,
-  options: { templateKind?: StudioTemplateKind } = {},
+  options: {
+    templateKind?: StudioTemplateKind;
+    templateMode?: StudioTimetableTemplateMode;
+    userId?: number;
+  } = {},
 ): Promise<TemplateStudioTemplateRecord[]> => {
   const supabase = getClient(client);
   let query = supabase
@@ -668,7 +671,51 @@ export const listTemplateStudioTemplates = async (
   const { data, error } = await query.order("updated_at", { ascending: false });
 
   throwOnError("Failed to list Template Studio templates", error);
-  return (data ?? []).map(toTemplateRecord);
+  const templates = (data ?? []).map(toTemplateRecord);
+  if (!options.templateMode || templates.length === 0) return templates;
+
+  // Read only the team discriminator, not full documents or runtime images.
+  type ModeRow = { template_id: string; team: Json; user_id?: number };
+  const ids = templates.map((template) => template.id);
+  const [published, drafts] = await Promise.all([
+    supabase
+      .from<ModeRow[]>("template_studio_documents")
+      .select("template_id,team:document->domains->timetable->team->layout")
+      .in("template_id", ids),
+    supabase
+      .from<ModeRow[]>("template_studio_document_drafts")
+      .select(
+        "template_id,user_id,team:document->domains->timetable->team->layout",
+      )
+      .in("template_id", ids)
+      .order("updated_at", { ascending: false }),
+  ]);
+  throwOnError(
+    "Failed to list Template Studio document modes",
+    published.error,
+  );
+  throwOnError("Failed to list Template Studio draft modes", drafts.error);
+
+  const modes = new Map<string, boolean>();
+  // Unpublished templates from other admins must also appear in management.
+  for (const draft of drafts.data ?? []) {
+    if (!modes.has(draft.template_id)) {
+      modes.set(draft.template_id, Boolean(draft.team));
+    }
+  }
+  for (const document of published.data ?? []) {
+    modes.set(document.template_id, Boolean(document.team));
+  }
+  // Match the editor's own-draft-first loading order.
+  for (const draft of drafts.data ?? []) {
+    if (draft.user_id === options.userId) {
+      modes.set(draft.template_id, Boolean(draft.team));
+    }
+  }
+  return templates.filter(
+    (template) =>
+      (modes.get(template.id) ?? false) === (options.templateMode === "team"),
+  );
 };
 
 export const assertTemplateStudioTemplateKind = async (
@@ -836,7 +883,7 @@ export const saveTemplateStudioDraft = async (
     {
       p_template_id: input.templateId,
       p_user_id: input.userId,
-      p_document_version: STUDIO_TEMPLATE_DOCUMENT_VERSION,
+      p_document_version: prepared.document.version,
       p_document: toJson(prepared.document),
       p_runtime_values: toJson(prepared.runtimeValues),
       p_base_revision_no: input.baseRevisionNo ?? null,
@@ -969,7 +1016,7 @@ export const publishTemplateStudioDocument = async (
     "publish_template_studio_document",
     {
       p_template_id: input.templateId,
-      p_document_version: STUDIO_TEMPLATE_DOCUMENT_VERSION,
+      p_document_version: prepared.document.version,
       p_document: toJson(prepared.document),
       p_runtime_values: toJson(prepared.runtimeValues),
       p_created_by: input.userId,

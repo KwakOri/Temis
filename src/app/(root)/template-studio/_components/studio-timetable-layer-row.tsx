@@ -29,6 +29,8 @@ export interface StudioTimetableLayerRowProps {
   label: string;
   /** 행 오른쪽에 보여줄 종류 이름. 아이콘도 이 값으로 고른다. */
   type: string;
+  typeLabel?: string;
+  editingStateLabel?: string;
   depth?: number;
   disabled?: boolean;
   hidden?: boolean;
@@ -60,6 +62,8 @@ export function StudioTimetableLayerRow({
   id,
   label,
   type,
+  typeLabel = type,
+  editingStateLabel,
   depth = 0,
   disabled = false,
   hidden = false,
@@ -94,7 +98,17 @@ export function StudioTimetableLayerRow({
           <EyeOff className="h-3.5 w-3.5 shrink-0 text-[var(--fg3)]" />
         ) : null
       }
-      typeLabel={type}
+      typeLabel={typeLabel}
+      badge={
+        editingStateLabel ? (
+          <span
+            className="shrink-0 rounded bg-[var(--sel)] px-1 text-[9px] text-[var(--accent)]"
+            title="Editing design state"
+          >
+            {editingStateLabel}
+          </span>
+        ) : undefined
+      }
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}
       onDragStart={onDragStart}

@@ -1,3 +1,5 @@
+"use client";
+
 import React, { PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
@@ -5,7 +7,7 @@ import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { formatTime } from "@/utils/time-formatter";
 import { weekdays } from "@/utils/time-table/data";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import {
   colors,
@@ -16,6 +18,7 @@ import {
   onlineCardWidth,
   weekdayOption,
 } from "../_settings/settings";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface DayTextProps {
   isOrange: boolean;
@@ -198,6 +201,7 @@ interface OnlineCardBGProps {
 }
 
 const OnlineCardBG = ({ day, isOrange }: OnlineCardBGProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -210,7 +214,7 @@ const OnlineCardBG = ({ day, isOrange }: OnlineCardBGProps) => {
         className="object-cover w-full h-full"
         src={Imgs["first"][
           isOrange ? "online_orange" : "online_brown"
-        ].src.replace("./", "/")}
+        ].src}
         alt="online"
       />
     </div>
@@ -218,6 +222,7 @@ const OnlineCardBG = ({ day, isOrange }: OnlineCardBGProps) => {
 };
 
 const OfflineCard = ({ day, isOrange, currentTheme }: OfflineCardProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -232,7 +237,7 @@ const OfflineCard = ({ day, isOrange, currentTheme }: OfflineCardProps) => {
         className="object-cover w-full h-full"
         src={Imgs["first"][
           isOrange ? "offline_orange" : "offline_brown"
-        ].src.replace("./", "/")}
+        ].src}
         alt="online"
       />
     </div>

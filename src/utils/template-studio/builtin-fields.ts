@@ -129,7 +129,10 @@ export const STUDIO_BUILTIN_FIELDS: StudioBuiltinFieldDefinition[] = [
 export const getStudioBuiltinField = (
   fieldId: StudioBuiltinFieldId,
 ): StudioBuiltinFieldDefinition | null =>
-  STUDIO_BUILTIN_FIELDS.find((field) => field.id === fieldId) ?? null;
+  STUDIO_BUILTIN_FIELDS.find(
+    (field) =>
+      field.id === (fieldId === "day.short_label" ? "day.label" : fieldId),
+  ) ?? null;
 
 export const isStudioBuiltinFieldId = (
   fieldId: string,
@@ -150,27 +153,88 @@ export const isStudioBuiltinFieldAvailable = (
 export const getStudioAvailableBuiltinFields = (
   document: StudioTemplateDocument,
 ): StudioBuiltinFieldDefinition[] =>
-  STUDIO_BUILTIN_FIELDS.filter((field) =>
-    isStudioBuiltinFieldAvailable(document, field),
+  STUDIO_BUILTIN_FIELDS.filter(
+    (field) =>
+      field.id !== "day.short_label" &&
+      isStudioBuiltinFieldAvailable(document, field),
   );
 
 export const STUDIO_DAY_LABEL_FORMAT_OPTIONS: Array<{
   value: StudioDayLabelFormat;
   label: string;
-  preview: string;
+  template: string;
 }> = [
-  { value: "default", label: "Default", preview: "Document label" },
-  { value: "long", label: "English long", preview: "Monday" },
-  { value: "short", label: "English short", preview: "Mon" },
-  { value: "shortUpper", label: "English short uppercase", preview: "MON" },
-  { value: "shortLower", label: "English short lowercase", preview: "mon" },
-  { value: "koreanLong", label: "Korean long", preview: "월요일" },
-  { value: "koreanShort", label: "Korean short", preview: "월" },
+  {
+    value: "default",
+    label: "설정된 요일명",
+    template: "${label}",
+  },
+  {
+    value: "documentShort",
+    label: "설정된 요일 약칭",
+    template: "${shortLabel}",
+  },
+  {
+    value: "long",
+    label: "영문 요일",
+    template: "${weekday}",
+  },
+  {
+    value: "short",
+    label: "영문 요일 약칭",
+    template: "${weekdayShort}",
+  },
+  {
+    value: "shortUpper",
+    label: "영문 요일 약칭 대문자",
+    template: "${weekdayShortUpper}",
+  },
+  {
+    value: "shortLower",
+    label: "영문 요일 약칭 소문자",
+    template: "${weekdayShortLower}",
+  },
+  {
+    value: "koreanLong",
+    label: "한글 요일",
+    template: "${weekdayKo}",
+  },
+  {
+    value: "koreanShort",
+    label: "한글 요일 약칭",
+    template: "${weekdayKoShort}",
+  },
 ];
 
-const STUDIO_DAY_LABEL_FORMAT_VALUES = new Set<StudioDayLabelFormat>(
-  STUDIO_DAY_LABEL_FORMAT_OPTIONS.map((option) => option.value),
-);
+const STUDIO_DAY_LABEL_FORMAT_VALUES = new Set<StudioDayLabelFormat>([
+  ...STUDIO_DAY_LABEL_FORMAT_OPTIONS.map((option) => option.value),
+  "custom",
+]);
+
+export const STUDIO_DAY_LABEL_TEMPLATE_TOKENS =
+  STUDIO_DAY_LABEL_FORMAT_OPTIONS.map((option) => option.template);
+
+/** Old short-label bindings retain the document's exact short label. */
+export const getStudioDayLabelFormat = (
+  fieldId: StudioBuiltinFieldId,
+  format?: StudioDayLabelFormat,
+): StudioDayLabelFormat => {
+  const normalized = normalizeStudioDayLabelFormat(format);
+  return fieldId === "day.short_label" && normalized === "default"
+    ? "documentShort"
+    : normalized;
+};
+
+export const getStudioDayLabelTemplateValue = (
+  fieldId: StudioBuiltinFieldId,
+  format?: StudioDayLabelFormat,
+  template?: string,
+): string =>
+  template ??
+  STUDIO_DAY_LABEL_FORMAT_OPTIONS.find(
+    (option) => option.value === getStudioDayLabelFormat(fieldId, format),
+  )?.template ??
+  "${label}";
 
 const STUDIO_DAY_LABELS_BY_ID: Record<
   string,
@@ -282,13 +346,36 @@ export const formatStudioDayLabel = (
   day: StudioTimetableDayDefinition | null | undefined,
   fieldId: StudioBuiltinFieldId,
   format?: StudioDayLabelFormat | null,
+  template?: string,
 ): string => {
+  if (typeof template === "string") {
+    if (!day) return "";
+    const tokenFormats: Record<string, StudioDayLabelFormat> = {
+      label: "default",
+      shortLabel: "documentShort",
+      weekday: "long",
+      weekdayShort: "short",
+      weekdayShortUpper: "shortUpper",
+      weekdayShortLower: "shortLower",
+      weekdayKo: "koreanLong",
+      weekdayKoShort: "koreanShort",
+    };
+    return template.replace(
+      /\$\{\s*([A-Za-z]+)\s*\}/g,
+      (match, token: string) =>
+        Object.hasOwn(tokenFormats, token)
+          ? formatStudioDayLabel(day, "day.label", tokenFormats[token])
+          : match,
+    );
+  }
   const normalizedFormat = normalizeStudioDayLabelFormat(format);
   const defaultValue =
     fieldId === "day.short_label"
       ? (day?.shortLabel ?? day?.label)
       : day?.label;
   if (normalizedFormat === "default") return defaultValue ?? "";
+  if (normalizedFormat === "documentShort")
+    return day?.shortLabel ?? day?.label ?? "";
 
   const dayKey = normalizeStudioDayKey(day);
   const labels = dayKey ? STUDIO_DAY_LABELS_BY_ID[dayKey] : null;
@@ -310,6 +397,7 @@ export const formatStudioDayLabel = (
 
 export interface StudioBuiltinFieldResolveOptions {
   dayLabelFormat?: StudioDayLabelFormat;
+  dayLabelTemplate?: string;
   dateRangeFormat?: string;
   dateRangeTemplate?: string;
   timeFormat?: StudioTimeFormat;
@@ -394,7 +482,12 @@ export const resolveStudioBuiltinFieldValue = (
   const timetable = document.domains?.timetable;
 
   if (isStudioDayLabelBuiltinField(fieldId)) {
-    return formatStudioDayLabel(day, fieldId, options.dayLabelFormat);
+    return formatStudioDayLabel(
+      day,
+      fieldId,
+      options.dayLabelFormat,
+      options.dayLabelTemplate,
+    );
   }
   if (fieldId === "day.date") {
     const dateParts = getDayDateParts(document, values, context);

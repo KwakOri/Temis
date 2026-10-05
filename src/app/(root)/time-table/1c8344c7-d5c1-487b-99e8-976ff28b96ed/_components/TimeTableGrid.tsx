@@ -1,10 +1,13 @@
+"use client";
+
 import React from "react";
 
 import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
-import { Imgs } from "../_img/imgs";
+import { Imgs as LocalImgs } from "../_img/imgs";
 import { offlineCardHeight, offlineCardWidth } from "../_settings/settings";
 import TimeTableCell from "./TimeTableCell";
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface OfflineCardProps {
   day: number;
@@ -28,6 +31,7 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
   weekDates,
   currentTheme,
 }) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       className="absolute grid grid-cols-4 z-20"
@@ -82,27 +86,27 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
             {isVisibleTopBg && (
               <img
                 className="object-cover w-full h-full absolute inset-0 z-10"
-                src={Imgs["first"]["onlineTop"].src.replace("./", "/")}
+                src={Imgs["first"]["onlineTop"].src}
                 alt="online"
               />
             )}
             {isVisibleBottomBg && (
               <img
                 className="object-cover w-full h-full absolute inset-0 z-10"
-                src={Imgs["first"]["onlineBottom"].src.replace("./", "/")}
+                src={Imgs["first"]["onlineBottom"].src}
                 alt="online"
               />
             )}
             {isVisibleBottomBg && isVisibleTopBg && (
               <img
                 className="object-cover w-full h-full absolute inset-0 z-20"
-                src={Imgs["first"]["onlineMid"].src.replace("./", "/")}
+                src={Imgs["first"]["onlineMid"].src}
                 alt="online"
               />
             )}
             <img
               className="object-cover w-full h-full absolute inset-0"
-              src={Imgs["first"]["offline"].src.replace("./", "/")}
+              src={Imgs["first"]["offline"].src}
               alt="online"
             />
           </div>

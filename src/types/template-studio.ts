@@ -26,12 +26,14 @@ export type StudioBuiltinFieldId =
 
 export type StudioDayLabelFormat =
   | "default"
+  | "documentShort"
   | "long"
   | "short"
   | "shortUpper"
   | "shortLower"
   | "koreanLong"
-  | "koreanShort";
+  | "koreanShort"
+  | "custom";
 
 export type StudioTimeFormat = "half" | "full";
 
@@ -41,6 +43,8 @@ export type StudioTimeFormat = "half" | "full";
  * `template_engine`(렌더링 엔진)과는 다른 축이다. 두 값을 하나로 합치지 않는다.
  */
 export type StudioTemplateKind = "timetable" | "thumbnail";
+
+export type StudioTimetableTemplateMode = "personal" | "team";
 
 export type StudioInputScope = "global" | "day" | "entry";
 export type StudioInputType = "text" | "image" | "select";
@@ -251,6 +255,7 @@ export type StudioBinding =
       kind: "builtinField";
       fieldId: StudioBuiltinFieldId;
       dayLabelFormat?: StudioDayLabelFormat;
+      dayLabelTemplate?: string;
       dateRangeFormat?: string;
       dateRangeTemplate?: string;
       timeFormat?: StudioTimeFormat;
@@ -352,6 +357,8 @@ export interface StudioTextInputDefinition extends StudioInputBase {
 
 export interface StudioImageInputDefinition extends StudioInputBase {
   type: "image";
+  /** A fixed thumbnail object containing a background and ordered addon images. */
+  preset?: "user_images";
   defaultUrl?: string;
   placeholder?: string;
   policy?: StudioImageInputPolicy;
@@ -489,6 +496,7 @@ export interface StudioTimetableDayCardsLayout {
   entryPreviewWidth: number;
   entryPreviewHeight: number;
   entryGap: number;
+  /** Custom: absolute canvas X/Y. Grid presets: offsets from automatic positions. */
   dayOffsets?: Record<StudioTimetableDayId, StudioTimetableDayCardOffset>;
 }
 
@@ -500,6 +508,7 @@ export interface StudioTimetableObjectVariantOption {
 export interface StudioTimetableObjectVariantSet {
   options: StudioTimetableObjectVariantOption[];
   defaultValue: string;
+  /** Legacy authoring state, removed at load/save boundaries. */
   activeValue?: string;
   /** Whether runtime users can toggle the states or the On state is forced. */
   mode?: StudioTimetableObjectVariantMode;
@@ -521,6 +530,7 @@ export interface StudioTimetableCompositionObject {
   style: StudioStyleRecord;
   binding?: StudioBinding;
   assetSlots?: Record<string, StudioAssetSlot>;
+  /** Legacy background fields; normalized into assetSlots.background. */
   backgroundAssetId?: StudioAssetId | null;
   backgroundFit?: StudioImageFit;
   locked?: boolean;
@@ -539,6 +549,7 @@ export interface StudioTimetableComposition {
 }
 
 export interface StudioTimetableDomain {
+  team?: StudioTeamDefinition;
   version: 2;
   canvas?: StudioTimetableCanvasConfig;
   week?: StudioTimetableWeekDefinition;
@@ -614,7 +625,8 @@ export interface StudioTemplateMetadata {
 
 export interface StudioTemplateDocument {
   schema: "studio_template_document";
-  version: 7;
+  /** v7 remains the thumbnail/render-view contract; timetable storage uses v8. */
+  version: 7 | 8;
   metadata: StudioTemplateMetadata;
   canvas: StudioCanvasConfig;
   graph: StudioNodeGraph;
@@ -626,10 +638,41 @@ export interface StudioTemplateDocument {
 }
 
 export interface StudioRuntimeValues {
+  team?: StudioTeamRuntimeValues;
   global: Record<StudioInputId, string>;
   days: Record<StudioTimetableDayId, Record<StudioInputId, string>>;
   entries: Record<StudioTimetableDayId, Array<Record<StudioInputId, string>>>;
   timetable: StudioTimetableRuntimeValues;
+}
+
+export type StudioTeamLayout = "day-columns" | "day-grid" | "member-rows";
+export interface StudioTeamDefinition {
+  memberSlotIds: string[];
+  layout: StudioTeamLayout;
+  columns: number;
+  gap: number;
+  order: "member" | "time";
+  memberNameInputId: StudioInputId;
+  memberImageInputId: StudioInputId;
+}
+export interface StudioTeamRuntimeDay {
+  status: "online" | "offline" | "missing";
+  entries: Array<{
+    mainTitle: string;
+    subTitle: string;
+    time: string;
+    isGuerrilla: boolean;
+  }>;
+}
+export interface StudioTeamRuntimeValues {
+  members: Record<
+    string,
+    {
+      name: string;
+      image: string;
+      days: Record<StudioTimetableDayId, StudioTeamRuntimeDay>;
+    }
+  >;
 }
 
 export type StudioDiagnosticSeverity = "error" | "warning";

@@ -4,6 +4,7 @@
 import React, { type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
+import { StudioPanelMenu } from "./studio-panel-menu";
 
 export interface StudioPanelTab {
   id: string;
@@ -22,6 +23,7 @@ export interface StudioLeftSidebarProps {
    */
   contextHeader?: ReactNode;
   tabs: StudioPanelTab[];
+  menuTabs?: StudioPanelTab[];
   activeTabId: string;
   onTabChange: (tabId: string) => void;
   content: ReactNode;
@@ -36,6 +38,7 @@ export interface StudioLeftSidebarProps {
 export function StudioLeftSidebar({
   contextHeader,
   tabs,
+  menuTabs = [],
   activeTabId,
   onTabChange,
   content,
@@ -64,6 +67,13 @@ export function StudioLeftSidebar({
             {tab.label}
           </button>
         ))}
+        {menuTabs.length > 0 ? (
+          <StudioPanelMenu
+            activePanelId={activeTabId}
+            items={menuTabs}
+            onSelect={onTabChange}
+          />
+        ) : null}
       </div>
       <div className="border-b border-[var(--border)]" />
 

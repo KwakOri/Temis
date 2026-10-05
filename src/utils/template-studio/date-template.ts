@@ -15,22 +15,22 @@ export const STUDIO_WEEK_DATE_LONG_TEMPLATE =
 export const STUDIO_WEEK_DATE_FORMAT_PRESETS = [
   {
     id: "long",
-    label: "2026.07.01 - 07.07",
+    label: "연·월·일 ~ 월·일",
     template: STUDIO_WEEK_DATE_LONG_TEMPLATE,
   },
   {
     id: "short",
-    label: "07.01 - 07.07",
+    label: "월·일 ~ 월·일",
     template: "${start.MM}.${start.DD} - ${end.MM}.${end.DD}",
   },
   {
     id: "localized",
-    label: "Localized",
+    label: "지역별 날짜 범위",
     template: "${start.localized} - ${end.localizedWithYear}",
   },
   {
     id: "split",
-    label: "Split lines",
+    label: "두 줄 날짜 범위",
     template: "${start.YYYY}.${start.MM}.${start.DD}\n${end.MM}.${end.DD}",
   },
 ] as const;
@@ -40,27 +40,27 @@ export const STUDIO_WEEK_DATE_FORMAT_PRESETS = [
 export const STUDIO_SINGLE_DATE_FORMAT_PRESETS = [
   {
     id: "long",
-    label: "2026.07.01",
+    label: "연·월·일",
     template: "${YYYY}.${MM}.${DD}",
   },
   {
     id: "short",
-    label: "07.01",
+    label: "월·일",
     template: "${MM}.${DD}",
   },
   {
     id: "day",
-    label: "01",
+    label: "일",
     template: "${DD}",
   },
   {
     id: "localized",
-    label: "Jul 01, 2026",
+    label: "지역별 연·월·일",
     template: "${localizedWithYear}",
   },
   {
     id: "weekday",
-    label: "2026.07.01 (Wed)",
+    label: "연·월·일 + 요일",
     template: "${YYYY}.${MM}.${DD} (${weekdayShort})",
   },
 ] as const;
@@ -369,6 +369,7 @@ export const getStudioDateTemplateValue = (
   template?: string,
   mode: StudioDateFormatMode = "range",
 ): string => {
+  if (format === "custom" && typeof template === "string") return template;
   const presets = getStudioDateFormatPresets(mode);
   const selectedTemplate = template?.trimEnd();
   if (selectedTemplate) return selectedTemplate;

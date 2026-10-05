@@ -3,62 +3,38 @@
 // jsx: "preserve" 환경의 체크 스크립트가 클래식 변환을 타므로 React 심볼이 필요하다.
 import React from "react";
 
-import {
-  StudioFontWeightField,
-  StudioLineBreakField,
-  StudioNumberField,
-  StudioTextField,
-  StudioTextAlignmentField,
-} from "@/components/studio/inspector/studio-inspector-fields";
+import { StudioNumberField } from "@/components/studio/inspector/studio-inspector-fields";
 import { cn } from "@/lib/utils";
 import type {
   StudioTemplateDocument,
-  StudioTimetableCompositionObject,
+  StudioStyleRecord,
 } from "@/types/template-studio";
-import {
-  STUDIO_TIME_DEFAULT_AM_TEXT,
-  STUDIO_TIME_DEFAULT_PM_TEXT,
-  STUDIO_TIME_FORMAT_OPTIONS,
-  normalizeStudioTimeFormat,
-  normalizeStudioTimeText,
-} from "@/utils/template-studio/builtin-fields";
-import type { StudioTimeFormat } from "@/types/template-studio";
-import {
-  getStudioDateFormatPreset,
-  getStudioDateFormatPresetValue,
-  getStudioDateFormatPresets,
-  getStudioDateTemplateTokens,
-  getStudioDateTemplateValue,
-  type StudioDateFormatMode,
-} from "@/utils/template-studio/date-template";
-import {
-  getStudioTextAlignment,
-  getStudioTextJustifyContent,
-} from "@/utils/template-studio/node-style-commands";
-import {
-  setStudioTimetableObjectMaskSlot,
-  type StudioSemanticMaskShape,
-} from "@/utils/template-studio/semantic-slots";
-import { setStudioTimetableObjectActiveVariantValue } from "@/utils/template-studio/timetable-composition";
-import {
-  STUDIO_TEXT_WRAP_MODE_STYLE_KEY,
-  getStudioTextWrapMode,
-} from "@/utils/template-studio/text-wrap";
+import type { StudioSemanticMaskShape } from "@/utils/template-studio/semantic-slots";
+import type { StudioTimetableGraphRecipe } from "@/utils/template-studio/timetable-graph-commands";
 import {
   getStudioMaskRadiusFromShape,
   getStudioMaskShapeFromRadius,
-  getStudioStyleString,
-  getStudioTimetableObjectMaskShape,
-  getStudioWeekDatePresetValue,
-  getStudioWeekDateTemplateValue,
 } from "@/utils/template-studio/timetable-object-style";
-import { getStudioFontWeightOptions } from "@/utils/template-studio/web-fonts";
+import { StudioTextTypographyControls } from "@/components/studio/inspector/studio-text-typography-controls";
+import {
+  getStudioObjectStyleWithValue,
+  getStudioTextAlignmentStyle,
+} from "@/utils/template-studio/object-style";
+import { getStudioTimetableGraphEditorFeatures } from "@/utils/template-studio/timetable-graph-selection";
+import type {
+  StudioTimetableGraphNode,
+  StudioTimetableNodeExtension,
+} from "@/types/studio-timetable-graph";
 
-import { StudioHexColorPicker } from "@/components/studio/inspector/studio-hex-color-picker";
+import { StudioDateFormatControls } from "@/components/studio/inspector/studio-binding-format-controls";
+import {
+  getStudioBindingFormatFeatures,
+  applyStudioBindingFormatPatch,
+} from "@/utils/template-studio/binding-format";
 
 /** 시간표 객체 하나를 바꾼다. 문서 갱신과 이력은 호출한 쪽이 소유한다. */
 export type StudioTimetableObjectUpdater = (
-  recipe: (object: StudioTimetableCompositionObject) => void,
+  recipe: StudioTimetableGraphRecipe,
 ) => void;
 
 const SELECT_CLASS =
@@ -68,101 +44,10 @@ const FIELD_LABEL_CLASS =
   "grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]";
 
 export interface StudioTimetableObjectControlProps {
-  object: StudioTimetableCompositionObject;
+  object: StudioTimetableGraphNode;
+  style: StudioStyleRecord;
+  extension: StudioTimetableNodeExtension;
   onUpdateObject: StudioTimetableObjectUpdater;
-}
-
-export interface StudioWeekDatesFormatControlsProps {
-  format?: string;
-  template?: string;
-  mode?: StudioDateFormatMode;
-  onChange: (value: { format: string; template: string }) => void;
-}
-
-export interface StudioTimeFormatControlsProps {
-  format?: StudioTimeFormat;
-  amText?: string;
-  pmText?: string;
-  onChange: (value: {
-    format: StudioTimeFormat;
-    amText: string;
-    pmText: string;
-  }) => void;
-}
-
-/** Timetable 기간과 Thumbnail 단일 날짜가 공유하는 형식 편집 컨트롤. */
-export function StudioWeekDatesFormatControls({
-  format,
-  template,
-  mode = "range",
-  onChange,
-}: StudioWeekDatesFormatControlsProps) {
-  const templateValue = getStudioDateTemplateValue(format, template, mode);
-  const presetValue = getStudioDateFormatPresetValue(format, template, mode);
-  const presets = getStudioDateFormatPresets(mode);
-  const tokens = getStudioDateTemplateTokens(mode);
-
-  return (
-    <div className="grid gap-2">
-      <label className={FIELD_LABEL_CLASS}>
-        <span>Date Format</span>
-        <select
-          className={SELECT_CLASS}
-          value={presetValue}
-          onChange={(event) => {
-            const nextFormat = event.currentTarget.value;
-            const preset = getStudioDateFormatPreset(nextFormat, mode);
-            onChange({
-              format: nextFormat,
-              template: preset?.template ?? templateValue,
-            });
-          }}
-        >
-          {presets.map((preset) => (
-            <option key={preset.id} value={preset.id}>
-              {preset.label}
-            </option>
-          ))}
-          <option value="custom">Custom template</option>
-        </select>
-      </label>
-
-      <label className={FIELD_LABEL_CLASS}>
-        <span>Template</span>
-        <textarea
-          className="min-h-20 resize-y rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2.5 py-2 font-mono text-[11px] font-semibold leading-relaxed text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-          spellCheck={false}
-          value={templateValue}
-          onChange={(event) =>
-            onChange({
-              format: "custom",
-              template: event.currentTarget.value,
-            })
-          }
-        />
-      </label>
-
-      <div className="grid grid-cols-2 gap-1.5">
-        {tokens.map((token) => (
-          <button
-            className="h-7 rounded-md border border-[var(--field-border)] bg-[var(--field)] px-1.5 font-mono text-[10px] font-semibold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
-            key={token}
-            title={token}
-            type="button"
-            onClick={() => {
-              const separator = templateValue.trim().length > 0 ? " " : "";
-              onChange({
-                format: "custom",
-                template: `${templateValue}${separator}${token}`,
-              });
-            }}
-          >
-            {token}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 /**
@@ -175,99 +60,49 @@ export function StudioTimetableWeekDatesFormatControls({
   object,
   onUpdateObject,
 }: StudioTimetableObjectControlProps) {
-  return StudioWeekDatesFormatControls({
-    format: getStudioWeekDatePresetValue(object),
-    template: getStudioWeekDateTemplateValue(object),
+  const binding = object.binding;
+  if (
+    binding?.kind !== "builtinField" ||
+    !getStudioBindingFormatFeatures(binding).dateFormatMode
+  )
+    return null;
+  return StudioDateFormatControls({
+    mode: getStudioBindingFormatFeatures(binding).dateFormatMode!,
+    format:
+      binding.dateRangeFormat ??
+      (binding.fieldId === "day.date" ? "short" : undefined),
+    template: binding.dateRangeTemplate,
     onChange: ({ format, template }) =>
-      onUpdateObject((currentObject) => {
-        currentObject.style = {
-          ...currentObject.style,
+      onUpdateObject(({ node: target }) => {
+        applyStudioBindingFormatPatch(target, {
           dateRangeFormat: format,
           dateRangeTemplate: template,
-        };
+        });
       }),
   });
 }
 
-/** 시간 필드의 12/24시간 표기와 AM/PM 대체 문구를 편집한다. */
-export function StudioTimeFormatControls({
-  format,
-  amText,
-  pmText,
-  onChange,
-}: StudioTimeFormatControlsProps) {
-  const normalizedFormat = normalizeStudioTimeFormat(format);
-  const normalizedAmText = normalizeStudioTimeText(
-    amText,
-    STUDIO_TIME_DEFAULT_AM_TEXT,
-  );
-  const normalizedPmText = normalizeStudioTimeText(
-    pmText,
-    STUDIO_TIME_DEFAULT_PM_TEXT,
-  );
-
-  const update = (patch: Partial<StudioTimeFormatControlsProps>) =>
-    onChange({
-      format: patch.format ?? normalizedFormat,
-      amText: patch.amText ?? normalizedAmText,
-      pmText: patch.pmText ?? normalizedPmText,
-    });
-
-  return (
-    <div className="grid gap-2">
-      <label className={FIELD_LABEL_CLASS}>
-        <span>Time Format</span>
-        <select
-          className={SELECT_CLASS}
-          value={normalizedFormat}
-          onChange={(event) =>
-            update({
-              format: normalizeStudioTimeFormat(
-                event.currentTarget.value as StudioTimeFormat,
-              ),
-            })
-          }
-        >
-          {STUDIO_TIME_FORMAT_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      {normalizedFormat === "half" ? (
-        <div className="grid grid-cols-2 gap-2">
-          <StudioTextField
-            label="AM Text"
-            value={normalizedAmText}
-            onChange={(value) => update({ amText: value })}
-          />
-          <StudioTextField
-            label="PM Text"
-            value={normalizedPmText}
-            onChange={(value) => update({ pmText: value })}
-          />
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 /** 이미지를 감출 때 위치 선택도 함께 잠근다. */
 export function StudioTimetableArtistProfileTextAssetLayoutControls({
-  object,
+  extension,
   onUpdateObject,
 }: StudioTimetableObjectControlProps) {
-  const assetMode = getStudioStyleString(object.style, "assetMode", "visible");
-  const assetPosition = getStudioStyleString(
-    object.style,
-    "assetPosition",
-    "left",
-  );
+  const inline = extension.inlineAssetLayout;
+  const assetMode = inline?.mode ?? "visible";
+  const assetPosition = inline?.position ?? "left";
 
   const updateStyle = (key: string, value: string | number) => {
-    onUpdateObject((currentObject) => {
-      currentObject.style = { ...currentObject.style, [key]: value };
+    onUpdateObject(({ extension }) => {
+      const keys: Record<string, string> = {
+        assetMode: "mode",
+        assetPosition: "position",
+        assetSize: "size",
+        assetGap: "gap",
+      };
+      extension.inlineAssetLayout = {
+        ...extension.inlineAssetLayout,
+        [keys[key]]: value,
+      };
     });
   };
 
@@ -303,12 +138,12 @@ export function StudioTimetableArtistProfileTextAssetLayoutControls({
       <div className="grid grid-cols-2 gap-2">
         <StudioNumberField
           label="Asset Size"
-          value={Number(object.style.assetSize ?? 160)}
+          value={Number(inline?.size ?? 160)}
           onChange={(value) => updateStyle("assetSize", Math.max(24, value))}
         />
         <StudioNumberField
           label="Asset Gap"
-          value={Number(object.style.assetGap ?? 32)}
+          value={Number(inline?.gap ?? 32)}
           onChange={(value) => updateStyle("assetGap", Math.max(0, value))}
         />
       </div>
@@ -323,14 +158,12 @@ export function StudioTimetableArtistProfileTextAssetLayoutControls({
  * 반지름을 쓰고, 반지름을 직접 바꾸면 그 값으로 모양을 다시 읽는다.
  */
 export function StudioTimetableProfileMaskControls({
-  object,
+  style,
   onUpdateObject,
 }: StudioTimetableObjectControlProps) {
   const radius =
-    typeof object.style.borderRadius === "number"
-      ? object.style.borderRadius
-      : 0;
-  const shape = getStudioTimetableObjectMaskShape(object);
+    typeof style.borderRadius === "number" ? style.borderRadius : 0;
+  const shape = getStudioMaskShapeFromRadius(radius);
 
   return (
     <div className="grid gap-2">
@@ -342,12 +175,8 @@ export function StudioTimetableProfileMaskControls({
           onChange={(event) => {
             const nextShape = event.currentTarget
               .value as StudioSemanticMaskShape;
-            onUpdateObject((currentObject) => {
-              setStudioTimetableObjectMaskSlot(
-                currentObject,
-                nextShape,
-                getStudioMaskRadiusFromShape(nextShape),
-              );
+            onUpdateObject(({ style }) => {
+              style.borderRadius = getStudioMaskRadiusFromShape(nextShape);
             });
           }}
         >
@@ -360,12 +189,8 @@ export function StudioTimetableProfileMaskControls({
         label="Radius"
         value={radius}
         onChange={(value) =>
-          onUpdateObject((currentObject) => {
-            setStudioTimetableObjectMaskSlot(
-              currentObject,
-              getStudioMaskShapeFromRadius(value),
-              value,
-            );
+          onUpdateObject(({ style }) => {
+            style.borderRadius = value;
           })
         }
       />
@@ -387,145 +212,80 @@ export interface StudioTimetableTextTypographyControlsProps extends StudioTimeta
  */
 export function StudioTimetableTextTypographyControls({
   object,
+  style,
   onUpdateObject,
   document,
   fontFamilies,
 }: StudioTimetableTextTypographyControlsProps) {
-  const styleRecord = object.style;
-  const fontFamily = String(styleRecord.fontFamily ?? "Inter");
-  const fontWeightOptions = getStudioFontWeightOptions(document, fontFamily);
-
-  const updateTextStyle = (key: string, value: string | number | undefined) => {
-    onUpdateObject((currentObject) => {
-      if (
-        currentObject.kind !== "text" &&
-        currentObject.kind !== "flexibleText"
-      ) {
-        return;
-      }
-      currentObject.style = { ...currentObject.style, [key]: value };
-    });
-  };
-
   return (
-    <div className="grid gap-2">
-      <label className={FIELD_LABEL_CLASS}>
-        <span>Font</span>
-        <select
-          className={SELECT_CLASS}
-          value={fontFamily}
-          onChange={(event) =>
-            updateTextStyle("fontFamily", event.currentTarget.value)
-          }
-        >
-          {fontFamilies.map((candidate) => (
-            <option key={candidate} value={candidate}>
-              {candidate}
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="grid grid-cols-[1.3fr_1fr] gap-2">
-        <StudioNumberField
-          label="Size"
-          value={Number(styleRecord.fontSize ?? 16)}
-          onChange={(value) => updateTextStyle("fontSize", value)}
-        />
-        <StudioFontWeightField
-          options={fontWeightOptions}
-          value={styleRecord.fontWeight ?? 700}
-          onChange={(value) => updateTextStyle("fontWeight", value)}
-        />
-      </div>
-      <StudioTextAlignmentField
-        value={getStudioTextAlignment(styleRecord)}
-        onChange={(value) => {
-          onUpdateObject((currentObject) => {
-            if (
-              currentObject.kind !== "text" &&
-              currentObject.kind !== "flexibleText"
-            ) {
-              return;
-            }
-            currentObject.style = {
-              ...currentObject.style,
-              textAlign: value,
-              justifyContent: getStudioTextJustifyContent(value),
-            };
-          });
-        }}
-      />
-      {object.kind === "flexibleText" ? (
-        <StudioLineBreakField
-          value={getStudioTextWrapMode(styleRecord)}
-          onChange={(mode) =>
-            updateTextStyle(STUDIO_TEXT_WRAP_MODE_STYLE_KEY, mode)
-          }
-        />
-      ) : null}
-      <StudioNumberField
-        label="Line Height"
-        value={Number(styleRecord.lineHeight ?? 1.2)}
-        onChange={(value) => updateTextStyle("lineHeight", value)}
-      />
-      <label className={FIELD_LABEL_CLASS}>
-        <span>Color</span>
-        <StudioHexColorPicker
-          ariaLabel="Timetable text color"
-          value={String(styleRecord.color ?? "#111827")}
-          onChange={(color) => updateTextStyle("color", color)}
-        />
-      </label>
-    </div>
+    <StudioTextTypographyControls
+      document={document}
+      style={style}
+      fontFamilies={fontFamilies}
+      flexibleText={object.type === "flexibleText"}
+      colorLabel="Timetable text color"
+      onUpdateStyle={(key, value) =>
+        onUpdateObject(({ node: target, style }) => {
+          if (target.type !== "text" && target.type !== "flexibleText") return;
+          Object.assign(
+            style,
+            getStudioObjectStyleWithValue(style, target.layoutMode, key, value),
+          );
+        })
+      }
+      onUpdateTextAlignment={(alignment) =>
+        onUpdateObject(({ node: target, style }) => {
+          if (target.type !== "text" && target.type !== "flexibleText") return;
+          Object.assign(style, getStudioTextAlignmentStyle(style, alignment));
+        })
+      }
+    />
   );
 }
 
 /**
  * 지금 편집 중인 객체 상태 선택.
  *
- * 상태를 가진 객체에만 나타난다. 고른 상태를 문서에 적어 두므로 다시 열었을 때도
- * 같은 상태를 편집한다.
+ * 디자인 선택은 뷰 상태이고, 사용자 표시 정책만 문서에 저장한다.
  */
 export function StudioTimetableObjectVariantControls({
   object,
+  extension,
   onUpdateObject,
-}: StudioTimetableObjectControlProps) {
+  editingValue,
+  onSelectEditingValue,
+}: StudioTimetableObjectControlProps & {
+  editingValue: string;
+  onSelectEditingValue: (value: string) => void;
+}) {
   const variantSet = object.variantSet;
   if (!variantSet) return null;
 
-  const isTopObject =
-    object.presetId === "topObject" ||
-    object.meta?.exception?.semanticKey === "topObject";
+  const supportsRuntimeMode = getStudioTimetableGraphEditorFeatures(
+    object,
+    extension,
+  ).runtimeMode;
   const variantMode = variantSet.mode === "always" ? "always" : "toggle";
-  const activeValue = variantSet.activeValue ?? variantSet.defaultValue;
+  const activeValue = editingValue;
   const activeLabel =
     variantSet.options.find((option) => option.value === activeValue)?.label ??
     activeValue;
 
   return (
     <div className="grid gap-2">
-      {isTopObject ? (
+      {supportsRuntimeMode ? (
         <label className={FIELD_LABEL_CLASS}>
-          <span>Runtime Mode</span>
+          <span>User visibility control</span>
           <select
             className={SELECT_CLASS}
             value={variantMode}
             onChange={(event) => {
               const mode = event.currentTarget.value as "toggle" | "always";
-              onUpdateObject((currentObject) => {
+              onUpdateObject(({ node: currentObject }) => {
                 if (!currentObject.variantSet) return;
-                const onValue = currentObject.variantSet.options.some(
-                  (option) => option.value === "on",
-                )
-                  ? "on"
-                  : currentObject.variantSet.defaultValue;
                 currentObject.variantSet = {
                   ...currentObject.variantSet,
-                  mode: mode === "always" ? "always" : "toggle",
-                  activeValue:
-                    mode === "always"
-                      ? onValue
-                      : (currentObject.variantSet.activeValue ?? onValue),
+                  mode,
                 };
               });
             }}
@@ -547,14 +307,7 @@ export function StudioTimetableObjectVariantControls({
               )}
               key={option.value}
               type="button"
-              onClick={() =>
-                onUpdateObject((currentObject) => {
-                  setStudioTimetableObjectActiveVariantValue(
-                    currentObject,
-                    option.value,
-                  );
-                })
-              }
+              onClick={() => onSelectEditingValue(option.value)}
             >
               {option.label}
             </button>
@@ -566,7 +319,7 @@ export function StudioTimetableObjectVariantControls({
         </div>
       )}
       <div className="rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-2 text-[11px] font-semibold text-[var(--fg2)]">
-        Editing state:{" "}
+        Editing design state:{" "}
         <span className="text-[var(--fg)]">
           {variantMode === "always" ? "On" : activeLabel}
         </span>
@@ -574,3 +327,8 @@ export function StudioTimetableObjectVariantControls({
     </div>
   );
 }
+
+export {
+  StudioDateFormatControls as StudioWeekDatesFormatControls,
+  StudioTimeFormatControls,
+} from "@/components/studio/inspector/studio-binding-format-controls";

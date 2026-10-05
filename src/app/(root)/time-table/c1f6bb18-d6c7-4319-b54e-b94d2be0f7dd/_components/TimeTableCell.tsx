@@ -1,3 +1,5 @@
+"use client";
+
 import React, { PropsWithChildren } from 'react';
 
 import AutoResizeText from '@/components/AutoResizeTextCard/AutoResizeText';
@@ -6,7 +8,7 @@ import { TTheme } from '@/types/time-table/theme';
 import { padZero } from '@/utils/date-formatter';
 import { formatTime } from '@/utils/time-formatter';
 import { weekdays } from '@/utils/time-table/data';
-import { Imgs } from '../_img/imgs';
+import { Imgs as LocalImgs } from '../_img/imgs';
 import { placeholders } from '../_settings/general';
 import {
   BASE_FONTS,
@@ -14,6 +16,7 @@ import {
   COMP_FONTS,
   weekdayOption,
 } from '../_settings/settings';
+import { useLegacyTemplateImages } from "@/contexts/LegacyTemplateAssetsContext";
 
 interface CardStreamingDayProps {
   currentTheme?: TTheme;
@@ -204,14 +207,12 @@ interface OnlineCardBGProps {
 }
 
 const OnlineCardBG = ({ isOffline, day }: OnlineCardBGProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div className="absolute inset-0 -z-10">
       <img
         className="object-cover w-full h-full"
-        src={Imgs['first'][isOffline ? 'offline' : 'online'].src.replace(
-          './',
-          '/'
-        )}
+        src={Imgs['first'][isOffline ? 'offline' : 'online'].src}
         alt="online"
       />
     </div>
@@ -219,6 +220,7 @@ const OnlineCardBG = ({ isOffline, day }: OnlineCardBGProps) => {
 };
 
 const CardOverlay = ({ day }: OnlineCardBGProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   return (
     <div
       style={{
@@ -228,7 +230,7 @@ const CardOverlay = ({ day }: OnlineCardBGProps) => {
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs['first']['online_overlay'].src.replace('./', '/')}
+        src={Imgs['first']['online_overlay'].src}
         alt="online"
       />
     </div>
@@ -236,14 +238,12 @@ const CardOverlay = ({ day }: OnlineCardBGProps) => {
 };
 
 const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
+  const Imgs = useLegacyTemplateImages(LocalImgs);
   const dayName = weekdays[weekdayOption][day].toLowerCase();
   return (
     <div className="absolute inset-0 z-30" key={day}>
       <img
-        src={Imgs[currentTheme || 'first']['offline_' + dayName].src.replace(
-          './',
-          '/'
-        )}
+        src={Imgs[currentTheme || 'first']['offline_' + dayName].src}
         alt="offline"
         className="absolute inset-0"
       />

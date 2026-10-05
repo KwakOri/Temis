@@ -1,6 +1,7 @@
 import { TDefaultCard, TPlaceholders } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import Link from "next/link";
+import { useLegacyAssetUrl } from "@/contexts/LegacyTemplateAssetsContext";
 
 export interface MobileTimeTableViewProps {
   currentTheme: TTheme;
@@ -13,11 +14,13 @@ const MobileTimeTableView = ({
   data,
   placeholders,
 }: MobileTimeTableViewProps) => {
+  const background = useLegacyAssetUrl("site", "landing_background", "/images/landing_bg.png");
+  const sample = useLegacyAssetUrl("site", "mobile_sample", "/landing/sample.png");
   return (
     <div
       className="w-full h-full p-4 flex flex-col items-center justify-center gap-6 overflow-hidden"
       style={{
-        backgroundImage: "url(/images/landing_bg.png)",
+        backgroundImage: `url("${background}")`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
@@ -60,7 +63,7 @@ const MobileTimeTableView = ({
       {/* 샘플 이미지 */}
       <div className="w-full max-w-sm md:max-w-md lg:max-w-lg relative top-6">
         <img
-          src="/landing/sample.png"
+          src={sample}
           alt="Sample"
           className="w-full h-auto rounded-2xl shadow-lg"
         />

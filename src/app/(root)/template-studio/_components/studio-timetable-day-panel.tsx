@@ -13,6 +13,11 @@ import type {
 } from "@/types/template-studio";
 import type { StudioRuntimeContext } from "@/utils/template-studio/input-values";
 import { StudioRuntimeInputGroups } from "./studio-runtime-input-panel";
+import {
+  StudioTextareaField,
+  StudioTextField,
+} from "@/components/studio/inspector/studio-inspector-fields";
+import type { StudioTimetableEditableEntryField } from "@/utils/template-studio/timetable-runtime";
 
 export interface StudioTimetableDayPanelProps {
   /** 시간표 도메인이 없는 문서인지. 없으면 채울 것이 없다. */
@@ -43,6 +48,12 @@ export interface StudioTimetableDayPanelProps {
     dayId: string,
     entryIndex: number,
     statusId: StudioTimetableStatusId,
+  ) => void;
+  onUpdateEntryField: (
+    dayId: string,
+    entryIndex: number,
+    field: StudioTimetableEditableEntryField,
+    value: string,
   ) => void;
   onChangeInput: (
     input: StudioInputDefinition,
@@ -84,6 +95,7 @@ export function StudioTimetableDayPanel({
   onAddEntry,
   onRemoveEntry,
   onUpdateEntryStatus,
+  onUpdateEntryField,
   onChangeInput,
   onRequestImageCrop,
 }: StudioTimetableDayPanelProps) {
@@ -101,7 +113,7 @@ export function StudioTimetableDayPanel({
     <div className="template-studio-scrollbar min-h-0 flex-1 overflow-y-auto p-3">
       <div className="mb-3 grid gap-1">
         <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--fg2)]">
-          Day Cards
+          Sample Data
         </div>
         <div className="text-[12px] font-semibold text-[var(--fg)]">
           {days.length} days · {entries.length}/{maxEntries} entries
@@ -170,12 +182,13 @@ export function StudioTimetableDayPanel({
                       {entryIndex + 1}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-xs font-bold text-[var(--fg)]">
-                      {entry.id}
+                      {entry.mainTitle?.trim() || `Entry ${entryIndex + 1}`}
                     </span>
                   </button>
 
                   <div className="grid grid-cols-[1fr_auto] gap-1.5">
                     <select
+                      aria-label={`Entry ${entryIndex + 1} status`}
                       className="h-8 min-w-0 rounded-md border border-[var(--field-border)] bg-[var(--panel)] px-2 text-xs font-semibold text-[var(--fg)] outline-none focus:border-[var(--accent)]"
                       // 일정이 여러 개면 어느 일정의 상태인지 정할 수 없다.
                       disabled={entries.length > 1}
@@ -213,6 +226,55 @@ export function StudioTimetableDayPanel({
           </div>
         )}
       </div>
+
+      {addEntryDisabledReason ? (
+        <p className="mb-4 text-[10px] text-[var(--fg3)]">
+          {addEntryDisabledReason}
+        </p>
+      ) : null}
+
+      {activeDayId && activeEntry ? (
+        <div
+          className="mb-4 grid gap-3 border-t border-[var(--border)] pt-4"
+          key={`${activeDayId}:${activeEntry.id}`}
+        >
+          <StudioTextareaField
+            label="Main Title"
+            placeholder={"메인타이틀\n적는 곳"}
+            rows={3}
+            value={activeEntry.mainTitle ?? ""}
+            onChange={(value) =>
+              onUpdateEntryField(
+                activeDayId,
+                activeEntryIndex,
+                "mainTitle",
+                value,
+              )
+            }
+          />
+          <StudioTextField
+            label="Sub Title"
+            placeholder="서브타이틀 적는 곳"
+            value={activeEntry.subTitle ?? ""}
+            onChange={(value) =>
+              onUpdateEntryField(
+                activeDayId,
+                activeEntryIndex,
+                "subTitle",
+                value,
+              )
+            }
+          />
+          <StudioTextField
+            label="Time"
+            placeholder="09:00"
+            value={activeEntry.time ?? ""}
+            onChange={(value) =>
+              onUpdateEntryField(activeDayId, activeEntryIndex, "time", value)
+            }
+          />
+        </div>
+      ) : null}
 
       <div className="grid gap-4 border-t border-[var(--border)] pt-4">
         <StudioRuntimeInputGroups

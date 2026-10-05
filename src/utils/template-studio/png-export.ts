@@ -1,4 +1,4 @@
-import { domToPng } from "modern-screenshot";
+import { domToBlob, domToPng } from "modern-screenshot";
 
 const CSS_URL_PATTERN = /url\(\s*(["']?)(.*?)\1\s*\)/g;
 
@@ -98,7 +98,7 @@ const collectExportImageReferences = (
     );
   });
 
-  element.querySelectorAll<HTMLElement>("[style]").forEach((node) => {
+  [element, ...element.querySelectorAll<HTMLElement>("*")].forEach((node) => {
     const inlineStyle = node.getAttribute("style") ?? "";
     collectCssImageSources(inlineStyle, baseURI).forEach((source) =>
       add(source, "background image"),
@@ -135,6 +135,7 @@ const blobToDataUrl = (blob: Blob): Promise<string> =>
 const fetchExportImageBlob = async (source: string): Promise<Blob> => {
   try {
     const response = await window.fetch(source, {
+      signal: AbortSignal.timeout(15_000),
       cache: "no-store",
       credentials: "same-origin",
       mode: "cors",
@@ -148,7 +149,7 @@ const fetchExportImageBlob = async (source: string): Promise<Blob> => {
     try {
       const response = await window.fetch(
         `/api/template-studio/assets/image?url=${encodeURIComponent(source)}`,
-        { credentials: "same-origin" },
+        { credentials: "same-origin", signal: AbortSignal.timeout(15_000) },
       );
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return await response.blob();
@@ -265,6 +266,7 @@ export const renderStudioPng = async (
   element: HTMLElement,
   options: StudioPngExportOptions,
 ): Promise<Blob> => {
+  await waitForExportImages(element);
   const embeddedImages = await preloadStudioExportImages(element);
   const baseURI = element.ownerDocument.baseURI;
   const dataUrl = await domToPng(element, {
@@ -282,6 +284,71 @@ export const renderStudioPng = async (
   });
 
   return dataUrlToBlob(dataUrl);
+};
+
+export async function waitForExportImages(element: HTMLElement): Promise<void> {
+  await element.ownerDocument.fonts.ready;
+  await Promise.all(
+    [...element.querySelectorAll("img")].map(
+      (image) =>
+        new Promise<void>((resolve, reject) => {
+          if (!image.getAttribute("src") && !image.currentSrc) {
+            resolve();
+            return;
+          }
+          const timeout = window.setTimeout(
+            () =>
+              finish(
+                new StudioPngExportError("이미지 로딩 시간이 초과되었습니다."),
+              ),
+            15_000,
+          );
+          const finish = (error?: Error) => {
+            window.clearTimeout(timeout);
+            image.removeEventListener("load", loaded);
+            image.removeEventListener("error", failed);
+            if (error) reject(error);
+            else resolve();
+          };
+          const loaded = () => {
+            if (image.naturalWidth > 0) finish();
+            else failed();
+          };
+          const failed = () =>
+            finish(
+              new StudioPngExportError(
+                `PNG에 필요한 ${image.alt || "이미지"}을 불러오지 못했습니다.`,
+              ),
+            );
+          if (image.complete) {
+            loaded();
+            return;
+          }
+          image.addEventListener("load", loaded);
+          image.addEventListener("error", failed);
+        }),
+    ),
+  );
+}
+
+export const renderLegacyPngBlob = async (
+  element: HTMLElement,
+  options: Pick<StudioPngExportOptions, "width" | "height" | "pixelRatio">,
+): Promise<Blob> => {
+  await waitForExportImages(element);
+  const embeddedImages = await preloadStudioExportImages(element);
+  const baseURI = element.ownerDocument.baseURI;
+  return domToBlob(element, {
+    fetch: { bypassingCache: true, placeholderImage: "" },
+    fetchFn: async (source) =>
+      embeddedImages.get(normalizeImageSource(source, baseURI)) ?? false,
+    width: options.width,
+    height: options.height,
+    scale: options.pixelRatio,
+    onCloneNode: (cloned) => rewriteCloneNode(cloned, embeddedImages, baseURI),
+    style: { transform: "none" },
+    backgroundColor: "transparent",
+  });
 };
 
 export const downloadStudioPng = (blob: Blob, fileName: string): void => {
