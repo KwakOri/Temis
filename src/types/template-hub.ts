@@ -10,6 +10,18 @@ import type { StudioTemplateKind } from "@/types/template-studio";
 
 export type TemplateEngine = "legacy" | "studio";
 
+export const TEMPLATE_CATEGORIES = [
+  "timetable",
+  "thumbnail",
+  "team-timetable",
+] as const;
+export type TemplateCategory = (typeof TEMPLATE_CATEGORIES)[number];
+export const TEMPLATE_CATEGORY_LABELS: Record<TemplateCategory, string> = {
+  timetable: "시간표",
+  thumbnail: "썸네일",
+  "team-timetable": "팀 시간표",
+};
+
 export type TemplatePublicationStatus = "draft" | "published" | "archived";
 
 /** `templates.is_public`의 UI 의미. true=general(일반 판매), false=custom(맞춤 제작). */
@@ -70,11 +82,13 @@ export type TemplateHubItem = {
   description: string;
   templateEngine: TemplateEngine;
   templateKind: StudioTemplateKind | null;
+  templateCategory: TemplateCategory;
   publicationStatus: TemplatePublicationStatus;
   salesType: TemplateSalesType;
   shopProductId: string | null;
   hasProduct: boolean;
   hasPurchasablePlan: boolean;
+  pricePlans: Array<{ plan: "lite" | "pro"; price: number }>;
   isShopVisible: boolean;
   linkedArtists: TemplateHubLinkedArtist[];
   saleReadiness: TemplateSaleReadiness;
@@ -87,6 +101,7 @@ export type TemplateHubListParams = {
   offset?: number;
   search?: string;
   engine?: TemplateEngine;
+  category?: TemplateCategory;
   publicationStatus?: TemplatePublicationStatus;
   salesType?: TemplateSalesType;
   saleStatus?: TemplateSaleStatus;

@@ -94,6 +94,11 @@ export interface TeamWithMembers extends Team {
   memberCount?: number;
 }
 
+export interface AdminTeamList {
+  teams: TeamWithMembers[];
+  studioConnectionsAvailable: boolean;
+}
+
 // Function to convert full timetable data to team timetable data
 export function convertToTeamTimeTableData(
   fullData: TimeTableWeekData

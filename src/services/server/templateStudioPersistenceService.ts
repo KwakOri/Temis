@@ -80,6 +80,7 @@ type TemplateStudioTemplateRow = {
   studio_preview_byte_size: number | null;
   studio_preview_updated_at: string | null;
   status: TemplateStudioTemplateStatus;
+  is_public: boolean;
   template_kind: StudioTemplateKind | null;
   created_by: number | null;
   created_at: string;
@@ -163,6 +164,7 @@ export type TemplateStudioTemplateRecord = {
   studioPreviewByteSize: number | null;
   studioPreviewUpdatedAt: string | null;
   status: TemplateStudioTemplateStatus;
+  isPublic: boolean;
   templateKind: StudioTemplateKind;
   createdBy: number | null;
   createdAt: string;
@@ -293,7 +295,7 @@ const TEMPLATE_STUDIO_REVISION_COLUMNS =
 const TEMPLATE_STUDIO_ASSET_COLUMNS =
   "id, template_id, asset_id, storage_provider, storage_path, public_url, content_hash, mime_type, width, height, byte_size, created_by, created_at, updated_at, last_synced_at";
 const TEMPLATE_STUDIO_TEMPLATE_COLUMNS =
-  "id, name, description, thumbnail_url, studio_preview_url, studio_preview_file_key, studio_preview_revision_no, studio_preview_mime_type, studio_preview_byte_size, studio_preview_updated_at, status, template_kind, created_by, created_at, updated_at";
+  "id, name, description, thumbnail_url, studio_preview_url, studio_preview_file_key, studio_preview_revision_no, studio_preview_mime_type, studio_preview_byte_size, studio_preview_updated_at, status, is_public, template_kind, created_by, created_at, updated_at";
 const TEMPLATE_STUDIO_USER_STATE_COLUMNS =
   "id, template_id, user_id, base_revision_no, runtime_values, version, created_at, updated_at";
 
@@ -428,6 +430,7 @@ const toTemplateRecord = (
   studioPreviewByteSize: row.studio_preview_byte_size ?? null,
   studioPreviewUpdatedAt: row.studio_preview_updated_at || null,
   status: row.status,
+  isPublic: row.is_public,
   // Migration 6 backfills all existing studio rows as timetable. Keep the
   // fallback for a short compatibility window while older local databases
   // are being migrated.

@@ -1,3 +1,4 @@
+import { TEMPLATE_CATEGORY_LABELS } from "@/types/template-hub";
 import {
   EngineBadge,
   ProductBadge,
@@ -9,6 +10,7 @@ import {
   hasSaleConditionMismatch,
   resolveTemplateSaleStatus,
   type TemplateHubItem,
+  type TemplateSaleBlockReasonCode,
 } from "@/types/template-hub";
 import { AlertTriangle, LayoutList } from "lucide-react";
 import type { ReactNode } from "react";
@@ -57,10 +59,52 @@ const SaleMismatchWarning = ({ item }: { item: TemplateHubItem }) => {
   );
 };
 
+const preparationLabels: Record<TemplateSaleBlockReasonCode, string> = {
+  NOT_PUBLISHED: "게시 필요",
+  NOT_GENERAL_SALE: "기성품 전환",
+  PRODUCT_MISSING: "상품 등록",
+  PLAN_MISSING: "가격 설정",
+  ARTIST_MISSING: "작가 연결",
+  ROYALTY_MISSING: "로열티 설정",
+};
+
 const StatusCell = ({ item }: { item: TemplateHubItem }) => (
   <div className="flex flex-col items-start gap-1">
     <SaleStatusBadge status={resolveTemplateSaleStatus(item)} />
     <SaleMismatchWarning item={item} />
+    {item.saleReadiness.reasons.length > 0 && (
+      <div
+        aria-label="판매 준비 항목"
+        className="mt-1 flex max-w-56 flex-wrap gap-1"
+      >
+        {item.saleReadiness.reasons.map((reason) => (
+          <span
+            key={reason.code}
+            title={reason.message}
+            className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-800"
+          >
+            {preparationLabels[reason.code]}
+          </span>
+        ))}
+      </div>
+    )}
+  </div>
+);
+
+const ProductCell = ({ item }: { item: TemplateHubItem }) => (
+  <div className="space-y-2">
+    <ProductBadge
+      hasProduct={item.hasProduct}
+      hasPurchasablePlan={item.hasPurchasablePlan}
+    />
+    {(item.pricePlans ?? []).map(({ plan, price }) => (
+      <p key={plan} className="whitespace-nowrap text-xs text-gray-500">
+        {plan.toUpperCase()}{" "}
+        <span className="ml-1 font-semibold text-gray-800">
+          {price.toLocaleString("ko-KR")}원
+        </span>
+      </p>
+    ))}
   </div>
 );
 
@@ -161,26 +205,20 @@ export const TemplateHubList = ({
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                템플릿
+                템플릿 / 분류
               </th>
               <th className="w-40 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                분류
+                상품 / 가격
               </th>
-              <th className="w-32 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                상품
+              <th className="w-56 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                판매 상태 / 준비 항목
               </th>
               <th className="w-32 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 작가
               </th>
-              <th className="w-36 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                판매
-              </th>
-              <th className="w-36 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                업데이트
-              </th>
               {showActions && (
-                <th className="w-[22rem] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  작업
+                <th className="w-64 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  판매 관리
                 </th>
               )}
             </tr>
@@ -195,44 +233,32 @@ export const TemplateHubList = ({
                         {item.name}
                       </span>
                       <EngineBadge engine={item.templateEngine} />
-                      {item.templateKind ? (
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
-                          {item.templateKind === "thumbnail"
-                            ? "썸네일"
-                            : "시간표"}
-                        </span>
-                      ) : null}
+                      <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">
+                        {TEMPLATE_CATEGORY_LABELS[item.templateCategory]}
+                      </span>
                     </div>
                     {item.description && (
                       <p className="mt-1 truncate text-xs text-gray-500">
                         {item.description}
                       </p>
                     )}
-                    <p className="mt-1 truncate text-xs text-gray-400">
-                      {item.id}
+                    <div className="mt-2 flex flex-wrap items-center gap-1">
+                      <PublicationStatusBadge status={item.publicationStatus} />
+                      <SalesTypeBadge salesType={item.salesType} />
+                    </div>
+                    <p className="mt-2 text-xs text-gray-400">
+                      수정 {formatDateTime(item.updatedAt)}
                     </p>
                   </div>
                 </td>
                 <td className="px-4 py-4 align-top">
-                  <div className="flex flex-col items-start gap-1">
-                    <PublicationStatusBadge status={item.publicationStatus} />
-                    <SalesTypeBadge salesType={item.salesType} />
-                  </div>
-                </td>
-                <td className="px-4 py-4 align-top">
-                  <ProductBadge
-                    hasProduct={item.hasProduct}
-                    hasPurchasablePlan={item.hasPurchasablePlan}
-                  />
-                </td>
-                <td className="px-4 py-4 align-top text-sm text-gray-500">
-                  {formatArtists(item)}
+                  <ProductCell item={item} />
                 </td>
                 <td className="px-4 py-4 align-top">
                   <StatusCell item={item} />
                 </td>
                 <td className="px-4 py-4 align-top text-sm text-gray-500">
-                  {formatDateTime(item.updatedAt)}
+                  {formatArtists(item)}
                 </td>
                 {showActions && (
                   <td className="px-4 py-4 align-top">{renderActions(item)}</td>
@@ -259,19 +285,26 @@ export const TemplateHubList = ({
                   {item.description}
                 </p>
               )}
-              <p className="mt-1 truncate text-xs text-gray-400">{item.id}</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-1.5">
               <PublicationStatusBadge status={item.publicationStatus} />
+              <span className="text-xs text-gray-500">
+                {TEMPLATE_CATEGORY_LABELS[item.templateCategory]}
+              </span>
               <SalesTypeBadge salesType={item.salesType} />
-              <ProductBadge
-                hasProduct={item.hasProduct}
-                hasPurchasablePlan={item.hasPurchasablePlan}
-              />
-              <SaleStatusBadge status={resolveTemplateSaleStatus(item)} />
             </div>
-            <SaleMismatchWarning item={item} />
+
+            <div className="grid grid-cols-2 gap-3 rounded-lg bg-gray-50 p-3">
+              <div>
+                <p className="mb-2 text-xs text-gray-500">상품 / 가격</p>
+                <ProductCell item={item} />
+              </div>
+              <div>
+                <p className="mb-2 text-xs text-gray-500">판매 상태</p>
+                <StatusCell item={item} />
+              </div>
+            </div>
 
             <div className="flex flex-wrap gap-x-4 text-xs text-gray-500">
               <span>작가 {formatArtists(item)}</span>

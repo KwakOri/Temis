@@ -30,6 +30,10 @@ import {
   resolveStudioShapeFill,
 } from "@/utils/thumbnail-studio/shape-fill";
 import { StudioWebFontLoader } from "@/components/studio/canvas/studio-web-font-loader";
+import {
+  getStudioDefaultFontFamily,
+  resolveStudioFontFamily,
+} from "@/utils/template-studio/web-fonts";
 import { StudioText } from "@/components/studio/text/studio-text";
 import type { StudioRuntimeImageOverrides } from "@/utils/thumbnail-studio/runtime-image-transform";
 
@@ -103,6 +107,7 @@ export function StudioRenderer({
 }: StudioRendererProps) {
   const selectedNodeIdsSet = new Set(selectedNodeIds);
 
+  const defaultFontFamily = getStudioDefaultFontFamily(document) ?? null;
   const renderNode = (
     node: StudioGraphNode,
     inheritedContext: StudioRuntimeContext | undefined,
@@ -121,6 +126,13 @@ export function StudioRenderer({
     const baseStyle = getStudioObjectCssStyle(
       getStudioObjectRenderStyle(styleRecord ?? {}, node.layoutMode),
     );
+    if (node.type === "text" || node.type === "flexibleText") {
+      baseStyle.fontFamily = resolveStudioFontFamily(
+        document,
+        styleRecord?.fontFamily,
+        defaultFontFamily,
+      );
+    }
     const style =
       node.type === "shape"
         ? {

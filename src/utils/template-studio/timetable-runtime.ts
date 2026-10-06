@@ -274,25 +274,21 @@ export const setStudioTimetableDayBaseStatus = (
     values,
     dayId,
   );
-  const firstEntry = currentEntries[0];
-  if (!firstEntry) return values;
+  if (currentEntries.length === 0) return values;
 
   const useMultiStatus =
     baseStatus === "online" &&
     currentEntries.length > 1 &&
     isStudioTimetableStatusAvailable(document.domains?.timetable, "multi");
-  const nextEntries = useMultiStatus
-    ? currentEntries.map((entry) => ({ ...entry, statusId: "multi" }))
-    : [{ ...firstEntry, statusId: baseStatus }];
+  // Offline changes the day's layout, while the authored entries stay available
+  // for restoring Online and its Multi layout.
+  const nextEntries = currentEntries.map((entry) => ({
+    ...entry,
+    statusId: useMultiStatus ? "multi" : baseStatus,
+  }));
 
   return {
     ...values,
-    entries: {
-      ...values.entries,
-      [dayId]: useMultiStatus
-        ? [...(values.entries[dayId] ?? [])]
-        : (values.entries[dayId] ?? []).slice(0, 1),
-    },
     timetable: {
       ...values.timetable,
       entriesByDay: {
@@ -321,7 +317,14 @@ export const setStudioTimetableEntryStatus = (
   );
   if (!currentEntries[entryIndex]) return values;
   if (currentEntries.length > 1) {
-    if (statusId !== "multi") return values;
+    const isOfflineDay = currentEntries.every(
+      (entry) => timetable.statuses[entry.statusId]?.baseStatus === "offline",
+    );
+    const isOfflineStatus =
+      timetable.statuses[statusId]?.baseStatus === "offline";
+    if (statusId !== "multi" && !(isOfflineDay && isOfflineStatus)) {
+      return values;
+    }
     return {
       ...values,
       timetable: {
@@ -330,7 +333,7 @@ export const setStudioTimetableEntryStatus = (
           ...(values.timetable?.entriesByDay ?? {}),
           [dayId]: currentEntries.map((entry) => ({
             ...entry,
-            statusId: "multi",
+            statusId,
           })),
         },
       },
@@ -446,6 +449,12 @@ export const validateStudioRuntimeValuesForDocument = (
 
   timetable.dayIds.forEach((dayId) => {
     const entries = values.timetable.entriesByDay[dayId] ?? [];
+    const isOfflineDay =
+      entries.length > 0 &&
+      entries.every(
+        (entry) =>
+          timetable.statuses[entry.statusId]?.baseStatus === "offline",
+      );
     if (entries.length > STUDIO_MULTI_ENTRY_SLOT_COUNT) {
       diagnostics.push({
         id: `runtime-entry-limit:${dayId}`,
@@ -464,6 +473,7 @@ export const validateStudioRuntimeValuesForDocument = (
     }
     if (
       entries.length > 1 &&
+      !isOfflineDay &&
       entries.some((entry) => entry.statusId !== "multi")
     ) {
       diagnostics.push({

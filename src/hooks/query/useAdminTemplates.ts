@@ -37,6 +37,7 @@ export const useAdminTemplates = (params?: {
   offset?: number;
   visibility?: "public" | "private";
   search?: string;
+  engine?: "legacy" | "studio";
 }) => {
   return useQuery({
     queryKey: [...queryKeys.admin.templates(), params],

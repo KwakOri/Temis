@@ -12,7 +12,10 @@ import {
   getStudioTextWrapMode,
   STUDIO_TEXT_WRAP_MODE_STYLE_KEY,
 } from "@/utils/template-studio/text-wrap";
-import { getStudioFontWeightOptions } from "@/utils/template-studio/web-fonts";
+import {
+  getStudioFontWeightOptions,
+  resolveStudioFontFamily,
+} from "@/utils/template-studio/web-fonts";
 import {
   StudioFontWeightField,
   StudioLineBreakField,
@@ -40,7 +43,11 @@ export function StudioTextTypographyControls({
   onUpdateStyle: (key: string, value: string | number | undefined) => void;
   onUpdateTextAlignment: (value: StudioTextAlignment) => void;
 }) {
-  const fontFamily = String(style.fontFamily ?? "Inter");
+  const fontFamily =
+    typeof style.fontFamily === "string" ? style.fontFamily.trim() : "";
+  const options = Array.from(
+    new Set([...fontFamilies, ...(fontFamily ? [fontFamily] : [])]),
+  );
   return (
     <div className="grid gap-2">
       <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
@@ -49,10 +56,11 @@ export function StudioTextTypographyControls({
           className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
           value={fontFamily}
           onChange={(event) =>
-            onUpdateStyle("fontFamily", event.currentTarget.value)
+            onUpdateStyle("fontFamily", event.currentTarget.value || undefined)
           }
         >
-          {fontFamilies.map((candidate) => (
+          <option value="">none</option>
+          {options.map((candidate) => (
             <option key={candidate} value={candidate}>
               {candidate}
             </option>
@@ -66,7 +74,10 @@ export function StudioTextTypographyControls({
           onChange={(value) => onUpdateStyle("fontSize", value)}
         />
         <StudioFontWeightField
-          options={getStudioFontWeightOptions(document, fontFamily)}
+          options={getStudioFontWeightOptions(
+            document,
+            resolveStudioFontFamily(document, fontFamily),
+          )}
           value={style.fontWeight ?? 700}
           onChange={(value) => onUpdateStyle("fontWeight", value)}
         />

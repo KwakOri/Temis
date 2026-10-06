@@ -26,7 +26,6 @@ import {
   getStudioTemplateBlockingDiagnostics,
   getStudioTemplateDiagnosticsSummary,
   getStudioTemplateExportFilename,
-  parseStudioTemplateExportJson,
 } from "@/utils/template-studio/serialization";
 import { validateStudioRuntimeValuesForDocument } from "@/utils/template-studio/timetable-runtime";
 import { getStudioTemplateKind } from "@/utils/template-studio/template-kind";
@@ -139,8 +138,8 @@ export interface StudioTemplatePersistenceOptions {
   /**
    * 문서 한 벌을 갈아끼운다.
    *
-   * 불러오기와 JSON 가져오기가 같은 함수를 쓴다. 무엇을 초기화해야 하는지는
-   * 편집기가 알고 있으므로 여기서 정하지 않는다.
+   * 불러온 문서에서 무엇을 초기화해야 하는지는 편집기가 알고 있으므로
+   * 여기서 정하지 않는다.
    */
   onReplaceDocument: (
     document: StudioTemplateDocument,
@@ -160,7 +159,6 @@ export interface StudioTemplatePersistenceOptions {
 export interface StudioTemplatePersistence {
   /** 파일로 내려받는다. 막는 진단이 있으면 내보내지 않는다. */
   exportJson: () => void;
-  importJsonFile: (file: File) => Promise<void>;
   /** 원격 템플릿을 만들거나 이미 있는 것을 돌려준다. */
   ensureTemplateId: () => Promise<string>;
   /**
@@ -444,39 +442,6 @@ export function useStudioTemplatePersistence({
         : "Exported JSON",
     );
   }, [getDocument, getRuntimeValues, onExportBlocked, onStatusMessage]);
-  const importJsonFile = useCallback(
-    async (file: File) => {
-      let source = "";
-      try {
-        source = await file.text();
-      } catch {
-        onStatusMessage("Import failed: could not read file");
-        return;
-      }
-      const importResult = parseStudioTemplateExportJson(source);
-      if (!importResult.ok) {
-        onStatusMessage(`Import failed: ${importResult.message}`);
-        return;
-      }
-      if (!acceptsDocument(importResult.document)) return;
-      const warningCount = importResult.diagnostics.filter(
-        (diagnostic) => diagnostic.severity === "warning",
-      ).length;
-      const migrationWarningCount = importResult.migrationWarnings.length;
-      onReplaceDocument(
-        importResult.document,
-        importResult.runtimeValues,
-        importResult.usedRuntimeFallback
-          ? "Imported JSON with default runtime values"
-          : migrationWarningCount > 0
-            ? `Imported JSON with ${migrationWarningCount} migration note(s)`
-            : warningCount > 0
-              ? `Imported JSON with ${warningCount} warning(s)`
-              : "Imported JSON",
-      );
-    },
-    [acceptsDocument, onReplaceDocument, onStatusMessage],
-  );
   const ensureTemplateId = useCallback(async (): Promise<string> => {
     if (templateId) return templateId;
     const currentDocument = getDocument();
@@ -937,7 +902,6 @@ export function useStudioTemplatePersistence({
   }, [initialTemplateId]);
   return {
     exportJson,
-    importJsonFile,
     ensureTemplateId,
     ensureAssetsSynced,
     loadRemoteTemplate,

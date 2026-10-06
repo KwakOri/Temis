@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   AdminTabId,
   LEGACY_ADMIN_TAB_IDS,
+  STUDIO_TEMPLATE_ADMIN_TAB_IDS,
   getAdminPathByTabId,
   getAdminTabIdBySegment,
 } from "@/lib/adminTabs";
@@ -15,9 +16,7 @@ import {
   Briefcase,
   Calendar,
   CreditCard,
-  FileText,
   HandCoins,
-  Image,
   LayoutList,
   LayoutTemplate,
   Loader2,
@@ -40,21 +39,14 @@ const defaultTabs = [
   { id: "purchases" as AdminTabId, name: "결제 대기", icon: CreditCard },
   { id: "salesStats" as AdminTabId, name: "매출 통계", icon: BarChart3 },
   { id: "settlements" as AdminTabId, name: "정산", icon: HandCoins },
-  { id: "templates" as AdminTabId, name: "템플릿 관리", icon: FileText },
   {
-    id: "templateStudio" as AdminTabId,
-    name: "Template Studio",
+    id: "studioTemplates" as AdminTabId,
+    name: "템플릿 관리",
     icon: LayoutTemplate,
-  },
-  { id: "teamTimetableStudio" as AdminTabId, name: "Team Studio", icon: Users },
-  {
-    id: "thumbnailStudio" as AdminTabId,
-    name: "Thumbnail Studio",
-    icon: Image,
   },
   {
     id: "templateHub" as AdminTabId,
-    name: "템플릿 통합 관리 (Beta)",
+    name: "템플릿 판매 관리",
     icon: LayoutList,
   },
   { id: "artists" as AdminTabId, name: "작가 관리", icon: UserRound },
@@ -88,7 +80,9 @@ export default function AdminDashboardShell({
   const activeTab =
     currentTab && LEGACY_ADMIN_TAB_IDS.includes(currentTab)
       ? "legacy"
-      : currentTab;
+      : currentTab && STUDIO_TEMPLATE_ADMIN_TAB_IDS.includes(currentTab)
+        ? "studioTemplates"
+        : currentTab;
 
   const isAdmin = user?.isAdmin || false;
   const tabs = defaultTabs;

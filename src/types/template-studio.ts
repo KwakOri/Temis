@@ -125,6 +125,8 @@ export interface StudioThumbnailGuide {
 
 export interface StudioTemplateResources {
   webFonts?: StudioWebFontSource[];
+  /** Text without an object font inherits this registered family. */
+  defaultFontFamily?: string;
   cardsGuide?: StudioTimetableGuideResource;
   timetableGuide?: StudioTimetableGuideResource;
 }

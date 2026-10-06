@@ -98,7 +98,9 @@ import {
 } from "@/utils/template-studio/transform-commands";
 import {
   getStudioCustomFontFamilies,
+  getStudioDefaultFontFamily,
   getStudioWebFontSources,
+  setStudioWebFontSources,
 } from "@/utils/template-studio/web-fonts";
 import {
   StudioImageCropModal,
@@ -730,16 +732,7 @@ export function ThumbnailStudioClient({
     [document, fontConsumers],
   );
   const fontFamilies = useMemo(
-    () =>
-      Array.from(
-        new Set([
-          "Inter",
-          "Pretendard",
-          "SF Pro",
-          "Roboto",
-          ...getStudioCustomFontFamilies(document),
-        ]),
-      ),
+    () => getStudioCustomFontFamilies(document),
     [document],
   );
 
@@ -1231,10 +1224,7 @@ export function ThumbnailStudioClient({
       }
 
       updateDocument((draft) => {
-        draft.resources = {
-          ...draft.resources,
-          webFonts,
-        };
+        setStudioWebFontSources(draft, webFonts);
       });
       if (impacts.length > 0) {
         showStatus(
@@ -1243,6 +1233,15 @@ export function ThumbnailStudioClient({
       }
     },
     [fontConsumers, showStatus, studioStore, updateDocument],
+  );
+
+  const updateDefaultFontFamily = useCallback(
+    (defaultFontFamily: string | undefined) => {
+      updateDocument((draft) => {
+        draft.resources = { ...draft.resources, defaultFontFamily };
+      });
+    },
+    [updateDocument],
   );
 
   const commands = useThumbnailNodeCommands({
@@ -1862,6 +1861,8 @@ export function ThumbnailStudioClient({
                 onThemeChange: setTheme,
                 webFonts: {
                   sources: getStudioWebFontSources(document),
+                  defaultFontFamily: getStudioDefaultFontFamily(document),
+                  onDefaultFontFamilyChange: updateDefaultFontFamily,
                   usageBySourceId: fontUsageBySourceId,
                   onChange: updateWebFonts,
                 },
@@ -1869,7 +1870,6 @@ export function ThumbnailStudioClient({
                   isReloadDisabled: true,
                   onReloadTemplate: () => {},
                   onExportJson: () => {},
-                  onImportJson: () => {},
                 },
                 documentInfo: {
                   databaseTargetLabel: remoteTemplateId ?? "not connected",

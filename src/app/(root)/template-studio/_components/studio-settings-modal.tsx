@@ -23,7 +23,10 @@ import {
   getStudioCardsGuide,
   getStudioTimetableGuide,
 } from "@/utils/template-studio/timetable-guide";
-import { getStudioWebFontSources } from "@/utils/template-studio/web-fonts";
+import {
+  getStudioDefaultFontFamily,
+  getStudioWebFontSources,
+} from "@/utils/template-studio/web-fonts";
 
 import { StudioHexColorPicker } from "@/components/studio/inspector/studio-hex-color-picker";
 import {
@@ -54,7 +57,6 @@ interface StudioSettingsModalProps {
   onCardsGuideUpload: (file: File) => void;
   onClose: () => void;
   onExportJson: () => void;
-  onImportJson: () => void;
   onReloadTemplate: () => void;
   onThemeChange: (theme: StudioTheme) => void;
   onTimetableCapabilityChange: (
@@ -69,6 +71,7 @@ interface StudioSettingsModalProps {
   onTimetableGuideRemove: () => void;
   onTimetableGuideUpload: (file: File) => void;
   onWebFontsChange: (sources: StudioWebFontSource[]) => void;
+  onDefaultFontFamilyChange?: (family: string | undefined) => void;
   figmaImport: {
     candidates: ImportCandidate[];
     frameCandidate?: StudioFigmaFrameCandidate | null;
@@ -127,7 +130,6 @@ export function StudioSettingsModal({
   onCardsGuideUpload,
   onClose,
   onExportJson,
-  onImportJson,
   onReloadTemplate,
   onThemeChange,
   onTimetableCapabilityChange,
@@ -135,6 +137,7 @@ export function StudioSettingsModal({
   onTimetableGuideRemove,
   onTimetableGuideUpload,
   onWebFontsChange,
+  onDefaultFontFamilyChange,
   figmaImport,
 }: StudioSettingsModalProps) {
   const timetableCanvas = document.domains?.timetable?.canvas;
@@ -356,13 +359,14 @@ export function StudioSettingsModal({
         onThemeChange,
         webFonts: {
           sources: getStudioWebFontSources(document),
+          defaultFontFamily: getStudioDefaultFontFamily(document),
+          onDefaultFontFamilyChange,
           onChange: onWebFontsChange,
         },
         data: {
           isReloadDisabled,
           onReloadTemplate,
           onExportJson,
-          onImportJson,
         },
         documentInfo: {
           databaseTargetLabel,

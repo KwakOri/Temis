@@ -1,4 +1,5 @@
 import AdminProtectedRoute from "@/components/auth/AdminProtectedRoute";
+import { StudioDesktopOnly } from "@/components/studio/editor-shell/studio-desktop-only";
 
 import { ThumbnailStudioClient } from "../../_components/thumbnail-studio-client";
 
@@ -20,7 +21,9 @@ export default async function ThumbnailStudioEditPage({
 
   return (
     <AdminProtectedRoute>
-      <ThumbnailStudioClient templateId={templateId} />
+      <StudioDesktopOnly backHref="/admin/thumbnail-studio">
+        <ThumbnailStudioClient templateId={templateId} />
+      </StudioDesktopOnly>
     </AdminProtectedRoute>
   );
 }

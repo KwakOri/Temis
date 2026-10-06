@@ -74,6 +74,7 @@ export class AdminTemplateHubService {
     if (params?.offset !== undefined) query.set("offset", String(params.offset));
     if (params?.search) query.set("search", params.search);
     if (params?.engine) query.set("engine", params.engine);
+    if (params?.category) query.set("category", params.category);
     if (params?.publicationStatus)
       query.set("publicationStatus", params.publicationStatus);
     if (params?.salesType) query.set("salesType", params.salesType);

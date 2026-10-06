@@ -2,12 +2,14 @@
 
 import AdminSectionTabs from "@/components/admin/AdminSectionTabs";
 import TeamManagement from "@/components/admin/TeamManagement";
+import TemplateManagement from "@/components/admin/TemplateManagement";
 import TeamTemplateManagement from "@/components/admin/TeamTemplateManagement";
 import ThumbnailManagement from "@/components/admin/ThumbnailManagement";
 import { LegacyAssetList } from "@/components/admin/legacy-template-assets/LegacyAssetList";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const sections = [
+  { value: "templates", label: "템플릿 관리" },
   { value: "thumbnails", label: "썸네일 관리" },
   { value: "teamTemplates", label: "팀 템플릿" },
   { value: "assets", label: "레거시 에셋" },
@@ -40,7 +42,9 @@ export default function LegacyManagement({
         id={`legacy-panel-${section}`}
         aria-labelledby={`legacy-tab-${section}`}
       >
-        {section === "thumbnails" ? (
+        {section === "templates" ? (
+          <TemplateManagement templateEngine="legacy" />
+        ) : section === "thumbnails" ? (
           <ThumbnailManagement />
         ) : section === "teamTemplates" ? (
           <TeamTemplateManagement />

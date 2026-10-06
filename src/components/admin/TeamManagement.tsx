@@ -3,7 +3,7 @@
 import AdminTabHeader from "@/components/admin/AdminTabHeader";
 import {
   useAddTeamMember,
-  useAllTeams,
+  useAdminTeamList,
   useCreateTeam,
   useDeleteTeam,
   useRemoveTeamMember,
@@ -83,10 +83,11 @@ const TeamManagement = ({ scope = "all" }: { scope?: AdminTeamScope }) => {
 
   // React Query hooks
   const {
-    data: teams = [],
+    data: teamList,
     isLoading: teamsLoading,
     error: teamsError,
-  } = useAllTeams(scope);
+  } = useAdminTeamList(scope);
+  const teams = useMemo(() => teamList?.teams ?? [], [teamList]);
 
   const { data: searchedUsers = [], isLoading: usersLoading } = useUserSearch(
     userSearchQuery,
@@ -317,6 +318,12 @@ const TeamManagement = ({ scope = "all" }: { scope?: AdminTeamScope }) => {
         </button>
       </AdminTabHeader>
 
+      {teamList?.studioConnectionsAvailable === false && (
+        <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          새 에디터 팀 연결이 아직 준비되지 않았습니다. 기존 팀·멤버 관리는
+          계속 사용할 수 있으며, 새 에디터 연결에는 DB 업데이트가 필요합니다.
+        </p>
+      )}
       <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
         팀 이름·멤버·활성 상태는 공유됩니다. 혼합 팀을 수정하거나 삭제하면
         레거시와 새 에디터 양쪽에 적용됩니다.

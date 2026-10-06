@@ -5,6 +5,7 @@ export type AdminTabId =
   | "salesStats"
   | "settlements"
   | "templates"
+  | "studioTemplates"
   | "templateStudio"
   | "teamTimetableStudio"
   | "legacyTemplateAssets"
@@ -31,6 +32,7 @@ export const ADMIN_TAB_SEGMENT_BY_ID: Record<AdminTabId, string> = {
   salesStats: "sales-stats",
   settlements: "settlements",
   templates: "templates",
+  studioTemplates: "studio-templates",
   templateStudio: "template-studio",
   teamTimetableStudio: "team-timetable-studio",
   legacyTemplateAssets: "legacy-template-assets",
@@ -83,8 +85,16 @@ export const getAdminTabIdFromQuery = (
 
 export const LEGACY_ADMIN_TAB_IDS: readonly AdminTabId[] = [
   "legacy",
+  "templates",
   "thumbnails",
   "teamTemplates",
   "legacyTemplateAssets",
   "teams",
+];
+
+export const STUDIO_TEMPLATE_ADMIN_TAB_IDS: readonly AdminTabId[] = [
+  "studioTemplates",
+  "templateStudio",
+  "teamTimetableStudio",
+  "thumbnailStudio",
 ];

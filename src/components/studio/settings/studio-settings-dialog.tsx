@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 // jsx: "preserve" 환경의 체크 스크립트가 클래식 변환을 타므로 React 심볼이 필요하다.
 import React, {
   useEffect,
+  useRef,
   useState,
   type ComponentType,
   type ReactNode,
@@ -103,6 +104,11 @@ export function StudioSettingsDialog({
   compactMobile = false,
   onClose,
 }: StudioSettingsDialogProps) {
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
   const sections = [
     ...domainSections,
     ...buildStudioCommonSettingsSections(common),
@@ -113,14 +119,60 @@ export function StudioSettingsDialog({
 
   useEffect(() => {
     if (!open) return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const previousFocus = window.document.activeElement;
+    dialog
+      .querySelector<HTMLButtonElement>('[aria-label="Close settings"]')
+      ?.focus();
 
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+      const targetModal =
+        event.target instanceof Element
+          ? event.target.closest('[aria-modal="true"]')
+          : null;
+      // A nested picker owns its Escape and focus until it closes.
+      if (targetModal && targetModal !== dialog) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const controls = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          "button, input, select, textarea, a[href], [tabindex]",
+        ),
+      ).filter(
+        (control) =>
+          control.tabIndex >= 0 &&
+          !control.matches(":disabled") &&
+          control.getClientRects().length > 0,
+      );
+      const first = controls[0];
+      const last = controls.at(-1);
+      const active = window.document.activeElement;
+      if (!first || !last) {
+        event.preventDefault();
+        return;
+      }
+      if (!dialog.contains(active) || (event.shiftKey && active === first)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
 
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [onClose, open]);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected)
+        previousFocus.focus();
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -132,6 +184,7 @@ export function StudioSettingsDialog({
       }}
     >
       <section
+        ref={dialogRef}
         aria-describedby="studio-settings-description"
         aria-labelledby="studio-settings-title"
         aria-modal="true"
@@ -155,7 +208,6 @@ export function StudioSettingsDialog({
           </div>
           <button
             aria-label="Close settings"
-            autoFocus
             className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
             title="Close settings"
             type="button"

@@ -382,6 +382,13 @@ export const resolveStudioTimetableDayVariantStatus = (
 ): StudioTimetableStatusId => {
   const timetable = document.domains?.timetable;
   const entries = values.timetable.entriesByDay[dayId] ?? [];
+  const firstStatusId = entries[0]?.statusId;
+  if (
+    firstStatusId &&
+    timetable?.statuses[firstStatusId]?.baseStatus === "offline"
+  ) {
+    return firstStatusId;
+  }
   if (
     entries.length > 1 &&
     isStudioTimetableStatusAvailable(timetable, "multi")

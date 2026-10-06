@@ -7,6 +7,7 @@ import {
   getAdminTabIdBySegment,
   getAdminPathByTabId,
   LEGACY_ADMIN_TAB_IDS,
+  STUDIO_TEMPLATE_ADMIN_TAB_IDS,
 } from "../src/lib/adminTabs";
 
 assert.equal(getAdminTeamUsage(false, false), "unconnected");
@@ -28,6 +29,7 @@ for (const usage of ["legacy", "studio", "mixed", "unconnected"] as const) {
 assert.equal(getAdminPathByTabId("studioTeams"), "/admin/studio-teams");
 assert.equal(getAdminTabIdBySegment("legacy"), "legacy");
 for (const tab of [
+  "templates",
   "thumbnails",
   "teams",
   "teamTemplates",
@@ -38,5 +40,11 @@ for (const tab of [
     tab,
   );
   assert.equal(LEGACY_ADMIN_TAB_IDS.includes(tab), true);
+}
+assert.equal(getAdminPathByTabId("studioTemplates"), "/admin/studio-templates");
+for (const tab of ["studioTemplates", "templateStudio", "thumbnailStudio", "teamTimetableStudio"] as const) {
+  assert.equal(getAdminTabIdBySegment(getAdminPathByTabId(tab).split("/")[2]), tab);
+  assert.equal(STUDIO_TEMPLATE_ADMIN_TAB_IDS.includes(tab), true);
+  assert.equal(LEGACY_ADMIN_TAB_IDS.includes(tab), false);
 }
 console.log("Admin team classification and navigation checks passed.");

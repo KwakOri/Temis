@@ -216,7 +216,10 @@ import { validateStudioDocument } from "@/utils/template-studio/validator";
 import { applyStudioFigmaGridCandidate } from "@/utils/template-studio/figma-import/figma-component-import";
 import { applyStudioFigmaFrameImport } from "@/utils/template-studio/figma-import/figma-frame-import";
 import { applyStudioFigmaReviewEdits } from "@/utils/template-studio/figma-import/figma-review-edits";
-import { getStudioCustomFontFamilies } from "@/utils/template-studio/web-fonts";
+import {
+  getStudioCustomFontFamilies,
+  setStudioWebFontSources,
+} from "@/utils/template-studio/web-fonts";
 import type { StudioFigmaFrameCandidate } from "@/types/template-studio-figma";
 
 import {
@@ -744,7 +747,6 @@ export function TemplateStudioClient({
     initialRemoteTemplateId,
   );
   const [componentLabelDraft, setComponentLabelDraft] = useState("");
-  const jsonImportInputRef = useRef<HTMLInputElement | null>(null);
   const autoLoadedRemoteTemplateIdRef = useRef<string | null>(null);
   const visibleLayerNodeIdsRef = useRef<string[]>([]);
   const {
@@ -1248,16 +1250,7 @@ export function TemplateStudioClient({
     [document.assets],
   );
   const fontFamilies = useMemo(
-    () =>
-      Array.from(
-        new Set([
-          "Inter",
-          "Pretendard",
-          "SF Pro",
-          "Roboto",
-          ...getStudioCustomFontFamilies(document),
-        ]),
-      ),
+    () => getStudioCustomFontFamilies(document),
     [document],
   );
   const inputConsumers = useMemo(
@@ -1497,8 +1490,7 @@ export function TemplateStudioClient({
   /**
    * 문서 한 벌을 갈아끼운다.
    *
-   * 불러오기와 JSON 가져오기가 같은 함수를 쓴다. 한쪽에만 초기화를 더하면 두
-   * 경로에서 편집기 상태가 달라진다.
+   * 불러온 문서와 선택·미리보기 상태를 함께 초기화한다.
    */
   const replaceEditorDocument = useCallback(
     (
@@ -1572,7 +1564,6 @@ export function TemplateStudioClient({
   const {
     ensureTemplateId,
     exportJson: exportStudioJson,
-    importJsonFile: importStudioJsonFile,
     loadRemoteTemplate,
     saveDraft: saveDatabaseDraft,
     publish: publishRemoteDocument,
@@ -1991,10 +1982,13 @@ export function TemplateStudioClient({
 
   const updateWebFonts = (webFonts: StudioWebFontSource[]) => {
     updateDocument((nextDocument) => {
-      nextDocument.resources = {
-        ...nextDocument.resources,
-        webFonts,
-      };
+      setStudioWebFontSources(nextDocument, webFonts);
+    });
+  };
+
+  const updateDefaultFontFamily = (defaultFontFamily: string | undefined) => {
+    updateDocument((nextDocument) => {
+      nextDocument.resources = { ...nextDocument.resources, defaultFontFamily };
     });
   };
 
@@ -3932,7 +3926,6 @@ export function TemplateStudioClient({
                 setSettingsOpen(false);
               }}
               onExportJson={exportStudioJson}
-              onImportJson={() => jsonImportInputRef.current?.click()}
               onReloadTemplate={() => {
                 void loadRemoteTemplate();
               }}
@@ -3942,6 +3935,7 @@ export function TemplateStudioClient({
               onTimetableGuideRemove={removeTimetableGuide}
               onTimetableGuideUpload={uploadTimetableGuide}
               onWebFontsChange={updateWebFonts}
+              onDefaultFontFamilyChange={updateDefaultFontFamily}
               figmaImport={{
                 candidates: figmaCandidates,
                 frameCandidate: figmaFrameCandidate,
@@ -4125,18 +4119,6 @@ export function TemplateStudioClient({
             }
             hiddenControls={
               <>
-                <input
-                  accept="application/json,.json"
-                  className="hidden"
-                  ref={jsonImportInputRef}
-                  type="file"
-                  onChange={(event) => {
-                    const file = event.currentTarget.files?.[0];
-                    event.currentTarget.value = "";
-                    if (!file) return;
-                    void importStudioJsonFile(file);
-                  }}
-                />
                 {document.domains.timetable.team && (
                   <div
                     className="pointer-events-none fixed"

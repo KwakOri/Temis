@@ -3,7 +3,10 @@ import type {
   StudioTemplateDocument,
   StudioWebFontSource,
 } from "@/types/template-studio";
-import { parseStudioWebFontCss } from "@/utils/template-studio/web-fonts";
+import {
+  getStudioDefaultFontFamily,
+  parseStudioWebFontCss,
+} from "@/utils/template-studio/web-fonts";
 import type { StudioTextEffectPreset } from "@/utils/thumbnail-studio/text-effect-presets";
 
 export interface ThumbnailStudioFontConsumerReference {
@@ -81,12 +84,17 @@ const addNodeFontConsumers = (
   document: StudioTemplateDocument,
   consumers: ThumbnailStudioFontConsumers,
   node: StudioGraphNode,
+  defaultFontFamily: string | undefined,
 ) => {
   if (node.type !== "text" && node.type !== "flexibleText") return;
   const fontFamily = node.styleId
     ? document.styles[node.styleId]?.fontFamily
     : undefined;
-  getThumbnailStudioFontFamilyReferences(fontFamily).forEach((family) => {
+  getThumbnailStudioFontFamilyReferences(
+    typeof fontFamily === "string" && fontFamily.trim()
+      ? fontFamily
+      : defaultFontFamily,
+  ).forEach((family) => {
     addConsumer(consumers, family, {
       id: `node:${node.id}:font-family`,
       nodeId: node.id,
@@ -124,8 +132,9 @@ export const collectThumbnailStudioFontConsumers = (
   customPresets: readonly StudioTextEffectPreset[] = [],
 ): ThumbnailStudioFontConsumers => {
   const consumers: ThumbnailStudioFontConsumers = {};
+  const defaultFontFamily = getStudioDefaultFontFamily(document);
   Object.values(document.graph.nodes).forEach((node) =>
-    addNodeFontConsumers(document, consumers, node),
+    addNodeFontConsumers(document, consumers, node, defaultFontFamily),
   );
   addPresetFontConsumers(consumers, customPresets);
   return consumers;

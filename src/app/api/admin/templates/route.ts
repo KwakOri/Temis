@@ -16,6 +16,14 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get("offset") || "0");
     const visibility = searchParams.get("visibility");
     const search = searchParams.get("search")?.trim() || "";
+    const engine = searchParams.get("engine");
+
+    if (engine && engine !== "legacy" && engine !== "studio") {
+      return NextResponse.json(
+        { error: "engine 파라미터는 legacy 또는 studio 이어야 합니다." },
+        { status: 400 },
+      );
+    }
 
     if (visibility && visibility !== "public" && visibility !== "private") {
       return NextResponse.json(
@@ -34,6 +42,8 @@ export async function GET(request: NextRequest) {
       .from("templates")
       .select("*", { count: "exact", head: true });
 
+    if (engine) totalCountQuery = totalCountQuery.eq("template_engine", engine);
+
     if (visibilityFilter !== null) {
       totalCountQuery = totalCountQuery.eq("is_public", visibilityFilter);
     }
@@ -51,10 +61,12 @@ export async function GET(request: NextRequest) {
     }
 
     // 공개 템플릿 개수 조회
-    const { count: publicCount, error: publicCountError } = await supabase
+    let publicCountQuery = supabase
       .from("templates")
       .select("*", { count: "exact", head: true })
       .eq("is_public", true);
+    if (engine) publicCountQuery = publicCountQuery.eq("template_engine", engine);
+    const { count: publicCount, error: publicCountError } = await publicCountQuery;
 
     if (publicCountError) {
       console.error("Supabase public count error:", publicCountError);
@@ -62,10 +74,12 @@ export async function GET(request: NextRequest) {
     }
 
     // 비공개 템플릿 개수 조회
-    const { count: privateCount, error: privateCountError } = await supabase
+    let privateCountQuery = supabase
       .from("templates")
       .select("*", { count: "exact", head: true })
       .eq("is_public", false);
+    if (engine) privateCountQuery = privateCountQuery.eq("template_engine", engine);
+    const { count: privateCount, error: privateCountError } = await privateCountQuery;
 
     if (privateCountError) {
       console.error("Supabase private count error:", privateCountError);
@@ -86,6 +100,8 @@ export async function GET(request: NextRequest) {
       `
       )
       .range(offset, offset + limit - 1);
+
+    if (engine) templatesQuery = templatesQuery.eq("template_engine", engine);
 
     if (visibilityFilter !== null) {
       templatesQuery = templatesQuery.eq("is_public", visibilityFilter);

@@ -33,6 +33,12 @@ export const useAllTeams = (scope: AdminTeamScope = "all") => {
   });
 };
 
+export const useAdminTeamList = (scope: AdminTeamScope) => useQuery({
+  queryKey: [...TEAM_MANAGEMENT_QUERY_KEYS.scopedList(scope), "availability"],
+  queryFn: () => teamManagementService.getTeamList(scope),
+  staleTime: 2 * 60 * 1000,
+});
+
 // 특정 팀 조회
 export const useTeamDetail = (teamId: string, enabled = true) => {
   return useQuery({

@@ -2,6 +2,7 @@
 
 import { TemplateStudioTemplateInfoDialog } from "@/app/(root)/admin/template-studio/_components/template-studio-template-info-dialog";
 import AdminTabHeader from "@/components/admin/AdminTabHeader";
+import TemplateSalesTypeControl from "@/components/admin/TemplateSalesTypeControl";
 import {
   useAdminArtists,
   useUpdateTemplateArtists,
@@ -56,7 +57,9 @@ type TemplateTab = "public" | "private";
 
 const ITEMS_PER_PAGE = 20;
 
-export default function TemplateManagement() {
+export default function TemplateManagement({ templateEngine }: {
+  templateEngine?: "legacy" | "studio";
+} = {}) {
   const router = useRouter();
   const [editingInfo, setEditingInfo] =
     useState<TemplateWithShopTemplateAndPlans | null>(null);
@@ -99,6 +102,7 @@ export default function TemplateManagement() {
     offset: (currentPage - 1) * ITEMS_PER_PAGE,
     visibility: activeTab,
     search: debouncedSearchTerm || undefined,
+    engine: templateEngine,
   });
 
   const templates = useMemo(
@@ -1010,6 +1014,8 @@ export default function TemplateManagement() {
                           ID 보기
                         </button>
 
+                        <TemplateSalesTypeControl templateId={template.id} name={template.name} isPublic={template.is_public} />
+
                         {/* 상품 관리 버튼들 - 공개 템플릿만 */}
                         {template.is_public && (
                           <>
@@ -1196,6 +1202,7 @@ export default function TemplateManagement() {
 
                   {/* 버튼들 */}
                   <div className="space-y-2">
+                    <TemplateSalesTypeControl templateId={template.id} name={template.name} isPublic={template.is_public} />
                     {template.is_public && (
                       <div className="grid grid-cols-2 gap-2 rounded-lg border border-tertiary bg-primary/40 p-2">
                         {!hasProduct(template) ? (

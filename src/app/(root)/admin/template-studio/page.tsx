@@ -1,4 +1,4 @@
-import { TemplateStudioAdminListClient } from "@/app/(root)/admin/template-studio/_components/template-studio-admin-list-client";
+import StudioTemplateManagement from "@/components/admin/StudioTemplateManagement";
 import AdminDashboardShell from "@/components/admin/AdminDashboardShell";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
@@ -8,7 +8,7 @@ export default function TemplateStudioAdminPage() {
   return (
     <ProtectedRoute>
       <AdminDashboardShell>
-        <TemplateStudioAdminListClient />
+        <StudioTemplateManagement initialSection="timetable" />
       </AdminDashboardShell>
     </ProtectedRoute>
   );

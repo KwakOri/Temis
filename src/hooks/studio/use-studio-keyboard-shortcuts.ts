@@ -137,7 +137,11 @@ export function useStudioKeyboardShortcuts({
       }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (disabled) {
+      if (event.defaultPrevented) return;
+      const hasOpenModal = Array.from(
+        window.document.querySelectorAll<HTMLElement>('[aria-modal="true"]'),
+      ).some((modal) => modal.getClientRects().length > 0);
+      if (disabled || hasOpenModal) {
         const isSaveShortcut =
           (event.metaKey || event.ctrlKey) &&
           !event.altKey &&

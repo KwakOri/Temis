@@ -1,7 +1,13 @@
 import { requireAdmin } from "@/lib/auth/middleware";
-import { listAdminTeams } from "@/services/server/adminTeamManagementService";
+import { supabaseAdminServer } from "@/lib/supabase-admin-server";
+import { createAdminTeamManagementService } from "@/services/server/adminTeamManagementService";
 import { teamService } from "@/services/server/teamService";
 import { NextRequest, NextResponse } from "next/server";
+
+const adminTeams = createAdminTeamManagementService({
+  db: supabaseAdminServer,
+  getAllTeams: () => teamService.getAllTeams(supabaseAdminServer),
+});
 
 // Get all teams (Admin only)
 export async function GET(request: NextRequest) {
@@ -18,8 +24,8 @@ export async function GET(request: NextRequest) {
         { status: 400 },
       );
     }
-    const teams = await listAdminTeams(scope);
-    return NextResponse.json({ success: true, teams });
+    const result = await adminTeams.list(scope);
+    return NextResponse.json({ success: true, ...result });
   } catch (error) {
     console.error("Error fetching teams:", error);
     return NextResponse.json(
