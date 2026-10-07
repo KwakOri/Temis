@@ -1,11 +1,16 @@
 "use client";
 
+import { TemplateStudioTemplateInfoDialog } from "@/app/(root)/admin/template-studio/_components/template-studio-template-info-dialog";
+import {
+  useAdminThumbnails,
+  useRenameAdminThumbnail,
+} from "@/hooks/query/useAdminThumbnails";
 import AdminTabHeader from "@/components/admin/AdminTabHeader";
 import { AdminThumbnailService } from "@/services/admin/thumbnailService";
 import type { Thumbnail } from "@/types/admin";
-import { ExternalLink, Image, Loader2, Plus, X } from "lucide-react";
+import { ExternalLink, Image, Loader2, Pencil, Plus, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 interface CreateThumbnailForm {
   name: string;
@@ -22,15 +27,23 @@ export default function ThumbnailManagement() {
   const [activeTab, setActiveTab] = useState<ThumbnailTab>("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [thumbnails, setThumbnails] = useState<Thumbnail[]>([]);
-  const [pagination, setPagination] = useState<{
-    total: number;
-    limit: number;
-    offset: number;
-  } | null>(null);
-  const [loading, setLoading] = useState(false);
+  const thumbnailsQuery = useAdminThumbnails({
+    limit: ITEMS_PER_PAGE,
+    offset: (currentPage - 1) * ITEMS_PER_PAGE,
+  });
+  const thumbnails = useMemo(
+    () => thumbnailsQuery.data?.thumbnails ?? [],
+    [thumbnailsQuery.data],
+  );
+  const pagination = thumbnailsQuery.data?.pagination;
+  const loading = thumbnailsQuery.isLoading;
+  const [editingInfo, setEditingInfo] = useState<Thumbnail | null>(null);
+  const [infoTrigger, setInfoTrigger] = useState<HTMLElement | null>(null);
+  const renameMutation = useRenameAdminThumbnail();
   const [createLoading, setCreateLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [operationError, setError] = useState("");
+  const error = operationError ||
+    (thumbnailsQuery.error instanceof Error ? thumbnailsQuery.error.message : "");
   const [createError, setCreateError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -47,27 +60,10 @@ export default function ThumbnailManagement() {
     is_public: false,
   });
 
-  // 썸네일 목록 불러오기
-  const fetchThumbnails = async () => {
-    setLoading(true);
+  const fetchThumbnails = () => {
     setError("");
-    try {
-      const response = await AdminThumbnailService.getThumbnails({
-        limit: ITEMS_PER_PAGE,
-        offset: (currentPage - 1) * ITEMS_PER_PAGE,
-      });
-      setThumbnails(response.thumbnails);
-      setPagination(response.pagination);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
+    return thumbnailsQuery.refetch();
   };
-
-  useEffect(() => {
-    fetchThumbnails();
-  }, [currentPage]);
 
   // 필터링된 썸네일 목록 with search
   const filteredThumbnails = useMemo(() => {
@@ -422,6 +418,18 @@ export default function ThumbnailManagement() {
                         <div className="text-sm font-medium text-gray-900">
                           {thumbnail.name}
                         </div>
+                        <button
+                          type="button"
+                          aria-label={`${thumbnail.name} 이름 수정`}
+                          onClick={(event) => {
+                            renameMutation.reset();
+                            setEditingInfo(thumbnail);
+                            setInfoTrigger(event.currentTarget);
+                          }}
+                          className="mt-1 inline-flex items-center gap-1 text-xs text-secondary hover:underline"
+                        >
+                          <Pencil className="h-3 w-3" />이름 수정
+                        </button>
                         {thumbnail.description && (
                           <div className="text-sm text-gray-500 truncate max-w-xs">
                             {thumbnail.description}
@@ -910,6 +918,27 @@ export default function ThumbnailManagement() {
           </div>
         </div>
       )}
+      <TemplateStudioTemplateInfoDialog
+        template={editingInfo}
+        restoreFocusElement={infoTrigger}
+        isSubmitting={renameMutation.isPending}
+        error={renameMutation.error instanceof Error ? renameMutation.error.message : null}
+        onClose={() => {
+          if (renameMutation.isPending) return;
+          setEditingInfo(null);
+          setInfoTrigger(null);
+          renameMutation.reset();
+        }}
+        onSubmit={(name) => {
+          if (!editingInfo) return;
+          renameMutation.mutate({ id: editingInfo.id, name }, {
+            onSuccess: () => {
+              setEditingInfo(null);
+              setInfoTrigger(null);
+            },
+          });
+        }}
+      />
     </div>
   );
 }

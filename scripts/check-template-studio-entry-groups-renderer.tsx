@@ -17,6 +17,7 @@ import {
 } from "./helpers/studio-timetable-recipe";
 import {
   addStudioTimetableEntry,
+  setStudioTimetableDayBaseStatus,
   setStudioTimetableEntryField,
 } from "../src/utils/template-studio/timetable-runtime";
 
@@ -80,6 +81,42 @@ assert.equal(
   false,
   "Timetable runtime must not scale a full card per entry.",
 );
+
+const offlineValues = setStudioTimetableDayBaseStatus(
+  document,
+  runtimeValues,
+  dayId,
+  "offline",
+);
+const offlineMarkup = renderToStaticMarkup(
+  <StudioTimetablePreview
+    document={createTimetableGraphFixture(document)}
+    runtimeValues={offlineValues}
+  />,
+);
+assert.equal(
+  offlineValues.timetable.entriesByDay[dayId].length,
+  2,
+  "Offline must retain both authored entries.",
+);
+assert.equal(
+  countOccurrences(offlineMarkup, "Second authored entry"),
+  0,
+  "The Offline canvas must render one card even while it retains two entries.",
+);
+const restoredMarkup = renderToStaticMarkup(
+  <StudioTimetablePreview
+    document={createTimetableGraphFixture(document)}
+    runtimeValues={setStudioTimetableDayBaseStatus(
+      document,
+      offlineValues,
+      dayId,
+      "online",
+    )}
+  />,
+);
+assert.equal(countOccurrences(restoredMarkup, "First authored entry"), 1);
+assert.equal(countOccurrences(restoredMarkup, "Second authored entry"), 1);
 
 const profileDocument = createSampleStudioDocument();
 const profileTimetable = profileDocument.domains!.timetable!;

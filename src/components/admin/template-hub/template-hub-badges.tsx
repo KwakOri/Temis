@@ -27,8 +27,8 @@ const badge = cva(
 type BadgeTone = NonNullable<VariantProps<typeof badge>["tone"]>;
 
 const ENGINE_LABELS: Record<TemplateEngine, string> = {
-  legacy: "Legacy",
-  studio: "Studio",
+  legacy: "레거시",
+  studio: "스튜디오",
 };
 
 export const EngineBadge = ({ engine }: { engine: TemplateEngine }) => (
@@ -62,7 +62,7 @@ export const PublicationStatusBadge = ({
  * "일반 판매/맞춤 제작"으로 표시한다.
  */
 const SALES_TYPE_LABELS: Record<TemplateSalesType, string> = {
-  general: "일반 판매",
+  general: "기성품",
   custom: "맞춤 제작",
 };
 
@@ -75,8 +75,8 @@ export const SalesTypeBadge = ({ salesType }: { salesType: TemplateSalesType }) 
 export const SALE_STATUS_LABELS: Record<TemplateSaleStatus, string> = {
   selling: "판매 중",
   ready: "판매 준비 완료",
-  blocked: "판매 불가",
-  unconfigured: "상품 미구성",
+  blocked: "준비 필요",
+  unconfigured: "상품 미등록",
 };
 
 const SALE_STATUS_TONES: Record<TemplateSaleStatus, BadgeTone> = {

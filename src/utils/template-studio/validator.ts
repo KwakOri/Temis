@@ -1189,7 +1189,14 @@ const validateGraphNodeAssetSlots = (
 
   if (isStudioStatusCardBackgroundNode(node)) {
     const slot = node.assetSlots?.asset;
-    if (!slot?.assetId && !slot?.inputId) {
+    const baseColor = node.styleId
+      ? document.styles[node.styleId]?.backgroundColor
+      : undefined;
+    if (
+      !slot?.assetId &&
+      !slot?.inputId &&
+      (!baseColor || baseColor === "transparent")
+    ) {
       diagnostics.push(
         createDiagnostic(
           "warning",
@@ -1886,6 +1893,10 @@ const validateTimetableDomain = (
     );
   }
 
+  Object.values(timetable.team?.memberComponentIds ?? {}).forEach(
+    (componentId) => referencedComponentIds.add(componentId),
+  );
+
   Object.entries(timetable.components).forEach(([componentId, component]) => {
     if (referencedComponentIds.has(componentId)) return;
     diagnostics.push(
@@ -1893,7 +1904,7 @@ const validateTimetableDomain = (
         "warning",
         `timetable-component-unused:${componentId}`,
         "Unused component set",
-        `${component.label} is not the default and is not assigned to any timetable day.`,
+        `${component.label} is not the default and is not assigned to any timetable day or team member.`,
       ),
     );
   });
@@ -2903,7 +2914,10 @@ export const validateStudioDocument = (
     );
     const consumers = inputConsumers[input.id] ?? [];
 
-    if (consumers.length === 0) {
+    if (
+      consumers.length === 0 &&
+      input.id !== document.domains?.timetable?.team?.memberImageInputId
+    ) {
       diagnostics.push(
         createDiagnostic(
           "warning",

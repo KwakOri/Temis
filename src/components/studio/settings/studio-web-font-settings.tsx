@@ -15,6 +15,8 @@ import {
 
 export interface StudioWebFontSettingsProps {
   sources: StudioWebFontSource[];
+  defaultFontFamily?: string;
+  onDefaultFontFamilyChange?: (family: string | undefined) => void;
   usageBySourceId?: Record<string, string[]>;
   onChange: (sources: StudioWebFontSource[]) => void;
 }
@@ -27,6 +29,8 @@ export interface StudioWebFontSettingsProps {
  */
 export function StudioWebFontSettings({
   sources,
+  defaultFontFamily,
+  onDefaultFontFamilyChange,
   usageBySourceId,
   onChange,
 }: StudioWebFontSettingsProps) {
@@ -37,6 +41,20 @@ export function StudioWebFontSettings({
   const fontParseResult = useMemo(
     () => (fontCss.trim() ? parseStudioWebFontCss(fontCss) : null),
     [fontCss],
+  );
+  const fontFamilies = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          sources
+            .filter((source) => source.enabled)
+            .flatMap((source) => {
+              const parsed = parseStudioWebFontCss(source.cssText);
+              return parsed.ok ? parsed.families : [];
+            }),
+        ),
+      ),
+    [sources],
   );
 
   const resetFontEditor = () => {
@@ -75,6 +93,33 @@ export function StudioWebFontSettings({
           {sources.length} sources
         </span>
       </div>
+
+      {onDefaultFontFamilyChange ? (
+        <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+          <span>Default Font</span>
+          <select
+            className={STUDIO_SETTINGS_FIELD_CLASS}
+            value={
+              fontFamilies.includes(defaultFontFamily ?? "")
+                ? defaultFontFamily
+                : ""
+            }
+            onChange={(event) =>
+              onDefaultFontFamilyChange(event.currentTarget.value || undefined)
+            }
+          >
+            <option value="">none</option>
+            {fontFamilies.map((family) => (
+              <option key={family} value={family}>
+                {family}
+              </option>
+            ))}
+          </select>
+          <span className="text-[10px] font-medium text-[var(--fg3)]">
+            Used by text objects without an individual font.
+          </span>
+        </label>
+      ) : null}
 
       {sources.length > 0 ? (
         <div className="grid gap-2">

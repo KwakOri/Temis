@@ -30,6 +30,65 @@ export function getDefaultTeamStudioBindings(
   );
 }
 
+/** Keep member identities and their designs stable when membership or order changes. */
+export function prepareConnectedTeamStudioPreview(
+  week: TeamStudioWeek,
+  bindings: Record<string, number>,
+) {
+  if (week.members.length > 12)
+    throw new Error("팀 시간표는 최대 12명까지 지원합니다.");
+  const team = week.document.domains!.timetable!.team!;
+  const validUsers = new Set(week.members.map((member) => member.userId));
+  const assigned = new Set<number>();
+  const nextBindings: Record<string, number> = {};
+  const slots: string[] = [];
+  for (const slot of team.memberSlotIds) {
+    const id = bindings[slot];
+    if (!validUsers.has(id) || assigned.has(id)) continue;
+    slots.push(slot);
+    nextBindings[slot] = id;
+    assigned.add(id);
+  }
+  for (const member of week.members) {
+    if (assigned.has(member.userId)) continue;
+    const reusable = team.memberSlotIds.find(
+      (slot) => !slots.includes(slot) && !bindings[slot],
+    );
+    const slot = reusable ?? `member-user-${member.userId}`;
+    slots.push(slot);
+    nextBindings[slot] = member.userId;
+    assigned.add(member.userId);
+  }
+  const definition = {
+    ...team,
+    memberSlotIds: slots.length ? slots : [team.memberSlotIds[0]],
+    ...(team.memberComponentIds
+      ? {
+          memberComponentIds: Object.fromEntries(
+            Object.entries(team.memberComponentIds).filter(([slot]) =>
+              slots.includes(slot),
+            ),
+          ),
+        }
+      : {}),
+  };
+  const document = {
+    ...week.document,
+    domains: {
+      ...week.document.domains,
+      timetable: {
+        ...week.document.domains!.timetable!,
+        team: definition,
+      },
+    },
+  };
+  return {
+    ...createConnectedTeamStudioValues({ ...week, document }, nextBindings),
+    definition,
+    bindings: nextBindings,
+  };
+}
+
 export function createConnectedTeamStudioValues(
   week: TeamStudioWeek,
   bindings: Record<string, number>,

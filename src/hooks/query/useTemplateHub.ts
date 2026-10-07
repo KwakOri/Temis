@@ -20,7 +20,7 @@ import {
  */
 const invalidateTemplateHubQueries = (
   queryClient: ReturnType<typeof useQueryClient>,
-  templateId: string
+  templateId: string,
 ) => {
   queryClient.invalidateQueries({ queryKey: queryKeys.admin.templateHub() });
   queryClient.invalidateQueries({
@@ -28,6 +28,9 @@ const invalidateTemplateHubQueries = (
   });
   // 기존 관리 화면과 공용 상품 페이지가 같은 템플릿을 보고 있을 수 있다.
   queryClient.invalidateQueries({ queryKey: queryKeys.admin.templates() });
+  queryClient.invalidateQueries({
+    queryKey: queryKeys.admin.templateStudioTemplates(),
+  });
   queryClient.invalidateQueries({
     queryKey: queryKeys.admin.template(templateId),
   });

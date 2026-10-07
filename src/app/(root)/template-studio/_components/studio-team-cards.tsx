@@ -9,7 +9,7 @@ import {
 } from "@/utils/template-studio/team-timetable";
 import { STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID } from "@/utils/template-studio/timetable-graph-presets";
 import { resolveStudioTimetableGraphGeometry } from "@/utils/template-studio/timetable-graph-commands";
-import { getStudioTimetableDayComponent } from "@/utils/template-studio/component-sets";
+import { getStudioTeamMemberComponent } from "@/utils/template-studio/component-sets";
 import { getStudioTimetableComponentFrame } from "@/utils/template-studio/entry-groups";
 import { resolveStudioTimetableComponentVariant } from "@/utils/template-studio/timetable-runtime";
 import { createStudioStatusCardBackgroundSlotResolver } from "@/utils/template-studio/status-card-background";
@@ -50,7 +50,11 @@ export function StudioTeamCards({
         const day = runtimeValues.team?.members[cell.slotId]?.days[cell.dayId];
         const count =
           day?.status === "online" ? Math.max(1, day.entries.length) : 1;
-        const component = getStudioTimetableDayComponent(document, cell.dayId);
+        const component = getStudioTeamMemberComponent(
+          document,
+          cell.slotId,
+          cell.dayId,
+        );
         const frame = getStudioTimetableComponentFrame(document, component);
         return (
           <React.Fragment key={`${cell.slotId}:${cell.dayId}`}>

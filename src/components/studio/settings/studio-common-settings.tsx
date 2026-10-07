@@ -7,7 +7,6 @@ import {
   Palette,
   RefreshCw,
   Type,
-  Upload,
 } from "lucide-react";
 // jsx: "preserve" 환경의 체크 스크립트가 클래식 변환을 타므로 React 심볼이 필요하다.
 import React from "react";
@@ -24,6 +23,8 @@ export interface StudioCommonSettingsModel {
   onThemeChange: (theme: StudioSettingsTheme) => void;
   webFonts: {
     sources: StudioWebFontSource[];
+    defaultFontFamily?: string;
+    onDefaultFontFamilyChange?: (family: string | undefined) => void;
     /** optional document-specific usage details, used by Thumbnail Studio */
     usageBySourceId?: Record<string, string[]>;
     onChange: (sources: StudioWebFontSource[]) => void;
@@ -33,7 +34,6 @@ export interface StudioCommonSettingsModel {
     isReloadDisabled: boolean;
     onReloadTemplate: () => void;
     onExportJson: () => void;
-    onImportJson: () => void;
   };
   documentInfo: {
     databaseTargetLabel: string;
@@ -62,6 +62,8 @@ export function buildStudioCommonSettingsSections(
       content: (
         <StudioWebFontSettings
           sources={model.webFonts.sources}
+          defaultFontFamily={model.webFonts.defaultFontFamily}
+          onDefaultFontFamilyChange={model.webFonts.onDefaultFontFamilyChange}
           usageBySourceId={model.webFonts.usageBySourceId}
           onChange={model.webFonts.onChange}
         />
@@ -86,20 +88,13 @@ export function buildStudioCommonSettingsSections(
           >
             <RefreshCw size={14} /> Reload selected database template
           </button>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid gap-2">
             <button
               className="flex h-9 items-center justify-center gap-2 rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-xs font-semibold text-[var(--fg2)] hover:text-[var(--fg)]"
               type="button"
               onClick={model.data.onExportJson}
             >
               <Download size={14} /> Export JSON
-            </button>
-            <button
-              className="flex h-9 items-center justify-center gap-2 rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-xs font-semibold text-[var(--fg2)] hover:text-[var(--fg)]"
-              type="button"
-              onClick={model.data.onImportJson}
-            >
-              <Upload size={14} /> Import JSON
             </button>
           </div>
         </>

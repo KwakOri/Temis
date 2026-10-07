@@ -55,7 +55,6 @@ const commonModel = {
     isReloadDisabled: true,
     onReloadTemplate: noop,
     onExportJson: noop,
-    onImportJson: noop,
   },
   documentInfo: {
     databaseTargetLabel: "local",
@@ -213,7 +212,6 @@ const timetableSettingsMarkup = renderToStaticMarkup(
     onCardsGuideUpload={noop}
     onClose={noop}
     onExportJson={noop}
-    onImportJson={noop}
     onReloadTemplate={noop}
     onThemeChange={noop}
     onTimetableCapabilityChange={noop}
@@ -269,7 +267,6 @@ const TIMETABLE_SETTINGS_BASELINE = [
   'aria-label="Offline Memo Status"',
   "Reload selected database template",
   "Export JSON",
-  "Import JSON",
   ">dark<",
   ">light<",
   "Environment &amp; Document",
@@ -285,6 +282,11 @@ for (const expected of TIMETABLE_SETTINGS_BASELINE) {
     `시간표 설정에서 사라진 요소가 있다: ${expected}`,
   );
 }
+
+assert.ok(
+  !timetableSettingsMarkup.includes("Import JSON"),
+  "JSON 가져오기는 제공하지 않는다.",
+);
 
 // 분류 순서: 도메인(캔버스, 시간표) → 공통(폰트, 데이터, 외형, 문서)
 assert.deepEqual(
@@ -320,7 +322,6 @@ const renderCapabilitySettings = (
       onCardsGuideUpload={noop}
       onClose={noop}
       onExportJson={noop}
-      onImportJson={noop}
       onReloadTemplate={noop}
       onThemeChange={noop}
       onTimetableCapabilityChange={noop}

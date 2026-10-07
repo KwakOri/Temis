@@ -520,6 +520,38 @@ export const getStudioParsedFontWeightOptions = (
     : STUDIO_FONT_WEIGHT_OPTIONS.filter((option) => option.value === 400);
 };
 
+export const getStudioDefaultFontFamily = (
+  document: StudioTemplateDocument,
+): string | undefined => {
+  const configured = document.resources?.defaultFontFamily;
+  if (typeof configured !== "string" || !configured.trim()) return undefined;
+  return getStudioCustomFontFamilies(document).find(
+    (family) => family.toLowerCase() === configured.trim().toLowerCase(),
+  );
+};
+
+/** Object override → registered document default → internal fallback. */
+export const resolveStudioFontFamily = (
+  document: StudioTemplateDocument,
+  objectFontFamily?: unknown,
+  /** Renderers resolve the document default once; null means no default. */
+  resolvedDefaultFontFamily?: string | null,
+): string =>
+  (typeof objectFontFamily === "string" && objectFontFamily.trim()) ||
+  (resolvedDefaultFontFamily === undefined
+    ? getStudioDefaultFontFamily(document)
+    : resolvedDefaultFontFamily) ||
+  "Inter";
+
+/** Keep removal/disable and default reset in the same undoable document edit. */
+export const setStudioWebFontSources = (
+  document: StudioTemplateDocument,
+  webFonts: StudioWebFontSource[],
+): void => {
+  document.resources = { ...document.resources, webFonts };
+  document.resources.defaultFontFamily = getStudioDefaultFontFamily(document);
+};
+
 export const getStudioFontWeightOptions = (
   document: StudioTemplateDocument,
   fontFamily: string,

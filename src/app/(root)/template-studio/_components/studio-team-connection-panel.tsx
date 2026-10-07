@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAllTeams } from "@/hooks/query/useTeamManagement";
 import {
@@ -10,11 +10,9 @@ import {
 import type {
   StudioRuntimeValues,
   StudioTemplateDocument,
+  StudioTeamDefinition,
 } from "@/types/template-studio";
-import {
-  createConnectedTeamStudioValues,
-  getDefaultTeamStudioBindings,
-} from "@/utils/template-studio/team-runtime";
+import { prepareConnectedTeamStudioPreview } from "@/utils/template-studio/team-runtime";
 
 const field =
   "h-9 w-full min-w-0 rounded-md border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs text-[var(--fg)]";
@@ -25,31 +23,73 @@ export function StudioConnectedTeamPreview({
   document,
   week,
   onPreview,
+  onInitialLoad,
 }: {
   templateId: string;
   document: StudioTemplateDocument;
   week: string;
+  onInitialLoad?: (error: string | null) => void;
   onPreview: (
     values: StudioRuntimeValues,
     bindings: Record<string, number>,
+    team?: StudioTeamDefinition,
   ) => void;
 }) {
   const connection = useTeamStudioConnection(templateId);
   const saved = connection.data?.connection;
   const query = useAdminTeamStudioWeek(templateId, saved?.teamId ?? "", week);
+  const documentRef = useRef(document);
+  documentRef.current = document;
+  const slotKey = document.domains?.timetable?.team?.memberSlotIds
+    .slice()
+    .sort()
+    .join(",");
   useEffect(() => {
-    if (!saved || !query.data || !document.domains?.timetable?.team) return;
-    const { values } = createConnectedTeamStudioValues(
+    // Do not apply a cached snapshot until the initial request has settled.
+    if (connection.isPending || connection.isFetching) return;
+    if (connection.isError) {
+      onInitialLoad?.("팀 연결 정보를 불러오지 못했습니다.");
+      return;
+    }
+    if (!saved) {
+      onInitialLoad?.(null);
+      return;
+    }
+    if (query.isPending || query.isFetching) return;
+    if (query.isError || !query.data) {
+      onInitialLoad?.("연결된 팀의 멤버와 일정을 불러오지 못했습니다.");
+      return;
+    }
+    if (!documentRef.current.domains?.timetable?.team) return;
+    if (query.data.members.length > 12) {
+      onInitialLoad?.("팀 시간표는 최대 12명까지 지원합니다.");
+      return;
+    }
+    const { values, bindings, definition } = prepareConnectedTeamStudioPreview(
       {
         ...query.data,
-        document,
+        document: documentRef.current,
         template: { id: templateId, name: "" },
         revisionNo: 0,
       },
       saved.memberBindings,
     );
-    onPreview(values, saved.memberBindings);
-  }, [saved, query.data, document, templateId, onPreview]);
+    onPreview(values, bindings, definition);
+    onInitialLoad?.(null);
+  }, [
+    connection.isPending,
+    connection.isFetching,
+    connection.isError,
+    saved,
+    query.data,
+    query.isPending,
+    query.isFetching,
+    query.isError,
+    slotKey,
+    templateId,
+    onPreview,
+    onInitialLoad,
+  ]);
   return null;
 }
 
@@ -61,6 +101,8 @@ export function StudioTeamConnectionPanel({
   onPreview,
   onSaveDesign,
   busy,
+  onDisconnect,
+  designControls,
 }: {
   templateId: string;
   document: StudioTemplateDocument;
@@ -69,9 +111,12 @@ export function StudioTeamConnectionPanel({
   onPreview: (
     values: StudioRuntimeValues,
     bindings: Record<string, number>,
+    team?: StudioTeamDefinition,
   ) => void;
   onSaveDesign: () => Promise<boolean>;
   busy: boolean;
+  onDisconnect?: () => void;
+  designControls?: React.ReactNode;
 }) {
   const teams = useAllTeams();
   const connection = useTeamStudioConnection(templateId);
@@ -85,29 +130,44 @@ export function StudioTeamConnectionPanel({
   const saved = connection.data?.connection;
   const teamId = draft?.teamId ?? saved?.teamId ?? "";
   const query = useAdminTeamStudioWeek(templateId, teamId, week);
-  const slots = document.domains!.timetable!.team!.memberSlotIds;
-  const bindings =
-    draft?.bindings ??
-    (draft ? undefined : saved?.memberBindings) ??
-    getDefaultTeamStudioBindings(document, query.data?.members ?? []);
-  const preview = query.data
-    ? createConnectedTeamStudioValues(
-        {
-          ...query.data,
-          document,
-          template: { id: templateId, name: "" },
-          revisionNo: 0,
-        },
-        bindings,
-      )
-    : null;
+  const initialBindings =
+    draft?.bindings ?? (draft ? undefined : saved?.memberBindings) ?? {};
+  const preview =
+    query.data && query.data.members.length <= 12
+      ? prepareConnectedTeamStudioPreview(
+          {
+            ...query.data,
+            document,
+            template: { id: templateId, name: "" },
+            revisionNo: 0,
+          },
+          initialBindings,
+        )
+      : null;
+  const slots =
+    preview?.definition.memberSlotIds ??
+    document.domains!.timetable!.team!.memberSlotIds;
+  const bindings = preview?.bindings ?? initialBindings;
   const pending = busy || saving || mutation.isPending;
   const ready = Boolean(
-    templateId && connection.isSuccess && query.isSuccess && !query.isFetching,
+    templateId &&
+    connection.isSuccess &&
+    preview &&
+    query.isSuccess &&
+    !query.isFetching,
   );
   const applyPreview = () => {
-    if (preview) onPreview(preview.values, bindings);
+    if (preview) onPreview(preview.values, bindings, preview.definition);
   };
+  const previewRef = useRef(preview);
+  previewRef.current = preview;
+  const previewKey = preview
+    ? JSON.stringify([teamId, week, bindings, slots])
+    : "";
+  useEffect(() => {
+    const next = previewRef.current;
+    if (next) onPreview(next.values, next.bindings, next.definition);
+  }, [previewKey, query.data, onPreview]);
   const save = async () => {
     if (!ready || pending) return;
     setSaving(true);
@@ -141,6 +201,7 @@ export function StudioTeamConnectionPanel({
     setMessage("");
     try {
       await mutation.mutateAsync(null);
+      onDisconnect?.();
       setDraft(null);
       setMessage("팀 연결을 해제했습니다. 현재 미리보기는 유지됩니다.");
     } catch (error) {
@@ -154,10 +215,12 @@ export function StudioTeamConnectionPanel({
       <h3 className="text-sm font-bold">팀 연결</h3>
       <p className="text-xs text-[var(--fg3)]">
         기존 팀의 멤버와 주간 일정을 불러옵니다. 팀 연결은 저장 즉시 사용자
-        시간표에 적용됩니다. 새로 추가한 슬롯은 디자인 발행 후 표시됩니다.
+        시간표에 적용됩니다. 인원은 팀 관리에서 설정하고, 여기서는 표시 순서를
+        정합니다. 슬롯이나 디자인을 변경한 경우 발행 후 사용자 화면에
+        반영됩니다.
       </p>
       <Link
-        href="/admin/teams"
+        href="/admin/studio-teams"
         target="_blank"
         className="text-xs text-[var(--accent)] underline"
       >
@@ -240,42 +303,56 @@ export function StudioTeamConnectionPanel({
           활성 팀이 없습니다. 팀 관리에서 팀을 생성해 주세요.
         </p>
       )}
-      {slots.map((slot, index) => (
-        <label key={slot} className="grid gap-1 text-xs">
-          멤버 슬롯 {index + 1}
-          <select
-            aria-label={`연결 멤버 슬롯 ${index + 1}`}
-            className={field}
-            value={bindings[slot] ?? ""}
-            disabled={!ready || pending}
-            onChange={(event) => {
-              const next = { ...bindings },
-                id = Number(event.target.value);
-              for (const key of Object.keys(next))
-                if (next[key] === id) delete next[key];
-              if (event.target.value) next[slot] = id;
-              else delete next[slot];
-              setDraft({ teamId, bindings: next });
-              setMessage("");
-            }}
-          >
-            <option value="">미연결</option>
-            {bindings[slot] &&
-              !query.data?.members.some(
-                (member) => member.userId === bindings[slot],
-              ) && (
-                <option value={bindings[slot]}>
-                  팀에서 제외된 유저 ({bindings[slot]})
+      {query.data && query.data.members.length > 12 && (
+        <p role="alert" className="text-xs text-rose-400">
+          팀 시간표는 최대 12명까지 지원합니다.
+        </p>
+      )}
+      {preview &&
+        query.data!.members.length > 0 &&
+        slots.map((slot, index) => (
+          <label key={slot} className="grid gap-1 text-xs">
+            멤버 순서 {index + 1}
+            <select
+              aria-label={`연결 멤버 슬롯 ${index + 1}`}
+              className={field}
+              value={bindings[slot] ?? ""}
+              disabled={!ready || pending}
+              onChange={(event) => {
+                if (!preview) return;
+                const otherIndex = slots.findIndex(
+                  (key) => bindings[key] === Number(event.target.value),
+                );
+                if (otherIndex < 0) return;
+                const nextSlots = [...slots];
+                [nextSlots[index], nextSlots[otherIndex]] = [
+                  nextSlots[otherIndex],
+                  nextSlots[index],
+                ];
+                setDraft({ teamId, bindings });
+                onPreview(preview.values, bindings, {
+                  ...preview.definition,
+                  memberSlotIds: nextSlots,
+                });
+                setMessage("");
+              }}
+            >
+              {bindings[slot] &&
+                !query.data?.members.some(
+                  (member) => member.userId === bindings[slot],
+                ) && (
+                  <option value={bindings[slot]}>
+                    팀에서 제외된 유저 ({bindings[slot]})
+                  </option>
+                )}
+              {query.data?.members.map((member) => (
+                <option key={member.userId} value={member.userId}>
+                  {member.name} (ID: {member.userId})
                 </option>
-              )}
-            {query.data?.members.map((member) => (
-              <option key={member.userId} value={member.userId}>
-                {member.name} (ID: {member.userId})
-              </option>
-            ))}
-          </select>
-        </label>
-      ))}
+              ))}
+            </select>
+          </label>
+        ))}
       {preview && preview.unassigned.length > 0 && (
         <p role="alert" className="text-xs text-amber-400">
           미연결 멤버:{" "}
@@ -334,6 +411,15 @@ export function StudioTeamConnectionPanel({
           새로고침
         </button>
       </div>
+      {designControls && (
+        <div
+          className="grid gap-3 border-t border-[var(--border)] pt-4"
+          data-team-design-settings
+        >
+          <h4 className="text-sm font-semibold">디자인·미리보기 설정</h4>
+          {designControls}
+        </div>
+      )}
       {message && (
         <p role="status" className="text-xs">
           {message}

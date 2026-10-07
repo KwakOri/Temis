@@ -19,6 +19,7 @@ export class AdminTemplateService {
     offset?: number;
     visibility?: "public" | "private";
     search?: string;
+    engine?: "legacy" | "studio";
   }): Promise<{
     templates: TemplateWithShopTemplateAndPlans[];
     pagination: {
@@ -34,6 +35,7 @@ export class AdminTemplateService {
     if (params?.offset) queryParams.append("offset", params.offset.toString());
     if (params?.visibility) queryParams.append("visibility", params.visibility);
     if (params?.search) queryParams.append("search", params.search);
+    if (params?.engine) queryParams.append("engine", params.engine);
 
     const url = `${this.baseUrl}/templates${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
 

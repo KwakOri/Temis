@@ -93,6 +93,7 @@ export interface CreateThumbnailData {
 }
 
 export interface UpdateThumbnailData {
+  name?: string;
   is_public?: boolean;
   is_shop_visible?: boolean;
   thumbnail_url?: string;

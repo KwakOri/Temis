@@ -167,6 +167,7 @@ export function ThumbnailRuntimeShell({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeImage]);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [readiness, setReadiness] = useState<RenderReadiness>({
     fontsReady: false,
     imagesReady: false,
@@ -179,6 +180,7 @@ export function ThumbnailRuntimeShell({
     setRuntimeValues(cloneRuntimeValues(initialRuntimeValues));
     setRuntimeImageOverrides(createThumbnailRuntimeImageOverrides(document));
     setActiveImage(null);
+    setExportError(null);
   }, [
     document,
     initialRuntimeValues,
@@ -299,13 +301,14 @@ export function ThumbnailRuntimeShell({
     : missingRequiredInputLabels.length > 0
       ? `필수 입력을 입력해주세요: ${missingRequiredInputLabels.join(", ")}`
       : isReady
-        ? undefined
+        ? (exportError ?? undefined)
         : "리소스 준비 중…";
 
   const exportPng = async () => {
     const root = exportRootRef.current;
     if (!root || isExporting || !isExportReady) return;
     setIsExporting(true);
+    setExportError(null);
     try {
       if (window.document.fonts) await window.document.fonts.ready;
       const transparent =
@@ -317,16 +320,14 @@ export function ThumbnailRuntimeShell({
         background: transparent ? null : document.canvas.background,
         fileName: buildStudioExportFileName(templateName),
       });
+      setExportError(null);
     } catch (error) {
       console.error("Thumbnail runtime PNG export failed", error);
-      setReadiness((current) => ({
-        ...current,
-        blockingErrors: [
-          error instanceof Error
-            ? error.message
-            : "PNG를 생성하지 못했습니다. 다시 시도해 주세요.",
-        ],
-      }));
+      setExportError(
+        error instanceof Error
+          ? error.message
+          : "PNG를 생성하지 못했습니다. 다시 시도해 주세요.",
+      );
     } finally {
       setIsExporting(false);
     }
@@ -337,6 +338,7 @@ export function ThumbnailRuntimeShell({
     setRuntimeValues(cloneRuntimeValues(initialRuntimeValues));
     setRuntimeImageOverrides(createThumbnailRuntimeImageOverrides(document));
     setActiveImage(null);
+    setExportError(null);
   };
 
   return (
