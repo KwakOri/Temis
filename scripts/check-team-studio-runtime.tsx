@@ -33,7 +33,7 @@ async function main() {
     teamStudioRuntimeKeys.week("8", id, teamId, "2026-09-21"),
   );
   const actor = { userId: "7", email: "fixture@example.invalid", role: "user" };
-  const document = createStudioTeamDocument();
+  const document = createStudioTeamDocument(3);
   const events: Array<{
     table: string;
     select: string;

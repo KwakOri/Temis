@@ -650,6 +650,7 @@ export interface StudioRuntimeValues {
 export type StudioTeamLayout = "day-columns" | "day-grid" | "member-rows";
 export interface StudioTeamDefinition {
   memberSlotIds: string[];
+  memberComponentIds?: Record<string, StudioTimetableComponentId>;
   layout: StudioTeamLayout;
   columns: number;
   gap: number;

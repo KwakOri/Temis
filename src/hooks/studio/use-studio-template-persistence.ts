@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   StudioRuntimeValues,
   StudioTemplateDocument,
@@ -157,6 +157,9 @@ export interface StudioTemplatePersistenceOptions {
   onExportBlocked: () => void;
 }
 export interface StudioTemplatePersistence {
+  /** Initial document hydration must finish before any editor UI is mounted. */
+  isInitialLoading: boolean;
+  initialLoadError: string | null;
   /** 파일로 내려받는다. 막는 진단이 있으면 내보내지 않는다. */
   exportJson: () => void;
   /** 원격 템플릿을 만들거나 이미 있는 것을 돌려준다. */
@@ -256,6 +259,10 @@ export function useStudioTemplatePersistence({
   previewPathForTemplate = (nextTemplateId) =>
     `/admin/template-studio/${nextTemplateId}/preview`,
 }: StudioTemplatePersistenceOptions): StudioTemplatePersistence {
+  const [initialLoadResult, setInitialLoadResult] = useState<{
+    templateId: string;
+    error: string | null;
+  } | null>(null);
   const acceptsDocument = useCallback(
     (document: StudioTemplateDocument) => {
       if (
@@ -845,47 +852,61 @@ export function useStudioTemplatePersistence({
    */
   const autoLoadedTemplateIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!initialTemplateId) return;
-    if (templateId !== initialTemplateId) return;
+    autoLoadedTemplateIdRef.current = null;
+  }, [initialTemplateId]);
+  useEffect(() => {
+    if (!initialTemplateId || templateId !== initialTemplateId) return;
     if (autoLoadedTemplateIdRef.current === initialTemplateId) return;
     if (isRemoteTemplateLoading) {
       setOperationState("load", "loading");
       return;
     }
     autoLoadedTemplateIdRef.current = initialTemplateId;
+    const settle = (error: string | null) => {
+      setInitialLoadResult({ templateId: initialTemplateId, error });
+      clearOperationState();
+    };
     const loadResult = resolveStudioAutoLoad(
       getRemoteTemplate(),
       hasRemoteTemplateLoadError,
     );
     if (loadResult.kind === "not-found" || loadResult.kind === "load-failed") {
-      clearOperationState();
       onStatusMessage(loadResult.message);
       onOperationResult?.({
         operation: "load",
         ok: false,
         message: loadResult.message,
       });
+      settle(loadResult.message);
       return;
     }
-
     if (loadResult.kind === "empty") {
-      clearOperationState();
+      settle(null);
       return;
     }
-
     if (!acceptsDocument(loadResult.document)) {
-      clearOperationState();
+      settle(
+        `이 에디터는 v${expectedDocumentVersion} 템플릿을 사용합니다. 새 템플릿을 만들어 주세요.`,
+      );
       return;
     }
-    onReplaceDocument(
-      loadResult.document,
-      loadResult.runtimeValues,
-      loadResult.message,
-    );
-    clearOperationState();
+    try {
+      onReplaceDocument(
+        loadResult.document,
+        loadResult.runtimeValues,
+        loadResult.message,
+      );
+      settle(null);
+    } catch {
+      const message = "저장된 템플릿을 적용하지 못했습니다.";
+      onStatusMessage(message);
+      onOperationResult?.({ operation: "load", ok: false, message });
+      settle(message);
+    }
   }, [
     acceptsDocument,
     clearOperationState,
+    expectedDocumentVersion,
     getRemoteTemplate,
     hasRemoteTemplateLoadError,
     initialTemplateId,
@@ -896,11 +917,14 @@ export function useStudioTemplatePersistence({
     setOperationState,
     templateId,
   ]);
-  useEffect(() => {
-    // 다른 템플릿으로 옮겨 가면 자동 불러오기를 다시 할 수 있게 한다.
-    autoLoadedTemplateIdRef.current = null;
-  }, [initialTemplateId]);
   return {
+    isInitialLoading: Boolean(
+      initialTemplateId && initialLoadResult?.templateId !== initialTemplateId,
+    ),
+    initialLoadError:
+      initialLoadResult?.templateId === initialTemplateId
+        ? (initialLoadResult?.error ?? null)
+        : null,
     exportJson,
     ensureTemplateId,
     ensureAssetsSynced,

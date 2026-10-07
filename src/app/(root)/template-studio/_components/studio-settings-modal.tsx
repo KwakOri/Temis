@@ -18,6 +18,7 @@ import type {
   StudioWebFontSource,
 } from "@/types/template-studio";
 import type { StudioFigmaFrameCandidate } from "@/types/template-studio-figma";
+import { STUDIO_TEAM_TIMETABLE_BACKGROUND_NODE_ID } from "@/utils/template-studio/team-timetable";
 import { getStudioTimetableCapabilities } from "@/utils/template-studio/timetable-capabilities";
 import {
   getStudioCardsGuide,
@@ -230,18 +231,27 @@ export function StudioSettingsModal({
                     onChange={(height) => onTimetableCanvasChange({ height })}
                   />
                 </div>
-                <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-                  <span>Background</span>
-                  <StudioHexColorPicker
-                    allowTransparent
-                    ariaLabel="Timetable canvas background"
-                    className="h-9"
-                    value={timetableCanvas.backgroundColor ?? "#EEF2F7"}
-                    onChange={(backgroundColor) =>
-                      onTimetableCanvasChange({ backgroundColor })
-                    }
-                  />
-                </label>
+                {document.graph.nodes[
+                  STUDIO_TEAM_TIMETABLE_BACKGROUND_NODE_ID
+                ] ? (
+                  <p className="text-xs text-[var(--fg3)]">
+                    배경은 Timetable의 timetable-background 레이어에서
+                    편집합니다.
+                  </p>
+                ) : (
+                  <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+                    <span>Background</span>
+                    <StudioHexColorPicker
+                      allowTransparent
+                      ariaLabel="Timetable canvas background"
+                      className="h-9"
+                      value={timetableCanvas.backgroundColor ?? "#EEF2F7"}
+                      onChange={(backgroundColor) =>
+                        onTimetableCanvasChange({ backgroundColor })
+                      }
+                    />
+                  </label>
+                )}
                 <StudioGuideLayerSettings
                   assetLabel={timetableGuideAsset?.label ?? null}
                   description="Editor-only overlay for timetable alignment."

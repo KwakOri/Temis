@@ -78,6 +78,19 @@ export const getStudioTimetableDayComponent = (
 ): StudioTimetableComponentDefinition | undefined =>
   resolveStudioTimetableDayComponent(document, dayId)?.component;
 
+export const getStudioTeamMemberComponent = (
+  document: StudioTemplateDocument,
+  slotId: string,
+  dayId: StudioTimetableDayId,
+): StudioTimetableComponentDefinition | undefined => {
+  const timetable = document.domains?.timetable;
+  const componentId = timetable?.team?.memberComponentIds?.[slotId];
+  return (
+    (componentId ? timetable?.components[componentId] : undefined) ??
+    getStudioTimetableDayComponent(document, dayId)
+  );
+};
+
 export type StudioTimetableComponentSetCloneResult =
   | {
       ok: true;
@@ -207,6 +220,14 @@ export const getStudioTimetableComponentSetDeleteReason = (
   if (!timetable?.components[componentId]) return "Component set is missing";
   if (timetable.entryComponentId === componentId) {
     return "The default component set cannot be deleted";
+  }
+
+  if (
+    Object.values(timetable.team?.memberComponentIds ?? {}).includes(
+      componentId,
+    )
+  ) {
+    return "A team member is assigned to this component set";
   }
 
   const assignedDay = timetable.dayIds

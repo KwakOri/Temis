@@ -27,6 +27,7 @@ import { StudioSelectionOverlay } from "@/components/studio/canvas/studio-select
 import { StudioExportRoot } from "@/components/studio/runtime/studio-export-root";
 import { StudioEditorShell } from "@/components/studio/editor-shell/studio-editor-shell";
 import { StudioGuideControl } from "@/components/studio/editor-shell/studio-guide-control";
+import { StudioInitialLoading } from "@/components/studio/editor-shell/studio-initial-loading";
 import { StudioOperationFeedback } from "@/components/studio/editor-shell/studio-operation-feedback";
 import {
   StudioLeftSidebar,
@@ -1352,7 +1353,9 @@ export function ThumbnailStudioClient({
     templateId: remoteTemplateId,
     onTemplateIdChange: handleTemplateIdChange,
     initialTemplateId: templateId ?? null,
-    isRemoteTemplateLoading: templateStudioTemplateQuery.isPending,
+    isRemoteTemplateLoading:
+      templateStudioTemplateQuery.isPending ||
+      templateStudioTemplateQuery.isFetching,
     hasRemoteTemplateLoadError: templateStudioTemplateQuery.isError,
     getRemoteTemplate: useCallback(
       () => templateStudioTemplateQuery.data,
@@ -1388,7 +1391,10 @@ export function ThumbnailStudioClient({
     templateStudioTemplateQuery.isFetching;
 
   useStudioKeyboardShortcuts({
-    disabled: isRemoteSyncing,
+    disabled:
+      isRemoteSyncing ||
+      thumbnailPersistence.isInitialLoading ||
+      Boolean(thumbnailPersistence.initialLoadError),
     hasCutNodes: clipboard.cutNodeIds.length > 0,
     isNodePickerOpen: false,
     handlers: useMemo(
@@ -1704,6 +1710,15 @@ export function ThumbnailStudioClient({
         onUpdate={updateInput}
       />
     );
+
+  if (
+    thumbnailPersistence.isInitialLoading ||
+    thumbnailPersistence.initialLoadError
+  ) {
+    return (
+      <StudioInitialLoading error={thumbnailPersistence.initialLoadError} />
+    );
+  }
 
   return (
     <StudioEditorStoreProvider value={studioStore}>

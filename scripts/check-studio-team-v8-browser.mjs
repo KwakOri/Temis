@@ -27,6 +27,7 @@ try {
     description: "",
     status: "draft",
     templateKind: "timetable",
+    templateMode: "team",
     createdBy: 1,
     thumbnailUrl: null,
     studioPreviewUrl: null,
@@ -136,7 +137,47 @@ try {
   await page.getByLabel("이름", { exact: true }).fill(template.name);
   await page.getByRole("button", { name: "생성 후 편집", exact: true }).click();
   await page.waitForURL(`${base}/admin/team-timetable-studio/${id}/edit`);
-  await page.locator("[data-team-controls]").waitFor({ timeout: 120000 });
+  await page
+    .getByTitle("Template settings", { exact: true })
+    .waitFor({ timeout: 120000 });
+  async function openTeamSettings() {
+    await page.getByTitle("Template settings", { exact: true }).click();
+    await page.getByRole("tab", { name: /팀 연결/ }).click();
+    await page.locator("[data-team-controls]").waitFor();
+    assert.equal(
+      await page.getByLabel("멤버 이미지 URL", { exact: true }).count(),
+      0,
+    );
+    assert.equal(
+      await page.getByLabel("멤버 더미 이미지 업로드", { exact: true }).count(),
+      0,
+    );
+  }
+  async function closeSettings() {
+    await page
+      .getByRole("button", { name: "Close settings", exact: true })
+      .click();
+    assert.equal(await page.locator("[data-team-controls]").count(), 0);
+  }
+  await openTeamSettings();
+  assert.equal(
+    await page
+      .getByLabel("멤버 슬롯", { exact: true })
+      .locator("option")
+      .count(),
+    1,
+  );
+  await page
+    .getByRole("button", { name: "멤버 슬롯 추가", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "멤버 슬롯 추가", exact: true })
+    .click();
+  const secondMemberSlotId = await page
+    .getByLabel("멤버 슬롯", { exact: true })
+    .locator("option")
+    .nth(1)
+    .getAttribute("value");
   const canvas = page
     .locator("[data-studio-preview-canvas-root] [data-team-generator]")
     .first();
@@ -176,40 +217,220 @@ try {
       }),
       true,
     );
+    await closeSettings();
     await page.screenshot({ path: path.join(output, `${mode}-desktop.png`) });
+    await openTeamSettings();
   }
+  await closeSettings();
+  phase = "editable-timetable-background";
+  await page.getByTitle("timetable-background", { exact: true }).click();
+  const timetableBackground = page
+    .locator(
+      '[data-studio-preview-canvas-root] [data-node-id="team-timetable-background"]',
+    )
+    .first();
+  assert.equal(
+    await timetableBackground.evaluate(
+      (node) => getComputedStyle(node).backgroundColor,
+    ),
+    "rgb(244, 244, 245)",
+  );
+  assert.ok(await page.getByLabel("W", { exact: true }).isDisabled());
+  const timetableColor = page.getByLabel(
+    "Timetable object background HEX value",
+    { exact: true },
+  );
+  await timetableColor.fill("#fef3c7");
+  await timetableColor.press("Enter");
+  assert.equal(
+    await timetableBackground.evaluate(
+      (node) => getComputedStyle(node).backgroundColor,
+    ),
+    "rgb(254, 243, 199)",
+  );
+  await page.getByLabel("Opacity", { exact: true }).fill("50");
+  await page.getByLabel("Opacity", { exact: true }).blur();
+  assert.equal(
+    await timetableBackground.evaluate(
+      (node) => getComputedStyle(node).opacity,
+    ),
+    "0.5",
+  );
+  await page.getByLabel("Radius", { exact: true }).fill("24");
+  await page.getByLabel("Radius", { exact: true }).blur();
+  assert.equal(
+    await timetableBackground.evaluate(
+      (node) => getComputedStyle(node).borderRadius,
+    ),
+    "24px",
+  );
+  await page.getByTitle("Use fixed size", { exact: true }).click();
+  for (const [field, value] of [
+    ["X", "20"],
+    ["Y", "16"],
+    ["W", "1540"],
+    ["H", "950"],
+  ]) {
+    await page.getByLabel(field, { exact: true }).fill(value);
+    await page.getByLabel(field, { exact: true }).blur();
+  }
+  assert.deepEqual(
+    await timetableBackground.evaluate((node) => ({
+      left: node.style.left,
+      top: node.style.top,
+      width: node.style.width,
+      height: node.style.height,
+    })),
+    { left: "20px", top: "16px", width: "1540px", height: "950px" },
+  );
+  await page.getByLabel("Visible", { exact: true }).uncheck();
+  assert.equal(await timetableBackground.count(), 0);
+  await page.getByLabel("Visible", { exact: true }).check();
+  await timetableBackground.waitFor();
+  await page.screenshot({
+    path: path.join(output, "editable-timetable-background.png"),
+  });
+  await openTeamSettings();
   await page
     .getByRole("button", { name: "멤버 슬롯 추가", exact: true })
     .click();
   assert.equal(await canvas.locator("[data-team-cell]").count(), 28);
-  await page
-    .locator("[data-team-controls]")
-    .getByLabel("멤버 이름", { exact: true })
-    .fill("NEW MEMBER");
-  await page
-    .locator("[data-team-controls]")
-    .getByLabel("멤버 이름", { exact: true })
-    .blur();
+  await closeSettings();
   await page.keyboard.press("Meta+z");
   assert.equal(await canvas.locator("[data-team-cell]").count(), 21);
   await page.keyboard.press("Meta+Shift+z");
   assert.equal(await canvas.locator("[data-team-cell]").count(), 28);
   await page.keyboard.press("Meta+z");
+  await openTeamSettings();
   await page.getByLabel("멤버 슬롯", { exact: true }).selectOption("member-a");
   await page.getByLabel("미리보기 요일", { exact: true }).selectOption("mon");
-  await page.getByRole("button", { name: "방송 추가", exact: true }).click();
   assert.equal(
     await canvas
       .locator('[data-team-cell="member-a:mon"] [data-team-entry]')
       .count(),
-    2,
+    1,
   );
-  phase = "remote-image-png";
+  phase = "card-preview-without-team-inspector";
+  const selectedName = (
+    await page
+      .getByLabel("멤버 슬롯", { exact: true })
+      .locator("option:checked")
+      .textContent()
+  ).replace(/^\d+\. /, "");
+  assert.equal(await page.getByLabel("멤버 이름", { exact: true }).count(), 0);
+  assert.equal(
+    await page.getByRole("button", { name: "방송 추가", exact: true }).count(),
+    0,
+  );
+  await closeSettings();
+  await page.getByRole("button", { name: "Cards", exact: true }).click();
+  const cardsCanvas = page.locator("[data-studio-preview-canvas-root]");
+  assert.ok((await cardsCanvas.textContent()).includes(selectedName));
+  assert.equal(await page.locator("[data-team-controls]").count(), 0);
+  assert.equal(await page.getByLabel("팀 배치", { exact: true }).count(), 0);
+  assert.ok(
+    (
+      await page.locator("[data-team-card-preview-context]").textContent()
+    ).includes("방송"),
+  );
+  await page.screenshot({
+    path: path.join(output, "cards-without-team-inspector.png"),
+  });
+  phase = "editable-card-background";
+  assert.equal(
+    await cardsCanvas.locator('[data-node-id="team-online-image"]').count(),
+    0,
+  );
+  assert.equal(
+    await cardsCanvas.getByText("No image", { exact: true }).count(),
+    0,
+  );
+  await page.getByTitle("online-background", { exact: true }).click();
+  const colorField = page.getByLabel("Background base color HEX value", {
+    exact: true,
+  });
+  await colorField.fill("#dbeafe");
+  await colorField.press("Enter");
+  const onlineBackground = cardsCanvas.locator(
+    '[data-node-id="team-online-background"]',
+  );
+  assert.equal(
+    await onlineBackground.evaluate(
+      (node) => getComputedStyle(node).backgroundColor,
+    ),
+    "rgb(219, 234, 254)",
+  );
+  await page.getByLabel("Radius", { exact: true }).fill("18");
+  await page.getByLabel("Radius", { exact: true }).blur();
+  assert.equal(
+    await onlineBackground.evaluate(
+      (node) => getComputedStyle(node).borderRadius,
+    ),
+    "18px",
+  );
+  await page.getByLabel("Opacity", { exact: true }).fill("50");
+  await page.getByLabel("Opacity", { exact: true }).blur();
+  assert.equal(
+    await onlineBackground.evaluate((node) => getComputedStyle(node).opacity),
+    "0.5",
+  );
+  await page.getByLabel("Opacity", { exact: true }).fill("100");
+  await page.getByLabel("Opacity", { exact: true }).blur();
+  await page.screenshot({
+    path: path.join(output, "editable-card-background.png"),
+  });
+  await page.getByRole("button", { name: "Timetable", exact: true }).click();
+  const renderedBackground = canvas
+    .locator(
+      '[data-team-cell="member-a:mon"] [data-node-id="team-online-background"]',
+    )
+    .first();
+  assert.equal(
+    await renderedBackground.evaluate(
+      (node) => getComputedStyle(node).backgroundColor,
+    ),
+    "rgb(219, 234, 254)",
+  );
+  await page.getByRole("button", { name: "Cards", exact: true }).click();
+  phase = "member-component-assignment";
+  await page
+    .getByRole("button", { name: "Duplicate component set", exact: true })
+    .click();
+  const memberComponentId = await page
+    .getByLabel("Component set", { exact: true })
+    .inputValue();
+  await openTeamSettings();
+  await page
+    .getByLabel("멤버 슬롯", { exact: true })
+    .selectOption(secondMemberSlotId);
+  await page
+    .getByLabel("멤버 카드 디자인", { exact: true })
+    .selectOption(memberComponentId);
+  assert.equal(
+    await page.getByLabel("Component set", { exact: true }).inputValue(),
+    memberComponentId,
+  );
+  await page.getByLabel("멤버 슬롯", { exact: true }).selectOption("member-a");
+  assert.equal(
+    await page.getByLabel("Component set", { exact: true }).inputValue(),
+    "team-card",
+  );
+  await closeSettings();
+  await page.getByRole("button", { name: "Timetable", exact: true }).click();
+  phase = "legacy-image-png";
+  assert.equal(await page.getByLabel("팀 배치", { exact: true }).count(), 0);
+  const legacySave = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/draft") &&
+      response.request().method() === "PUT",
+  );
+  await page.getByTitle("Save draft to database", { exact: true }).click();
+  await legacySave;
+  // Existing stored images remain renderable although the editor has no member image controls.
   imageBytes = Buffer.from(
     await page.evaluate(() => {
       const canvas = document.createElement("canvas");
-      canvas.width = 16;
-      canvas.height = 16;
+      canvas.width = canvas.height = 16;
       const ctx = canvas.getContext("2d");
       ctx.fillStyle = "#ef4444";
       ctx.fillRect(0, 0, 16, 16);
@@ -217,10 +438,72 @@ try {
     }),
     "base64",
   );
-  await page
-    .getByLabel("멤버 이미지 URL", { exact: true })
-    .fill("https://team-studio-images.invalid/member.png");
-  await page.getByLabel("멤버 이미지 URL", { exact: true }).blur();
+  const savedBackground =
+    draft.document.graph.nodes["team-timetable-background"];
+  assert(savedBackground);
+  const savedBackgroundStyle = draft.document.styles[savedBackground.styleId];
+  assert.equal(savedBackgroundStyle.backgroundColor.toLowerCase(), "#fef3c7");
+  assert.equal(savedBackgroundStyle.opacity, 0.5);
+  assert.equal(savedBackgroundStyle.left, 20);
+  assert.equal(
+    draft.document.domains.timetable.canvas.backgroundColor,
+    "transparent",
+  );
+  assert.equal(draft.document.graph.nodes["team-online-image"], undefined);
+  assert.equal(
+    draft.document.styles[
+      draft.document.graph.nodes["team-online-background"].styleId
+    ].backgroundColor.toLowerCase(),
+    "#dbeafe",
+  );
+  const legacyImageId = "authored-member-image";
+  draft.document.graph.nodes[legacyImageId] = {
+    id: legacyImageId,
+    label: "Custom member image",
+    type: "image",
+    parentId: "team-online",
+    childIds: [],
+    styleId: "authored_image_style",
+    binding: { kind: "inputImage", inputId: "team_member_image" },
+    fit: "cover",
+  };
+  draft.document.styles.authored_image_style = {
+    left: 154,
+    top: 10,
+    width: 36,
+    height: 36,
+  };
+  draft.document.graph.nodes["team-online"].childIds.push(legacyImageId);
+  draft.runtimeValues.team.members["member-a"].days.mon.entries.push({
+    mainTitle: "SECOND BROADCAST",
+    subTitle: "",
+    time: "21:00",
+    isGuerrilla: false,
+  });
+  draft.runtimeValues.team.members["member-a"].image =
+    "https://team-studio-images.invalid/member.png";
+  await page.reload();
+  await page.getByTitle("Template settings", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Timetable", exact: true }).click();
+  assert.equal(
+    await timetableBackground.evaluate(
+      (node) => getComputedStyle(node).backgroundColor,
+    ),
+    "rgb(254, 243, 199)",
+  );
+  assert.equal(
+    await timetableBackground.evaluate(
+      (node) => getComputedStyle(node).opacity,
+    ),
+    "0.5",
+  );
+  await canvas.locator('[data-team-cell="member-a:mon"] img').first().waitFor();
+  assert.equal(
+    await renderedBackground.evaluate(
+      (node) => getComputedStyle(node).backgroundColor,
+    ),
+    "rgb(219, 234, 254)",
+  );
   const pngDownload = page.waitForEvent("download", { timeout: 120000 });
   await page.getByRole("button", { name: "PNG 다운로드", exact: true }).click();
   const png = await pngDownload,
@@ -267,11 +550,19 @@ try {
   assert.ok(draft);
   assert.equal(draft.document.version, 8);
   assert.ok(draft.document.domains.timetable.team);
+  assert.equal(
+    draft.document.domains.timetable.team.memberComponentIds[
+      secondMemberSlotId
+    ],
+    memberComponentId,
+  );
   assert.equal(draft.document.domains.timetable.composition, undefined);
   await page.goto(`${base}/admin/template-studio/${id}/edit`, {
     timeout: 120000,
   });
-  await page.locator("[data-team-controls]").waitFor({ timeout: 120000 });
+  await page
+    .getByTitle("Template settings", { exact: true })
+    .waitFor({ timeout: 120000 });
   await page.getByRole("button", { name: "Timetable", exact: true }).click();
   assert.equal(await canvas.locator("[data-team-cell]").count(), 21);
   assert.equal(
@@ -299,7 +590,10 @@ try {
   phase = "mobile";
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "속성", exact: true }).click();
+  assert.equal(await page.getByLabel("팀 배치", { exact: true }).count(), 0);
+  await openTeamSettings();
   assert.ok(await page.getByLabel("팀 배치", { exact: true }).isVisible());
+  await closeSettings();
   assert.equal(
     await page.evaluate(
       () => document.documentElement.scrollWidth > innerWidth,
@@ -365,7 +659,7 @@ try {
   await page.screenshot({ path: path.join(output, "runtime-desktop.png") });
   phase = "return-to-team-list";
   await page.getByRole("link", { name: "뒤로가기", exact: true }).click();
-  await page.locator("[data-team-controls]").waitFor();
+  await page.getByTitle("Template settings", { exact: true }).waitFor();
   await page.getByTitle("템플릿 목록으로", { exact: true }).click();
   await page.waitForURL(`${base}/admin/team-timetable-studio`);
   await page.getByText(template.name, { exact: true }).first().waitFor();
@@ -376,7 +670,7 @@ try {
     .click();
   assert.equal(
     await page
-      .getByRole("menuitem", { name: "정보 수정", exact: true })
+      .getByRole("button", { name: `${template.name} 정보 수정`, exact: true })
       .count(),
     1,
   );
@@ -396,7 +690,7 @@ try {
   await page.locator("[data-team-generator]").first().waitFor();
   assert.deepEqual(errors, []);
   console.log(
-    `PASS Team list/create/edit/preview/return, desktop/mobile management, v8 layouts, undo/redo/save/reopen/JSON, remote PNG (${pixels.red} red pixels, ${proxyCalls} proxy calls), no page errors; API fixture only`,
+    `PASS Team list/create/edit/preview/return, desktop/mobile management, v8 layouts, undo/redo/save/reopen/JSON, settings-only team controls, no member image inputs, legacy PNG (${pixels.red} red pixels, ${proxyCalls} proxy calls), no page errors; API fixture only`,
   );
 } catch (error) {
   console.error(`Team browser phase: ${phase}`);

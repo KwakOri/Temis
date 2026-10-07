@@ -37,8 +37,13 @@ import { createStudioTimetableGraphDocument } from "@/utils/template-studio/time
 import {
   createStudioTeamDocument,
   createStudioTeamPreview,
+  createStudioTeamDummyPreview,
+  getStudioTeamCellRuntime,
   validateStudioTeamDefinition,
+  upgradeStudioTeamDefaultCardLayers,
+  upgradeStudioTeamTimetableBackground,
 } from "@/utils/template-studio/team-timetable";
+import { StudioInitialLoading } from "@/components/studio/editor-shell/studio-initial-loading";
 import { StudioTeamControls } from "./studio-team-controls";
 import {
   StudioTeamConnectionPanel,
@@ -105,6 +110,7 @@ import {
   StudioTimetableComponentId,
   StudioTimetableDayId,
   StudioTimetableStatusId,
+  StudioTeamDefinition,
 } from "@/types/template-studio";
 import {
   createStudioBindingForBuiltinField,
@@ -117,6 +123,7 @@ import { getStudioBuiltinField } from "@/utils/template-studio/builtin-fields";
 import {
   getStudioTimetableComponentSetDeleteReason,
   getStudioTimetableDayComponent,
+  getStudioTeamMemberComponent,
 } from "@/utils/template-studio/component-sets";
 import {} from "@/utils/template-studio/date-template";
 import {
@@ -619,7 +626,28 @@ export function TemplateStudioClient({
     },
     [studioStore],
   );
-  const runtimeValues = useStore(studioStore, (state) => state.runtimeValues);
+  const actualRuntimeValues = useStore(
+    studioStore,
+    (state) => state.runtimeValues,
+  );
+  const [useTeamDummyData, setUseTeamDummyData] = useState(false);
+  const [connectedTeamWeek, setConnectedTeamWeek] = useState(
+    getStudioNearestPastMonday,
+  );
+  const runtimeValues = useMemo(
+    () =>
+      useTeamDummyData && document.domains.timetable.team
+        ? {
+            ...actualRuntimeValues,
+            team: createStudioTeamDummyPreview(
+              document,
+              actualRuntimeValues.team,
+              connectedTeamWeek,
+            ),
+          }
+        : actualRuntimeValues,
+    [actualRuntimeValues, document, useTeamDummyData, connectedTeamWeek],
+  );
   const teamExportRef = useRef<HTMLDivElement>(null);
   const [teamExportBusy, setTeamExportBusy] = useState(false);
   const selectedInputId = useStore(
@@ -635,11 +663,23 @@ export function TemplateStudioClient({
     (state) => state.selectedRuntimeEntryIndex,
   );
   const {
-    setRuntimeValues,
+    setRuntimeValues: setStoredRuntimeValues,
     setSelectedInputId,
     setSelectedRuntimeDayId,
     setSelectedRuntimeEntryIndex,
   } = studioStore.getState();
+  const setRuntimeValues = useCallback(
+    (values: Parameters<typeof setStoredRuntimeValues>[0]) => {
+      setStoredRuntimeValues((current) => {
+        const next = typeof values === "function" ? values(current) : values;
+        return useTeamDummyData &&
+          studioStore.getState().document.domains?.timetable?.team
+          ? { ...next, team: current.team }
+          : next;
+      });
+    },
+    [setStoredRuntimeValues, studioStore, useTeamDummyData],
+  );
   const {
     panelMode,
     theme,
@@ -709,10 +749,9 @@ export function TemplateStudioClient({
     [studioStore],
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [connectedTeamWeek, setConnectedTeamWeek] = useState(
-    getStudioNearestPastMonday,
-  );
   const connectedTeamBindingsRef = useRef<Record<string, number>>({});
+  const [selectedTeamMemberId, setSelectedTeamMemberId] = useState("");
+  const [teamMembersManaged, setTeamMembersManaged] = useState(false);
   const [stylePropagationOpen, setStylePropagationOpen] = useState(false);
   const [fitRequestKey, setFitRequestKey] = useState(0);
   const [nodePicker, setNodePicker] = useState<NodePickerState | null>(null);
@@ -747,7 +786,21 @@ export function TemplateStudioClient({
     initialRemoteTemplateId,
   );
   const [componentLabelDraft, setComponentLabelDraft] = useState("");
-  const autoLoadedRemoteTemplateIdRef = useRef<string | null>(null);
+  const [initialTeamLoad, setInitialTeamLoad] = useState<{
+    templateId: string;
+    error: string | null;
+  } | null>(null);
+  const handleInitialTeamLoad = useCallback(
+    (error: string | null) => {
+      if (!remoteTemplateId) return;
+      setInitialTeamLoad((current) =>
+        current?.templateId === remoteTemplateId && current.error === null
+          ? current
+          : { templateId: remoteTemplateId, error },
+      );
+    },
+    [remoteTemplateId],
+  );
   const visibleLayerNodeIdsRef = useRef<string[]>([]);
   const {
     selectedNodeId,
@@ -777,7 +830,6 @@ export function TemplateStudioClient({
   useEffect(() => {
     const nextTemplateId = initialRemoteTemplateId ?? null;
     setRemoteTemplateId(nextTemplateId);
-    autoLoadedRemoteTemplateIdRef.current = null;
   }, [initialRemoteTemplateId]);
 
   const nodes = document.graph.nodes;
@@ -1026,7 +1078,46 @@ export function TemplateStudioClient({
   );
   const activeRuntimeEntry =
     activeRuntimeEntries[activeRuntimeEntryIndex] ?? null;
+  const activeTeamMemberId =
+    document.domains.timetable.team?.memberSlotIds.includes(
+      selectedTeamMemberId,
+    )
+      ? selectedTeamMemberId
+      : (document.domains.timetable.team?.memberSlotIds[0] ?? "");
+  const teamPreviewComponentId = activeTeamMemberId
+    ? getStudioTeamMemberComponent(
+        document,
+        activeTeamMemberId,
+        activeRuntimeDayId,
+      )?.id
+    : undefined;
+  useEffect(() => {
+    if (teamPreviewComponentId)
+      setSelectedCardComponentId(teamPreviewComponentId);
+  }, [
+    teamPreviewComponentId,
+    activeTeamMemberId,
+    activeRuntimeDayId,
+    setSelectedCardComponentId,
+  ]);
   const cardAuthoringRuntimeValues = useMemo(() => {
+    if (
+      document.domains.timetable.team &&
+      activeTeamMemberId &&
+      activeRuntimeDayId
+    ) {
+      const values = getStudioTeamCellRuntime(
+        document,
+        runtimeValues,
+        activeTeamMemberId,
+        activeRuntimeDayId,
+      );
+      const entry = values.timetable.entriesByDay[activeRuntimeDayId][0];
+      values.timetable.entriesByDay[activeRuntimeDayId] = [
+        { ...entry, statusId: selectedCardStatusId },
+      ];
+      return values;
+    }
     if (!activeRuntimeDayId || !activeRuntimeEntry) return runtimeValues;
 
     const dayEntries =
@@ -1089,6 +1180,8 @@ export function TemplateStudioClient({
     activeRuntimeEntryIndex,
     runtimeValues,
     selectedCardStatusId,
+    document,
+    activeTeamMemberId,
   ]);
   const selectedTimetableLayerGeometry = useMemo(() => {
     const timetable = document.domains?.timetable;
@@ -1494,16 +1587,21 @@ export function TemplateStudioClient({
    */
   const replaceEditorDocument = useCallback(
     (
-      nextDocument: StudioTemplateDocument,
+      sourceDocument: StudioTemplateDocument,
       nextRuntimeValues: StudioRuntimeValues,
       message: string,
     ) => {
+      const nextDocument = cloneDocument(sourceDocument);
+      upgradeStudioTeamDefaultCardLayers(nextDocument);
       if (nextDocument.version !== 8) {
         showShortcutStatus(
           "새 시간표 에디터는 v8 템플릿을 사용합니다. 새 템플릿을 만들어 주세요.",
         );
         return;
       }
+      upgradeStudioTeamTimetableBackground(
+        requireStudioTimetableGraphDocument(nextDocument),
+      );
       const normalizedRuntimeValues = withStudioCurrentRuntimeWeekStartDate(
         nextDocument,
         normalizeRuntimeValuesForTimetableCapabilities(
@@ -1511,6 +1609,7 @@ export function TemplateStudioClient({
           getStudioTimetableCapabilities(nextDocument.domains?.timetable),
         ),
       );
+      setUseTeamDummyData(false);
       const nextSelectedNodeId = nextDocument.graph.rootNodeIds[0] ?? null;
       const nextSelectedInputId = Object.keys(nextDocument.inputs)[0] ?? null;
       const nextRuntimeDayId =
@@ -1524,7 +1623,7 @@ export function TemplateStudioClient({
 
       setDocument(nextDocument);
       setTimetableEditingVariants({});
-      setRuntimeValues(normalizedRuntimeValues);
+      setStoredRuntimeValues(normalizedRuntimeValues);
       restoreSelection(
         nextSelectedNodeId ? [nextSelectedNodeId] : [],
         nextSelectedNodeId,
@@ -1550,7 +1649,7 @@ export function TemplateStudioClient({
       setDocument,
       setTimetableEditingVariants,
       setPanelMode,
-      setRuntimeValues,
+      setStoredRuntimeValues,
       setSelectedInputId,
       setSelectedRuntimeDayId,
       setSelectedRuntimeEntryIndex,
@@ -1562,6 +1661,8 @@ export function TemplateStudioClient({
   );
 
   const {
+    isInitialLoading,
+    initialLoadError,
     ensureTemplateId,
     exportJson: exportStudioJson,
     loadRemoteTemplate,
@@ -1585,7 +1686,9 @@ export function TemplateStudioClient({
     templateId: remoteTemplateId,
     onTemplateIdChange: setRemoteTemplateId,
     initialTemplateId: initialRemoteTemplateId,
-    isRemoteTemplateLoading: templateStudioTemplateQuery.isPending,
+    isRemoteTemplateLoading:
+      templateStudioTemplateQuery.isPending ||
+      templateStudioTemplateQuery.isFetching,
     hasRemoteTemplateLoadError: templateStudioTemplateQuery.isError,
     getRemoteTemplate: useCallback(
       () => templateStudioTemplateQuery.data,
@@ -1616,14 +1719,36 @@ export function TemplateStudioClient({
   });
 
   const applyConnectedTeamPreview = useCallback(
-    (values: StudioRuntimeValues, bindings: Record<string, number>) => {
+    (
+      values: StudioRuntimeValues,
+      bindings: Record<string, number>,
+      team?: StudioTeamDefinition,
+    ) => {
+      if (team) {
+        setTeamMembersManaged(true);
+        const currentDocument = studioStore.getState().document;
+        if (
+          JSON.stringify(currentDocument.domains?.timetable?.team) !==
+          JSON.stringify(team)
+        ) {
+          const nextDocument = cloneDocument(currentDocument);
+          nextDocument.domains!.timetable!.team = team;
+          const errors = validateStudioTeamDefinition(nextDocument);
+          if (errors.length) {
+            showShortcutStatus(errors[0]);
+            return;
+          }
+          studioStore.getState().setDocument(nextDocument);
+        }
+      }
       const current = studioStore.getState().runtimeValues;
-      // Preserve manually supplied preview images by user ID when slots move.
       const images = new Map(
-        Object.entries(connectedTeamBindingsRef.current).map(([slot, userId]) => [
-          userId,
-          current.team?.members[slot]?.image ?? "",
-        ]),
+        Object.entries(connectedTeamBindingsRef.current).map(
+          ([slot, userId]) => [
+            userId,
+            current.team?.members[slot]?.image ?? "",
+          ],
+        ),
       );
       const members = Object.fromEntries(
         Object.entries(values.team?.members ?? {}).map(([slot, member]) => [
@@ -1641,7 +1766,7 @@ export function TemplateStudioClient({
         },
       });
     },
-    [studioStore],
+    [studioStore, showShortcutStatus],
   );
 
   const updateDocument = useCallback(
@@ -2643,7 +2768,16 @@ export function TemplateStudioClient({
   useStudioKeyboardShortcuts({
     hasCutNodes: cutNodeIds.length > 0,
     isNodePickerOpen: Boolean(nodePicker),
-    disabled: isRemoteSyncing,
+    disabled:
+      isRemoteSyncing ||
+      isInitialLoading ||
+      Boolean(initialLoadError) ||
+      Boolean(
+        initialRemoteTemplateId &&
+        storedDocument.domains?.timetable?.team &&
+        (initialTeamLoad?.templateId !== remoteTemplateId ||
+          initialTeamLoad?.error),
+      ),
     handlers: useMemo(
       () => ({
         undo: undoEditorState,
@@ -3223,7 +3357,10 @@ export function TemplateStudioClient({
       days: timetableDays,
       document,
       runtimeValues,
-      runtimeContext: { dayId: activeRuntimeDayId, entryIndex: activeRuntimeEntryIndex },
+      runtimeContext: {
+        dayId: activeRuntimeDayId,
+        entryIndex: activeRuntimeEntryIndex,
+      },
       fontFamilies,
       getEntryCardSize: getTimetableEntryCardSizeForDay,
       isSectionOpen: (sectionKey) => inspectorSections[sectionKey],
@@ -3360,40 +3497,6 @@ export function TemplateStudioClient({
           ]
         : buildTimetableInspectorSections()),
 
-    ...(document.domains.timetable.team
-      ? [
-          buildInspectorSection(
-            "layout",
-            "Team",
-            <StudioTeamControls
-              document={document}
-              preview={runtimeValues.team}
-              onDefinitionChange={(team) => {
-                const candidate = cloneDocument(document);
-                candidate.domains!.timetable!.team = team;
-                const errors = validateStudioTeamDefinition(candidate);
-                if (errors.length) {
-                  showShortcutStatus(errors[0]);
-                  return;
-                }
-                updateDocument((next) => {
-                  next.domains!.timetable!.team = team;
-                });
-                const members = Object.fromEntries(
-                  Object.entries(runtimeValues.team?.members ?? {}).filter(
-                    ([id]) => team.memberSlotIds.includes(id),
-                  ),
-                );
-                setRuntimeValues({ ...runtimeValues, team: { members } });
-              }}
-              onPreviewChange={(team) =>
-                setRuntimeValues({ ...runtimeValues, team })
-              }
-            />,
-          ),
-        ]
-      : []),
-
     buildInspectorSection(
       "diagnostics",
       "Diagnostics",
@@ -3426,8 +3529,47 @@ export function TemplateStudioClient({
     ),
   ];
 
+  const connectedTeamPreview =
+    !settingsOpen &&
+    !isInitialLoading &&
+    !initialLoadError &&
+    storedDocument.domains?.timetable?.team &&
+    remoteTemplateId ? (
+      <StudioConnectedTeamPreview
+        key={remoteTemplateId}
+        templateId={remoteTemplateId}
+        document={storedDocument}
+        week={connectedTeamWeek}
+        onPreview={applyConnectedTeamPreview}
+        onInitialLoad={handleInitialTeamLoad}
+      />
+    ) : null;
+  const needsInitialTeamLoad = Boolean(
+    initialRemoteTemplateId && storedDocument.domains?.timetable?.team,
+  );
+  const teamLoadPending =
+    needsInitialTeamLoad && initialTeamLoad?.templateId !== remoteTemplateId;
+  const teamLoadError =
+    needsInitialTeamLoad && initialTeamLoad?.templateId === remoteTemplateId
+      ? initialTeamLoad.error
+      : null;
+  if (
+    isInitialLoading ||
+    initialLoadError ||
+    teamLoadPending ||
+    teamLoadError
+  ) {
+    return (
+      <>
+        {connectedTeamPreview}
+        <StudioInitialLoading error={initialLoadError ?? teamLoadError} />
+      </>
+    );
+  }
+
   return (
     <StudioEditorStoreProvider value={studioStore}>
+      {connectedTeamPreview}
       <StudioEditorShell
         responsivePanels={Boolean(document.domains.timetable.team)}
         canvas={
@@ -3763,6 +3905,30 @@ export function TemplateStudioClient({
             contextHeader={
               activeWorkspaceMode === "cards" ? (
                 <div className="grid gap-2 border-b border-[var(--border)] p-2">
+                  {document.domains.timetable.team && (
+                    <p
+                      className="text-[10px] text-[var(--fg3)]"
+                      data-team-card-preview-context
+                    >
+                      {runtimeValues.team?.members[activeTeamMemberId]?.name ??
+                        "멤버"}{" "}
+                      · {activeRuntimeDay?.label}
+                      {" · 편집: "}
+                      {
+                        document.domains.timetable.statuses[
+                          selectedCardStatusId
+                        ]?.label
+                      }
+                      {" · 일정: "}
+                      {
+                        document.domains.timetable.statuses[
+                          runtimeValues.team?.members[activeTeamMemberId]?.days[
+                            activeRuntimeDayId
+                          ]?.status ?? "missing"
+                        ]?.label
+                      }
+                    </p>
+                  )}
                   <div className="grid gap-1.5">
                     <span className="text-[9px] font-bold uppercase tracking-[0.08em] text-[var(--fg3)]">
                       Component Set
@@ -3885,16 +4051,6 @@ export function TemplateStudioClient({
               }
               onDismissToast={() => setOperationToast(null)}
             />
-            {storedDocument.domains?.timetable?.team &&
-              remoteTemplateId &&
-              templateStudioTemplateQuery.isSuccess && (
-                <StudioConnectedTeamPreview
-                  templateId={remoteTemplateId}
-                  document={storedDocument}
-                  week={connectedTeamWeek}
-                  onPreview={applyConnectedTeamPreview}
-                />
-              )}
             <StudioSettingsModal
               activeWorkspaceMode={activeWorkspaceMode}
               databaseTargetLabel={STUDIO_DATABASE_TARGET_LABEL}
@@ -3913,8 +4069,128 @@ export function TemplateStudioClient({
                     week={connectedTeamWeek}
                     onWeekChange={setConnectedTeamWeek}
                     onPreview={applyConnectedTeamPreview}
+                    onDisconnect={() => setTeamMembersManaged(false)}
                     onSaveDesign={saveDatabaseDraft}
                     busy={isRemoteSyncing}
+                    designControls={
+                      <div className="grid gap-4">
+                        <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border)] p-3">
+                          <span className="grid gap-1 text-xs">
+                            <span className="font-semibold">더미 데이터</span>
+                            <span className="text-[var(--fg3)]">
+                              {useTeamDummyData
+                                ? "고정 샘플 일정 표시 중"
+                                : "실제 일정 표시 중"}
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-label="팀 더미 데이터"
+                            aria-checked={useTeamDummyData}
+                            className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-[var(--field-border)] p-1 transition-colors aria-checked:bg-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] [&[aria-checked=true]>span]:translate-x-5"
+                            onClick={() => {
+                              const enabled = !useTeamDummyData;
+                              setUseTeamDummyData(enabled);
+                              const preview = enabled
+                                ? createStudioTeamDummyPreview(
+                                    document,
+                                    actualRuntimeValues.team,
+                                    connectedTeamWeek,
+                                  )
+                                : actualRuntimeValues.team;
+                              setSelectedCardStatusId(
+                                preview?.members[activeTeamMemberId]?.days[
+                                  activeRuntimeDayId
+                                ]?.status ?? "missing",
+                              );
+                            }}
+                          >
+                            <span className="size-4 rounded-full bg-white transition-transform" />
+                          </button>
+                        </div>
+                        <p className="text-xs text-[var(--fg3)]">
+                          기존 팀 시간표의 고정 샘플을 미리보기에 표시합니다.
+                          끄면 실제 일정으로 돌아갑니다.
+                        </p>
+                        <StudioTeamControls
+                          document={document}
+                          preview={runtimeValues.team}
+                          membersManagedByTeam={teamMembersManaged}
+                          selectedMemberId={activeTeamMemberId}
+                          selectedDayId={activeRuntimeDayId}
+                          onSelectDay={(day) => {
+                            setSelectedRuntimeDayId(day);
+                            setSelectedCardStatusId(
+                              runtimeValues.team?.members[activeTeamMemberId]
+                                ?.days[day]?.status ?? "missing",
+                            );
+                          }}
+                          onSelectMember={(slot) => {
+                            setSelectedTeamMemberId(slot);
+                            setSelectedCardStatusId(
+                              runtimeValues.team?.members[slot]?.days[
+                                activeRuntimeDayId
+                              ]?.status ?? "missing",
+                            );
+                            const component = getStudioTeamMemberComponent(
+                              document,
+                              slot,
+                              activeRuntimeDayId,
+                            );
+                            if (component) selectCardComponent(component.id);
+                          }}
+                          onSelectComponent={selectCardComponent}
+                          showImages={false}
+                          showPreviewFields={false}
+                          onDefinitionChange={(team) => {
+                            const candidate = cloneDocument(document);
+                            candidate.domains!.timetable!.team = team;
+                            const errors =
+                              validateStudioTeamDefinition(candidate);
+                            if (errors.length) {
+                              showShortcutStatus(errors[0]);
+                              return;
+                            }
+                            updateDocument((next) => {
+                              next.domains!.timetable!.team = team;
+                            });
+                            const members = Object.fromEntries(
+                              team.memberSlotIds.map((id, index) => [
+                                id,
+                                actualRuntimeValues.team?.members[id] ?? {
+                                  name: `멤버 ${index + 1}`,
+                                  image: "",
+                                  days: Object.fromEntries(
+                                    document.domains.timetable.dayIds.map(
+                                      (day) => [
+                                        day,
+                                        {
+                                          status: "missing" as const,
+                                          entries: [],
+                                        },
+                                      ],
+                                    ),
+                                  ),
+                                },
+                              ]),
+                            );
+                            setStoredRuntimeValues({
+                              ...actualRuntimeValues,
+                              team: { members },
+                            });
+                          }}
+                          onPreviewChange={(team) => {
+                            setRuntimeValues({ ...runtimeValues, team });
+                            const status =
+                              team.members[activeTeamMemberId]?.days[
+                                activeRuntimeDayId
+                              ]?.status;
+                            if (status) setSelectedCardStatusId(status);
+                          }}
+                        />
+                      </div>
+                    }
                   />
                 ) : undefined
               }
