@@ -37,8 +37,8 @@ import type {
 import type { ShopTemplateWithPlans as ShopTemplateDetailData } from "@/types/templateDetail";
 import { resolveConsumerTemplateKind } from "@/utils/templates/consumer-template";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 
 interface PlanOptions {
   is_artist: boolean;
@@ -203,6 +203,9 @@ function ProductRoyaltyRuleEditor({
 function TemplateProductEditorContent() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnToHub = searchParams.get("returnTo") === "template-hub";
+  const returnPath = returnToHub ? "/admin/template-hub" : "/admin/templates";
   const params = useParams();
   const templateId = params?.templateId as string;
 
@@ -814,7 +817,7 @@ function TemplateProductEditorContent() {
       if (window.history.length > 1) {
         router.back();
       } else {
-        router.push("/admin/templates");
+        router.push(returnPath);
       }
     } catch (error) {
       console.error("Product submit error:", error);
@@ -847,7 +850,7 @@ function TemplateProductEditorContent() {
           </p>
           <button
             type="button"
-            onClick={() => router.push("/admin/templates")}
+            onClick={() => router.push(returnPath)}
             className="mt-4 px-4 py-2 rounded-lg bg-[#D88A4A] text-white hover:bg-[#C97A3A] transition-colors"
           >
             관리자 페이지로 이동
@@ -871,7 +874,7 @@ function TemplateProductEditorContent() {
           </p>
           <button
             type="button"
-            onClick={() => router.push("/admin/templates")}
+            onClick={() => router.push(returnPath)}
             className="mt-4 px-4 py-2 rounded-lg bg-[#D88A4A] text-white hover:bg-[#C97A3A] transition-colors"
           >
             관리자 페이지로 이동
@@ -891,13 +894,13 @@ function TemplateProductEditorContent() {
               if (window.history.length > 1) {
                 router.back();
               } else {
-                router.push("/admin/templates");
+                router.push(returnPath);
               }
             }}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[#DFCDBF] bg-[#F8EDE4] text-[#5A493E] hover:bg-[#F1E2D5] transition-colors text-sm font-medium"
           >
             <ArrowLeft className="w-4 h-4" />
-            템플릿 관리로 돌아가기
+            {returnToHub ? "판매 관리로 돌아가기" : "템플릿 관리로 돌아가기"}
           </button>
           <span className="hidden lg:inline text-xs text-[#7A685A]">
             데스크톱에서는 오른쪽에서 실시간 상세페이지 미리보기를 확인할 수
@@ -1452,7 +1455,7 @@ function TemplateProductEditorContent() {
                     if (window.history.length > 1) {
                       router.back();
                     } else {
-                      router.push("/admin/templates");
+                      router.push(returnPath);
                     }
                   }}
                   className="px-4 py-2 rounded-lg border border-[#DFCEBF] bg-[#F5ECE5] text-[#5F4F44] hover:bg-[#EDE0D3] transition-colors"
@@ -1516,7 +1519,15 @@ function TemplateProductEditorContent() {
 export default function AdminTemplateProductEditorPage() {
   return (
     <ProtectedRoute>
-      <TemplateProductEditorContent />
+      <Suspense
+        fallback={
+          <div className="p-8 text-center text-gray-500">
+            상품 정보를 불러오는 중...
+          </div>
+        }
+      >
+        <TemplateProductEditorContent />
+      </Suspense>
     </ProtectedRoute>
   );
 }

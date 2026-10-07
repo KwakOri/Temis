@@ -6,6 +6,8 @@ import { createStudioInitialRuntimeValues } from "../src/utils/template-studio/i
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
 import { migrateStudioTemplateDocument } from "../src/utils/template-studio/migrations";
 import { ensureStudioTimetableCapabilityStatus } from "../src/utils/template-studio/timetable-capabilities";
+import { resolveStudioTimetableDayVariantStatus } from "../src/utils/template-studio/entry-groups";
+import { reconcileStudioUserRuntimeValues } from "../src/utils/template-studio/runtime-state";
 import { validateStudioDocument } from "../src/utils/template-studio/validator";
 import {
   addStudioTimetableEntry,
@@ -174,18 +176,57 @@ assert.equal(
   "Removing back to one entry must restore the Online layout.",
 );
 
+document.inputs.offline_preservation_image = {
+  id: "offline_preservation_image",
+  type: "image",
+  scope: "entry",
+  label: "Entry image",
+};
+document.inputs.offline_preservation_text = {
+  id: "offline_preservation_text",
+  type: "text",
+  scope: "entry",
+  label: "Entry notes",
+};
+const authoredMultiValues = structuredClone(withSecondEntry);
+authoredMultiValues.timetable.entriesByDay[dayId].forEach((entry, index) => {
+  entry.mainTitle = `Authored title ${index + 1}`;
+  entry.subTitle = `Authored subtitle ${index + 1}`;
+  entry.time = index === 0 ? "18:30" : "21:00";
+  entry.isGuerrilla = index === 1;
+  authoredMultiValues.entries[dayId][index] = {
+    offline_preservation_image: `https://example.com/entry-${index + 1}.png`,
+    offline_preservation_text: `Authored notes ${index + 1}`,
+  };
+});
 const offlineValues = setStudioTimetableDayBaseStatus(
   document,
-  withSecondEntry,
+  authoredMultiValues,
   dayId,
   "offline",
 );
-assert.equal(offlineValues.timetable.entriesByDay[dayId].length, 1);
-assert.equal(offlineValues.entries[dayId].length, 1);
-assert.equal(
-  offlineValues.timetable.entriesByDay[dayId][0].statusId,
-  "offline",
+assert.equal(offlineValues.timetable.entriesByDay[dayId].length, 2);
+assert.deepEqual(offlineValues.entries, authoredMultiValues.entries);
+assert.deepEqual(
+  offlineValues.timetable.entriesByDay[dayId],
+  authoredMultiValues.timetable.entriesByDay[dayId].map((entry) => ({
+    ...entry,
+    statusId: "offline",
+  })),
+  "Offline must preserve every authored entry and change only the layout status.",
 );
+assert.equal(
+  resolveStudioTimetableDayVariantStatus(document, offlineValues, dayId),
+  "offline",
+  "Retained entries must render the single Offline layout.",
+);
+assert.equal(
+  resolveStudioBuiltinFieldValue(document, offlineValues, "day.is_offline", {
+    dayId,
+  }),
+  "Yes",
+);
+assert.deepEqual(validateStudioRuntimeValuesForDocument(document, offlineValues), []);
 
 document.domains!.timetable!.capabilities!.offlineMemo.enabled = true;
 ensureStudioTimetableCapabilityStatus(
@@ -203,13 +244,52 @@ assert.equal(
   offlineMemoValues.timetable.entriesByDay[dayId][0].statusId,
   "offlineMemo",
 );
+assert.equal(
+  resolveStudioTimetableDayVariantStatus(document, offlineMemoValues, dayId),
+  "offlineMemo",
+  "Offline Memo must stay available while additional entries are retained.",
+);
+assert.deepEqual(
+  validateStudioRuntimeValuesForDocument(document, offlineMemoValues),
+  [],
+);
+const reconciledOfflineValues = reconcileStudioUserRuntimeValues(
+  document,
+  { runtimeValues: offlineMemoValues, baseRevisionNo: 1 },
+  2,
+).runtimeValues;
+assert.deepEqual(
+  reconciledOfflineValues,
+  offlineMemoValues,
+  "A template revision must not discard saved Offline entries or their inputs.",
+);
 const onlineValues = setStudioTimetableDayBaseStatus(
   document,
-  offlineMemoValues,
+  reconciledOfflineValues,
   dayId,
   "online",
 );
-assert.equal(onlineValues.timetable.entriesByDay[dayId][0].statusId, "online");
+assert.deepEqual(
+  onlineValues.timetable.entriesByDay[dayId],
+  authoredMultiValues.timetable.entriesByDay[dayId],
+  "Online must restore the original order, IDs, titles, times, and Multi layout.",
+);
+assert.deepEqual(
+  onlineValues.entries,
+  authoredMultiValues.entries,
+  "Online must restore all custom input values and entry images.",
+);
+assert.deepEqual(validateStudioRuntimeValuesForDocument(document, onlineValues), []);
+assert.deepEqual(
+  setStudioTimetableDayBaseStatus(
+    document,
+    setStudioTimetableDayBaseStatus(document, initialValues, dayId, "offline"),
+    dayId,
+    "online",
+  ).timetable.entriesByDay[dayId],
+  initialValues.timetable.entriesByDay[dayId],
+  "A single entry must restore its Online layout too.",
+);
 
 const withMainTitle = setStudioTimetableEntryField(
   document,

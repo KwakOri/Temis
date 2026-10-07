@@ -1,10 +1,16 @@
 "use client";
 
 import AdminTabHeader from "@/components/admin/AdminTabHeader";
+import { useUpdateStudioTemplateInfo } from "@/hooks/query/useStudioTemplateInfo";
+import {
+  StudioTemplateInfoSaveError,
+  type StudioTemplateInfoInput,
+  type StudioTemplateInfoValues,
+} from "@/services/admin/studioTemplateInfoService";
+import { cva } from "class-variance-authority";
 import {
   useDeleteTemplateStudioTemplate,
   useDuplicateTemplateStudioTemplate,
-  useRenameTemplateStudioTemplate,
   useTemplateStudioTemplates,
 } from "@/hooks/query/useTemplateStudio";
 import { cn } from "@/lib/utils";
@@ -75,41 +81,55 @@ const StatusBadge = ({
   </span>
 );
 
-const ThumbnailCoverStatus = ({
+const typeBadge = cva(
+  "inline-flex rounded-full px-2 py-0.5 text-xs font-semibold",
+  {
+    variants: {
+      general: {
+        true: "bg-blue-100 text-blue-800",
+        false: "bg-gray-100 text-gray-600",
+      },
+    },
+  },
+);
+
+const TemplateSummary = ({
   template,
 }: {
   template: TemplateStudioTemplateRecord;
 }) => {
-  const coverUrl = template.thumbnailUrl ?? template.studioPreviewUrl;
-  const coverSource = template.thumbnailUrl
-    ? "대표 이미지 등록됨"
-    : template.studioPreviewUrl
-      ? "자동 미리보기 생성됨"
-      : "대표 이미지 없음";
-
+  const coverUrl = template.thumbnailUrl || template.studioPreviewUrl;
   return (
-    <div className="mt-2 flex items-center gap-2">
-      <div className="flex h-12 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-gray-200 bg-gray-50">
+    <div className="flex items-start gap-3">
+      <div className="flex h-16 w-24 shrink-0 items-center justify-center overflow-hidden rounded-md border border-gray-200 bg-gray-50">
         {coverUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- Catalog covers are stored URLs from the templates table.
+          // eslint-disable-next-line @next/next/no-img-element -- Stored catalog cover or Studio preview.
           <img
             src={coverUrl}
-            alt={template.thumbnailUrl ? "대표 이미지" : "자동 미리보기"}
+            alt={`${template.name} 대표 이미지`}
             className="h-full w-full object-cover"
             draggable={false}
           />
         ) : (
-          <ImageIcon className="h-4 w-4 text-gray-300" aria-hidden="true" />
+          <ImageIcon className="h-5 w-5 text-gray-300" aria-hidden="true" />
         )}
       </div>
-      <div className="min-w-0">
-        <p className="text-[11px] font-medium text-gray-500">{coverSource}</p>
-        <Link
-          className="text-[11px] font-semibold text-blue-600 hover:underline"
-          href={"/admin/template-products/" + template.id}
+      <div className="min-w-0 max-w-md">
+        <p className="break-words text-sm font-medium text-gray-900">
+          {template.name}
+        </p>
+        <div
+          aria-label="템플릿 상태 및 종류"
+          className="mt-2 flex flex-wrap items-center gap-1.5"
         >
-          {template.thumbnailUrl ? "대표 이미지 관리" : "대표 이미지 등록"}
-        </Link>
+          <StatusBadge status={template.status} />
+          <span className={typeBadge({ general: template.isPublic })}>
+            {template.isPublic ? "일반 템플릿" : "개인 템플릿"}
+          </span>
+        </div>
+        {template.description ? (
+          <p className="mt-2 text-xs text-gray-500">{template.description}</p>
+        ) : null}
       </div>
     </div>
   );
@@ -172,6 +192,17 @@ const RowActions = ({
         <Edit className="h-3.5 w-3.5" />
         편집
       </Link>
+      {onEditInfo ? (
+        <button
+          type="button"
+          aria-label={`${template.name} 정보 수정`}
+          className="inline-flex items-center gap-1 rounded border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+          onClick={(event) => onEditInfo(template, event.currentTarget)}
+        >
+          <Edit className="h-3.5 w-3.5" />
+          정보 수정
+        </button>
+      ) : null}
       {template.status === "published" ? (
         <Link
           className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium transition-colors bg-[#F5F0ED] text-[#2d2d2d] border border-[#E6DBD4] hover:bg-[#EDE5E0]"
@@ -216,20 +247,6 @@ const RowActions = ({
             >
               <ArrowUpRight className="h-3.5 w-3.5" />새 탭에서 열기
             </Link>
-            {onEditInfo ? (
-              <button
-                className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs font-medium text-gray-700 hover:bg-gray-100"
-                role="menuitem"
-                type="button"
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  onEditInfo(template, menuButtonRef.current);
-                }}
-              >
-                <Edit className="h-3.5 w-3.5" />
-                정보 수정
-              </button>
-            ) : null}
             {showDuplicate ? (
               <button
                 className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
@@ -293,7 +310,8 @@ export function TemplateStudioAdminListClient({
   );
   const deleteTemplateMutation = useDeleteTemplateStudioTemplate();
   const duplicateTemplateMutation = useDuplicateTemplateStudioTemplate();
-  const renameTemplateMutation = useRenameTemplateStudioTemplate();
+  const infoMutation = useUpdateStudioTemplateInfo();
+  const savedInfoRef = useRef<StudioTemplateInfoValues | null>(null);
   const templates = templatesQuery.data?.templates ?? [];
   const [editingTemplate, setEditingTemplate] =
     useState<TemplateStudioTemplateRecord | null>(null);
@@ -304,31 +322,38 @@ export function TemplateStudioAdminListClient({
     template: TemplateStudioTemplateRecord,
     triggerElement: HTMLElement | null,
   ) => {
-    renameTemplateMutation.reset();
+    infoMutation.reset();
     setInfoReturnFocusElement(triggerElement);
+    savedInfoRef.current = {
+      name: template.name,
+      isPublic: template.isPublic,
+      thumbnailUrl: template.thumbnailUrl,
+    };
     setEditingTemplate(template);
   };
 
   const handleCloseInfo = () => {
-    if (renameTemplateMutation.isPending) return;
+    if (infoMutation.isPending) return;
     setEditingTemplate(null);
     setInfoReturnFocusElement(null);
-    renameTemplateMutation.reset();
+    savedInfoRef.current = null;
+    infoMutation.reset();
   };
 
-  const handleRename = (name: string) => {
-    if (!editingTemplate) return;
-
-    renameTemplateMutation.reset();
-    renameTemplateMutation.mutate(
-      {
-        templateId: editingTemplate.id,
-        payload: { name },
-      },
+  const handleSaveInfo = (input: StudioTemplateInfoInput) => {
+    if (!editingTemplate || !savedInfoRef.current || infoMutation.isPending)
+      return;
+    infoMutation.mutate(
+      { templateId: editingTemplate.id, previous: savedInfoRef.current, input },
       {
         onSuccess: () => {
           setEditingTemplate(null);
           setInfoReturnFocusElement(null);
+          savedInfoRef.current = null;
+        },
+        onError: (error) => {
+          if (error instanceof StudioTemplateInfoSaveError)
+            savedInfoRef.current = error.savedValues;
         },
       },
     );
@@ -468,25 +493,7 @@ export function TemplateStudioAdminListClient({
                 templates.map((template) => (
                   <tr className="hover:bg-gray-50" key={template.id}>
                     <td className="px-4 py-4 align-top">
-                      <div className="max-w-md">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-medium text-gray-900 truncate">
-                            {template.name}
-                          </span>
-                          <StatusBadge status={template.status} />
-                        </div>
-                        {template.description ? (
-                          <p className="text-xs text-gray-500 truncate mt-1">
-                            {template.description}
-                          </p>
-                        ) : null}
-                        {isThumbnail ? (
-                          <ThumbnailCoverStatus template={template} />
-                        ) : null}
-                        <p className="text-xs text-gray-400 truncate mt-1">
-                          {template.id}
-                        </p>
-                      </div>
+                      <TemplateSummary template={template} />
                     </td>
                     <td className="px-4 py-4 align-top text-sm text-gray-500">
                       {formatDateTime(template.updatedAt)}
@@ -506,9 +513,7 @@ export function TemplateStudioAdminListClient({
                         template={template}
                         onDelete={handleDelete}
                         onDuplicate={handleDuplicate}
-                        onEditInfo={
-                          isThumbnail || isTeam ? handleEditInfo : undefined
-                        }
+                        onEditInfo={handleEditInfo}
                       />
                     </td>
                   </tr>
@@ -551,20 +556,7 @@ export function TemplateStudioAdminListClient({
             templates.map((template) => (
               <div className="p-4 space-y-3" key={template.id}>
                 <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium text-gray-900 truncate">
-                      {template.name}
-                    </span>
-                    <StatusBadge status={template.status} />
-                  </div>
-                  {template.description ? (
-                    <p className="text-xs text-gray-500 truncate mt-1">
-                      {template.description}
-                    </p>
-                  ) : null}
-                  {isThumbnail ? (
-                    <ThumbnailCoverStatus template={template} />
-                  ) : null}
+                  <TemplateSummary template={template} />
                   <p className="text-xs text-gray-400 mt-1">
                     업데이트 {formatDateTime(template.updatedAt)}
                   </p>
@@ -583,9 +575,7 @@ export function TemplateStudioAdminListClient({
                   template={template}
                   onDelete={handleDelete}
                   onDuplicate={handleDuplicate}
-                  onEditInfo={
-                    isThumbnail || isTeam ? handleEditInfo : undefined
-                  }
+                  onEditInfo={handleEditInfo}
                 />
               </div>
             ))
@@ -595,17 +585,26 @@ export function TemplateStudioAdminListClient({
 
       <TemplateStudioTemplateInfoDialog
         error={
-          renameTemplateMutation.error instanceof Error
-            ? renameTemplateMutation.error.message
-            : renameTemplateMutation.error
-              ? "템플릿 이름 변경에 실패했습니다."
+          infoMutation.error instanceof Error
+            ? infoMutation.error.message
+            : infoMutation.error
+              ? "템플릿 정보 저장에 실패했습니다."
               : null
         }
-        isSubmitting={renameTemplateMutation.isPending}
+        isSubmitting={infoMutation.isPending}
         restoreFocusElement={infoReturnFocusElement}
         template={editingTemplate}
         onClose={handleCloseInfo}
-        onSubmit={handleRename}
+        details={
+          editingTemplate
+            ? {
+                isPublic: editingTemplate.isPublic,
+                thumbnailUrl: editingTemplate.thumbnailUrl,
+                studioPreviewUrl: editingTemplate.studioPreviewUrl,
+              }
+            : undefined
+        }
+        onSubmitInfo={handleSaveInfo}
       />
     </div>
   );

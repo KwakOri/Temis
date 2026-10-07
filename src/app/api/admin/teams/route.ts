@@ -1,6 +1,13 @@
 import { requireAdmin } from "@/lib/auth/middleware";
+import { supabaseAdminServer } from "@/lib/supabase-admin-server";
+import { createAdminTeamManagementService } from "@/services/server/adminTeamManagementService";
 import { teamService } from "@/services/server/teamService";
 import { NextRequest, NextResponse } from "next/server";
+
+const adminTeams = createAdminTeamManagementService({
+  db: supabaseAdminServer,
+  getAllTeams: () => teamService.getAllTeams(supabaseAdminServer),
+});
 
 // Get all teams (Admin only)
 export async function GET(request: NextRequest) {
@@ -10,17 +17,25 @@ export async function GET(request: NextRequest) {
       return adminCheck;
     }
 
-    const teams = await teamService.getAllTeams();
-    return NextResponse.json({ success: true, teams });
+    const scope = request.nextUrl.searchParams.get("scope") ?? "all";
+    if (scope !== "all" && scope !== "legacy" && scope !== "studio") {
+      return NextResponse.json(
+        { error: "팀 관리 범위를 확인해 주세요." },
+        { status: 400 },
+      );
+    }
+    const result = await adminTeams.list(scope);
+    return NextResponse.json({ success: true, ...result });
   } catch (error) {
     console.error("Error fetching teams:", error);
     return NextResponse.json(
       {
-        error: error instanceof Error
-          ? error.message
-          : "팀 목록을 가져오는데 실패했습니다."
+        error:
+          error instanceof Error
+            ? error.message
+            : "팀 목록을 가져오는데 실패했습니다.",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

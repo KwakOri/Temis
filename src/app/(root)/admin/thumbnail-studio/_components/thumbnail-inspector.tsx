@@ -78,7 +78,10 @@ import {
   STUDIO_TEXT_WRAP_MODE_STYLE_KEY,
   type StudioTextWrapMode,
 } from "@/utils/template-studio/text-wrap";
-import { getStudioFontWeightOptions } from "@/utils/template-studio/web-fonts";
+import {
+  getStudioFontWeightOptions,
+  resolveStudioFontFamily,
+} from "@/utils/template-studio/web-fonts";
 import { getStudioDateFormatMode } from "@/utils/template-studio/date-template";
 import {
   getStudioImageBorderRadius,
@@ -754,7 +757,7 @@ export const buildThumbnailInspectorSections = ({
       ...(fontFamily.mixed
         ? [{ value: MIXED_FONT_FAMILY_VALUE, label: "Mixed" }]
         : []),
-      { value: "", label: "Default (Pretendard)" },
+      { value: "", label: "none" },
       ...Array.from(
         new Set([
           ...fontFamilies,
@@ -909,7 +912,10 @@ export const buildThumbnailInspectorSections = ({
               onChange={(value) => applyStyleValue("fontSize", value)}
             />
             <StudioFontWeightField
-              options={getStudioFontWeightOptions(document, fontFamily.value)}
+              options={getStudioFontWeightOptions(
+                document,
+                resolveStudioFontFamily(document, fontFamily.value),
+              )}
               value={primaryStyle.fontWeight ?? 700}
               onChange={(value) => applyStyleValue("fontWeight", value)}
             />

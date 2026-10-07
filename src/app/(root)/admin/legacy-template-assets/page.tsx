@@ -1,11 +1,13 @@
 import AdminDashboardShell from "@/components/admin/AdminDashboardShell";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import { LegacyAssetList } from "@/components/admin/legacy-template-assets/LegacyAssetList";
+import LegacyManagement from "@/components/admin/LegacyManagement";
+export const dynamic = "force-dynamic";
+
 export default function Page() {
   return (
     <ProtectedRoute>
       <AdminDashboardShell>
-        <LegacyAssetList />
+        <LegacyManagement initialSection="assets" />
       </AdminDashboardShell>
     </ProtectedRoute>
   );

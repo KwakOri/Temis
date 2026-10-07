@@ -2,7 +2,7 @@
 
 import AdminTabHeader from "@/components/admin/AdminTabHeader";
 import {
-  EMPTY_FILTERS,
+  DEFAULT_FILTERS,
   TemplateHubFilters,
   type TemplateHubFilterState,
 } from "@/components/admin/template-hub/template-hub-filters";
@@ -12,8 +12,7 @@ import { TemplateHubRowActions } from "@/components/admin/template-hub/template-
 import { useTemplateHubTemplates } from "@/hooks/query/useTemplateHub";
 import { cn } from "@/lib/utils";
 import type { TemplateHubListParams } from "@/types/template-hub";
-import { LayoutList, Plus, RefreshCw } from "lucide-react";
-import Link from "next/link";
+import { ShoppingBag, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 const PAGE_SIZE = 20;
@@ -21,7 +20,8 @@ const SEARCH_DEBOUNCE_MS = 300;
 
 export function TemplateHubClient() {
   const [searchInput, setSearchInput] = useState("");
-  const [filters, setFilters] = useState<TemplateHubFilterState>(EMPTY_FILTERS);
+  const [filters, setFilters] =
+    useState<TemplateHubFilterState>(DEFAULT_FILTERS);
   const [offset, setOffset] = useState(0);
 
   // 검색어는 debounce해 서버 요청 수를 줄이고, 확정된 값만 query key에 넣는다.
@@ -42,7 +42,7 @@ export function TemplateHubClient() {
     filters.search,
     filters.engine,
     filters.publicationStatus,
-    filters.salesType,
+    filters.category,
     filters.saleStatus,
     filters.hasProduct,
   ]);
@@ -54,7 +54,8 @@ export function TemplateHubClient() {
       search: filters.search || undefined,
       engine: filters.engine,
       publicationStatus: filters.publicationStatus,
-      salesType: filters.salesType,
+      salesType: "general",
+      category: filters.category,
       saleStatus: filters.saleStatus,
       hasProduct: filters.hasProduct,
     }),
@@ -68,25 +69,25 @@ export function TemplateHubClient() {
     Boolean(filters.search) ||
     filters.engine !== undefined ||
     filters.publicationStatus !== undefined ||
-    filters.salesType !== undefined ||
+    filters.category !== undefined ||
     filters.saleStatus !== undefined ||
     filters.hasProduct !== undefined;
 
   const handleReset = () => {
     setSearchInput("");
-    setFilters(EMPTY_FILTERS);
+    setFilters(DEFAULT_FILTERS);
   };
 
   return (
     <div className="space-y-4 sm:space-y-6">
       <AdminTabHeader
-        description="Legacy와 Studio 템플릿을 한 곳에서 조회하고 판매를 운영하세요"
-        icon={LayoutList}
-        title="템플릿 통합 관리 (Beta)"
+        description="기성품 템플릿의 상품 정보, 가격과 판매 상태를 관리하세요."
+        icon={ShoppingBag}
+        title="템플릿 판매 관리"
       >
         <div className="rounded-lg border bg-quaternary px-3 py-1.5 sm:px-4 sm:py-2">
           <span className="text-sm font-semibold text-[#F4FDFF] sm:text-base">
-            총 {data?.counts.all ?? 0}개
+            조회 {data?.pagination.total ?? 0}개
           </span>
         </div>
         <button
@@ -103,25 +104,9 @@ export function TemplateHubClient() {
           />
           새로고침
         </button>
-        {/* 신규 제작은 Studio로 단일화하되, 템플릿 종류별 생성 흐름은 분리한다. */}
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <Link
-            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-primary px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-blue-50 sm:px-4"
-            href="/admin/template-studio/create"
-          >
-            <Plus className="h-4 w-4" />새 시간표 템플릿
-          </Link>
-          <Link
-            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-primary px-3 py-2 text-sm font-medium text-[#F4FDFF] transition-colors hover:bg-secondary sm:px-4"
-            href="/admin/thumbnail-studio/create"
-          >
-            <Plus className="h-4 w-4" />새 썸네일 템플릿
-          </Link>
-        </div>
       </AdminTabHeader>
 
       <TemplateHubFilters
-        counts={data?.counts}
         filters={filters}
         searchInput={searchInput}
         onChange={setFilters}

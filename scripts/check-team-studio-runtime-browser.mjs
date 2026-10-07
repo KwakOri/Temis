@@ -13,7 +13,7 @@ mkdirSync(output, { recursive: true });
 const id = "00000000-0000-4000-8000-000000000008",
   teamId = "00000000-0000-4000-8000-000000000009",
   largeTeamId = "00000000-0000-4000-8000-000000000010";
-const document = createStudioTeamDocument();
+const document = createStudioTeamDocument(3);
 const names = ["ALPHA", "BETA", "GAMMA", "DELTA"];
 let phase = "startup",
   proxyCalls = 0;

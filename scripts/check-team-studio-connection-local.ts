@@ -75,7 +75,7 @@ async function main() {
   const templateIds = [templateId, secondTemplateId],
     teamIds = [teamId, otherTeamId];
   const userIds: number[] = [];
-  const document = createStudioTeamDocument();
+  const document = createStudioTeamDocument(3);
   const values = createStudioInitialRuntimeValues(document);
   values.team = createStudioTeamPreview(document);
   const week = "2026-09-21";
@@ -456,7 +456,9 @@ async function main() {
         new URL(`/admin/team-timetable-studio/${templateId}/edit`, base).href,
         { timeout: 120000 },
       );
-      await page.locator("[data-team-controls]").waitFor({ timeout: 60000 });
+      await page
+        .getByTitle("Template settings", { exact: true })
+        .waitFor({ timeout: 60000 });
       await page.getByTitle("Template settings", { exact: true }).click();
       await page.getByRole("tab", { name: /팀 연결/ }).click();
       await page.waitForFunction(

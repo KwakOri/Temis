@@ -89,8 +89,14 @@ export interface TeamSchedulesResponse {
 
 // Team with members info for display
 export interface TeamWithMembers extends Team {
+  editorUsage?: import("@/utils/admin-team-usage").AdminTeamUsage;
   members?: TeamMemberWithUser[];
   memberCount?: number;
+}
+
+export interface AdminTeamList {
+  teams: TeamWithMembers[];
+  studioConnectionsAvailable: boolean;
 }
 
 // Function to convert full timetable data to team timetable data

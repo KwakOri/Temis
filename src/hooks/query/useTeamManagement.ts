@@ -6,12 +6,16 @@ import {
   AddTeamMemberRequest,
   UpdateMemberRoleRequest
 } from "@/services/admin/teamManagementService";
+import type { AdminTeamScope } from "@/utils/admin-team-usage";
 import type { TeamWithMembers } from "@/types/team-timetable";
 
 // Query Keys
 export const TEAM_MANAGEMENT_QUERY_KEYS = {
   all: ['admin', 'teams'] as const,
   lists: () => [...TEAM_MANAGEMENT_QUERY_KEYS.all, 'list'] as const,
+  scopedList: (scope: AdminTeamScope) => scope === 'all'
+    ? TEAM_MANAGEMENT_QUERY_KEYS.lists()
+    : [...TEAM_MANAGEMENT_QUERY_KEYS.lists(), scope] as const,
   list: (filters: string) => [...TEAM_MANAGEMENT_QUERY_KEYS.lists(), { filters }] as const,
   details: () => [...TEAM_MANAGEMENT_QUERY_KEYS.all, 'detail'] as const,
   detail: (id: string) => [...TEAM_MANAGEMENT_QUERY_KEYS.details(), id] as const,
@@ -21,13 +25,19 @@ export const TEAM_MANAGEMENT_QUERY_KEYS = {
 };
 
 // 모든 팀 조회 (관리자용)
-export const useAllTeams = () => {
+export const useAllTeams = (scope: AdminTeamScope = "all") => {
   return useQuery({
-    queryKey: TEAM_MANAGEMENT_QUERY_KEYS.lists(),
-    queryFn: () => teamManagementService.getAllTeams(),
+    queryKey: TEAM_MANAGEMENT_QUERY_KEYS.scopedList(scope),
+    queryFn: () => teamManagementService.getAllTeams(scope),
     staleTime: 2 * 60 * 1000, // 2분
   });
 };
+
+export const useAdminTeamList = (scope: AdminTeamScope) => useQuery({
+  queryKey: [...TEAM_MANAGEMENT_QUERY_KEYS.scopedList(scope), "availability"],
+  queryFn: () => teamManagementService.getTeamList(scope),
+  staleTime: 2 * 60 * 1000,
+});
 
 // 특정 팀 조회
 export const useTeamDetail = (teamId: string, enabled = true) => {

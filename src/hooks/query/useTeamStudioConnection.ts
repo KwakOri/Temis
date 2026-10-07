@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { TeamStudioConnectionService } from "@/services/admin/teamStudioConnectionService";
+import { TEAM_MANAGEMENT_QUERY_KEYS } from "./useTeamManagement";
 import { teamStudioRuntimeKeys } from "./useTeamStudioRuntime";
 
 export const teamStudioConnectionKeys = {
@@ -70,6 +71,7 @@ export function useSaveTeamStudioConnection(id: string) {
       await Promise.all([
         client.invalidateQueries({ queryKey: teamStudioConnectionKeys.all }),
         client.invalidateQueries({ queryKey: teamStudioRuntimeKeys.all }),
+        client.invalidateQueries({ queryKey: TEAM_MANAGEMENT_QUERY_KEYS.all }),
       ]);
     },
   });

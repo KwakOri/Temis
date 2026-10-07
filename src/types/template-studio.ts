@@ -125,6 +125,8 @@ export interface StudioThumbnailGuide {
 
 export interface StudioTemplateResources {
   webFonts?: StudioWebFontSource[];
+  /** Text without an object font inherits this registered family. */
+  defaultFontFamily?: string;
   cardsGuide?: StudioTimetableGuideResource;
   timetableGuide?: StudioTimetableGuideResource;
 }
@@ -648,6 +650,7 @@ export interface StudioRuntimeValues {
 export type StudioTeamLayout = "day-columns" | "day-grid" | "member-rows";
 export interface StudioTeamDefinition {
   memberSlotIds: string[];
+  memberComponentIds?: Record<string, StudioTimetableComponentId>;
   layout: StudioTeamLayout;
   columns: number;
   gap: number;

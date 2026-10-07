@@ -62,6 +62,10 @@ import {
 
 import { StudioText } from "@/components/studio/text/studio-text";
 import { StudioWebFontLoader } from "@/components/studio/canvas/studio-web-font-loader";
+import {
+  getStudioDefaultFontFamily,
+  resolveStudioFontFamily,
+} from "@/utils/template-studio/web-fonts";
 
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
 import { StudioTeamCards } from "./studio-team-cards";
@@ -772,6 +776,7 @@ const getTimetableObjectStyle = (
   document: StudioTemplateDocument,
   runtimeValues: StudioRuntimeValues,
   object: StudioTimetableGraphNode,
+  defaultFontFamily: string | null,
 ): React.CSSProperties => {
   const resolvedStyle = getStudioObjectRenderStyle(
     getStudioTimetableNodeStyle(document, object),
@@ -780,6 +785,13 @@ const getTimetableObjectStyle = (
   const styleRecord = getStudioObjectCssStyle(resolvedStyle, {
     legacyTimetable: true,
   });
+  if (object.type === "text" || object.type === "flexibleText") {
+    styleRecord.fontFamily = resolveStudioFontFamily(
+      document,
+      resolvedStyle.fontFamily,
+      defaultFontFamily,
+    );
+  }
   const backgroundSlot = object.assetSlots?.asset;
   const backgroundAsset = resolveStudioAssetSlot(
     document,
@@ -820,6 +832,7 @@ export function StudioTimetablePreview({
   locale = "en",
 }: StudioTimetablePreviewProps) {
   const document = requireStudioTimetableGraphDocument(sourceDocument);
+  const defaultFontFamily = getStudioDefaultFontFamily(document) ?? null;
   const timetable = document.domains?.timetable;
   const copy = getStudioRuntimeCopy(locale);
   // 상태 카드 배경은 지금 상태에 따라 그림 자리가 달라진다. 이 판단은 시간표에서
@@ -1053,7 +1066,12 @@ export function StudioTimetablePreview({
         data-node-id={object.id}
         key={object.id}
         style={{
-          ...getTimetableObjectStyle(document, runtimeValues, object),
+          ...getTimetableObjectStyle(
+            document,
+            runtimeValues,
+            object,
+            defaultFontFamily,
+          ),
           flexDirection: assetPosition === "right" ? "row-reverse" : "row",
           gap: shouldShowAsset ? assetGap : undefined,
           outline: selected ? "8px solid rgba(59, 130, 246, 0.75)" : "none",
@@ -1091,7 +1109,14 @@ export function StudioTimetablePreview({
             }}
             className="min-w-0"
             text={text}
-            typography={{ margin: 0 }}
+            typography={{
+              margin: 0,
+              fontFamily: resolveStudioFontFamily(
+                document,
+                style.fontFamily,
+                defaultFontFamily,
+              ),
+            }}
           />
         ) : (
           <span className="min-w-0">{text}</span>
@@ -1121,7 +1146,12 @@ export function StudioTimetablePreview({
         data-node-id={object.id}
         key={object.id}
         style={{
-          ...getTimetableObjectStyle(document, runtimeValues, object),
+          ...getTimetableObjectStyle(
+            document,
+            runtimeValues,
+            object,
+            defaultFontFamily,
+          ),
           outline: selected ? "8px solid rgba(59, 130, 246, 0.75)" : "none",
           outlineOffset: 8,
           minWidth: Math.max(1, geometry.width),
@@ -1184,7 +1214,12 @@ export function StudioTimetablePreview({
         data-node-id={object.id}
         key={object.id}
         style={{
-          ...getTimetableObjectStyle(document, runtimeValues, object),
+          ...getTimetableObjectStyle(
+            document,
+            runtimeValues,
+            object,
+            defaultFontFamily,
+          ),
           outline: selected ? "8px solid rgba(59, 130, 246, 0.75)" : "none",
           outlineOffset: 8,
           minWidth: Math.max(1, geometry.width),

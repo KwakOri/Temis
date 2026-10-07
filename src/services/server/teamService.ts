@@ -6,9 +6,9 @@ export class TeamService {
   /**
    * 모든 팀 조회 (관리자용)
    */
-  static async getAllTeams(): Promise<TeamWithMembers[]> {
+  static async getAllTeams(client = supabase): Promise<TeamWithMembers[]> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from("teams")
         .select(`
           *,

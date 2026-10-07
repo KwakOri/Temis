@@ -1,10 +1,12 @@
-import { Team, TeamMember, TeamMemberWithUser, TeamWithMembers } from "@/types/team-timetable";
+import { AdminTeamList, Team, TeamMember, TeamMemberWithUser, TeamWithMembers } from "@/types/team-timetable";
+import type { AdminTeamScope } from "@/utils/admin-team-usage";
 import { Tables } from "@/types/supabase";
 
 // API 응답 타입 정의
 interface GetAllTeamsResponse {
   success: boolean;
   teams: TeamWithMembers[];
+  studioConnectionsAvailable?: boolean;
 }
 
 export interface CreateTeamRequest {
@@ -32,8 +34,12 @@ export class TeamManagementService {
   /**
    * 모든 팀 조회 (관리자용)
    */
-  static async getAllTeams(): Promise<TeamWithMembers[]> {
-    const response = await fetch(`${this.baseUrl}/teams`, {
+  static async getAllTeams(scope: AdminTeamScope = "all"): Promise<TeamWithMembers[]> {
+    return (await this.getTeamList(scope)).teams;
+  }
+
+  static async getTeamList(scope: AdminTeamScope = "all"): Promise<AdminTeamList> {
+    const response = await fetch(`${this.baseUrl}/teams${scope === "all" ? "" : `?scope=${scope}`}`, {
       credentials: "include",
     });
 
@@ -43,7 +49,10 @@ export class TeamManagementService {
     }
 
     const data: GetAllTeamsResponse = await response.json();
-    return data.teams || [];
+    return {
+      teams: data.teams || [],
+      studioConnectionsAvailable: data.studioConnectionsAvailable ?? true,
+    };
   }
 
   /**

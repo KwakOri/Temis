@@ -7,11 +7,13 @@ import type {
 import type { StudioTimetableGraphDocument } from "@/types/studio-timetable-graph";
 import type { UserScheduleData } from "@/types/team-timetable";
 import { normalizeTeamTimeTableData } from "@/types/team-timetable";
+import { createTeamDummyResponse } from "@/utils/team-time-table/dummy";
 import { createStudioTimetableGraphDocument } from "./timetable-graph-document";
 import { STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID } from "./timetable-graph-presets";
 import { createStudioInitialRuntimeValues } from "./input-values";
 import { resolveStudioTimetableGraphGeometry } from "./timetable-graph-commands";
 import { ensureStudioTimetableEntryGroupContract } from "./entry-groups";
+import { createStudioStatusCardBackgroundExceptionMeta } from "./status-card-background";
 
 export const STUDIO_TEAM_LAYOUTS = [
   {
@@ -68,6 +70,19 @@ export function validateStudioTeamDefinition(
   const name = document.inputs[String(team.memberNameInputId)];
   const image = document.inputs[String(team.memberImageInputId)];
   const errors: string[] = [];
+  const memberSlotIds = team.memberSlotIds as string[];
+  if (
+    team.memberComponentIds !== undefined &&
+    (!record(team.memberComponentIds) ||
+      Object.entries(team.memberComponentIds).some(
+        ([slot, component]) =>
+          !memberSlotIds.includes(slot) ||
+          typeof component !== "string" ||
+          !document.domains?.timetable?.components[component],
+      ))
+  ) {
+    errors.push("Invalid team member component assignment.");
+  }
   if (document.domains?.timetable?.dayIds.length !== 7)
     errors.push("Team templates require seven timetable days.");
   if (
@@ -171,7 +186,114 @@ export function validateStudioTeamRuntime(
     : [];
 }
 
-export function createStudioTeamDocument(): StudioTimetableGraphDocument {
+/** Make the original team card surfaces editable without touching custom component sets. */
+export function upgradeStudioTeamDefaultCardLayers(
+  document: StudioTemplateDocument,
+): void {
+  const timetable = document.domains?.timetable;
+  if (!timetable?.team) return;
+  const component = timetable.components["team-card"];
+  if (!component) return;
+  for (const status of ["online", "offline", "missing"] as const) {
+    const rootId = `team-${status}`;
+    if (component.variants[status]?.rootNodeId !== rootId) continue;
+    const root = document.graph.nodes[rootId];
+    if (!root || root.type !== "group") continue;
+    const imageId = `${rootId}-image`;
+    const image = document.graph.nodes[imageId];
+    const imageInput = document.inputs.team_member_image;
+    // Only remove the original placeholder, preserving authored image nodes/bindings.
+    if (
+      image?.type === "image" &&
+      image.parentId === rootId &&
+      image.binding?.kind === "inputImage" &&
+      image.binding.inputId === "team_member_image" &&
+      imageInput?.type === "image" &&
+      !imageInput.defaultUrl
+    ) {
+      root.childIds = root.childIds.filter((id) => id !== imageId);
+      delete document.graph.nodes[imageId];
+      if (
+        image.styleId &&
+        !Object.values(document.graph.nodes).some(
+          (node) => node.styleId === image.styleId,
+        )
+      )
+        delete document.styles[image.styleId];
+    }
+    const style = root.styleId ? document.styles[root.styleId] : undefined;
+    const backgroundId = `${rootId}-background`;
+    if (!style?.backgroundColor || document.graph.nodes[backgroundId]) continue;
+    const styleId = `style_${backgroundId}`;
+    // Avoid overwriting an unrelated authored style.
+    if (document.styles[styleId]) continue;
+    document.styles[styleId] = {
+      left: 0,
+      top: 0,
+      width: style.width ?? document.canvas.width,
+      height: style.height ?? document.canvas.height,
+      backgroundColor: style.backgroundColor,
+      borderRadius: style.borderRadius ?? 0,
+    };
+    document.graph.nodes[backgroundId] = {
+      id: backgroundId,
+      label: `${status}-background`,
+      type: "group",
+      parentId: rootId,
+      childIds: [],
+      styleId,
+      layoutMode: "fillParent",
+      meta: { exception: createStudioStatusCardBackgroundExceptionMeta() },
+    };
+    root.childIds.unshift(backgroundId);
+    delete style.backgroundColor;
+    delete style.borderRadius;
+  }
+}
+
+export const STUDIO_TEAM_TIMETABLE_BACKGROUND_NODE_ID =
+  "team-timetable-background";
+
+/** Move the team canvas fill into an ordinary weekly layer, preserving its appearance. */
+export function upgradeStudioTeamTimetableBackground(
+  document: StudioTimetableGraphDocument,
+): void {
+  const timetable = document.domains.timetable;
+  const id = STUDIO_TEAM_TIMETABLE_BACKGROUND_NODE_ID;
+  if (!timetable.team || document.graph.nodes[id]) return;
+  const canvas = timetable.canvas ?? { width: 4000, height: 2250 };
+  const backgroundColor = canvas.backgroundColor ?? "#eef2f7";
+  // A removed background must stay removed when the document is reopened.
+  if (backgroundColor === "transparent") return;
+  const styleId = `style_${id}`;
+  if (document.styles[styleId]) return;
+  document.graph.nodes[id] = {
+    id,
+    label: "timetable-background",
+    type: "group",
+    parentId: null,
+    childIds: [],
+    styleId,
+    layoutMode: "fillParent",
+  };
+  document.styles[styleId] = {
+    left: 0,
+    top: 0,
+    width: canvas.width,
+    height: canvas.height,
+    backgroundColor,
+    opacity: 1,
+    borderRadius: 0,
+  };
+  document.graph.rootNodeIds.push(id);
+  timetable.rootNodeIds.unshift(id);
+  timetable.nodeExtensions[id] = {};
+  timetable.canvas = { ...canvas, backgroundColor: "transparent" };
+}
+
+export function createStudioTeamDocument(
+  memberCount = 1,
+): StudioTimetableGraphDocument {
   const document = createStudioTimetableGraphDocument();
   const timetable = document.domains.timetable;
   document.metadata.name = "Team Timetable";
@@ -198,7 +320,10 @@ export function createStudioTeamDocument(): StudioTimetableGraphDocument {
   document.styles = {};
   timetable.canvas = { width: 1600, height: 1000, backgroundColor: "#f4f4f5" };
   timetable.team = {
-    memberSlotIds: ["member-a", "member-b", "member-c"],
+    memberSlotIds: Array.from(
+      { length: Math.max(1, Math.min(12, memberCount)) },
+      (_, index) => `member-${String.fromCharCode(97 + index)}`,
+    ),
     layout: "day-columns",
     columns: 4,
     gap: 12,
@@ -236,7 +361,7 @@ export function createStudioTeamDocument(): StudioTimetableGraphDocument {
   const add = (
     id: string,
     parentId: string | null,
-    type: "group" | "text" | "image",
+    type: "group" | "text" | "flexibleText" | "image",
     style: Record<string, string | number>,
     binding?: NonNullable<
       StudioTemplateDocument["graph"]["nodes"][string]["binding"]
@@ -292,14 +417,6 @@ export function createStudioTeamDocument(): StudioTimetableGraphDocument {
       { kind: "inputText", inputId: "team_member_name" },
     );
     add(
-      `${root}-image`,
-      root,
-      "image",
-      { left: 154, top: 10, width: 36, height: 36, borderRadius: 18 },
-      { kind: "inputImage", inputId: "team_member_image" },
-    );
-    document.graph.nodes[`${root}-image`].fit = "cover";
-    add(
       `${root}-day`,
       root,
       "text",
@@ -317,7 +434,7 @@ export function createStudioTeamDocument(): StudioTimetableGraphDocument {
       add(
         "node_c3",
         root,
-        "text",
+        "flexibleText",
         {
           left: 14,
           top: 90,
@@ -346,7 +463,7 @@ export function createStudioTeamDocument(): StudioTimetableGraphDocument {
       add(
         `${root}-subtitle`,
         root,
-        "text",
+        "flexibleText",
         {
           left: 14,
           top: 195,
@@ -409,6 +526,8 @@ export function createStudioTeamDocument(): StudioTimetableGraphDocument {
     { kind: "staticText", value: "TEAM WEEKLY SCHEDULE" },
   );
   timetable.rootNodeIds.unshift("team-title");
+  upgradeStudioTeamDefaultCardLayers(document);
+  upgradeStudioTeamTimetableBackground(document);
   ensureStudioTimetableEntryGroupContract(document);
   return document;
 }
@@ -449,6 +568,32 @@ export function createStudioTeamPreview(
       ]),
     ),
   };
+}
+
+/** Reuse the legacy team's fixed samples as a render-only preview for current members. */
+export function createStudioTeamDummyPreview(
+  document: StudioTemplateDocument,
+  source: StudioTeamRuntimeValues | undefined,
+  weekStartDate: string,
+): StudioTeamRuntimeValues {
+  const slots = document.domains!.timetable!.team!.memberSlotIds.filter(
+    (id) => !source || Boolean(source.members[id]),
+  );
+  const bindings = slots.map((slotId, index) => ({
+    slotId,
+    userId: index + 1,
+    name:
+      source?.members[slotId]?.name ??
+      `멤버 ${String.fromCharCode(65 + index)}`,
+  }));
+  const response = createTeamDummyResponse({
+    teamIds: bindings.map((member) => member.userId),
+    weekStartDate,
+    memberNamesMap: new Map(
+      bindings.map((member) => [member.userId, member.name]),
+    ),
+  });
+  return adaptStudioTeamSchedules(document, bindings, response.schedules);
 }
 
 export function adaptStudioTeamSchedules(
@@ -518,12 +663,14 @@ export function getStudioTeamMemberOrder(
         : Math.min(best, Number(match[1]) * 60 + Number(match[2]));
     }, Infinity);
   };
-  return [...team.memberSlotIds].sort((a, b) =>
-    team.order === "time"
-      ? earliest(a) - earliest(b) ||
-        team.memberSlotIds.indexOf(a) - team.memberSlotIds.indexOf(b)
-      : 0,
-  );
+  return team.memberSlotIds
+    .filter((id) => !values || Boolean(values.members[id]))
+    .sort((a, b) =>
+      team.order === "time"
+        ? earliest(a) - earliest(b) ||
+          team.memberSlotIds.indexOf(a) - team.memberSlotIds.indexOf(b)
+        : 0,
+    );
 }
 
 export function getStudioTeamCells(
@@ -551,9 +698,13 @@ export function getStudioTeamCells(
       team.gap * (columns - 1)) /
     columns;
   const blockHeight = (bounds.height - team.gap * (blocks - 1)) / blocks;
+  const memberCount = getStudioTeamMemberOrder(
+    team,
+    values.team,
+    timetable.dayIds[0],
+  ).length;
   const height =
-    (blockHeight - team.gap * (team.memberSlotIds.length - 1)) /
-    team.memberSlotIds.length;
+    (blockHeight - team.gap * (memberCount - 1)) / Math.max(1, memberCount);
   return timetable.dayIds.flatMap((dayId, dayIndex) =>
     getStudioTeamMemberOrder(team, values.team, dayId).map((slotId, index) => ({
       slotId,

@@ -27,6 +27,7 @@ import type { StudioTimetableGraphSelection as StudioTimetableSelection } from "
 import type { StudioTimetableGraphNode } from "@/types/studio-timetable-graph";
 
 import { StudioDayLabelFormatField } from "./studio-day-label-format-field";
+import { StudioHexColorPicker } from "@/components/studio/inspector/studio-hex-color-picker";
 import {
   StudioTimetableOpacityField,
   StudioTimetableVisibilityField,
@@ -465,6 +466,32 @@ export const buildStudioTimetableInspectorSections = ({
                 })
               }
             />
+            {object.type === "group" && style.backgroundColor !== undefined ? (
+              <>
+                <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+                  <span>Background</span>
+                  <StudioHexColorPicker
+                    allowTransparent
+                    ariaLabel="Timetable object background"
+                    value={String(style.backgroundColor)}
+                    onChange={(backgroundColor) =>
+                      updateSelectedObject(({ style }) => {
+                        style.backgroundColor = backgroundColor;
+                      })
+                    }
+                  />
+                </label>
+                <StudioNumberField
+                  label="Radius"
+                  value={Number(style.borderRadius ?? 0)}
+                  onChange={(borderRadius) =>
+                    updateSelectedObject(({ style }) => {
+                      style.borderRadius = Math.max(0, borderRadius);
+                    })
+                  }
+                />
+              </>
+            ) : null}
             {features.assetSlots.map((kind) => (
               <React.Fragment key={kind}>
                 {renderAssetSlot(object, kind)}

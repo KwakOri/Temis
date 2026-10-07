@@ -8,7 +8,7 @@ import { createStudioTeamDocument } from "../src/utils/template-studio/team-time
 async function main() {
   const templateId = "00000000-0000-4000-8000-000000000008";
   const teamId = "00000000-0000-4000-8000-000000000009";
-  const document = createStudioTeamDocument();
+  const document = createStudioTeamDocument(3);
   let hasDocument = true,
     active = true,
     missingStorage = false;

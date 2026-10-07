@@ -11,9 +11,8 @@ import RoyaltySettlementManagement from "@/components/admin/RoyaltySettlementMan
 import SalesStatsManagement from "@/components/admin/SalesStatsManagement";
 import SettingsManagement from "@/components/admin/SettingsManagement";
 import TeamManagement from "@/components/admin/TeamManagement";
-import TeamTemplateManagement from "@/components/admin/TeamTemplateManagement";
-import TemplateManagement from "@/components/admin/TemplateManagement";
-import ThumbnailManagement from "@/components/admin/ThumbnailManagement";
+import LegacyManagement from "@/components/admin/LegacyManagement";
+import StudioTemplateManagement from "@/components/admin/StudioTemplateManagement";
 import UserManagement from "@/components/admin/UserManagement";
 import Loading from "@/components/Loading";
 import {
@@ -54,11 +53,13 @@ export default function AdminTabPage() {
     case "settlements":
       return <RoyaltySettlementManagement />;
     case "templates":
-      return <TemplateManagement />;
+      return <LegacyManagement initialSection="templates" />;
+    case "studioTemplates":
+      return <StudioTemplateManagement />;
     case "artists":
       return <ArtistManagement />;
     case "thumbnails":
-      return <ThumbnailManagement />;
+      return <LegacyManagement initialSection="thumbnails" />;
     case "portfolios":
       return <PortfolioManagement />;
     case "access":
@@ -66,9 +67,13 @@ export default function AdminTabPage() {
     case "users":
       return <UserManagement />;
     case "teams":
-      return <TeamManagement />;
+      return <LegacyManagement initialSection="teams" />;
     case "teamTemplates":
-      return <TeamTemplateManagement />;
+      return <LegacyManagement initialSection="teamTemplates" />;
+    case "legacy":
+      return <LegacyManagement />;
+    case "studioTeams":
+      return <TeamManagement scope="studio" />;
     case "emailPreview":
       return <EmailTemplatePreview />;
     case "settings":

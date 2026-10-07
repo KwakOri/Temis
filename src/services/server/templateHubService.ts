@@ -1,6 +1,8 @@
 import { supabaseAdminServer as supabase } from "@/lib/supabase-admin-server";
 import {
   TEMPLATE_ENGINES,
+  TEMPLATE_CATEGORIES,
+  type TemplateCategory,
   TEMPLATE_PUBLICATION_STATUSES,
   TEMPLATE_SALES_TYPES,
   TEMPLATE_SALE_STATUSES,
@@ -130,6 +132,11 @@ export const parseTemplateHubListParams = (
       "engine",
       TEMPLATE_ENGINES,
     ),
+    category: parseEnumParam(
+      searchParams.get("category"),
+      "category",
+      TEMPLATE_CATEGORIES,
+    ),
     publicationStatus: parseEnumParam(
       searchParams.get("publicationStatus"),
       "publicationStatus",
@@ -172,6 +179,7 @@ type TemplateHubRow = {
   description: string | null;
   template_engine: string | null;
   template_kind: string | null;
+  template_category?: TemplateCategory;
   status: string | null;
   is_public: boolean | null;
   created_at: string;
@@ -334,11 +342,14 @@ const toHubItem = (
   const shopTemplate = row.shop_templates?.[0] ?? null;
   const shopProductId = shopTemplate?.id ?? null;
 
-  const purchasablePlanCount = shopProductId
-    ? (shopTemplate?.template_plans ?? []).filter((plan) =>
-        isPurchasablePlan(plan, shopProductId),
-      ).length
-    : 0;
+  const pricePlans: TemplateHubItem["pricePlans"] = shopProductId
+    ? (shopTemplate?.template_plans ?? [])
+        .filter((plan) => isPurchasablePlan(plan, shopProductId))
+        .map((plan) => ({
+          plan: plan.plan as "lite" | "pro",
+          price: plan.price!,
+        }))
+    : [];
 
   const linkedArtists = normalizeLinkedArtists(row);
   const publicationStatus = normalizePublicationStatus(row.status);
@@ -348,7 +359,7 @@ const toHubItem = (
     publicationStatus,
     salesType,
     shopProductId,
-    purchasablePlanCount,
+    purchasablePlanCount: pricePlans.length,
     linkedArtists,
     artistIdsWithRoyalty,
   });
@@ -359,11 +370,15 @@ const toHubItem = (
     description: row.description ?? "",
     templateEngine: normalizeEngine(row.template_engine),
     templateKind: normalizeTemplateKind(row.template_kind),
+    templateCategory:
+      row.template_category ??
+      (row.template_kind === "thumbnail" ? "thumbnail" : "timetable"),
     publicationStatus,
     salesType,
     shopProductId,
     hasProduct: shopProductId !== null,
-    hasPurchasablePlan: purchasablePlanCount > 0,
+    hasPurchasablePlan: pricePlans.length > 0,
+    pricePlans,
     isShopVisible: shopTemplate?.is_shop_visible ?? false,
     linkedArtists,
     saleReadiness,
@@ -404,6 +419,9 @@ const applyListViewFilters = <T extends FilterableQuery<T>>(
   }
   if (params.engine) {
     next = next.eq("template_engine", params.engine);
+  }
+  if (params.category) {
+    next = next.eq("template_category", params.category);
   }
   if (params.publicationStatus) {
     next = next.eq("status", params.publicationStatus);
@@ -496,9 +514,15 @@ const countListPage = async (
 
 const fetchListPage = async (
   params: TemplateHubListParams & { limit: number; offset: number },
-): Promise<{ ids: string[]; total: number }> => {
+): Promise<{
+  ids: string[];
+  total: number;
+  categories: Map<string, TemplateCategory>;
+}> => {
   let query = applyListViewFilters(
-    supabase.from("template_hub_list").select("id", { count: "exact" }),
+    supabase
+      .from("template_hub_list")
+      .select("id, template_category", { count: "exact" }),
     params,
   );
 
@@ -517,13 +541,23 @@ const fetchListPage = async (
     // 클라이언트가 마지막 페이지 이후로 넘어가거나 필터를 바꾼 직후 이전
     // 페이지의 offset을 그대로 재요청할 때 흔히 발생한다.
     if (error.code === "PGRST103") {
-      return { ids: [], total: await countListPage(params) };
+      return {
+        ids: [],
+        total: await countListPage(params),
+        categories: new Map(),
+      };
     }
     throw error;
   }
 
   return {
     ids: (data ?? []).map((row) => row.id as string),
+    categories: new Map(
+      (data ?? []).map((row) => [
+        row.id as string,
+        row.template_category as TemplateCategory,
+      ]),
+    ),
     total: count ?? 0,
   };
 };
@@ -571,6 +605,7 @@ export const listTemplateHubTemplates = async (
   ]);
 
   const rows = await fetchRowsByIds(page.ids);
+  for (const row of rows) row.template_category = page.categories.get(row.id);
 
   return {
     items: await buildItems(rows),
@@ -597,6 +632,14 @@ export const getTemplateHubItem = async (
   if (!data) return null;
 
   const row = data as unknown as TemplateHubRow;
+  const { data: classification, error: classificationError } = await supabase
+    .from("template_hub_list")
+    .select("template_category")
+    .eq("id", templateId)
+    .maybeSingle();
+  if (classificationError) throw classificationError;
+  row.template_category = classification?.template_category as
+    TemplateCategory | undefined;
   const items = await buildItems([row]);
 
   return items[0] ?? null;

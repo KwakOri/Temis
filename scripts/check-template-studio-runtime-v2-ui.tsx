@@ -188,6 +188,52 @@ assert.match(offlineMemoMarkup, /aria-label="Mon Memo"/);
 assert.match(offlineMemoMarkup, /aria-checked="true"/);
 assert.match(offlineMemoMarkup, />Offline Memo</);
 
+const offlineMultiValues = setStudioTimetableDayBaseStatus(
+  document,
+  multiValues,
+  dayId,
+  "offline",
+);
+const offlineMultiMarkup = renderForm(document, offlineMultiValues);
+assert.equal(offlineMultiValues.timetable.entriesByDay[dayId].length, 2);
+assert.match(
+  offlineMultiMarkup,
+  /aria-checked="false" aria-label="Monday Online"/,
+  "Retained entries must keep the day's Online switch turned off.",
+);
+assert.match(
+  offlineMultiMarkup,
+  /grid-rows-\[0fr\][\s\S]*aria-label="Entry 2"/,
+  "Offline must collapse the retained Online input cards.",
+);
+assert.doesNotMatch(
+  offlineMultiMarkup,
+  />Multi</,
+  "Retained entries must not override the Offline day switch.",
+);
+const offlineMemoMultiMarkup = renderForm(
+  document,
+  setStudioTimetableEntryStatus(
+    document,
+    offlineMultiValues,
+    dayId,
+    0,
+    "offlineMemo",
+  ),
+);
+assert.match(offlineMemoMultiMarkup, />Offline Memo</);
+assert.equal(
+  countOccurrences(
+    renderForm(
+      document,
+      setStudioTimetableDayBaseStatus(document, offlineMultiValues, dayId, "online"),
+    ),
+    'aria-label="Entry 2"',
+  ),
+  1,
+  "Returning Online must restore the second entry input card.",
+);
+
 assert.doesNotMatch(singleEntryMarkup, /blue-[0-9]/);
 assert.doesNotMatch(multiMarkup, /blue-[0-9]/);
 assert.doesNotMatch(offlineMemoMarkup, /blue-[0-9]/);

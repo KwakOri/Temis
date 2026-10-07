@@ -1,23 +1,38 @@
 import { cn } from "@/lib/utils";
 import type {
   TemplateEngine,
-  TemplateHubListResponse,
   TemplatePublicationStatus,
   TemplateSaleStatus,
-  TemplateSalesType,
+  TemplateCategory,
 } from "@/types/template-hub";
 import { Search, X } from "lucide-react";
+import { cva } from "class-variance-authority";
 
 export type TemplateHubFilterState = {
   search: string;
   engine?: TemplateEngine;
   publicationStatus?: TemplatePublicationStatus;
-  salesType?: TemplateSalesType;
+  category?: TemplateCategory;
   saleStatus?: TemplateSaleStatus;
   hasProduct?: boolean;
 };
 
-export const EMPTY_FILTERS: TemplateHubFilterState = { search: "" };
+export const DEFAULT_FILTERS: TemplateHubFilterState = {
+  search: "",
+  engine: "studio",
+};
+
+const engineButton = cva(
+  "rounded-lg px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+  {
+    variants: {
+      active: {
+        true: "bg-primary text-white shadow-sm",
+        false: "text-gray-600 hover:bg-white",
+      },
+    },
+  },
+);
 
 const selectClass =
   "rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-sm text-gray-700 focus:border-gray-400 focus:outline-none";
@@ -44,6 +59,7 @@ const FilterSelect = <T extends string>({
   <label className="flex items-center gap-1.5 text-xs text-gray-500">
     <span className="whitespace-nowrap">{label}</span>
     <select
+      aria-label={label}
       className={selectClass}
       value={value ?? ALL}
       onChange={(event) => onChange(toOptional<T>(event.target.value))}
@@ -61,14 +77,12 @@ const FilterSelect = <T extends string>({
 
 export const TemplateHubFilters = ({
   filters,
-  counts,
   searchInput,
   onSearchInputChange,
   onChange,
   onReset,
 }: {
   filters: TemplateHubFilterState;
-  counts?: TemplateHubListResponse["counts"];
   searchInput: string;
   onSearchInputChange: (value: string) => void;
   onChange: (next: TemplateHubFilterState) => void;
@@ -79,19 +93,69 @@ export const TemplateHubFilters = ({
 
   const hasActiveFilter =
     searchInput.length > 0 ||
-    filters.engine !== undefined ||
+    filters.engine !== DEFAULT_FILTERS.engine ||
     filters.publicationStatus !== undefined ||
-    filters.salesType !== undefined ||
+    filters.category !== undefined ||
     filters.saleStatus !== undefined ||
     filters.hasProduct !== undefined;
 
   return (
     <div className="flex flex-col gap-3 rounded-lg bg-white p-3 shadow-sm sm:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div
+          aria-label="템플릿 종류"
+          role="group"
+          className="flex w-fit flex-wrap gap-1 rounded-xl bg-gray-100 p-1"
+        >
+          {(
+            [
+              { value: "timetable", label: "시간표" },
+              { value: "thumbnail", label: "썸네일" },
+              { value: "team-timetable", label: "팀 시간표" },
+              { value: undefined, label: "전체" },
+            ] as const
+          ).map(({ value, label }) => (
+            <button
+              key={label}
+              type="button"
+              aria-pressed={filters.category === value}
+              className={engineButton({ active: filters.category === value })}
+              onClick={() => patch({ category: value })}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div
+          aria-label="템플릿 버전"
+          role="group"
+          className="ml-auto flex w-fit flex-wrap gap-1 rounded-xl bg-gray-100 p-1"
+        >
+          {(
+            [
+              { value: "studio", label: "스튜디오" },
+              { value: "legacy", label: "레거시" },
+              { value: undefined, label: "전체" },
+            ] as const
+          ).map(({ value, label }) => (
+            <button
+              key={label}
+              type="button"
+              aria-pressed={filters.engine === value}
+              className={engineButton({ active: filters.engine === value })}
+              onClick={() => patch({ engine: value })}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
         <input
           className="w-full rounded-md border border-gray-300 py-2 pl-9 pr-9 text-sm focus:border-gray-400 focus:outline-none"
-          placeholder="템플릿 이름 또는 설명 검색"
+          aria-label="템플릿 검색"
+          placeholder="판매할 템플릿 이름 또는 설명 검색"
           type="search"
           value={searchInput}
           onChange={(event) => onSearchInputChange(event.target.value)}
@@ -109,17 +173,39 @@ export const TemplateHubFilters = ({
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <FilterSelect<TemplateEngine>
-          label="엔진"
+        <FilterSelect<TemplateSaleStatus>
+          label="판매 상태"
           options={[
-            { value: "legacy", label: "Legacy", count: counts?.legacy },
-            { value: "studio", label: "Studio", count: counts?.studio },
+            { value: "selling", label: "판매 중" },
+            { value: "ready", label: "판매 준비 완료" },
+            { value: "blocked", label: "준비 필요" },
+            { value: "unconfigured", label: "상품 미등록" },
           ]}
-          value={filters.engine}
-          onChange={(engine) => patch({ engine })}
+          value={filters.saleStatus}
+          onChange={(saleStatus) => patch({ saleStatus })}
+        />
+        <FilterSelect<"configured" | "unconfigured">
+          label="상품 등록"
+          options={[
+            { value: "configured", label: "등록됨" },
+            { value: "unconfigured", label: "미등록" },
+          ]}
+          value={
+            filters.hasProduct === undefined
+              ? undefined
+              : filters.hasProduct
+                ? "configured"
+                : "unconfigured"
+          }
+          onChange={(value) =>
+            patch({
+              hasProduct:
+                value === undefined ? undefined : value === "configured",
+            })
+          }
         />
         <FilterSelect<TemplatePublicationStatus>
-          label="게시"
+          label="게시 상태"
           options={[
             { value: "draft", label: "초안" },
             { value: "published", label: "게시됨" },
@@ -128,54 +214,16 @@ export const TemplateHubFilters = ({
           value={filters.publicationStatus}
           onChange={(publicationStatus) => patch({ publicationStatus })}
         />
-        <FilterSelect<TemplateSalesType>
-          label="판매 유형"
-          options={[
-            { value: "general", label: "일반 판매", count: counts?.general },
-            { value: "custom", label: "맞춤 제작", count: counts?.custom },
-          ]}
-          value={filters.salesType}
-          onChange={(salesType) => patch({ salesType })}
-        />
-        <FilterSelect<"configured" | "unconfigured">
-          label="상품"
-          options={[
-            { value: "configured", label: "구성됨" },
-            { value: "unconfigured", label: "미구성" },
-          ]}
-          value={
-            filters.hasProduct === undefined
-              ? undefined
-              : filters.hasProduct
-              ? "configured"
-              : "unconfigured"
-          }
-          onChange={(value) =>
-            patch({
-              hasProduct: value === undefined ? undefined : value === "configured",
-            })
-          }
-        />
-        <FilterSelect<TemplateSaleStatus>
-          label="판매"
-          options={[
-            { value: "selling", label: "판매 중", count: counts?.selling },
-            { value: "ready", label: "판매 준비 완료" },
-            { value: "blocked", label: "판매 불가" },
-            { value: "unconfigured", label: "상품 미구성" },
-          ]}
-          value={filters.saleStatus}
-          onChange={(saleStatus) => patch({ saleStatus })}
-        />
 
         <button
           className={cn(
             "ml-auto rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
             hasActiveFilter
               ? "text-gray-600 hover:bg-gray-100"
-              : "pointer-events-none text-gray-300"
+              : "pointer-events-none text-gray-300",
           )}
           type="button"
+          disabled={!hasActiveFilter}
           onClick={onReset}
         >
           필터 초기화

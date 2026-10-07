@@ -1814,6 +1814,7 @@ export type Database = {
     Views: {
       template_hub_list: {
         Row: {
+          template_category: string | null;
           created_at: string | null;
           description: string | null;
           has_product: boolean | null;

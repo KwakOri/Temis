@@ -18,12 +18,16 @@ import type {
   StudioWebFontSource,
 } from "@/types/template-studio";
 import type { StudioFigmaFrameCandidate } from "@/types/template-studio-figma";
+import { STUDIO_TEAM_TIMETABLE_BACKGROUND_NODE_ID } from "@/utils/template-studio/team-timetable";
 import { getStudioTimetableCapabilities } from "@/utils/template-studio/timetable-capabilities";
 import {
   getStudioCardsGuide,
   getStudioTimetableGuide,
 } from "@/utils/template-studio/timetable-guide";
-import { getStudioWebFontSources } from "@/utils/template-studio/web-fonts";
+import {
+  getStudioDefaultFontFamily,
+  getStudioWebFontSources,
+} from "@/utils/template-studio/web-fonts";
 
 import { StudioHexColorPicker } from "@/components/studio/inspector/studio-hex-color-picker";
 import {
@@ -54,7 +58,6 @@ interface StudioSettingsModalProps {
   onCardsGuideUpload: (file: File) => void;
   onClose: () => void;
   onExportJson: () => void;
-  onImportJson: () => void;
   onReloadTemplate: () => void;
   onThemeChange: (theme: StudioTheme) => void;
   onTimetableCapabilityChange: (
@@ -69,6 +72,7 @@ interface StudioSettingsModalProps {
   onTimetableGuideRemove: () => void;
   onTimetableGuideUpload: (file: File) => void;
   onWebFontsChange: (sources: StudioWebFontSource[]) => void;
+  onDefaultFontFamilyChange?: (family: string | undefined) => void;
   figmaImport: {
     candidates: ImportCandidate[];
     frameCandidate?: StudioFigmaFrameCandidate | null;
@@ -127,7 +131,6 @@ export function StudioSettingsModal({
   onCardsGuideUpload,
   onClose,
   onExportJson,
-  onImportJson,
   onReloadTemplate,
   onThemeChange,
   onTimetableCapabilityChange,
@@ -135,6 +138,7 @@ export function StudioSettingsModal({
   onTimetableGuideRemove,
   onTimetableGuideUpload,
   onWebFontsChange,
+  onDefaultFontFamilyChange,
   figmaImport,
 }: StudioSettingsModalProps) {
   const timetableCanvas = document.domains?.timetable?.canvas;
@@ -227,18 +231,27 @@ export function StudioSettingsModal({
                     onChange={(height) => onTimetableCanvasChange({ height })}
                   />
                 </div>
-                <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-                  <span>Background</span>
-                  <StudioHexColorPicker
-                    allowTransparent
-                    ariaLabel="Timetable canvas background"
-                    className="h-9"
-                    value={timetableCanvas.backgroundColor ?? "#EEF2F7"}
-                    onChange={(backgroundColor) =>
-                      onTimetableCanvasChange({ backgroundColor })
-                    }
-                  />
-                </label>
+                {document.graph.nodes[
+                  STUDIO_TEAM_TIMETABLE_BACKGROUND_NODE_ID
+                ] ? (
+                  <p className="text-xs text-[var(--fg3)]">
+                    배경은 Timetable의 timetable-background 레이어에서
+                    편집합니다.
+                  </p>
+                ) : (
+                  <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+                    <span>Background</span>
+                    <StudioHexColorPicker
+                      allowTransparent
+                      ariaLabel="Timetable canvas background"
+                      className="h-9"
+                      value={timetableCanvas.backgroundColor ?? "#EEF2F7"}
+                      onChange={(backgroundColor) =>
+                        onTimetableCanvasChange({ backgroundColor })
+                      }
+                    />
+                  </label>
+                )}
                 <StudioGuideLayerSettings
                   assetLabel={timetableGuideAsset?.label ?? null}
                   description="Editor-only overlay for timetable alignment."
@@ -356,13 +369,14 @@ export function StudioSettingsModal({
         onThemeChange,
         webFonts: {
           sources: getStudioWebFontSources(document),
+          defaultFontFamily: getStudioDefaultFontFamily(document),
+          onDefaultFontFamilyChange,
           onChange: onWebFontsChange,
         },
         data: {
           isReloadDisabled,
           onReloadTemplate,
           onExportJson,
-          onImportJson,
         },
         documentInfo: {
           databaseTargetLabel,
