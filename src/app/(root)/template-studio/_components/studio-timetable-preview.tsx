@@ -58,6 +58,7 @@ import {
   getStudioObjectCssStyle,
   getStudioBackgroundSizeForFit,
   getStudioCssOpacity,
+  getStudioTextVerticalAlignment,
 } from "@/utils/template-studio/object-style";
 
 import { StudioText } from "@/components/studio/text/studio-text";
@@ -764,6 +765,10 @@ const getTimetableObjectStyle = (
   const styleRecord = getStudioObjectCssStyle(resolvedStyle, {
     legacyTimetable: true,
   });
+  if (object.type === "flexibleText") {
+    styleRecord.display = "flex";
+    styleRecord.alignItems = getStudioTextVerticalAlignment(resolvedStyle);
+  }
   if (object.type === "text" || object.type === "flexibleText") {
     styleRecord.fontFamily = resolveStudioFontFamily(
       document,

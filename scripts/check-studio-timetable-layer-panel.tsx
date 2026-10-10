@@ -152,11 +152,15 @@ assert.deepEqual(
     "calendar-days",
     "calendar-days",
     "layers",
-    "type",
+    "none",
     "image",
     "image",
   ],
   "요일 카드는 달력, 묶음은 겹장, 사진 자리는 사진 아이콘으로 알아본다.",
+);
+assert.ok(
+  markup.includes('T<span class="align-super text-[8px]">a</span>'),
+  "오토텍스트는 공통 Ta 아이콘으로 일반 텍스트와 구별한다.",
 );
 // --- 접기 기준선 ---
 assert.equal(
