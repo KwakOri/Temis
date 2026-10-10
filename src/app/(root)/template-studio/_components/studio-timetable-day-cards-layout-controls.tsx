@@ -281,8 +281,8 @@ export function StudioTimetableDayCardsLayoutControls({
       ) : null}
 
       <p className="text-[10px] leading-relaxed text-[var(--fg3)]">
-        Select a day card in Layers to edit its position, rotation, and card
-        design.
+        Select a day card in Layers to edit its rotation and card design. Choose
+        Custom to edit individual card positions.
       </p>
       <details className="rounded-xl border border-[var(--field-border)] bg-[var(--field)]/40 p-2.5">
         <summary className="cursor-pointer text-[11px] font-bold text-[var(--fg)]">
@@ -296,7 +296,7 @@ export function StudioTimetableDayCardsLayoutControls({
             <span className="text-[9px] font-semibold leading-relaxed text-[var(--fg3)]">
               {layout.gridPreset === "custom"
                 ? "Position each card from the canvas origin (0, 0)."
-                : "Adjust each card relative to its automatic grid position."}
+                : "Card positions follow the grid. Rotation can be edited independently."}
             </span>
           </div>
           {days.map((day) => {
@@ -311,41 +311,52 @@ export function StudioTimetableDayCardsLayoutControls({
                 <span className="text-[10px] font-bold text-[var(--fg2)]">
                   {day.label}
                 </span>
-                <div className="grid grid-cols-3 gap-2">
-                  <StudioNumberField
-                    label={layout.gridPreset === "custom" ? "X" : "Offset X"}
-                    value={offset.left}
-                    onChange={(value) =>
-                      onUpdateLayout((nextLayout) => {
-                        const current = nextLayout.dayOffsets?.[day.id] ?? {
-                          left: 0,
-                          top: 0,
-                          rotateDeg: 0,
-                        };
-                        nextLayout.dayOffsets = {
-                          ...nextLayout.dayOffsets,
-                          [day.id]: { ...current, left: value },
-                        };
-                      })
-                    }
-                  />
-                  <StudioNumberField
-                    label={layout.gridPreset === "custom" ? "Y" : "Offset Y"}
-                    value={offset.top}
-                    onChange={(value) =>
-                      onUpdateLayout((nextLayout) => {
-                        const current = nextLayout.dayOffsets?.[day.id] ?? {
-                          left: 0,
-                          top: 0,
-                          rotateDeg: 0,
-                        };
-                        nextLayout.dayOffsets = {
-                          ...nextLayout.dayOffsets,
-                          [day.id]: { ...current, top: value },
-                        };
-                      })
-                    }
-                  />
+                <div
+                  className={cn(
+                    "grid gap-2",
+                    layout.gridPreset === "custom"
+                      ? "grid-cols-3"
+                      : "grid-cols-1",
+                  )}
+                >
+                  {layout.gridPreset === "custom" ? (
+                    <>
+                      <StudioNumberField
+                        label="X"
+                        value={offset.left}
+                        onChange={(value) =>
+                          onUpdateLayout((nextLayout) => {
+                            const current = nextLayout.dayOffsets?.[day.id] ?? {
+                              left: 0,
+                              top: 0,
+                              rotateDeg: 0,
+                            };
+                            nextLayout.dayOffsets = {
+                              ...nextLayout.dayOffsets,
+                              [day.id]: { ...current, left: value },
+                            };
+                          })
+                        }
+                      />
+                      <StudioNumberField
+                        label="Y"
+                        value={offset.top}
+                        onChange={(value) =>
+                          onUpdateLayout((nextLayout) => {
+                            const current = nextLayout.dayOffsets?.[day.id] ?? {
+                              left: 0,
+                              top: 0,
+                              rotateDeg: 0,
+                            };
+                            nextLayout.dayOffsets = {
+                              ...nextLayout.dayOffsets,
+                              [day.id]: { ...current, top: value },
+                            };
+                          })
+                        }
+                      />
+                    </>
+                  ) : null}
                   <StudioNumberField
                     label="Rotate"
                     value={offset.rotateDeg ?? 0}

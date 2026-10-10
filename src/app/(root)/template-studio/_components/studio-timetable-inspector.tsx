@@ -226,6 +226,7 @@ export const buildStudioTimetableInspectorSections = ({
     features.resizable ||
     (isDayCards && Boolean(document.domains?.timetable?.team));
   const formatBinding = textObject ? textObject.binding : undefined;
+  const isGridDay = Boolean(day) && dayCardsLayout?.gridPreset !== "custom";
 
   const sections: (StudioPropertyItem | null)[] = [
     layerGeometry && selectedLayerId
@@ -235,7 +236,7 @@ export const buildStudioTimetableInspectorSections = ({
           <div className="grid gap-2">
             <div className="grid grid-cols-2 gap-2">
               <StudioNumberField
-                disabled={isFitParent}
+                disabled={isFitParent || isGridDay}
                 label="X"
                 value={layerGeometry.left}
                 onChange={(value) =>
@@ -243,7 +244,7 @@ export const buildStudioTimetableInspectorSections = ({
                 }
               />
               <StudioNumberField
-                disabled={isFitParent}
+                disabled={isFitParent || isGridDay}
                 label="Y"
                 value={layerGeometry.top}
                 onChange={(value) =>
@@ -251,6 +252,12 @@ export const buildStudioTimetableInspectorSections = ({
                 }
               />
             </div>
+            {isGridDay ? (
+              <p className="text-[10px] text-[var(--fg3)]">
+                Position is controlled by the grid. Choose Custom to move cards
+                freely.
+              </p>
+            ) : null}
             <div className="grid grid-cols-2 gap-2 text-[11px] font-semibold text-[var(--fg2)]">
               {isPlacedObject ? (
                 <>

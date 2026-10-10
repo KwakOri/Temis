@@ -108,14 +108,16 @@ export const insertStudioTimetableGraphPreset = (
       },
       {
         position: "absolute",
-        left: 360,
-        top: 250,
-        width: 1500,
-        height: 120,
+        left: 2620,
+        top: 150,
+        width: 980,
+        height: 80,
         color: "#172033",
         display: "flex",
         alignItems: "center",
-        fontSize: 86,
+        textAlign: "center",
+        justifyContent: "center",
+        fontSize: 64,
         fontWeight: 800,
         opacity: 1,
       },
@@ -132,8 +134,8 @@ export const insertStudioTimetableGraphPreset = (
         : artist
           ? "Artist"
           : "Top Object";
-    const width = memo ? 1500 : artist ? 1200 : 420;
-    const height = memo ? 110 : artist ? 180 : 420;
+    const width = memo ? 1800 : artist ? 500 : 1400;
+    const height = memo ? 80 : artist ? 130 : profile ? 1800 : 400;
     const common = {
       position: "absolute",
       left: 0,
@@ -147,8 +149,8 @@ export const insertStudioTimetableGraphPreset = (
       { type: "group", label, meta: meta(presetId) },
       {
         ...common,
-        left: profile || memo ? 360 : artist ? 840 : 3060,
-        top: memo ? 1770 : profile || artist ? 470 : 260,
+        left: memo ? 980 : profile ? 100 : artist ? 285 : 2440,
+        top: memo ? 2120 : profile ? 200 : artist ? 2020 : 280,
         overflow: "visible",
       },
       { presetId },
@@ -254,7 +256,9 @@ export const insertStudioTimetableGraphPreset = (
               color: memo ? "#475569" : "#172033",
               display: "flex",
               alignItems: "center",
-              fontSize: memo ? 48 : 64,
+              textAlign: "center",
+              justifyContent: "center",
+              fontSize: memo ? 36 : 52,
               fontWeight: memo ? 700 : 800,
               lineHeight: memo ? 1.2 : 1.12,
             },

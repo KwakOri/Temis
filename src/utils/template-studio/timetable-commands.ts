@@ -176,12 +176,15 @@ export const setStudioTimetableDayOffset = (
   dayId: StudioTimetableDayId,
   offset: { left: number; top: number; rotateDeg?: number },
 ): void => {
+  if (layout.gridPreset !== "custom" && offset.rotateDeg === undefined) return;
   const currentOffset = layout.dayOffsets?.[dayId];
   layout.dayOffsets = {
     ...layout.dayOffsets,
     [dayId]: {
-      left: roundStudioCoordinate(offset.left),
-      top: roundStudioCoordinate(offset.top),
+      left:
+        layout.gridPreset === "custom" ? roundStudioCoordinate(offset.left) : 0,
+      top:
+        layout.gridPreset === "custom" ? roundStudioCoordinate(offset.top) : 0,
       ...(offset.rotateDeg !== undefined ||
       currentOffset?.rotateDeg !== undefined
         ? {

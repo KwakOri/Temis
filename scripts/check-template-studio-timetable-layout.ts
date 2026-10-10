@@ -11,13 +11,14 @@ import {
   getStudioTimetableRotatedRectangleBounds,
   getStudioTimetableThreeByThreeEmptySlotIndexes,
 } from "../src/app/(root)/template-studio/_components/studio-timetable-preview";
-import { createInitialStudioRuntimeValues, createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
+import { createInitialStudioRuntimeValues } from "../src/utils/template-studio/sample-document";
+import { createStudioTimetableGraphDocument } from "../src/utils/template-studio/timetable-graph-document";
 import {
   applyStudioTimetableComponentFrames,
   getStudioTimetableComponentFrame,
 } from "../src/utils/template-studio/entry-groups";
 
-const document = createSampleStudioDocument();
+const document = createStudioTimetableGraphDocument();
 const timetable = document.domains?.timetable;
 assert.ok(timetable);
 const component = timetable.components[timetable.entryComponentId];
@@ -29,8 +30,8 @@ assert.deepEqual(entryCardSize, { width: frame.width, height: frame.height });
 assert.deepEqual(frame, {
   left: 160,
   top: 120,
-  width: 780,
-  height: 500,
+  width: 650,
+  height: 600,
 });
 
 const days = timetable.dayIds.slice(0, 2).map((dayId) => timetable.days[dayId]);
@@ -64,6 +65,8 @@ const mixedDays = timetable.dayIds
   .map((dayId) => timetable.days[dayId]);
 const mixedLayout = {
   ...layout,
+  gridPreset: "4x2" as const,
+  emptySlotIndexes: undefined,
   left: 100,
   top: 200,
   columns: 2,
@@ -156,7 +159,7 @@ assert.ok(Math.abs(mixedRotationBounds.top - 140) < 1e-9);
 assert.ok(Math.abs(mixedRotationBounds.width - 270) < 1e-9);
 assert.ok(Math.abs(mixedRotationBounds.height - 236.5685424949238) < 1e-9);
 
-const fillParentDocument = createSampleStudioDocument();
+const fillParentDocument = createStudioTimetableGraphDocument();
 fillParentDocument.canvas.width = 640;
 fillParentDocument.canvas.height = 660;
 const fillParentTimetable = fillParentDocument.domains?.timetable;
@@ -196,6 +199,7 @@ Object.values(fillParentComponent.variants).forEach((variant) => {
 
 const fillParentLayout = {
   ...fillParentTimetable.dayCardsLayout!,
+  emptySlotIndexes: [7, 8],
   left: 0,
   top: 0,
   gridPreset: "3x3" as const,
@@ -283,7 +287,7 @@ assert.deepEqual(
   "Invalid and duplicate empty cells must fall back to a valid two-cell selection.",
 );
 
-const fixedFrameDocument = createSampleStudioDocument();
+const fixedFrameDocument = createStudioTimetableGraphDocument();
 fixedFrameDocument.canvas.width = 640;
 fixedFrameDocument.canvas.height = 660;
 const fixedFrameTimetable = fixedFrameDocument.domains?.timetable;
@@ -292,7 +296,7 @@ const fixedFrameComponent =
   fixedFrameTimetable.components[fixedFrameTimetable.entryComponentId];
 assert.deepEqual(
   getStudioTimetableComponentFrame(fixedFrameDocument, fixedFrameComponent),
-  { left: 160, top: 120, width: 780, height: 500 },
+  { left: 160, top: 120, width: 650, height: 600 },
   "A fixed card component must keep its explicit shared frame.",
 );
 

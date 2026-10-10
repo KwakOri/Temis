@@ -89,16 +89,18 @@
       },
       "style": {
         "position": "absolute",
-        "left": 360,
-        "top": 250,
-        "width": 1500,
-        "height": 120,
+        "left": 2620,
+        "top": 150,
+        "width": 980,
+        "height": 80,
         "color": "#172033",
         "display": "flex",
         "alignItems": "center",
-        "fontSize": 86,
+        "fontSize": 64,
         "fontWeight": 800,
-        "opacity": 1
+        "opacity": 1,
+        "textAlign": "center",
+        "justifyContent": "center"
       },
       "extension": {
         "presetId": "weekDates"
@@ -110,10 +112,7 @@
         "type": "group",
         "label": "Weekly Memo",
         "parentId": null,
-        "childIds": [
-          "root/3/0",
-          "root/3/1"
-        ],
+        "childIds": ["root/3/0", "root/3/1"],
         "assetSlots": {},
         "meta": {
           "exception": {
@@ -146,10 +145,10 @@
       },
       "style": {
         "position": "absolute",
-        "left": 360,
-        "top": 1770,
-        "width": 1500,
-        "height": 110,
+        "left": 980,
+        "top": 2120,
+        "width": 1800,
+        "height": 80,
         "rotateDeg": 0,
         "opacity": 1,
         "overflow": "visible"
@@ -164,10 +163,7 @@
         "type": "group",
         "label": "Weekly Memo On",
         "parentId": "root/3",
-        "childIds": [
-          "root/3/0/0",
-          "root/3/0/1"
-        ],
+        "childIds": ["root/3/0/0", "root/3/0/1"],
         "layoutMode": "fillParent",
         "assetSlots": {},
         "hidden": false
@@ -176,8 +172,8 @@
         "position": "absolute",
         "left": 0,
         "top": 0,
-        "width": 1500,
-        "height": 110,
+        "width": 1800,
+        "height": 80,
         "rotateDeg": 0,
         "opacity": 1,
         "overflow": "visible"
@@ -199,8 +195,8 @@
         "position": "absolute",
         "left": 0,
         "top": 0,
-        "width": 1500,
-        "height": 110,
+        "width": 1800,
+        "height": 80,
         "rotateDeg": 0,
         "opacity": 1
       },
@@ -226,16 +222,18 @@
         "position": "absolute",
         "left": 0,
         "top": 0,
-        "width": 1500,
-        "height": 110,
+        "width": 1800,
+        "height": 80,
         "rotateDeg": 0,
         "opacity": 1,
         "color": "#475569",
         "display": "flex",
         "alignItems": "center",
-        "fontSize": 48,
+        "fontSize": 36,
         "fontWeight": 700,
-        "lineHeight": 1.2
+        "lineHeight": 1.2,
+        "textAlign": "center",
+        "justifyContent": "center"
       },
       "extension": {
         "structuredRole": "text"
@@ -247,10 +245,7 @@
         "type": "group",
         "label": "Weekly Memo Off",
         "parentId": "root/3",
-        "childIds": [
-          "root/3/1/0",
-          "root/3/1/1"
-        ],
+        "childIds": ["root/3/1/0", "root/3/1/1"],
         "layoutMode": "fillParent",
         "assetSlots": {},
         "hidden": true
@@ -259,8 +254,8 @@
         "position": "absolute",
         "left": 0,
         "top": 0,
-        "width": 1500,
-        "height": 110,
+        "width": 1800,
+        "height": 80,
         "rotateDeg": 0,
         "opacity": 1,
         "overflow": "visible"
@@ -282,8 +277,8 @@
         "position": "absolute",
         "left": 0,
         "top": 0,
-        "width": 1500,
-        "height": 110,
+        "width": 1800,
+        "height": 80,
         "rotateDeg": 0,
         "opacity": 1
       },
@@ -309,16 +304,18 @@
         "position": "absolute",
         "left": 0,
         "top": 0,
-        "width": 1500,
-        "height": 110,
+        "width": 1800,
+        "height": 80,
         "rotateDeg": 0,
         "opacity": 1,
         "color": "#475569",
         "display": "flex",
         "alignItems": "center",
-        "fontSize": 48,
+        "fontSize": 36,
         "fontWeight": 700,
-        "lineHeight": 1.2
+        "lineHeight": 1.2,
+        "textAlign": "center",
+        "justifyContent": "center"
       },
       "extension": {
         "structuredRole": "text"
@@ -330,11 +327,7 @@
         "type": "group",
         "label": "Profile Block",
         "parentId": null,
-        "childIds": [
-          "root/4/0",
-          "root/4/1",
-          "root/4/2"
-        ],
+        "childIds": ["root/4/0", "root/4/1", "root/4/2"],
         "assetSlots": {},
         "meta": {
           "exception": {
@@ -349,10 +342,10 @@
       },
       "style": {
         "position": "absolute",
-        "left": 360,
-        "top": 470,
-        "width": 420,
-        "height": 420,
+        "left": 100,
+        "top": 200,
+        "width": 1400,
+        "height": 1800,
         "rotateDeg": 0,
         "opacity": 1,
         "overflow": "visible"
@@ -379,8 +372,8 @@
         "position": "absolute",
         "left": 0,
         "top": 0,
-        "width": 420,
-        "height": 420,
+        "width": 1400,
+        "height": 1800,
         "rotateDeg": 0,
         "opacity": 1
       },
@@ -406,8 +399,8 @@
         "position": "absolute",
         "left": 0,
         "top": 0,
-        "width": 420,
-        "height": 420,
+        "width": 1400,
+        "height": 1800,
         "rotateDeg": 0,
         "opacity": 1,
         "borderRadius": 0,
@@ -435,8 +428,8 @@
         "position": "absolute",
         "left": 0,
         "top": 0,
-        "width": 420,
-        "height": 420,
+        "width": 1400,
+        "height": 1800,
         "rotateDeg": 0,
         "opacity": 1
       },
@@ -450,10 +443,7 @@
         "type": "group",
         "label": "Artist",
         "parentId": null,
-        "childIds": [
-          "root/5/0",
-          "root/5/1"
-        ],
+        "childIds": ["root/5/0", "root/5/1"],
         "assetSlots": {},
         "meta": {
           "exception": {
@@ -486,10 +476,10 @@
       },
       "style": {
         "position": "absolute",
-        "left": 840,
-        "top": 470,
-        "width": 1200,
-        "height": 180,
+        "left": 285,
+        "top": 2020,
+        "width": 500,
+        "height": 130,
         "rotateDeg": 0,
         "opacity": 1,
         "overflow": "visible"
@@ -504,10 +494,7 @@
         "type": "group",
         "label": "Artist On",
         "parentId": "root/5",
-        "childIds": [
-          "root/5/0/0",
-          "root/5/0/1"
-        ],
+        "childIds": ["root/5/0/0", "root/5/0/1"],
         "layoutMode": "fillParent",
         "assetSlots": {},
         "hidden": false
@@ -516,8 +503,8 @@
         "position": "absolute",
         "left": 0,
         "top": 0,
-        "width": 1200,
-        "height": 180,
+        "width": 500,
+        "height": 130,
         "rotateDeg": 0,
         "opacity": 1,
         "overflow": "visible"
@@ -539,8 +526,8 @@
         "position": "absolute",
         "left": 0,
         "top": 0,
-        "width": 1200,
-        "height": 180,
+        "width": 500,
+        "height": 130,
         "rotateDeg": 0,
         "opacity": 1
       },
@@ -566,16 +553,18 @@
         "position": "absolute",
         "left": 0,
         "top": 0,
-        "width": 1200,
-        "height": 180,
+        "width": 500,
+        "height": 130,
         "rotateDeg": 0,
         "opacity": 1,
         "color": "#172033",
         "display": "flex",
         "alignItems": "center",
-        "fontSize": 64,
+        "fontSize": 52,
         "fontWeight": 800,
-        "lineHeight": 1.12
+        "lineHeight": 1.12,
+        "textAlign": "center",
+        "justifyContent": "center"
       },
       "extension": {
         "structuredRole": "text"
@@ -587,10 +576,7 @@
         "type": "group",
         "label": "Artist Off",
         "parentId": "root/5",
-        "childIds": [
-          "root/5/1/0",
-          "root/5/1/1"
-        ],
+        "childIds": ["root/5/1/0", "root/5/1/1"],
         "layoutMode": "fillParent",
         "assetSlots": {},
         "hidden": true
@@ -599,8 +585,8 @@
         "position": "absolute",
         "left": 0,
         "top": 0,
-        "width": 1200,
-        "height": 180,
+        "width": 500,
+        "height": 130,
         "rotateDeg": 0,
         "opacity": 1,
         "overflow": "visible"
@@ -622,8 +608,8 @@
         "position": "absolute",
         "left": 0,
         "top": 0,
-        "width": 1200,
-        "height": 180,
+        "width": 500,
+        "height": 130,
         "rotateDeg": 0,
         "opacity": 1
       },
@@ -649,16 +635,18 @@
         "position": "absolute",
         "left": 0,
         "top": 0,
-        "width": 1200,
-        "height": 180,
+        "width": 500,
+        "height": 130,
         "rotateDeg": 0,
         "opacity": 1,
         "color": "#172033",
         "display": "flex",
         "alignItems": "center",
-        "fontSize": 64,
+        "fontSize": 52,
         "fontWeight": 800,
-        "lineHeight": 1.12
+        "lineHeight": 1.12,
+        "textAlign": "center",
+        "justifyContent": "center"
       },
       "extension": {
         "structuredRole": "text"
@@ -670,10 +658,7 @@
         "type": "group",
         "label": "Top Object",
         "parentId": null,
-        "childIds": [
-          "root/6/0",
-          "root/6/1"
-        ],
+        "childIds": ["root/6/0", "root/6/1"],
         "assetSlots": {},
         "meta": {
           "exception": {
@@ -706,10 +691,10 @@
       },
       "style": {
         "position": "absolute",
-        "left": 3060,
-        "top": 260,
-        "width": 420,
-        "height": 420,
+        "left": 2440,
+        "top": 280,
+        "width": 1400,
+        "height": 400,
         "rotateDeg": 0,
         "opacity": 1,
         "overflow": "visible"
@@ -724,9 +709,7 @@
         "type": "group",
         "label": "Top Object On",
         "parentId": "root/6",
-        "childIds": [
-          "root/6/0/0"
-        ],
+        "childIds": ["root/6/0/0"],
         "layoutMode": "fillParent",
         "assetSlots": {},
         "hidden": false
@@ -735,8 +718,8 @@
         "position": "absolute",
         "left": 0,
         "top": 0,
-        "width": 420,
-        "height": 420,
+        "width": 1400,
+        "height": 400,
         "rotateDeg": 0,
         "opacity": 1,
         "overflow": "visible"
@@ -762,8 +745,8 @@
         "position": "absolute",
         "left": 0,
         "top": 0,
-        "width": 420,
-        "height": 420,
+        "width": 1400,
+        "height": 400,
         "rotateDeg": 0,
         "opacity": 1,
         "borderRadius": 0,
@@ -779,9 +762,7 @@
         "type": "group",
         "label": "Top Object Off",
         "parentId": "root/6",
-        "childIds": [
-          "root/6/1/0"
-        ],
+        "childIds": ["root/6/1/0"],
         "layoutMode": "fillParent",
         "assetSlots": {},
         "hidden": true
@@ -790,8 +771,8 @@
         "position": "absolute",
         "left": 0,
         "top": 0,
-        "width": 420,
-        "height": 420,
+        "width": 1400,
+        "height": 400,
         "rotateDeg": 0,
         "opacity": 1,
         "overflow": "visible"
@@ -817,8 +798,8 @@
         "position": "absolute",
         "left": 0,
         "top": 0,
-        "width": 420,
-        "height": 420,
+        "width": 1400,
+        "height": 400,
         "rotateDeg": 0,
         "opacity": 1,
         "borderRadius": 0,

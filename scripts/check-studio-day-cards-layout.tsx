@@ -19,12 +19,14 @@ import {
   getStudioTimetableDayCardsBounds,
   getStudioTimetableDayCardsLayout,
   getStudioTimetableDayCardGeometries,
+  getStudioTimetableDayCardGeometry,
   getStudioTimetableEntryCardSize,
 } from "../src/app/(root)/template-studio/_components/studio-timetable-preview";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
 import type {
   StudioTimetableDayCardsLayout,
   StudioTimetableDayId,
+  StudioTimetableDayDefinition,
 } from "../src/types/template-studio";
 
 const DAYS: StudioDayCardsLayoutDay[] = [
@@ -81,10 +83,7 @@ assert.ok(defaultMarkup.includes("<span>Grid Preset</span>"));
 assert.ok(defaultMarkup.includes("<span>Fill Order</span>"));
 assert.ok(defaultMarkup.includes("<span>Remainder</span>"));
 assert.ok(
-  defaultMarkup.includes("Card Transforms") &&
-    defaultMarkup.includes("Offset X") &&
-    defaultMarkup.includes("Offset Y") &&
-    defaultMarkup.includes("Rotate"),
+  defaultMarkup.includes("Card Transforms") && defaultMarkup.includes("Rotate"),
   "모든 프리셋에서 요일별 카드 변환 필드를 보여준다.",
 );
 assert.ok(
@@ -248,14 +247,7 @@ assert.deepEqual(
 for (const gridPreset of cardTransformPresets) {
   const presetMarkup = markupOf(createLayout({ gridPreset }));
   assert.ok(
-    presetMarkup.includes("Card Transforms") &&
-      presetMarkup.includes(
-        gridPreset === "custom" ? "<span>X</span>" : "Offset X",
-      ) &&
-      presetMarkup.includes(
-        gridPreset === "custom" ? "<span>Y</span>" : "Offset Y",
-      ) &&
-      presetMarkup.includes("Rotate"),
+    presetMarkup.includes("Card Transforms") && presetMarkup.includes("Rotate"),
     `${gridPreset} 프리셋에서도 카드 변환 필드를 렌더링한다.`,
   );
 
@@ -285,17 +277,61 @@ for (const gridPreset of cardTransformPresets) {
     const restored = toPreset(presetLayout, "3x3");
     assert.deepEqual(
       positions(restored),
-      positions(presetLayout),
-      "Custom to Grid converts positions to offsets without moving cards.",
+      positions({ ...restored, dayOffsets: {} }),
+      "Custom to Grid reflows positions into the selected grid.",
     );
   } else {
-    assert.deepEqual(presetLayout.dayOffsets, cardTransformFixture);
+    assert.equal(presetLayout.dayOffsets?.mon.left, 0);
+    assert.equal(presetLayout.dayOffsets?.mon.top, 0);
+    assert.equal(presetLayout.dayOffsets?.tue.left, 0);
+    assert.equal(presetLayout.dayOffsets?.tue.top, 0);
+    assert.equal(presetLayout.dayOffsets?.mon.rotateDeg, 9);
+    assert.equal(presetLayout.dayOffsets?.tue.rotateDeg, -12);
+    assert.doesNotMatch(presetMarkup, /Offset X|Offset Y/);
   }
 }
 
 const sampleDocument = createSampleStudioDocument();
 const sampleTimetable = sampleDocument.domains?.timetable;
 assert.ok(sampleTimetable);
+// Older grid documents may still contain offsets; rendering must ignore them.
+for (const gridPreset of ["1x7", "7x1", "4x2", "3x3"] as const) {
+  const candidate = getStudioTimetableDayCardsLayout({
+    dayIds: sampleTimetable.dayIds,
+    dayCardsLayout: {
+      ...sampleTimetable.dayCardsLayout!,
+      gridPreset,
+      dayOffsets: {
+        mon: { left: 999, top: -300 },
+        tue: { left: -222, top: 444 },
+      },
+    },
+  });
+  const days: StudioTimetableDayDefinition[] = sampleTimetable.dayIds.map(
+    (id) => sampleTimetable.days[id],
+  );
+  assert.deepEqual(
+    getStudioTimetableDayCardGeometries(candidate, days, () => 1),
+    getStudioTimetableDayCardGeometries(
+      { ...candidate, dayOffsets: {} },
+      days,
+      () => 1,
+    ),
+    `${gridPreset} ignores persisted free-position offsets`,
+  );
+  days.forEach((day, index) =>
+    assert.deepEqual(
+      getStudioTimetableDayCardGeometry(candidate, day.id, index, 1),
+      getStudioTimetableDayCardGeometry(
+        { ...candidate, dayOffsets: {} },
+        day.id,
+        index,
+        1,
+      ),
+      "Single-card geometry also ignores offsets in grid mode",
+    ),
+  );
+}
 const persistedDay = sampleTimetable.days[sampleTimetable.dayIds[0]];
 assert.ok(persistedDay);
 const persistedComponent =
@@ -425,6 +461,7 @@ assert.equal(
 );
 
 const transformLayout = createLayout({
+  gridPreset: "custom",
   dayOffsets: { mon: { left: 4, top: -2, rotateDeg: 9 } },
 });
 const transformUpdates: StudioTimetableDayCardsLayout[] = [];
@@ -436,8 +473,8 @@ const transformElement = StudioTimetableDayCardsLayoutControls({
     transformUpdates.push(structuredClone(transformLayout));
   },
 });
-const transformXField = findNumberField(transformElement, "Offset X");
-const transformYField = findNumberField(transformElement, "Offset Y");
+const transformXField = findNumberField(transformElement, "X");
+const transformYField = findNumberField(transformElement, "Y");
 const transformRotateField = findNumberField(transformElement, "Rotate");
 assert.ok(transformXField && transformYField && transformRotateField);
 transformXField.props.onChange(12);

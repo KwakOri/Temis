@@ -774,3 +774,24 @@ assert.equal(
 );
 
 console.log("Studio timetable inspector baseline checks passed.");
+
+// Grid cards show their calculated coordinates, but only Custom can edit them.
+const gridCardPositionMarkup = markupOf(
+  findSection(build("day-card:mon"), "position:"),
+);
+const customCardDocument = createDocument();
+customCardDocument.domains!.timetable!.dayCardsLayout!.gridPreset = "custom";
+const customCardPositionMarkup = markupOf(
+  findSection(
+    build("day-card:mon", { document: customCardDocument }),
+    "position:",
+  ),
+);
+assert.equal(
+  (gridCardPositionMarkup.match(/disabled=""/g) ?? []).length -
+    (customCardPositionMarkup.match(/disabled=""/g) ?? []).length,
+  2,
+  "Grid disables individual X/Y while Custom keeps them editable",
+);
+assert.ok(gridCardPositionMarkup.includes("Choose Custom"));
+assert.ok(!customCardPositionMarkup.includes("Choose Custom"));

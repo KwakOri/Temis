@@ -12,7 +12,7 @@ import { migrateStudioTemplateDocument } from "../src/utils/template-studio/migr
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
 import { STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL } from "../src/utils/template-studio/preset-inputs";
 
-// Compare with a captured result from BEFORE the generator refactor. IDs are random;
+// Compare with the current default preset recipe. IDs are random;
 // hierarchy paths and input labels identify references without hiding other changes.
 const canonical = (doc: StudioTimetableGraphDocument) => {
   const ids: Record<string, string> = {};
@@ -101,7 +101,7 @@ const baseline = JSON.parse(
 assert.deepEqual(
   canonical(document),
   baseline,
-  "Six presets preserve pre-refactor defaults, styles, branches and inputs.",
+  "Six presets preserve the default layout, styles, branches and inputs.",
 );
 assert.deepEqual(
   parseStudioTimetableGraphDocument(JSON.stringify(document)),
@@ -232,5 +232,5 @@ assert.equal(
   "Linked Artist to input",
 );
 console.log(
-  "Native timetable preset creation and pre-refactor baseline checks passed.",
+  "Native timetable preset creation and default-layout baseline checks passed.",
 );
