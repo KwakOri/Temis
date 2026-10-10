@@ -40,6 +40,7 @@ import type { StudioRuntimeImageOverrides } from "@/utils/thumbnail-studio/runti
 import {
   getStudioObjectCssStyle,
   getStudioBackgroundSizeForFit,
+  getStudioTextVerticalAlignment,
 } from "@/utils/template-studio/object-style";
 
 interface StudioRendererProps {
@@ -126,6 +127,10 @@ export function StudioRenderer({
     const baseStyle = getStudioObjectCssStyle(
       getStudioObjectRenderStyle(styleRecord ?? {}, node.layoutMode),
     );
+    if (node.type === "flexibleText") {
+      baseStyle.display = "flex";
+      baseStyle.alignItems = getStudioTextVerticalAlignment(styleRecord ?? {});
+    }
     if (node.type === "text" || node.type === "flexibleText") {
       baseStyle.fontFamily = resolveStudioFontFamily(
         document,

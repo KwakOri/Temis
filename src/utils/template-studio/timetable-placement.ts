@@ -4,7 +4,7 @@ import type {
   StudioTimetableDayId,
 } from "@/types/template-studio";
 
-/** The layout mode determines whether stored X/Y are canvas positions or grid offsets. */
+/** Custom uses stored canvas positions; all other presets use the shared grid. */
 export const getStudioTimetablePlacementMode = (
   layout: StudioTimetableDayCardsLayout,
 ) => (layout.gridPreset === "custom" ? "absolute" : "gridOffset");
@@ -13,7 +13,7 @@ export type StudioTimetablePlacementResolver = (
   layout: StudioTimetableDayCardsLayout,
 ) => Record<StudioTimetableDayId, { left: number; top: number }>;
 
-/** Convert coordinates only when crossing placement modes; grid changes still reflow. */
+/** Custom preserves visible positions; grid presets always reflow without per-card offsets. */
 export const applyStudioTimetableGridPreset = (
   layout: StudioTimetableDayCardsLayout,
   preset: {
@@ -42,24 +42,44 @@ export const applyStudioTimetableGridPreset = (
     layout.left = 0;
     layout.top = 0;
   }
-  if (!positions) return;
-  layout.dayOffsets = {};
-  const gridPositions =
-    nextMode === "gridOffset" ? resolvePositions(layout) : null;
-  layout.dayOffsets = Object.fromEntries(
-    dayIds.map((dayId) => {
-      const current = positions[dayId] ?? { left: 0, top: 0 };
-      const origin = gridPositions?.[dayId] ?? { left: 0, top: 0 };
-      return [
+  if (nextMode === "gridOffset") {
+    layout.dayOffsets = Object.fromEntries(
+      dayIds.map((dayId) => [
         dayId,
         {
-          left: current.left - origin.left,
-          top: current.top - origin.top,
+          left: 0,
+          top: 0,
           ...(previousOffsets?.[dayId]?.rotateDeg !== undefined
             ? { rotateDeg: previousOffsets[dayId].rotateDeg }
             : {}),
         },
-      ];
-    }),
+      ]),
+    );
+    if (positions && dayIds.length) {
+      // Anchor the first card while the remaining cards reflow into the grid.
+      const anchorId = dayIds.find((id) => positions[id]);
+      if (anchorId) {
+        layout.left = 0;
+        layout.top = 0;
+        const gridAnchor = resolvePositions(layout)[anchorId];
+        if (gridAnchor) {
+          layout.left = positions[anchorId].left - gridAnchor.left;
+          layout.top = positions[anchorId].top - gridAnchor.top;
+        }
+      }
+    }
+    return;
+  }
+  if (!positions) return;
+  layout.dayOffsets = Object.fromEntries(
+    dayIds.map((dayId) => [
+      dayId,
+      {
+        ...(positions[dayId] ?? { left: 0, top: 0 }),
+        ...(previousOffsets?.[dayId]?.rotateDeg !== undefined
+          ? { rotateDeg: previousOffsets[dayId].rotateDeg }
+          : {}),
+      },
+    ]),
   );
 };

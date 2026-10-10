@@ -554,6 +554,12 @@ export function useTimetableObjectCommands({
 
         if (target.kind !== "dayCard") return;
 
+        if (
+          layout.gridPreset !== "custom" &&
+          nextPosition.rotateDeg === undefined
+        )
+          return;
+
         const { dayId } = target;
         const orderedDayIds = getStudioTimetableOrderedDayIds(timetable);
         const dayIndex = orderedDayIds.indexOf(dayId);
@@ -663,6 +669,7 @@ export function useTimetableObjectCommands({
           }
 
           if (target.kind !== "dayCard") return;
+          if (layout.gridPreset !== "custom") return;
 
           const currentOffset = layout.dayOffsets[target.dayId] ?? {
             left: 0,
@@ -684,8 +691,20 @@ export function useTimetableObjectCommands({
       targetNodeId: string | null;
       targetNodeIds: string[];
       nodeIdsAtPoint: string[];
-    }) => resolveStudioTimetableDragLayerId({ selectedLayerId, ...hit }),
-    [selectedLayerId],
+    }) => {
+      const layerId = resolveStudioTimetableDragLayerId({
+        selectedLayerId,
+        ...hit,
+      });
+      if (
+        layerId?.startsWith("day-card:") &&
+        getDocument().domains?.timetable?.dayCardsLayout?.gridPreset !==
+          "custom"
+      )
+        return null;
+      return layerId;
+    },
+    [getDocument, selectedLayerId],
   );
 
   const selectCardComponent = useCallback(
