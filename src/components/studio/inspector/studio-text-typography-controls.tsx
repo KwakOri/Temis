@@ -6,6 +6,7 @@ import type {
 } from "@/types/template-studio";
 import {
   getStudioTextAlignment,
+  getStudioTextVerticalAlignment,
   type StudioTextAlignment,
 } from "@/utils/template-studio/object-style";
 import {
@@ -21,6 +22,7 @@ import {
   StudioLineBreakField,
   StudioNumberField,
   StudioTextAlignmentField,
+  StudioTextVerticalAlignmentField,
 } from "./studio-inspector-fields";
 import { StudioHexColorPicker } from "./studio-hex-color-picker";
 
@@ -86,6 +88,12 @@ export function StudioTextTypographyControls({
         value={getStudioTextAlignment(style)}
         onChange={onUpdateTextAlignment}
       />
+      {flexibleText ? (
+        <StudioTextVerticalAlignmentField
+          value={getStudioTextVerticalAlignment(style)}
+          onChange={(value) => onUpdateStyle("alignItems", value)}
+        />
+      ) : null}
       {flexibleText ? (
         <StudioLineBreakField
           value={getStudioTextWrapMode(style)}

@@ -58,6 +58,7 @@ import {
   getStudioObjectCssStyle,
   getStudioBackgroundSizeForFit,
   getStudioCssOpacity,
+  getStudioTextVerticalAlignment,
 } from "@/utils/template-studio/object-style";
 
 import { StudioText } from "@/components/studio/text/studio-text";
@@ -75,29 +76,14 @@ import {
   type StudioTimetableEditingVariants,
 } from "@/utils/template-studio/timetable-selection";
 
+import { STUDIO_TIMETABLE_DEFAULT_DAY_CARDS_LAYOUT } from "@/utils/template-studio/timetable-defaults";
+
 export const STUDIO_TIMETABLE_DEFAULT_CANVAS_SIZE = {
   width: 4000,
   height: 2250,
 };
 
-export const STUDIO_TIMETABLE_DEFAULT_DAY_CARDS_LAYOUT = {
-  left: 434,
-  top: 760,
-  dayWidth: 420,
-  gridPreset: "1x7",
-  columns: 7,
-  rows: 1,
-  dayGap: 32,
-  columnGap: 32,
-  rowGap: 32,
-  fillOrder: "row",
-  alignLastRow: "start",
-  padding: 28,
-  headerHeight: 76,
-  entryPreviewWidth: 360,
-  entryPreviewHeight: 212,
-  entryGap: 24,
-} satisfies StudioTimetableDayCardsLayout;
+export { STUDIO_TIMETABLE_DEFAULT_DAY_CARDS_LAYOUT } from "@/utils/template-studio/timetable-defaults";
 
 export const STUDIO_TIMETABLE_DAY_CARD_GRID_PRESETS = [
   { id: "1x7", label: "7 columns", columns: 7, rows: 1 },
@@ -498,14 +484,12 @@ export const getStudioTimetableDayCardGeometry = (
     left:
       layout.left +
       position.column *
-        (entryCardSize.width + (layout.columnGap ?? layout.dayGap)) +
-      offset.left,
+        (entryCardSize.width + (layout.columnGap ?? layout.dayGap)),
     top:
       layout.top +
       position.row *
         (getStudioTimetableDayCardHeight(layout, entryCount, entryCardSize) +
-          (layout.rowGap ?? layout.dayGap)) +
-      offset.top,
+          (layout.rowGap ?? layout.dayGap)),
     width: entryCardSize.width,
     height: getStudioTimetableDayCardHeight(layout, entryCount, entryCardSize),
   };
@@ -656,20 +640,16 @@ export const getStudioTimetableDayCardGeometries = (
 
   return Object.fromEntries(
     dayPositions.map(({ day, entryCardSize, height, position }) => {
-      const offset = layout.dayOffsets?.[day.id] ?? { left: 0, top: 0 };
       return [
         day.id,
         {
-          left:
-            getTrackOrigin(
-              layout.left,
-              columnWidths,
-              position.column,
-              columnGap,
-            ) + offset.left,
-          top:
-            getTrackOrigin(layout.top, rowHeights, position.row, rowGap) +
-            offset.top,
+          left: getTrackOrigin(
+            layout.left,
+            columnWidths,
+            position.column,
+            columnGap,
+          ),
+          top: getTrackOrigin(layout.top, rowHeights, position.row, rowGap),
           width: entryCardSize.width,
           height,
         },
@@ -785,6 +765,10 @@ const getTimetableObjectStyle = (
   const styleRecord = getStudioObjectCssStyle(resolvedStyle, {
     legacyTimetable: true,
   });
+  if (object.type === "flexibleText") {
+    styleRecord.display = "flex";
+    styleRecord.alignItems = getStudioTextVerticalAlignment(resolvedStyle);
+  }
   if (object.type === "text" || object.type === "flexibleText") {
     styleRecord.fontFamily = resolveStudioFontFamily(
       document,

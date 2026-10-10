@@ -11,6 +11,7 @@ import {
 import React from "react";
 
 import { StudioLayerRow } from "@/components/studio/layers/studio-layer-primitives";
+import { StudioNodeTypeIcon } from "@/components/studio/node-type-icon";
 
 /**
  * 시간표 레이어 종류 이름에 맞는 아이콘.
@@ -21,6 +22,7 @@ export const getStudioTimetableLayerIcon = (type: string): React.ReactNode => {
   if (type === "group") return <Layers3 size={14} />;
   if (type === "day") return <CalendarDays size={14} />;
   if (type === "block" || type === "image") return <ImageIcon size={14} />;
+  if (type === "auto text") return <StudioNodeTypeIcon type="flexibleText" />;
   return <Type size={14} />;
 };
 

@@ -283,6 +283,7 @@ assert.equal(
 const layout = {
   left: 0,
   top: 0,
+  gridPreset: "custom",
   dayOffsets: { mon: { left: 1, top: 2 } },
 } as unknown as StudioTimetableDayCardsLayout;
 setStudioTimetableDayOffset(layout, "tue", { left: 1 / 3, top: 4 });
@@ -295,6 +296,7 @@ assert.deepEqual(
 const rotationLayout = {
   left: 0,
   top: 0,
+  gridPreset: "custom",
   dayOffsets: { mon: { left: 1, top: 2, rotateDeg: 12 } },
 } as unknown as StudioTimetableDayCardsLayout;
 setStudioTimetableDayOffset(rotationLayout, "mon", {
@@ -632,6 +634,16 @@ const runTimetableDayCardHookIntegration = (
       onRestoreSelection: () => {},
     });
 
+    assert.equal(
+      commands.resolveDragLayerId({
+        targetNodeId: "day-card:mon",
+        targetNodeIds: ["day-card:mon"],
+        nodeIdsAtPoint: ["day-card:mon"],
+      }),
+      custom ? "day-card:mon" : null,
+      "Only Custom allows individual canvas dragging",
+    );
+    commands.updateLayerPosition("day-card:mon", { left: 100, top: 200 });
     if (custom) {
       commands.updateLayerPosition("day-card:mon", { left: 100, top: 200 });
       commands.moveCanvasLayer("day-cards", { deltaX: 50, deltaY: 75 });
@@ -661,13 +673,13 @@ assert.equal(
 );
 assert.equal(
   hookIntegrationResult.left,
-  5,
-  "실제 hook drag 경로가 X 보정을 저장한다.",
+  0,
+  "Grid blocks individual X edits and drag deltas.",
 );
 assert.equal(
   hookIntegrationResult.top,
-  6,
-  "실제 hook drag 경로가 Y 보정을 저장한다.",
+  0,
+  "Grid blocks individual Y edits and drag deltas.",
 );
 assert.deepEqual(
   runTimetableDayCardHookIntegration(true),

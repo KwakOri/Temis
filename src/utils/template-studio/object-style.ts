@@ -6,6 +6,18 @@ import type {
 import { isStudioFillParentLayout } from "./object-layout";
 
 export type StudioTextAlignment = "left" | "center" | "right";
+export type StudioTextVerticalAlignment = "flex-start" | "center" | "flex-end";
+
+/** 오토텍스트의 세로 정렬. 지정하지 않은 문서는 가운데로 맞춘다. */
+export const getStudioTextVerticalAlignment = (
+  style: StudioStyleRecord,
+): StudioTextVerticalAlignment => {
+  if (style.alignItems === "flex-start" || style.alignItems === "start")
+    return "flex-start";
+  if (style.alignItems === "flex-end" || style.alignItems === "end")
+    return "flex-end";
+  return "center";
+};
 export const STUDIO_GEOMETRY_STYLE_KEYS = [
   "left",
   "top",

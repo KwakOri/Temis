@@ -1,11 +1,19 @@
 "use client";
 
-import { AlignCenter, AlignLeft, AlignRight } from "lucide-react";
+import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  AlignVerticalJustifyStart,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
+} from "lucide-react";
 // jsx: "preserve" 환경의 체크 스크립트가 클래식 변환을 타므로 React 심볼이 필요하다.
 import React, { useCallback, useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import type { StudioTextAlignment } from "@/utils/template-studio/node-style-commands";
+import type { StudioTextVerticalAlignment } from "@/utils/template-studio/object-style";
 import {
   STUDIO_TEXT_WRAP_MODE_OPTIONS,
   type StudioTextWrapMode,
@@ -267,6 +275,58 @@ export function StudioTextAlignmentField({
   return (
     <div className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
       <span>Alignment</span>
+      <div className="grid h-8 min-w-0 grid-cols-3 gap-0.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-0.5">
+        {options.map(({ value: optionValue, label, Icon }) => (
+          <button
+            aria-label={label}
+            aria-pressed={value === optionValue}
+            className={cn(
+              "flex min-w-0 items-center justify-center rounded-[5px] transition",
+              value === optionValue
+                ? "bg-[var(--accent)] text-white"
+                : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
+            )}
+            key={optionValue}
+            title={label}
+            type="button"
+            onClick={() => onChange(optionValue)}
+          >
+            <Icon className="h-3.5 w-3.5" />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** 오토텍스트의 세로 정렬 선택. */
+export function StudioTextVerticalAlignmentField({
+  value,
+  onChange,
+}: {
+  value: StudioTextVerticalAlignment;
+  onChange: (value: StudioTextVerticalAlignment) => void;
+}) {
+  const options = [
+    {
+      value: "flex-start" as const,
+      label: "Align top",
+      Icon: AlignVerticalJustifyStart,
+    },
+    {
+      value: "center" as const,
+      label: "Align middle",
+      Icon: AlignVerticalJustifyCenter,
+    },
+    {
+      value: "flex-end" as const,
+      label: "Align bottom",
+      Icon: AlignVerticalJustifyEnd,
+    },
+  ];
+  return (
+    <div className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+      <span>Vertical Alignment</span>
       <div className="grid h-8 min-w-0 grid-cols-3 gap-0.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-0.5">
         {options.map(({ value: optionValue, label, Icon }) => (
           <button

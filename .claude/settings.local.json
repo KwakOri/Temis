@@ -63,7 +63,16 @@
       "Bash(PGPASSWORD=postgres psql -h 127.0.0.1 -p 56322 -U postgres -d postgres -c \"select relname, relrowsecurity, relforcerowsecurity from pg_class where relname in \\('template_access','templates','template_artists','artists'\\) and relnamespace = 'public'::regnamespace;\")",
       "Bash(PGPASSWORD=postgres psql -h 127.0.0.1 -p 56322 -U postgres -d postgres -c \"select count\\(*\\) from public.templates where name like 'Entitlement Check%';\" -c \"select count\\(*\\) from public.users where email like 'entitlement-%';\")",
       "Bash(PGPASSWORD=postgres psql -h 127.0.0.1 -p 56322 -U postgres -d postgres -c \"select 'templates' t, count\\(*\\) from public.templates union all select 'users', count\\(*\\) from public.users union all select 'template_access', count\\(*\\) from public.template_access union all select 'template_purchase_requests', count\\(*\\) from public.template_purchase_requests union all select 'shop_templates', count\\(*\\) from public.shop_templates;\")",
-      "Bash(PGPASSWORD=postgres psql -h 127.0.0.1 -p 56322 -U postgres -d postgres -c \"\\\\d public.template_purchase_requests\")"
+      "Bash(PGPASSWORD=postgres psql -h 127.0.0.1 -p 56322 -U postgres -d postgres -c \"\\\\d public.template_purchase_requests\")",
+      "WebFetch(domain:claude.com)",
+      "WebFetch(domain:support.claude.com)",
+      "Bash(brew --version)",
+      "Bash(brew list *)",
+      "Bash(brew trust *)",
+      "Bash(HOMEBREW_NO_AUTO_UPDATE=1 brew install gh)",
+      "Bash(gh --version)",
+      "Bash(brew info *)",
+      "Read(//opt/homebrew/Cellar/supabase/**)"
     ],
     "deny": [],
     "defaultMode": "bypassPermissions"
