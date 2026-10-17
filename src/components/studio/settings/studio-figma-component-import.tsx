@@ -85,13 +85,15 @@ export function applyStudioFigmaReviewPatch(
   patch: ReviewPatch,
 ): ImportCandidate {
   if ("variants" in candidate) {
+    const variant = candidate.variants[status];
+    if (!variant) return candidate;
     return {
       ...candidate,
       variants: {
         ...candidate.variants,
         [status]: {
-          ...candidate.variants[status],
-          reviews: candidate.variants[status].reviews.map((review) =>
+          ...variant,
+          reviews: variant.reviews.map((review) =>
             review.sourceNodeId === sourceNodeId
               ? { ...review, ...patch, decision: "manual" as const }
               : review,
@@ -113,11 +115,11 @@ export function applyStudioFigmaReviewPatch(
 const reviewSectionsFor = (candidate: ImportCandidate): ReviewSection[] => {
   if ("variants" in candidate) {
     const variants = candidate.variants;
-    return (["online", "offline"] as const).map((status) => ({
-      status,
-      label: status === "online" ? "Online" : "Offline",
-      reviews: variants[status].reviews,
-      warnings: variants[status].warnings,
+    return Object.values(variants).map((variant) => ({
+      status: variant.status,
+      label: variant.status === "online" ? "Online" : variant.status === "multi" ? "Multi" : "Offline",
+      reviews: variant.reviews,
+      warnings: variant.warnings,
     }));
   }
   return [{ status: "online", label: "Online", reviews: candidate.reviews, warnings: [] }];

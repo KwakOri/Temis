@@ -13,6 +13,8 @@ import type {
   StudioFigmaGridCandidate,
   StudioFigmaGridOriginCandidate,
   StudioFigmaGridVariantCandidate,
+  StudioFigmaGridVariants,
+  StudioFigmaGridVariantStatus,
   StudioFigmaNodeReview,
 } from "@/types/template-studio-figma";
 import {
@@ -202,6 +204,37 @@ const normalizedLayerName = (value: string): string =>
 const isExplicitEntryGroup = (node: FigmaNormalizedNode): boolean =>
   GROUP_TYPES.has(node.type) && /^(?:entry|entrygroup|entryslot|cardentry)$/.test(normalizedLayerName(node.name));
 
+const getMultiEntryPaths = (root: FigmaNormalizedNode): FigmaNormalizedNode[][] => {
+  const paths: FigmaNormalizedNode[][] = [];
+  const visit = (node: FigmaNormalizedNode, ancestors: FigmaNormalizedNode[]) => {
+    if (node.visible === false) return;
+    const path = [...ancestors, node];
+    if (GROUP_TYPES.has(node.type) && /^(?:entry|entrygroup|entryslot|cardentry)(?:0?[12])?$/.test(normalizedLayerName(node.name))) {
+      paths.push(path);
+      return;
+    }
+    node.children?.forEach(child => visit(child, path));
+  };
+  root.children?.forEach(child => visit(child, []));
+  const indexOf = (path: FigmaNormalizedNode[]) => {
+    const node = path.at(-1)!;
+    const number = normalizedLayerName(node.name).match(/([12])$/)?.[1];
+    return number ? Number(number) : undefined;
+  };
+  paths.sort((left, right) => {
+    const leftIndex = indexOf(left);
+    const rightIndex = indexOf(right);
+    if (leftIndex !== undefined && rightIndex !== undefined) return leftIndex - rightIndex;
+    const a = getNodeFrame(left.at(-1)!);
+    const b = getNodeFrame(right.at(-1)!);
+    return a.top - b.top || a.left - b.left;
+  });
+  if (paths.length !== 2 || paths.some((path, index) => indexOf(path) !== undefined && indexOf(path) !== index + 1)) {
+    throw new Error("Multi cards require two visible Entry groups (ENTRY_01 and ENTRY_02).");
+  }
+  return paths;
+};
+
 const makeAsset = (
   source: FigmaTransientAsset,
   node: FigmaNormalizedNode,
@@ -222,7 +255,7 @@ const makeAsset = (
 };
 
 export const convertFigmaGridVariant = (input: {
-  status: "online" | "offline";
+  status: StudioFigmaGridVariantStatus;
   origin: StudioFigmaGridVariantCandidate["origin"];
   root: FigmaNormalizedNode;
   reviews: StudioFigmaNodeReview[];
@@ -237,6 +270,8 @@ export const convertFigmaGridVariant = (input: {
   const assets: StudioAsset[] = [];
   const reviewNodeIds: Record<string, string> = {};
   const sourceCharacters: Record<string, string> = {};
+  const nodeIdBySourceId = new Map<string, string>();
+  const multiEntryPaths = input.status === "multi" ? getMultiEntryPaths(input.root) : null;
   const directEntryChildren = (input.root.children ?? []).filter(isExplicitEntryGroup);
   const explicitEntrySourceId = directEntryChildren[0]?.id;
   if (directEntryChildren.length > 1) {
@@ -321,7 +356,8 @@ export const convertFigmaGridVariant = (input: {
     if (reviewsBySourceId.has(source.id)) reviewNodeIds[source.id] = nodeId;
     if (source.characters !== undefined) sourceCharacters[source.id] = source.characters;
     if (source.visible === false) node.hidden = true;
-    if (source.id === explicitEntrySourceId) node.meta = { entrySlot: { index: 0 } };
+    nodeIdBySourceId.set(source.id, nodeId);
+    if (!multiEntryPaths && source.id === explicitEntrySourceId) node.meta = { entrySlot: { index: 0 } };
     if (type === "shape" && color) {
       node.shapeFill = { type: "solid", color } satisfies StudioShapeFill;
     }
@@ -394,7 +430,55 @@ export const convertFigmaGridVariant = (input: {
 
   const rootNodeId = convertNode(input.root, null, rootFrame, true);
   const rootNode = nodes[rootNodeId]!;
-  if (!explicitEntrySourceId) {
+  if (multiEntryPaths) {
+    const slotByNodeId = new Map(multiEntryPaths.map((path, index) => [
+      nodeIdBySourceId.get(path.at(-1)!.id)!, index as 0 | 1,
+    ]));
+    type Fragment = { nodeId: string; slotIndex?: 0 | 1 };
+    const splitAtEntries = (nodeId: string): Fragment[] => {
+      const slotIndex = slotByNodeId.get(nodeId);
+      if (slotIndex !== undefined) return [{ nodeId, slotIndex }];
+      const original = nodes[nodeId]!;
+      const fragments = original.childIds.flatMap(splitAtEntries);
+      if (!fragments.some(fragment => fragment.slotIndex !== undefined)) return [{ nodeId }];
+
+      const chunks: Array<{ childIds: string[]; slotIndex?: 0 | 1 }> = [];
+      const originalStyle = styles[original.styleId!]!;
+      if (typeof originalStyle.opacity === "number" && originalStyle.opacity < 1) {
+        warnings.push(`Multi Entry groups split translucent ancestor "${original.label}"; overlapping content may render differently.`);
+      }
+      // Paint a shared container background once, before any split children.
+      if (originalStyle.backgroundColor) chunks.push({ childIds: [] });
+      for (const fragment of fragments) {
+        const previous = chunks.at(-1);
+        if (fragment.slotIndex === undefined && previous && previous.slotIndex === undefined) {
+          previous.childIds.push(fragment.nodeId);
+        } else {
+          chunks.push({ childIds: [fragment.nodeId], slotIndex: fragment.slotIndex });
+        }
+      }
+      // Splitting the ancestor into ordered shells preserves transforms and
+      // clipping while keeping entry slots direct children of the card root.
+      return chunks.map((chunk, index) => {
+        const id = index === 0 ? nodeId : createStudioId("entry_group");
+        const styleId = index === 0 ? original.styleId! : createStudioId("style");
+        if (index > 0) {
+          styles[styleId] = { ...originalStyle };
+          delete styles[styleId]!.backgroundColor;
+        }
+        nodes[id] = { ...original, id, styleId, childIds: chunk.childIds };
+        chunk.childIds.forEach(childId => { nodes[childId]!.parentId = id; });
+        return { nodeId: id, slotIndex: chunk.slotIndex };
+      });
+    };
+    const fragments = rootNode.childIds.flatMap(splitAtEntries);
+    rootNode.childIds = fragments.map(fragment => fragment.nodeId);
+    fragments.forEach(({ nodeId, slotIndex }) => {
+      const node = nodes[nodeId]!;
+      node.parentId = rootNodeId;
+      if (slotIndex !== undefined) node.meta = { entrySlot: { index: slotIndex } };
+    });
+  } else if (!explicitEntrySourceId) {
     const entryGroupId = createStudioId("entry_group");
     const entryStyleId = createStudioId("style");
     const childIds = [...rootNode.childIds];
@@ -453,8 +537,8 @@ export const convertFigmaGridOriginCandidate = (input: {
   label: string;
   frame: Frame;
   placementInstanceIds: string[];
-  variants: Record<"online" | "offline", {
-    status: "online" | "offline";
+  variants: StudioFigmaGridVariants<{
+    status: StudioFigmaGridVariantStatus;
     origin: StudioFigmaGridVariantCandidate["origin"];
     root: FigmaNormalizedNode;
     reviews: StudioFigmaNodeReview[];
@@ -463,13 +547,14 @@ export const convertFigmaGridOriginCandidate = (input: {
 }): StudioFigmaGridOriginCandidate => {
   const online = convertFigmaGridVariant(input.variants.online);
   const offline = convertFigmaGridVariant(input.variants.offline);
+  const multi = input.variants.multi ? convertFigmaGridVariant(input.variants.multi) : undefined;
   return {
     candidateId: createStudioId("candidate"),
     label: safeLabel(input.label, "Imported Figma card"),
     frame: { ...input.frame, left: 0, top: 0 },
     placementInstanceIds: [...input.placementInstanceIds],
-    variants: { online, offline },
-    warnings: [...online.warnings, ...offline.warnings],
+    variants: { online, offline, ...(multi ? { multi } : {}) },
+    warnings: [...online.warnings, ...offline.warnings, ...(multi?.warnings ?? [])],
   };
 };
 
