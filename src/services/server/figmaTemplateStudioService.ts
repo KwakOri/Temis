@@ -4,6 +4,7 @@ import type {
   FigmaNodeResponse,
   FigmaTransientAsset,
   StudioFigmaFrameCandidate,
+  StudioFigmaGridVariantStatus,
 } from "@/types/template-studio-figma";
 import {
   groupFigmaGridPlacements,
@@ -693,7 +694,7 @@ export const fetchFigmaGridOriginCandidates = async (source: {
     let complete = true;
     const resolvedOrigins: Array<{
       origin: (typeof group.origins)[number];
-      status: "online" | "offline";
+      status: StudioFigmaGridVariantStatus;
       family: string | null;
       data: FigmaOriginNodeData;
     }> = [];
@@ -716,7 +717,7 @@ export const fetchFigmaGridOriginCandidates = async (source: {
       });
       if (!status) {
         complete = false;
-        const warning = "A GRID origin variant was excluded because its online/offline status was missing or ambiguous.";
+        const warning = "A GRID origin variant was excluded because its online/offline/multi status was missing or ambiguous.";
         warnings.push(warning);
         groupWarnings.push(warning);
         continue;
@@ -740,7 +741,7 @@ export const fetchFigmaGridOriginCandidates = async (source: {
       const familyComponentIds = new Set(familyOrigins.map(({ origin }) => origin.componentId));
       const familyPlacements = groupPlacements.filter(({ origin }) => familyComponentIds.has(origin.componentId));
       const familyWarnings: string[] = [];
-      const originsByStatus = new Map<"online" | "offline", typeof familyOrigins>();
+      const originsByStatus = new Map<StudioFigmaGridVariantStatus, typeof familyOrigins>();
       familyOrigins.forEach((entry) => {
         const bucket = originsByStatus.get(entry.status) ?? [];
         bucket.push(entry);
@@ -749,8 +750,9 @@ export const fetchFigmaGridOriginCandidates = async (source: {
       const variants = {} as FigmaGridCandidateSource["variants"];
       const evidenceByPath = new Map<string, FigmaGridCandidateSource["variants"]["online"]["placementEvidence"][string]>();
       let familyComplete = true;
-      for (const status of ["online", "offline"] as const) {
+      for (const status of ["online", "offline", "multi"] as const) {
         const statusOrigins = originsByStatus.get(status) ?? [];
+        if (status === "multi" && statusOrigins.length === 0) continue;
         if (statusOrigins.length !== 1) {
           familyComplete = false;
           continue;
@@ -813,7 +815,7 @@ export const fetchFigmaGridOriginCandidates = async (source: {
         variants,
         root: online.root,
         assets: online.assets,
-        warnings: [...groupWarnings, ...familyWarnings, ...online.warnings, ...variants.offline.warnings],
+        warnings: [...groupWarnings, ...familyWarnings, ...Object.values(variants).flatMap((variant) => variant.warnings)],
       });
     }
   }

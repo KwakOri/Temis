@@ -32,21 +32,17 @@ type ReviewNodesWithContext = (input: FigmaGridReviewRequest) => Promise<FigmaGr
 
 const convertCandidates: CandidateAdapter = ({ candidates }) =>
   candidates.map((candidate) => {
-    const variants: Parameters<typeof convertFigmaGridOriginCandidate>[0]["variants"] = {
-      online: {
-        status: "online",
-        origin: candidate.variants.online.origin,
-        root: candidate.variants.online.root,
-        reviews: candidate.variants.online.reviews ?? candidate.reviews ?? [],
-        exportedAssets: candidate.variants.online.assets,
-      },
-      offline: {
-        status: "offline",
-        origin: candidate.variants.offline.origin,
-        root: candidate.variants.offline.root,
-        reviews: candidate.variants.offline.reviews ?? candidate.reviews ?? [],
-        exportedAssets: candidate.variants.offline.assets,
-      },
+    const toVariant = (variant: FigmaGridCandidateSource["variants"]["online"]) => ({
+      status: variant.status,
+      origin: variant.origin,
+      root: variant.root,
+      reviews: variant.reviews ?? candidate.reviews ?? [],
+      exportedAssets: variant.assets,
+    });
+    const variants = {
+      online: toVariant(candidate.variants.online),
+      offline: toVariant(candidate.variants.offline),
+      ...(candidate.variants.multi ? { multi: toVariant(candidate.variants.multi) } : {}),
     };
     const converted = convertFigmaGridOriginCandidate({
       label: candidate.label,
@@ -180,10 +176,11 @@ export const createFigmaGridAnalyzeHandler = (dependencies: {
         const reviewedVariants: FigmaGridCandidateSource["variants"] = {
           online: { ...candidate.variants.online },
           offline: { ...candidate.variants.offline },
+          ...(candidate.variants.multi ? { multi: { ...candidate.variants.multi } } : {}),
         };
         const reviewWarnings: string[] = [];
-        for (const status of ["online", "offline"] as const) {
-          const variant = candidate.variants[status];
+        for (const variant of Object.values(candidate.variants)) {
+          const status = variant.status;
           const semanticEvidenceBySourceNodeId = Object.fromEntries(
             (variant.semanticReviews ?? []).map((entry) => [entry.sourceNodeId, entry.evidence]),
           );

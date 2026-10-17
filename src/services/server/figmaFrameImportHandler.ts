@@ -209,8 +209,8 @@ export const createFigmaFrameImportHandler = (dependencies: {
       gridCandidates = analysis.candidates.filter(isGridCandidate);
       warnings.push(...analysis.warnings);
       for (const candidate of gridCandidates) {
-        for (const status of ["online", "offline"] as const) {
-          const componentAssets = candidate.variants[status].component.assets;
+        for (const variant of Object.values(candidate.variants)) {
+          const componentAssets = variant.component.assets;
           for (let index = 0; index < componentAssets.length; index += 1) {
             componentAssets[index] = await registerAsset(componentAssets[index]!);
           }

@@ -323,7 +323,8 @@ assert.equal(
   }),
   null,
 );
-for (const input of [{ status: "offlineMemo" }, { status: "multi" }, {}, { status: "ONLINE", variant: "OFFLINE" }]) {
+assert.equal(inferFigmaGridVariantStatus({ status: "multi" }), "multi");
+for (const input of [{ status: "offlineMemo" }, {}, { status: "ONLINE", variant: "OFFLINE" }]) {
   assert.equal(inferFigmaGridVariantStatus(input), null);
 }
 const reviewSources = ["rule", "ai", "hybrid"] as const satisfies StudioFigmaNodeReview["source"][];
