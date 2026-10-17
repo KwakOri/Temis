@@ -16,7 +16,10 @@ export type StudioFigmaNodeReviewRole =
   | "decoration"
   | "unknown";
 
-export type StudioFigmaGridVariantStatus = "online" | "offline";
+export type StudioFigmaGridVariantStatus = "online" | "offline" | "multi";
+
+/** Base states are required; Multi is imported only when explicitly provided. */
+export type StudioFigmaGridVariants<T> = Record<"online" | "offline", T> & { multi?: T };
 export type FigmaReviewSource = "rule" | "ai" | "hybrid";
 export type FigmaReviewDecision = "auto" | "needs_review" | "manual";
 export type FigmaReviewAgreement = "agree" | "rule_only" | "ai_only" | "disagree";
@@ -124,7 +127,7 @@ export interface StudioFigmaGridOriginCandidate {
   label: string;
   frame: { left: number; top: number; width: number; height: number };
   placementInstanceIds: string[];
-  variants: Record<StudioFigmaGridVariantStatus, StudioFigmaGridVariantCandidate>;
+  variants: StudioFigmaGridVariants<StudioFigmaGridVariantCandidate>;
   /** Compatibility projection for old callers; nested variants are authoritative. */
   component?: StudioFigmaGridVariantCandidate["component"];
   reviews?: StudioFigmaNodeReview[];
@@ -262,7 +265,7 @@ export interface FigmaGridCandidateSource {
   label: string;
   frame: { left: number; top: number; width: number; height: number };
   placementInstanceIds: string[];
-  variants: Record<StudioFigmaGridVariantStatus, FigmaGridOriginVariantSource>;
+  variants: StudioFigmaGridVariants<FigmaGridOriginVariantSource>;
   /** Compatibility projection for the pre-variant converter; always fetched origin data. */
   root: FigmaNormalizedNode;
   assets: FigmaTransientAsset[];

@@ -11,12 +11,13 @@ import type {
   StudioFigmaGridCandidate,
   StudioFigmaGridOriginCandidate,
   StudioFigmaGridVariantCandidate,
+  StudioFigmaGridVariantStatus,
 } from "@/types/template-studio-figma";
 import {
   applyStudioTimetableComponentFrames,
 } from "@/utils/template-studio/entry-groups";
 import { createStudioId } from "@/utils/template-studio/id";
-import { ensureStudioVariantSyncKeys } from "@/utils/template-studio/status-variants";
+import { ensureStudioCapabilityVariant, ensureStudioVariantSyncKeys } from "@/utils/template-studio/status-variants";
 import {
   getStudioTimetableCapabilities,
 } from "@/utils/template-studio/timetable-capabilities";
@@ -89,7 +90,7 @@ type ExplicitVariant = {
 type StudioFigmaImportCandidate = StudioFigmaGridCandidate | StudioFigmaGridOriginCandidate;
 
 type ExplicitVariantCandidate = StudioFigmaImportCandidate & {
-  variants?: Partial<Record<"online" | "offline", ExplicitVariant>>;
+  variants?: Partial<Record<StudioFigmaGridVariantStatus, ExplicitVariant>>;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -216,6 +217,7 @@ const validateBinding = (
 const validateComponent = (
   component: StudioFigmaGridCandidate["component"],
   document: StudioTemplateDocument,
+  status: StudioFigmaGridVariantStatus,
 ): string | null => {
   if (!component || !isRecord(component.nodes) || !isRecord(component.styles) || !Array.isArray(component.assets)) {
     return "Candidate component graph is malformed";
@@ -353,13 +355,17 @@ const validateComponent = (
   }
 
   const entryGroups = Object.values(component.nodes).filter(
-    (node) => (node as StudioGraphNode).meta?.entrySlot?.index === 0,
+    (node) => (node as StudioGraphNode).meta?.entrySlot !== undefined,
   ) as StudioGraphNode[];
+  const expectedIndexes = status === "multi" ? [0, 1] : [0];
   if (
-    entryGroups.length !== 1 ||
-    !root.childIds.includes(entryGroups[0]!.id)
+    entryGroups.length !== expectedIndexes.length ||
+    expectedIndexes.some(index => !entryGroups.some(node => node.meta?.entrySlot?.index === index)) ||
+    entryGroups.some(node => node.type !== "group" || !root.childIds.includes(node.id))
   ) {
-    return "Candidate must contain exactly one direct entry slot at index 0";
+    return status === "multi"
+      ? "Candidate Multi variant must contain exactly two direct entry slots at indexes 0 and 1"
+      : "Candidate must contain exactly one direct entry slot at index 0";
   }
 
   const documentErrors = validateStudioDocument(document).filter(
@@ -391,8 +397,9 @@ const validateCandidate = (
   if (!variants?.online || !variants.offline) {
     return "Candidate must contain explicit online and offline variants";
   }
-  for (const status of ["online", "offline"] as const) {
-    const error = validateComponent(variants[status]!.component, document);
+  for (const status of ["online", "offline", "multi"] as const) {
+    if (status === "multi" && !variants.multi) continue;
+    const error = validateComponent(variants[status]!.component, document, status);
     if (error) return `${status} variant: ${error}`;
   }
   return null;
@@ -443,7 +450,10 @@ const restoreExistingComponentFrames = (
   for (const componentId of existingComponentIds) {
     const sourceComponent = sourceTimetable.components[componentId];
     if (!sourceComponent) continue;
-    draftTimetable.components[componentId] = cloneData(sourceComponent);
+    draftTimetable.components[componentId] = {
+      ...cloneData(sourceComponent),
+      variants: { ...draftTimetable.components[componentId]?.variants, ...cloneData(sourceComponent.variants) },
+    };
     for (const variant of Object.values(sourceComponent.variants)) {
       const styleId = source.graph.nodes[variant.rootNodeId]?.styleId;
       if (styleId && source.styles[styleId]) draft.styles[styleId] = cloneData(source.styles[styleId]);
@@ -485,6 +495,7 @@ export const applyStudioFigmaGridCandidate = (
   const remoteAssets = [
     ...explicitCandidate.variants!.online!.component.assets,
     ...explicitCandidate.variants!.offline!.component.assets,
+    ...(explicitCandidate.variants!.multi?.component.assets ?? []),
   ].filter(
     (asset) =>
       asset.storageProvider === "r2" &&
@@ -552,7 +563,9 @@ export const applyStudioFigmaGridCandidate = (
   const variants = explicitCandidate.variants!;
   const onlineRootNodeId = mergeVariant(variants.online!.component);
   const offlineRootNodeId = mergeVariant(variants.offline!.component);
-  draft.graph.rootNodeIds.push(onlineRootNodeId, offlineRootNodeId);
+  const multiRootNodeId = variants.multi ? mergeVariant(variants.multi.component) : undefined;
+  const rootNodeIds = [onlineRootNodeId, offlineRootNodeId, ...(multiRootNodeId ? [multiRootNodeId] : [])];
+  draft.graph.rootNodeIds.push(...rootNodeIds);
   draftTimetable.components[componentId] = {
     id: componentId,
     label: (() => {
@@ -568,10 +581,17 @@ export const applyStudioFigmaGridCandidate = (
     variants: {
       online: { statusId: "online", rootNodeId: onlineRootNodeId },
       offline: { statusId: "offline", rootNodeId: offlineRootNodeId },
+      ...(multiRootNodeId ? { multi: { statusId: "multi", rootNodeId: multiRootNodeId } } : {}),
     },
   };
   ensureStudioVariantSyncKeys(draft, onlineRootNodeId);
   ensureStudioVariantSyncKeys(draft, offlineRootNodeId);
+
+  const warnings = explicitCandidate.warnings.map(safeWarning);
+  if (multiRootNodeId) {
+    draftTimetable.capabilities = { ...getStudioTimetableCapabilities(draftTimetable), multi: { enabled: true } };
+    warnings.push(...ensureStudioCapabilityVariant(draft, "multi"));
+  }
 
   const capabilities = getStudioTimetableCapabilities(draftTimetable);
   const missingExplicitVariants = (["multi", "offlineMemo"] as const).filter(
@@ -598,8 +618,9 @@ export const applyStudioFigmaGridCandidate = (
   document.styles = draft.styles;
   document.assets = draft.assets;
   timetable.components = draftTimetable.components;
+  timetable.capabilities = draftTimetable.capabilities;
+  timetable.statuses = draftTimetable.statuses;
 
-  const warnings = explicitCandidate.warnings.map(safeWarning);
   const originalCapabilities = getStudioTimetableCapabilities(timetable);
   warnings.push(
     originalCapabilities.multi.enabled
@@ -612,7 +633,7 @@ export const applyStudioFigmaGridCandidate = (
   return {
     ok: true,
     componentId,
-    rootNodeIds: [onlineRootNodeId, offlineRootNodeId],
+    rootNodeIds,
     warnings,
   };
 };

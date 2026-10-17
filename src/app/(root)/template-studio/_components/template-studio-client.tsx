@@ -227,7 +227,7 @@ import {
   getStudioCustomFontFamilies,
   setStudioWebFontSources,
 } from "@/utils/template-studio/web-fonts";
-import type { StudioFigmaFrameCandidate } from "@/types/template-studio-figma";
+import type { StudioFigmaFrameCandidate, StudioFigmaGridVariantStatus } from "@/types/template-studio-figma";
 
 import {
   clampStudioPreviewScale,
@@ -1857,7 +1857,7 @@ export function TemplateStudioClient({
   const recordFigmaBindingChange = useCallback(
     (statusOrSourceNodeId: string, sourceNodeId?: string) => {
       const status = sourceNodeId
-        ? (statusOrSourceNodeId as "online" | "offline")
+        ? (statusOrSourceNodeId as StudioFigmaGridVariantStatus)
         : "online";
       const touchedSourceNodeId = sourceNodeId ?? statusOrSourceNodeId;
       const touchedKey = `${status}:${touchedSourceNodeId}`;
@@ -1876,7 +1876,7 @@ export function TemplateStudioClient({
     ) => {
       const status =
         typeof sourceNodeIdOrPatch === "string"
-          ? (statusOrSourceNodeId as "online" | "offline")
+          ? (statusOrSourceNodeId as StudioFigmaGridVariantStatus)
           : "online";
       const sourceNodeId =
         typeof sourceNodeIdOrPatch === "string"

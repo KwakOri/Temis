@@ -90,8 +90,8 @@ const parseVariantNameSuffix = (value: string): {
   status: StudioFigmaGridVariantStatus;
 } | null => {
   const variantValue = value.split("=").at(-1)?.trim() ?? value.trim();
-  const standaloneState = variantValue.match(/^(online|offline|on|off)$/i);
-  const familyState = variantValue.match(/^(.*?)(?:[_\s-]+)(online|offline|on|off)$/i);
+  const standaloneState = variantValue.match(/^(online|offline|multi|on|off)$/i);
+  const familyState = variantValue.match(/^(.*?)(?:[_\s-]+)(online|offline|multi|on|off)$/i);
   const family = standaloneState ? "" : familyState?.[1];
   const state = (standaloneState?.[1] ?? familyState?.[2])?.toLowerCase();
   if (state === undefined || family === undefined) return null;
@@ -99,7 +99,7 @@ const parseVariantNameSuffix = (value: string): {
     ? "online"
     : state === "off" || state === "offline"
       ? "offline"
-      : null;
+      : state === "multi" ? "multi" : null;
   if (!status) return null;
   return {
     family: family.trim() || null,
@@ -130,7 +130,7 @@ const statusFromName = (value: unknown): StudioFigmaGridVariantStatus | undefine
   const parsedSuffix = parseVariantNameSuffix(value);
   if (parsedSuffix) return parsedSuffix.status;
 
-  const matches = [...value.toLowerCase().matchAll(/\b(online|offline)\b/g)].map((match) => match[1]);
+  const matches = [...value.toLowerCase().matchAll(/\b(online|offline|multi)\b/g)].map((match) => match[1]);
   const unique = new Set(matches);
   if (unique.size === 1) return [...unique][0] as StudioFigmaGridVariantStatus;
   return undefined;

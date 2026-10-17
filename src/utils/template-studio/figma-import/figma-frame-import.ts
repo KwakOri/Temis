@@ -205,7 +205,12 @@ const getImportedComponentIds = (
   warnings: string[],
 ): string[] => {
   const componentIds: string[] = [];
-  for (const candidate of candidates) {
+  // Import base-only sets before a Multi set activates that capability for the
+  // entire document and creates the other sets' derived variants.
+  const orderedCandidates = [...candidates].sort(
+    (left, right) => Number(Boolean(left.variants.multi)) - Number(Boolean(right.variants.multi)),
+  );
+  for (const candidate of orderedCandidates) {
     const result = applyStudioFigmaGridCandidate(document, candidate);
     if (!result.ok) throw new Error(result.reason);
     componentIds.push(result.componentId);
