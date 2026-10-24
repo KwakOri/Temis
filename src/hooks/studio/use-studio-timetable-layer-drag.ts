@@ -39,7 +39,7 @@ export interface StudioTimetableLayerDragOptions {
     targetLayerId: string,
     position: "before" | "after",
   ) => void;
-  /** 요일 순서를 바꾼다. 위치는 패널에서 본 그대로 넘어간다. */
+  /** 요일 카드의 쌓이는 순서를 바꾼다. 위치는 저장 순서 기준으로 넘어간다. */
   onMoveDayLayer: (
     sourceDayId: StudioTimetableDayId,
     targetDayId: StudioTimetableDayId,

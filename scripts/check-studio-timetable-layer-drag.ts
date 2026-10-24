@@ -1,8 +1,8 @@
 /**
  * 시간표 레이어 끌어 옮기기 규칙의 기준선 가드.
  *
- * 최상위 객체와 요일 카드는 저장되는 값이 다르다. 최상위 객체는 패널에서 본
- * 위/아래를 뒤집어 저장하고 요일 카드는 그대로 저장한다. 이 둘이 섞이면 옮긴
+ * 최상위 객체와 요일 카드는 저장되는 값이 다르다. 최상위 객체와 요일 카드는 패널에서 본
+ * 위/아래를 뒤집어 저장한다. 이 둘이 섞이면 옮긴
  * 방향이 반대로 저장되고, 화면은 곧 다시 그려지므로 옮기기가 튕긴 것처럼 보인다.
  *
  * 이 저장소에는 DOM 테스트 환경이 없어서 훅을 직접 부를 수 없다. 그래서 판단
@@ -194,9 +194,24 @@ assert.deepEqual(
     kind: "day",
     sourceDayId: "mon",
     targetDayId: "tue",
+    position: "after",
+  },
+  "요일 카드도 패널에서 위에 놓으면 문서의 뒤에 저장해 앞에 그린다.",
+);
+assert.deepEqual(
+  planStudioTimetableLayerDrop(
+    dayDrag,
+    { layerId: "day-card:tue", position: "after" },
+    "day-card:tue",
+    "tue",
+  ),
+  {
+    kind: "day",
+    sourceDayId: "mon",
+    targetDayId: "tue",
     position: "before",
   },
-  "요일 카드는 보이는 순서가 요일 순서라 위/아래를 뒤집지 않는다.",
+  "요일 카드도 패널에서 아래에 놓으면 문서의 앞에 저장한다.",
 );
 assert.deepEqual(
   planStudioTimetableLayerDrop(
