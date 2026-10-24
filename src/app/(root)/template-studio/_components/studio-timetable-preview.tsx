@@ -35,6 +35,8 @@ import {
   resolveStudioTextBinding,
 } from "@/utils/template-studio/binding-resolver";
 import { getStudioTimetableDayComponent } from "@/utils/template-studio/component-sets";
+import { getStudioTimetableWeekdayOrder } from "@/utils/template-studio/timetable-day-order";
+import { getStudioTimetableOrderedDayIds } from "@/utils/template-studio/timetable-commands";
 import { getStudioPaintOrder } from "@/utils/template-studio/layer-order";
 import {
   getLocalizedStudioPresetDefaultText,
@@ -542,6 +544,7 @@ export const getStudioTimetableDayCardGeometries = (
     | StudioTimetableEntryCardSize
     | StudioTimetableEntryCardSizeResolver = getFallbackEntryCardSize(layout),
 ): Record<StudioTimetableDayId, StudioTimetableDayCardGeometry> => {
+  days = getStudioTimetableWeekdayOrder(days);
   if (layout.gridPreset === "custom") {
     return Object.fromEntries(
       days.map((day, index) => [
@@ -827,7 +830,7 @@ export function StudioTimetablePreview({
   );
   const days = useMemo(() => {
     if (!timetable) return [];
-    return timetable.dayIds
+    return getStudioTimetableOrderedDayIds(timetable)
       .map((dayId) => timetable.days[dayId])
       .filter(Boolean);
   }, [timetable]);

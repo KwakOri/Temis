@@ -1,5 +1,6 @@
 "use client";
 
+import { getStudioTimetableWeekdayOrder } from "@/utils/template-studio/timetable-day-order";
 import { Plus, RotateCcw, Trash2, Upload } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
@@ -322,7 +323,11 @@ export function TemplateStudioRuntimeForm({
   const days = useMemo(
     () =>
       timetable
-        ? timetable.dayIds.map((dayId) => timetable.days[dayId]).filter(Boolean)
+        ? getStudioTimetableWeekdayOrder(
+            timetable.dayIds
+              .map((dayId) => timetable.days[dayId])
+              .filter(Boolean),
+          )
         : [],
     [timetable],
   );

@@ -6,7 +6,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { TemplateStudioRuntimeForm } from "../src/app/(root)/template-studio/_components/runtime/template-studio-runtime-form";
 import { TemplateStudioRuntimeShell } from "../src/app/(root)/template-studio/_components/runtime/template-studio-runtime-shell";
 import { StudioRuntimeGlobalInputCard } from "../src/app/(root)/template-studio/_components/runtime/composition/studio-runtime-global-input-card";
-import { StudioTimetablePreview } from "../src/app/(root)/template-studio/_components/studio-timetable-preview";
+import {
+  getStudioTimetableDayCardGeometries,
+  getStudioTimetableDayCardsLayout,
+  StudioTimetablePreview,
+} from "../src/app/(root)/template-studio/_components/studio-timetable-preview";
 import type {
   StudioRuntimeValues,
   StudioTemplateDocument,
@@ -86,6 +90,77 @@ const renderForm = (
       onReset={() => undefined}
     />,
   );
+
+// Layer moves must not change the runtime weekday sequence, dates or grid slots.
+const reorderedDocument = createTimetableGraphFixture(document);
+const reorderedTimetable = reorderedDocument.domains.timetable;
+reorderedTimetable.dayIds = ["fri", "sat", "sun", "thu", "wed", "tue", "mon"];
+reorderedTimetable.dayIds.forEach((id, order) => {
+  reorderedTimetable.days[id].order = order;
+});
+const reorderedValues = createStudioInitialRuntimeValues(reorderedDocument);
+reorderedValues.timetable.weekStartDate = "2026-10-19";
+const weekdayIds = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+for (const locale of ["ko", "en", "ja"] as const) {
+  assert.deepEqual(
+    [
+      ...renderForm(reorderedDocument, reorderedValues, locale).matchAll(
+        /id="runtime-day-([^"]+)"/g,
+      ),
+    ].map((match) => match[1]),
+    weekdayIds,
+    "Runtime day inputs must stay Monday through Sunday after layer moves.",
+  );
+}
+assert.deepEqual(
+  weekdayIds.map((id) =>
+    resolveStudioBuiltinFieldValue(
+      reorderedDocument,
+      reorderedValues,
+      "day.date",
+      { dayId: id },
+    ),
+  ),
+  ["10.19", "10.20", "10.21", "10.22", "10.23", "10.24", "10.25"],
+  "A weekday's date must not follow its layer index.",
+);
+const reorderedDays = reorderedTimetable.dayIds.map(
+  (id) => reorderedTimetable.days[id],
+);
+const weekdayGeometry = getStudioTimetableDayCardGeometries(
+  {
+    ...getStudioTimetableDayCardsLayout(reorderedTimetable),
+    gridPreset: "1x7",
+    columns: 7,
+    rows: 1,
+    slots: [],
+    left: 0,
+    top: 0,
+    dayGap: 10,
+    columnGap: 10,
+  },
+  reorderedDays,
+  () => 1,
+  { width: 100, height: 50 },
+);
+assert.deepEqual(
+  weekdayIds.map((id) => weekdayGeometry[id].left),
+  [0, 110, 220, 330, 440, 550, 660],
+  "Automatic grid placement must stay Monday through Sunday after layer moves.",
+);
+const reorderedPreviewMarkup = renderToStaticMarkup(
+  <StudioTimetablePreview
+    document={reorderedDocument}
+    runtimeValues={reorderedValues}
+  />,
+);
+assert.deepEqual(
+  [...reorderedPreviewMarkup.matchAll(/data-node-id="day-card:([^"]+)"/g)].map(
+    (match) => match[1],
+  ),
+  ["fri", "sat", "sun", "thu", "wed", "tue", "mon"],
+  "Canvas paint order must still follow the saved layers.",
+);
 
 const initialValues = createStudioInitialRuntimeValues(document);
 const initialWeekStartDate = getStudioRuntimeWeekStartDate(

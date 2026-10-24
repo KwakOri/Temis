@@ -22,6 +22,7 @@ import {
 } from "@/utils/template-studio/input-values";
 import { getThumbnailWeekDatesInputId } from "@/utils/thumbnail-studio/week-dates";
 import { isStudioTimetableCapabilityEnabled } from "@/utils/template-studio/timetable-capabilities";
+import { getStudioTimetableWeekdayIndex } from "@/utils/template-studio/timetable-day-order";
 import { formatTime } from "@/utils/time-formatter";
 
 export const STUDIO_BUILTIN_FIELDS: StudioBuiltinFieldDefinition[] = [
@@ -454,12 +455,18 @@ const getDayDateParts = (
   const day = context.dayId ? timetable?.days[context.dayId] : null;
   const runtimeWeekStartDate = values.timetable.weekStartDate;
   if (day && parseStudioIsoDateParts(runtimeWeekStartDate)) {
-    return getStudioDatePartsWithDayOffset(runtimeWeekStartDate, day.order);
+    return getStudioDatePartsWithDayOffset(
+      runtimeWeekStartDate,
+      getStudioTimetableWeekdayIndex(day),
+    );
   }
   if (day?.date) return parseStudioIsoDateParts(day.date);
 
   if (!day || !timetable?.week?.startDate) return null;
-  return getStudioDatePartsWithDayOffset(timetable.week.startDate, day.order);
+  return getStudioDatePartsWithDayOffset(
+    timetable.week.startDate,
+    getStudioTimetableWeekdayIndex(day),
+  );
 };
 
 const toStudioIsoDate = (
