@@ -92,16 +92,15 @@ export type StudioTimetableLayerDropPlan =
       kind: "day";
       sourceDayId: StudioTimetableDayId;
       targetDayId: StudioTimetableDayId;
-      /** 요일 순서 기준. 패널에서 본 그대로다. */
+      /** 저장 순서 기준. 패널에서 본 위/아래와 반대다. */
       position: "before" | "after";
     };
 /**
  * 놓은 자리에서 무엇을 옮길지 정한다.
  *
- * 최상위 객체는 패널에서 본 위/아래를 뒤집어야 한다. 패널은 앞에 있는 것을 위에
- * 보여 주고 문서는 뒤에 있는 것을 먼저 그리기 때문이다. 요일 카드는 요일 순서
- * 그대로 보여 주므로 뒤집지 않는다. 이 둘을 헷갈리면 옮긴 방향이 반대로 저장되고,
- * 화면은 곧 다시 그려지므로 사용자에게는 옮기기가 튕긴 것처럼 보인다.
+ * 최상위 객체와 요일 카드 모두 패널에서 본 위/아래를 뒤집어야 한다. 패널은 앞에
+ * 있는 것을 위에 보여 주고 문서는 뒤에 있는 것을 먼저 그리기 때문이다.
+ * 방향이 어긋나면 옮긴 순서가 반대로 저장돼 옮기기가 튕긴 것처럼 보인다.
  *
  * 표시선을 그려 둔 자리와 실제로 놓인 자리가 다르면 옮기지 않는다. 화면에 없던
  * 자리로 옮기는 셈이기 때문이다.
@@ -133,6 +132,6 @@ export const planStudioTimetableLayerDrop = (
     kind: "day",
     sourceDayId: dragState.dayId,
     targetDayId,
-    position: dropState.position,
+    position: getStudioDataDropPosition(dropState.position),
   };
 };

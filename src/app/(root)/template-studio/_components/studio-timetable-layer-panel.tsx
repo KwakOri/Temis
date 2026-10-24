@@ -44,7 +44,7 @@ export const getStudioTimetableLayerTypeLabel = (
 export interface StudioTimetableLayerPanelProps {
   document: StudioTimetableGraphDocument;
   editingVariants?: StudioTimetableEditingVariants;
-  /** order로 이미 정렬한 요일 목록. 요일 카드는 이 순서 그대로 보여 준다. */
+  /** 뒤에서 앞으로 그리는 순서로 정렬한 요일 목록. 패널에서는 뒤집어 보여 준다. */
   days: StudioTimetableDayDefinition[];
   selectedLayerId: string | null;
   collapsedLayerIds: string[];
@@ -214,7 +214,7 @@ export function StudioTimetableLayerPanel({
           }
         />
         {!isCollapsed && isGeneratedDayCards
-          ? days.map((day) => {
+          ? getStudioLayerPanelOrder(days).map((day) => {
               // 요일 카드는 composition object가 아니라 요일을 가리킨다. 인스펙터가
               // 어느 쪽을 골랐는지 이 id 규칙으로 갈라 읽는다.
               const layerId = getStudioTimetableDayCardLayerId(day.id);

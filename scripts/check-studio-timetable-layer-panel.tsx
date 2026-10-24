@@ -8,8 +8,7 @@ import { createSampleStudioDocument } from "../src/utils/template-studio/sample-
  * 묶음 안의 자식 객체는 부모가 정한 자리에 있어야 하므로 집을 수 없다. 여기서
  * 집을 수 있게 보이면 사용자는 옮길 수 있다고 믿고 끌었다가 매번 튕긴다.
  *
- * 최상위 객체는 앞에 있는 것을 위에 보여 주고 요일 카드는 요일 순서 그대로
- * 보여 준다. 두 순서 규칙이 섞이면 위/아래가 뒤집혀 저장된다.
+ * 최상위 객체와 요일 카드 모두 앞에 있는 것을 위에 보여 준다.
  */
 import assert from "node:assert/strict";
 // jsx: "preserve" 환경이라 클래식 변환용 React 심볼이 스코프에 있어야 한다.
@@ -122,14 +121,13 @@ assert.equal(
 );
 // --- 보이는 순서 기준선 ---
 //
-// 최상위 객체는 뒤집어 보여 주고(앞에 있는 것이 위), 요일 카드는 요일 순서
-// 그대로 보여 준다. 묶음의 자식도 뒤집는다.
+// 모든 형제 레이어는 앞에 있는 것이 위에 오도록 뒤집어 보여 준다.
 assert.deepEqual(
   getRowTitles(markup),
   [
     "Day Cards|true|10",
-    "Mon Card|true|30",
     "Tuesday Card|true|30",
+    "Mon Card|true|30",
     "Profile|true|10",
     "Profile Name|false|30",
     "Profile Back|false|30",
