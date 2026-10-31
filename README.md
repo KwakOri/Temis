@@ -11,6 +11,14 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+The Next.js dev server runs with Turbopack (`npm run dev:next`). If a page only
+breaks under Turbopack, fall back to webpack while keeping the same Supabase target:
+
+```bash
+npm run dev -- --webpack
+npm run dev:remote -- --webpack
+```
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 ## Supabase Development Targets
