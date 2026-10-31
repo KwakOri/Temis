@@ -17,6 +17,18 @@ export interface StudioTimetableLayerDragState {
   /** 요일 카드를 집었을 때의 요일 id. */
   dayId?: StudioTimetableDayId;
 }
+/**
+ * 목록이 포인터에 가장 가까운 행으로 찾은 드롭 대상.
+ *
+ * 묶음의 자식처럼 옮길 수 없는 행 위에 있어도 이웃한 대상 행이 잡힌다. 위/아래는
+ * 이 행의 크기로 판단하므로 행 밖의 포인터도 같은 기준으로 갈린다.
+ */
+export interface StudioTimetableLayerDropTarget {
+  layerId: string;
+  /** 요일 카드 행일 때의 요일 id. */
+  dayId?: StudioTimetableDayId;
+  bounds: { top: number; height: number };
+}
 /** 지금 가리키는 드롭 자리. 표시선을 어디에 그릴지가 여기서 정해진다. */
 export interface StudioTimetableLayerDropState {
   layerId: string;
@@ -78,6 +90,51 @@ export const shouldAutoExpandStudioTimetableLayer = ({
   !blockedReason &&
   targetObjectKind === "generatedDayCards" &&
   collapsed;
+/**
+ * 포인터가 가리키는 드롭 자리를 대상 행 기준으로 계산한다.
+ *
+ * 포인터가 행 밖의 틈이나 옮길 수 없는 행 위에 있어도 대상 행의 가운데를 기준으로
+ * 위/아래를 가른다. 대상 행보다 위에 있으면 위, 아래에 있으면 아래다.
+ */
+export const getStudioTimetableLayerPointerDropState = (
+  dragState: StudioTimetableLayerDragState,
+  target: StudioTimetableLayerDropTarget,
+  pointerY: number,
+): StudioTimetableLayerDropState => ({
+  layerId: target.layerId,
+  position: getStudioTimetableLayerDropPosition(pointerY, target.bounds),
+  blockedReason: getStudioTimetableLayerDropBlockedReason(
+    dragState,
+    target.layerId,
+    target.dayId,
+  ),
+});
+/** 표시선을 다시 그릴 필요가 있는지 본다. 같은 자리면 상태를 바꾸지 않는다. */
+export const isSameStudioTimetableLayerDropState = (
+  current: StudioTimetableLayerDropState | null,
+  next: StudioTimetableLayerDropState | null,
+): boolean =>
+  current === next ||
+  (current !== null &&
+    next !== null &&
+    current.layerId === next.layerId &&
+    current.position === next.position &&
+    (current.blockedReason ?? null) === (next.blockedReason ?? null));
+/**
+ * 놓았을 때 쓸 드롭 자리를 정한다.
+ *
+ * 표시선을 그려 둔 행에 놓았으면 그 자리를 쓴다. 다른 행에 놓았으면 놓은 순간의
+ * 포인터로 다시 계산한 자리를 쓴다. 크롬은 새 행에 들어간 직후에는 dragover를
+ * 보내지 않으므로, 그 사이에 놓으면 표시선이 아직 이전 행에 남아 있다. 그 자리를
+ * 고집하면 사용자가 가리킨 행에 놓았는데도 아무 일도 일어나지 않는다.
+ */
+export const resolveStudioTimetableLayerDropState = (
+  shownDropState: StudioTimetableLayerDropState | null,
+  pointerDropState: StudioTimetableLayerDropState,
+): StudioTimetableLayerDropState =>
+  shownDropState?.layerId === pointerDropState.layerId
+    ? shownDropState
+    : pointerDropState;
 /** 드롭한 결과 무엇을 옮길지. `none`이면 아무것도 하지 않는다. */
 export type StudioTimetableLayerDropPlan =
   | { kind: "none" }

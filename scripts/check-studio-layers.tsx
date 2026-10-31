@@ -168,16 +168,19 @@ assert.ok(
 // --- 드롭 표시선 기준선 ---
 
 const dropMarkup = renderToStaticMarkup(
-  <StudioLayerDropIndicator
-    depth={1}
-    position="before"
-    onDragOver={noop}
-    onDrop={noop}
-  />,
+  <StudioLayerDropIndicator depth={1} position="before" />,
 );
 assert.ok(
-  dropMarkup.includes('style="margin-left:30px"'),
+  dropMarkup.includes('style="left:30px"'),
   "드롭 표시선도 행과 같은 들여쓰기를 쓴다.",
+);
+assert.ok(
+  dropMarkup.includes("pointer-events-none absolute"),
+  "표시선은 행 위에 겹쳐 그리고 이벤트를 받지 않는다. 자리를 차지하면 나타날 때마다 아래 행이 밀려 포인터 밑의 행이 바뀐다.",
+);
+assert.ok(
+  dropMarkup.includes("top-0") && !dropMarkup.includes("bottom-0"),
+  "before 표시선은 위 가장자리에 붙는다.",
 );
 assert.ok(
   dropMarkup.includes(">Above</span>") && dropMarkup.includes('title="Above"'),
@@ -185,12 +188,7 @@ assert.ok(
 );
 assert.ok(
   renderToStaticMarkup(
-    <StudioLayerDropIndicator
-      depth={0}
-      position="after"
-      onDragOver={noop}
-      onDrop={noop}
-    />,
+    <StudioLayerDropIndicator depth={0} position="after" />,
   ).includes(">Below</span>"),
   "after 드롭은 Below로 보여준다.",
 );
@@ -199,8 +197,6 @@ const blockedDropMarkup = renderToStaticMarkup(
     blockedReason="Root timetable object is locked"
     depth={0}
     position="before"
-    onDragOver={noop}
-    onDrop={noop}
   />,
 );
 assert.ok(
@@ -254,10 +250,10 @@ const panelProps = {
   collapsedNodeIds: new Set<string>(),
   graph,
   onDragEnd: noop,
+  onDragLeave: noop,
   onDragOver: noop,
   onDragStart: noop,
   onDrop: noop,
-  onIndicatorDragOver: noop,
   onSelect: noop,
   onToggleCollapsed: noop,
   rootNodeIds: ["orphan", "root"],
@@ -383,6 +379,13 @@ assert.equal(
   (beforeDropPanelMarkup.match(/>Above</g) ?? []).length,
   1,
   "표시선은 드롭 대상 한 곳에만 그린다.",
+);
+
+// 드롭은 목록 전체가 받고, 포인터에 가장 가까운 행을 이 속성으로 찾는다.
+assert.equal(
+  (panelMarkup.match(/data-layer-drop-id="/g) ?? []).length,
+  (panelMarkup.match(/<button/g) ?? []).length,
+  "일반 그래프의 모든 행은 드롭 대상이다. 놓을 수 있는지는 훅이 따로 판단한다.",
 );
 
 // 순환 참조는 트리를 멈추고 알린다.

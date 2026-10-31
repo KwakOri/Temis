@@ -1606,10 +1606,10 @@ export function ThumbnailStudioClient({
           summary={`${Object.keys(document.graph.nodes).length} placed objects`}
           title="Thumbnail Layers"
           onDragEnd={layerDrag.clearDragState}
+          onDragLeave={layerDrag.handleDragLeave}
           onDragOver={layerDrag.handleDragOver}
           onDragStart={layerDrag.handleDragStart}
           onDrop={layerDrag.handleDrop}
-          onIndicatorDragOver={layerDrag.handleIndicatorDragOver}
           onSelect={(nodeId, event) => {
             if (event.shiftKey) {
               selectNodeRange(nodeId, event.metaKey || event.ctrlKey);
