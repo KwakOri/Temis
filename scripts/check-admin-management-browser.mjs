@@ -85,6 +85,26 @@ const legacyThumbnail = {
   is_public: false,
   created_at: "2026-10-05T00:00:00Z",
 };
+const coverUploadUrl = "https://catalog-cover-upload.test/cover.png";
+const coverUploadToken = "catalog-cover-upload-token";
+let coverUploaded = false;
+
+// Stand-in for the presigned R2 PUT URL, which is cross-origin like the real one.
+await page.route(coverUploadUrl, async (route) => {
+  const request = route.request();
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "PUT",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+  if (request.method() === "OPTIONS")
+    return route.fulfill({ status: 204, headers: corsHeaders });
+  assert.equal(request.method(), "PUT");
+  assert.equal(request.headers()["content-type"], imageFile.mimeType);
+  assert.ok(request.postDataBuffer().equals(imageFile.buffer));
+  coverUploaded = true;
+  return route.fulfill({ status: 200, headers: corsHeaders, body: "" });
+});
 
 // Intercept every application API, including mutations; no database is touched.
 await page.route("**/api/**", async (route) => {
@@ -193,6 +213,26 @@ await page.route("**/api/**", async (route) => {
       },
     });
   }
+  const coverPresignMatch =
+    /^\/api\/admin\/templates\/([^/]+)\/catalog-cover\/presign$/.exec(
+      url.pathname,
+    );
+  if (coverPresignMatch) {
+    assert.equal(request.method(), "POST");
+    assert.ok(studioTemplates.some((item) => item.id === coverPresignMatch[1]));
+    assert.deepEqual(request.postDataJSON(), {
+      name: imageFile.name,
+      size: imageFile.buffer.length,
+      type: imageFile.mimeType,
+    });
+    return route.fulfill({
+      json: {
+        uploadUrl: coverUploadUrl,
+        token: coverUploadToken,
+        headers: { "Content-Type": imageFile.mimeType },
+      },
+    });
+  }
   const coverMatch = /^\/api\/admin\/templates\/([^/]+)\/catalog-cover$/.exec(
     url.pathname,
   );
@@ -205,12 +245,10 @@ await page.route("**/api/**", async (route) => {
     const template = studioTemplates.find((item) => item.id === coverMatch[1]);
     assert.ok(template);
     if (request.method() === "POST") {
-      assert.ok(
-        request.headers()["content-type"].includes("multipart/form-data"),
-      );
-      assert.ok(
-        request.postDataBuffer().toString().includes('filename="cover.png"'),
-      );
+      // The file goes straight to R2; the API only completes the upload token.
+      assert.ok(coverUploaded);
+      assert.deepEqual(request.postDataJSON(), { token: coverUploadToken });
+      coverUploaded = false;
       template.thumbnailUrl = coverUrl;
     } else {
       assert.equal(request.method(), "DELETE");
