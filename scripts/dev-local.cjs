@@ -9,6 +9,10 @@ const rootDir = path.resolve(__dirname, "..");
 const rawArgs = process.argv.slice(2);
 const dumpRequested =
   rawArgs.includes("--dump") || toBoolean(process.env.npm_config_dump);
+// `npm run dev -- --webpack` reaches this script as npm_config_webpack.
+const webpackRequested =
+  rawArgs.includes("--webpack") || toBoolean(process.env.npm_config_webpack);
+const nextArgs = rawArgs.filter((arg) => arg !== "--webpack");
 
 if (dumpRequested) {
   console.error(
@@ -83,7 +87,9 @@ runCommand("supabase", [
   rootDir,
 ]);
 
-console.log("[dev:local] 4/4 Starting Next.js with local Supabase keys...");
+console.log(
+  `[dev:local] 4/4 Starting Next.js (${webpackRequested ? "webpack" : "Turbopack"}) with local Supabase keys...`,
+);
 const devEnv = {
   ...process.env,
   SUPABASE_URL: localApiUrl,
@@ -92,7 +98,8 @@ const devEnv = {
   SUPABASE_SECRET_KEY: localSecretKey,
 };
 
-const devProcess = spawn("npm", ["run", "dev:next", "--", ...rawArgs], {
+const devScript = webpackRequested ? "dev:next:webpack" : "dev:next";
+const devProcess = spawn("npm", ["run", devScript, "--", ...nextArgs], {
   cwd: rootDir,
   env: devEnv,
   stdio: "inherit",

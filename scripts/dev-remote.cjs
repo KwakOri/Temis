@@ -7,7 +7,9 @@ const { spawn } = require("node:child_process");
 
 const rootDir = path.resolve(__dirname, "..");
 const defaultProjectRef = "ajlgjdwkjyayrnocdfpj";
-const passthroughArgs = process.argv.slice(2);
+const rawArgs = process.argv.slice(2);
+const webpackRequested = rawArgs.includes("--webpack");
+const passthroughArgs = rawArgs.filter((arg) => arg !== "--webpack");
 const baseEnv = loadEnvFiles([
   path.join(rootDir, ".env"),
   path.join(rootDir, ".env.local"),
@@ -80,9 +82,12 @@ if (parsedSupabaseUrl.hostname !== expectedHostname) {
 }
 
 console.log(`[dev:remote] target=${projectRef} (${parsedSupabaseUrl.origin})`);
-console.log("[dev:remote] Starting Next.js with explicit remote Supabase keys...");
+console.log(
+  `[dev:remote] Starting Next.js (${webpackRequested ? "webpack" : "Turbopack"}) with explicit remote Supabase keys...`
+);
 
-const devProcess = spawn("npm", ["run", "dev:next", "--", ...passthroughArgs], {
+const devScript = webpackRequested ? "dev:next:webpack" : "dev:next";
+const devProcess = spawn("npm", ["run", devScript, "--", ...passthroughArgs], {
   cwd: rootDir,
   env: {
     ...process.env,
