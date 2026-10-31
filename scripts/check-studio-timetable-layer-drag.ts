@@ -13,7 +13,10 @@ import type { StudioTimetableDayId } from "../src/types/template-studio";
 import {
   getStudioTimetableLayerDropBlockedReason,
   getStudioTimetableLayerDropPosition,
+  getStudioTimetableLayerPointerDropState,
+  isSameStudioTimetableLayerDropState,
   planStudioTimetableLayerDrop,
+  resolveStudioTimetableLayerDropState,
   shouldAutoExpandStudioTimetableLayer,
   type StudioTimetableLayerDragState,
   type StudioTimetableLayerDropState,
@@ -153,6 +156,94 @@ assert.equal(
   }),
   false,
   "요일 카드 행 위에서는 그 묶음을 펼치지 않는다.",
+);
+// --- 포인터 드롭 자리 기준선 ---
+//
+// 드롭은 목록 전체가 받고, 포인터에 가장 가까운 대상 행 기준으로 자리를 정한다.
+assert.deepEqual(
+  [90, 130, 160].map(
+    (pointerY) =>
+      getStudioTimetableLayerPointerDropState(
+        rootDrag,
+        { layerId: "weekDates", bounds: { top: 100, height: 40 } },
+        pointerY,
+      ).position,
+  ),
+  ["before", "after", "after"],
+  "대상 행 밖의 포인터도 행 가운데를 기준으로 위/아래를 가른다.",
+);
+assert.deepEqual(
+  getStudioTimetableLayerPointerDropState(
+    rootDrag,
+    {
+      layerId: "day-card:tue",
+      dayId: "tue" as StudioTimetableDayId,
+      bounds: { top: 0, height: 40 },
+    },
+    10,
+  ),
+  {
+    layerId: "day-card:tue",
+    position: "before",
+    blockedReason: "Cannot move root layer into day cards",
+  },
+  "포인터 자리에도 놓을 수 있는지 판단을 함께 붙인다.",
+);
+// --- 놓을 때 쓰는 자리 기준선 ---
+//
+// 크롬은 새 행에 들어간 직후에는 dragover를 보내지 않는다. 그 사이에 놓으면
+// 표시선이 이전 행에 남아 있으므로, 놓은 행이 다르면 포인터로 다시 계산한다.
+assert.deepEqual(
+  resolveStudioTimetableLayerDropState(
+    { layerId: "weekDates", position: "after" },
+    { layerId: "weekDates", position: "before" },
+  ),
+  { layerId: "weekDates", position: "after" },
+  "표시선을 그려 둔 행에 놓았으면 그 자리를 쓴다.",
+);
+assert.deepEqual(
+  resolveStudioTimetableLayerDropState(
+    { layerId: "profile", position: "after" },
+    { layerId: "weekDates", position: "before" },
+  ),
+  { layerId: "weekDates", position: "before" },
+  "다른 행에 놓았으면 놓은 순간의 포인터 자리를 쓴다.",
+);
+assert.deepEqual(
+  resolveStudioTimetableLayerDropState(null, {
+    layerId: "weekDates",
+    position: "before",
+  }),
+  { layerId: "weekDates", position: "before" },
+  "표시선이 없어도 놓을 수는 있다.",
+);
+// --- 표시선 갱신 기준선 ---
+assert.equal(
+  isSameStudioTimetableLayerDropState(
+    { layerId: "a", position: "before" },
+    { layerId: "a", position: "before", blockedReason: null },
+  ),
+  true,
+  "같은 자리면 상태를 바꾸지 않는다. dragover는 포인터가 멈춰 있어도 계속 들어온다.",
+);
+assert.deepEqual(
+  [
+    { layerId: "b", position: "before" as const },
+    { layerId: "a", position: "after" as const },
+    {
+      layerId: "a",
+      position: "before" as const,
+      blockedReason: "Already here",
+    },
+    null,
+  ].map((next) =>
+    isSameStudioTimetableLayerDropState(
+      { layerId: "a", position: "before" },
+      next,
+    ),
+  ),
+  [false, false, false, false],
+  "행, 위치, 막힌 이유 중 하나라도 바뀌면 다시 그린다.",
 );
 // --- 드롭 결과 기준선 ---
 const rootDrop: StudioTimetableLayerDropState = {

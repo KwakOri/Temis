@@ -16,9 +16,11 @@ import type {
   StudioTimetableCompositionObject,
 } from "../src/types/template-studio";
 import {
+  findStudioLayerRowIndexAtPointer,
   getStudioCanvasNodeDragBlockedReason,
   getStudioLayerDropPosition,
   getStudioLayerPointerRatio,
+  isSameStudioLayerDropState,
   planStudioLayerDrop,
   resolveStudioLayerDropPosition,
   getStudioTimetableCanvasDragBlock,
@@ -80,6 +82,80 @@ assert.deepEqual(
   [0, 0.49, 0.5, 1].map((ratio) => getStudioLayerDropPosition(ratio, false)),
   ["before", "before", "after", "after"],
   "묶음이 아닌 행에는 안쪽이 없다. 넣을 수 없는 자리를 보여 주면 안 된다.",
+);
+assert.deepEqual(
+  [5, 30, 100].map((pointerY) =>
+    getStudioLayerDropPosition(
+      getStudioLayerPointerRatio(pointerY, { top: 10, height: 40 }),
+      true,
+    ),
+  ),
+  ["before", "inside", "after"],
+  "행 밖의 포인터도 같은 기준으로 갈린다. 행 위쪽 틈은 위, 아래쪽 틈은 아래다.",
+);
+// --- 포인터 아래 행 기준선 ---
+//
+// 드롭은 목록 전체가 받는다. 행 사이 틈을 비워 두면 브라우저가 그 자리를 놓을 수
+// 없는 곳으로 보고, 표시선이 보이는데도 놓으면 아무 일도 일어나지 않는다.
+const rows = [
+  { top: 0, bottom: 34 },
+  { top: 36, bottom: 70 },
+  { top: 72, bottom: 106 },
+];
+assert.deepEqual(
+  [10, 50, 106].map((pointerY) =>
+    findStudioLayerRowIndexAtPointer(rows, pointerY),
+  ),
+  [0, 1, 2],
+  "포인터가 행 안에 있으면 그 행을 고른다.",
+);
+assert.deepEqual(
+  [34.5, 35.5, 71].map((pointerY) =>
+    findStudioLayerRowIndexAtPointer(rows, pointerY),
+  ),
+  [0, 1, 1],
+  "행 사이 틈에서는 가까운 행을 고른다.",
+);
+assert.deepEqual(
+  [-20, 400].map((pointerY) =>
+    findStudioLayerRowIndexAtPointer(rows, pointerY),
+  ),
+  [0, 2],
+  "목록 위아래 여백에서는 맨 위나 맨 아래 행을 고른다.",
+);
+assert.equal(
+  findStudioLayerRowIndexAtPointer([], 10),
+  -1,
+  "행이 없으면 고를 행도 없다.",
+);
+// --- 표시선 갱신 기준선 ---
+//
+// dragover는 포인터가 멈춰 있어도 계속 들어온다. 같은 자리면 상태를 바꾸지 않아야
+// 편집기 전체가 매번 다시 그려지지 않는다.
+assert.equal(
+  isSameStudioLayerDropState(
+    { nodeId: "a", position: "before" },
+    { nodeId: "a", position: "before", blockedReason: null },
+  ),
+  true,
+  "막힌 이유가 없음과 null은 같은 자리다.",
+);
+assert.deepEqual(
+  [
+    { nodeId: "b", position: "before" as const },
+    { nodeId: "a", position: "after" as const },
+    { nodeId: "a", position: "before" as const, blockedReason: "Locked" },
+    null,
+  ].map((next) =>
+    isSameStudioLayerDropState({ nodeId: "a", position: "before" }, next),
+  ),
+  [false, false, false, false],
+  "행, 위치, 막힌 이유 중 하나라도 바뀌면 다시 그린다.",
+);
+assert.equal(
+  isSameStudioLayerDropState(null, null),
+  true,
+  "표시선이 없던 상태에서 계속 없으면 그대로 둔다.",
 );
 // --- 놓을 때 쓰는 위치 기준선 ---
 assert.equal(

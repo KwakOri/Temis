@@ -2410,7 +2410,7 @@ export function TemplateStudioClient({
     clearDragState: clearTimetableLayerDragState,
     handleDragStart: handleTimetableLayerDragStart,
     handleDragOver: handleTimetableLayerDragOver,
-    handleIndicatorDragOver: handleTimetableLayerIndicatorDragOver,
+    handleDragLeave: handleTimetableLayerDragLeave,
     handleDrop: handleTimetableLayerDrop,
   } = useStudioTimetableLayerDrag({
     getCollapsedLayerIds: useCallback(
@@ -2901,7 +2901,7 @@ export function TemplateStudioClient({
     clearDragState: clearLayerDragState,
     handleDragStart: handleLayerDragStart,
     handleDragOver: handleLayerDragOver,
-    handleIndicatorDragOver: handleLayerIndicatorDragOver,
+    handleDragLeave: handleLayerDragLeave,
     handleDrop: handleLayerDrop,
   } = useStudioLayerDrag({
     getDocument: getDocument,
@@ -3770,8 +3770,8 @@ export function TemplateStudioClient({
                     dropState={timetableLayerDropState}
                     selectedLayerId={selectedTimetableLayerId}
                     onFocusDay={focusTimetableRuntimeDay}
-                    onIndicatorDragOver={handleTimetableLayerIndicatorDragOver}
                     onLayerDragEnd={clearTimetableLayerDragState}
+                    onLayerDragLeave={handleTimetableLayerDragLeave}
                     onLayerDragOver={handleTimetableLayerDragOver}
                     onLayerDragStart={handleTimetableLayerDragStart}
                     onLayerDrop={handleTimetableLayerDrop}
@@ -3789,10 +3789,10 @@ export function TemplateStudioClient({
                     summary={`${cardAuthoringRootNodeIds.length} placed objects`}
                     title="Cards Layers"
                     onDragEnd={clearLayerDragState}
+                    onDragLeave={handleLayerDragLeave}
                     onDragOver={handleLayerDragOver}
                     onDragStart={handleLayerDragStart}
                     onDrop={handleLayerDrop}
-                    onIndicatorDragOver={handleLayerIndicatorDragOver}
                     onSelect={(nodeId, event) => {
                       if (event.shiftKey) {
                         selectLayerNodeRange(

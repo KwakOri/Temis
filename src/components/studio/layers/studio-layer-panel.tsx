@@ -5,6 +5,7 @@ import { EyeOff, Lock } from "lucide-react";
 import React, { type ReactNode } from "react";
 
 import {
+  findStudioLayerDropTarget,
   getStudioLayerIndent,
   StudioLayerDropIndicator,
   StudioLayerPanelFrame,
@@ -15,6 +16,7 @@ import { cn } from "@/lib/utils";
 import type { StudioNodeGraph } from "@/types/template-studio";
 import type { StudioGraphDropPosition } from "@/utils/template-studio/graph-editor";
 import { getStudioGraphNodeTypeLabel } from "@/utils/template-studio/graph-node-label";
+import type { StudioLayerDropTarget } from "@/utils/template-studio/layer-drag";
 import { getStudioLayerPanelOrder } from "@/utils/template-studio/layer-order";
 
 export interface StudioLayerDropState {
@@ -44,16 +46,20 @@ export interface StudioLayerPanelProps {
     event: React.DragEvent<HTMLButtonElement>,
     nodeId: string,
   ) => void;
+  /**
+   * 목록 위를 지날 때. dragenter와 dragover 모두 여기로 온다. 대상은 포인터에
+   * 가장 가까운 행이고, 행이 하나도 없으면 null이다.
+   */
   onDragOver: (
-    event: React.DragEvent<HTMLButtonElement>,
-    nodeId: string,
+    event: React.DragEvent<HTMLElement>,
+    target: StudioLayerDropTarget | null,
   ) => void;
+  /** 목록을 벗어났을 때. 표시선을 지운다. */
+  onDragLeave: (event: React.DragEvent<HTMLElement>) => void;
   onDragEnd: () => void;
-  onDrop: (event: React.DragEvent<HTMLElement>, nodeId: string) => void;
-  onIndicatorDragOver: (
-    event: React.DragEvent<HTMLDivElement>,
-    nodeId: string,
-    position: "before" | "after",
+  onDrop: (
+    event: React.DragEvent<HTMLElement>,
+    target: StudioLayerDropTarget | null,
   ) => void;
 }
 
@@ -76,10 +82,17 @@ export function StudioLayerPanel({
   onToggleCollapsed,
   onDragStart,
   onDragOver,
+  onDragLeave,
   onDragEnd,
   onDrop,
-  onIndicatorDragOver,
 }: StudioLayerPanelProps) {
+  const resolveDropTarget = (
+    event: React.DragEvent<HTMLElement>,
+  ): StudioLayerDropTarget | null => {
+    const row = findStudioLayerDropTarget(event.currentTarget, event.clientY);
+    return row ? { nodeId: row.id, bounds: row.bounds } : null;
+  };
+
   const renderNode = (
     nodeId: string,
     depth = 0,
@@ -110,76 +123,72 @@ export function StudioLayerPanel({
 
     return (
       <div className="min-w-0 max-w-full overflow-hidden" key={node.id}>
-        {activeDropState?.position === "before" ? (
-          <StudioLayerDropIndicator
-            blockedReason={activeDropState.blockedReason}
-            depth={depth}
-            position="before"
-            onDragOver={(event) =>
-              onIndicatorDragOver(event, node.id, "before")
+        {/* 표시선은 행 위에 겹쳐 그린다. 자리를 차지하면 아래 행이 밀린다. */}
+        <div className="relative">
+          {activeDropState?.position === "before" ? (
+            <StudioLayerDropIndicator
+              blockedReason={activeDropState.blockedReason}
+              depth={depth}
+              position="before"
+            />
+          ) : null}
+          <StudioLayerRow
+            badge={
+              isInsideDropActive ? (
+                <span
+                  className={cn(
+                    "shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.05em]",
+                    activeDropState?.blockedReason
+                      ? "bg-rose-400/15 text-rose-300"
+                      : "bg-[var(--sel)] text-[var(--accent)]",
+                  )}
+                >
+                  {activeDropState?.blockedReason ? "Blocked" : "Inside"}
+                </span>
+              ) : null
             }
-            onDrop={(event) => onDrop(event, node.id)}
-          />
-        ) : null}
-        <StudioLayerRow
-          badge={
-            isInsideDropActive ? (
-              <span
-                className={cn(
-                  "shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.05em]",
-                  activeDropState?.blockedReason
-                    ? "bg-rose-400/15 text-rose-300"
-                    : "bg-[var(--sel)] text-[var(--accent)]",
-                )}
-              >
-                {activeDropState?.blockedReason ? "Blocked" : "Inside"}
-              </span>
-            ) : null
-          }
-          blockedReason={activeDropState?.blockedReason}
-          collapsed={isCollapsed}
-          collapsible={isCollapsibleGroup}
-          cut={cutNodeIds?.has(node.id) ?? false}
-          depth={depth}
-          draggable={!node.locked}
-          hidden={node.hidden ?? false}
-          icon={<StudioNodeTypeIcon type={node.type} />}
-          label={node.label}
-          ring={
-            isInsideDropActive
-              ? activeDropState?.blockedReason
-                ? "blocked"
-                : "accent"
-              : "none"
-          }
-          selected={selectedNodeIds.has(node.id)}
-          stateIcon={
-            <>
-              {node.hidden ? (
-                <EyeOff className="h-3.5 w-3.5 shrink-0 text-[var(--fg3)]" />
-              ) : null}
-              {node.locked ? (
-                <Lock className="h-3.5 w-3.5 shrink-0 text-[var(--fg3)]" />
-              ) : null}
-            </>
-          }
-          typeLabel={getStudioGraphNodeTypeLabel(node.type)}
-          onClick={(event) => onSelect(node.id, event)}
-          onDragEnd={onDragEnd}
-          onDragOver={(event) => onDragOver(event, node.id)}
-          onDragStart={(event) => onDragStart(event, node.id)}
-          onDrop={(event) => onDrop(event, node.id)}
-          onToggleCollapsed={() => onToggleCollapsed(node.id)}
-        />
-        {activeDropState?.position === "after" ? (
-          <StudioLayerDropIndicator
-            blockedReason={activeDropState.blockedReason}
+            blockedReason={activeDropState?.blockedReason}
+            collapsed={isCollapsed}
+            collapsible={isCollapsibleGroup}
+            cut={cutNodeIds?.has(node.id) ?? false}
             depth={depth}
-            position="after"
-            onDragOver={(event) => onIndicatorDragOver(event, node.id, "after")}
-            onDrop={(event) => onDrop(event, node.id)}
+            draggable={!node.locked}
+            dropTargetId={node.id}
+            hidden={node.hidden ?? false}
+            icon={<StudioNodeTypeIcon type={node.type} />}
+            label={node.label}
+            ring={
+              isInsideDropActive
+                ? activeDropState?.blockedReason
+                  ? "blocked"
+                  : "accent"
+                : "none"
+            }
+            selected={selectedNodeIds.has(node.id)}
+            stateIcon={
+              <>
+                {node.hidden ? (
+                  <EyeOff className="h-3.5 w-3.5 shrink-0 text-[var(--fg3)]" />
+                ) : null}
+                {node.locked ? (
+                  <Lock className="h-3.5 w-3.5 shrink-0 text-[var(--fg3)]" />
+                ) : null}
+              </>
+            }
+            typeLabel={getStudioGraphNodeTypeLabel(node.type)}
+            onClick={(event) => onSelect(node.id, event)}
+            onDragEnd={onDragEnd}
+            onDragStart={(event) => onDragStart(event, node.id)}
+            onToggleCollapsed={() => onToggleCollapsed(node.id)}
           />
-        ) : null}
+          {activeDropState?.position === "after" ? (
+            <StudioLayerDropIndicator
+              blockedReason={activeDropState.blockedReason}
+              depth={depth}
+              position="after"
+            />
+          ) : null}
+        </div>
         {!isCollapsed
           ? getStudioLayerPanelOrder(node.childIds).map((childId) =>
               renderNode(childId, depth + 1, nextVisitedNodeIds),
@@ -190,7 +199,14 @@ export function StudioLayerPanel({
   };
 
   return (
-    <StudioLayerPanelFrame summary={summary} title={title}>
+    <StudioLayerPanelFrame
+      summary={summary}
+      title={title}
+      onDragEnter={(event) => onDragOver(event, resolveDropTarget(event))}
+      onDragLeave={onDragLeave}
+      onDragOver={(event) => onDragOver(event, resolveDropTarget(event))}
+      onDrop={(event) => onDrop(event, resolveDropTarget(event))}
+    >
       {getStudioLayerPanelOrder(rootNodeIds).map((nodeId) =>
         renderNode(nodeId),
       )}
