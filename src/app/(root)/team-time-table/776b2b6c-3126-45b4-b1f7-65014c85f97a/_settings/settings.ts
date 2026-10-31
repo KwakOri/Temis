@@ -162,22 +162,22 @@ export const Settings: SettingsType = {
   },
 };
 
-export const team_ids = [22, 248, 275, 276, 423];
+export const team_ids = [22, 248, 275, 276, 485];
 
 export const dummyUnregisteredMemberIds: number[] = [280];
 
 export const memberIdsMap = new Map([
-  [22, 'rubit'],
-  [248, 'seon'],
-  [275, 'saebaek'],
-  [276, 'ira'],
-  [423, 'cosmo'],
+  [22, "rubit"],
+  [248, "seon"],
+  [275, "saebaek"],
+  [276, "ira"],
+  [485, "cosmo"],
 ]);
 
 export const memberNamesMap = new Map([
-  [22, '루빗'],
-  [248, '세온'],
-  [275, '류새백'],
-  [276, '이라'],
-  [423, '코스모'],
+  [22, "루빗"],
+  [248, "세온"],
+  [275, "류새백"],
+  [276, "이라"],
+  [485, "유상츄"],
 ]);
