@@ -252,7 +252,12 @@ export interface StudioEntrySlotMeta {
 
 export type StudioBinding =
   | { kind: "staticText"; value: string }
-  | { kind: "inputText"; inputId: StudioInputId }
+  | {
+      kind: "inputText";
+      inputId: StudioInputId;
+      /** 입력값을 `${value}` 자리에 넣는 텍스트 틀. 없으면 입력값만 쓴다. */
+      textTemplate?: string;
+    }
   | {
       kind: "builtinField";
       fieldId: StudioBuiltinFieldId;

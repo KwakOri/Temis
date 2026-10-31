@@ -121,8 +121,13 @@ export interface StudioTimetableInspectorModel {
   renderPreviewInputs: () => React.ReactNode;
 }
 
-import { StudioBuiltinFieldFormatControls } from "@/components/studio/inspector/studio-binding-format-controls";
+import {
+  StudioBuiltinFieldFormatControls,
+  StudioInputTextFormatControls,
+} from "@/components/studio/inspector/studio-binding-format-controls";
 import { applyStudioBindingFormatPatch } from "@/utils/template-studio/binding-format";
+import { resolveStudioTextBinding } from "@/utils/template-studio/binding-resolver";
+import { applyStudioInputTextTemplatePatch } from "@/utils/template-studio/input-text-template";
 
 const READ_ONLY_FIELD_CLASS =
   "flex h-8 w-full min-w-0 items-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg3)]";
@@ -429,7 +434,35 @@ export const buildStudioTimetableInspectorSections = ({
                 ) : null}
               </>
             ) : boundInput ? (
-              renderInputSourceSlot(boundInput)
+              <>
+                {renderInputSourceSlot(boundInput)}
+                {textObject.binding?.kind === "inputText" ? (
+                  <StudioInputTextFormatControls
+                    template={textObject.binding.textTemplate}
+                    sampleValue={
+                      (runtimeValues
+                        ? resolveStudioTextBinding(
+                            document,
+                            runtimeValues,
+                            {
+                              kind: "inputText",
+                              inputId: textObject.binding.inputId,
+                            },
+                            runtimeContext,
+                          )
+                        : "") ||
+                      (boundInput.type === "text"
+                        ? boundInput.placeholder
+                        : undefined)
+                    }
+                    onChange={(textTemplate) =>
+                      onUpdateObject(textObject.id, ({ node: target }) =>
+                        applyStudioInputTextTemplatePatch(target, textTemplate),
+                      )
+                    }
+                  />
+                ) : null}
+              </>
             ) : (
               <StudioTextField
                 label="Content"
