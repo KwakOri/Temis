@@ -2546,6 +2546,7 @@ export function TemplateStudioClient({
     copy: copySelectedNode,
     cut: cutSelectedNode,
     paste: pasteClipboardNode,
+    pasteInPlace: pasteClipboardNodeInPlace,
     cancelCut: cancelNodeCut,
   } = useStudioClipboard({
     getDocument: getDocument,
@@ -2556,6 +2557,10 @@ export function TemplateStudioClient({
     getSelectedNodeId: useCallback(
       () => studioStore.getState().selectedNodeId,
       [studioStore],
+    ),
+    getPasteScopeNodeId: useCallback(
+      () => selectedCardVariantRootId,
+      [selectedCardVariantRootId],
     ),
     updateDocument,
     onSelect: applyNodeSelection,
@@ -2795,6 +2800,9 @@ export function TemplateStudioClient({
         paste: () => {
           if (activeWorkspaceMode === "cards") pasteClipboardNode();
         },
+        pasteInPlace: () => {
+          if (activeWorkspaceMode === "cards") pasteClipboardNodeInPlace();
+        },
         duplicate: duplicateSelectedNode,
         group: () => {
           if (activeWorkspaceMode === "cards") groupSelectedNodes();
@@ -2853,6 +2861,7 @@ export function TemplateStudioClient({
         moveSelectedNodeLayer,
         nudgeSelectedNode,
         pasteClipboardNode,
+        pasteClipboardNodeInPlace,
         redoEditorState,
         saveDatabaseDraft,
         selectAllEditableNodes,

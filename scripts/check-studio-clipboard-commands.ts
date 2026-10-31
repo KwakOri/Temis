@@ -285,4 +285,202 @@ assert.equal(
   "부모가 잠겨 있으면 문서 루트로 올린다.",
 );
 
+// --- 카드 variant 사이 붙여넣기 ---
+
+/**
+ * online·offline 카드 variant가 있는 문서.
+ *
+ * variant 루트는 문서 루트에 있다. online 안에는 day와 묶음 entry(> time)가 있다.
+ * offline 루트는 online과 캔버스 위치가 다르다.
+ */
+const createCardDocument = (): StudioTemplateDocument =>
+  ({
+    ...createDocument(),
+    graph: {
+      rootNodeIds: ["online", "offline"],
+      nodes: {
+        online: createNode("online", {
+          type: "group",
+          childIds: ["day", "entry"],
+        }),
+        day: createNode("day", { parentId: "online" }),
+        entry: createNode("entry", {
+          type: "group",
+          parentId: "online",
+          childIds: ["time"],
+        }),
+        time: createNode("time", { parentId: "entry" }),
+        offline: createNode("offline", {
+          type: "group",
+          childIds: ["offlineDay"],
+        }),
+        offlineDay: createNode("offlineDay", { parentId: "offline" }),
+      },
+    },
+    styles: {
+      online_style: { left: 160, top: 120 },
+      day_style: { left: 30, top: 40 },
+      entry_style: { left: 100, top: 200 },
+      time_style: { left: 5, top: 6 },
+      offline_style: { left: 900, top: 120 },
+      offlineDay_style: { left: 30, top: 40 },
+    },
+    domains: {
+      timetable: {
+        components: {
+          card: {
+            variants: {
+              online: { rootNodeId: "online" },
+              offline: { rootNodeId: "offline" },
+            },
+          },
+        },
+      },
+    },
+  }) as unknown as StudioTemplateDocument;
+
+const getStyleOf = (document: StudioTemplateDocument, nodeId: string) =>
+  document.styles[document.graph.nodes[nodeId].styleId as string];
+
+const dayCopyPlan = planStudioCopyNodes(createCardDocument(), ["day"]);
+if (!dayCopyPlan.ok) throw new Error("unreachable");
+
+const variantRootPasteDocument = createCardDocument();
+const variantRootPasteIds = applyStudioPasteCopy(
+  variantRootPasteDocument,
+  dayCopyPlan.payload,
+  variantRootPasteDocument.graph.nodes.offline,
+  { scopeRootNodeId: "offline" },
+);
+assert.deepEqual(
+  variantRootPasteDocument.graph.nodes.offline.childIds,
+  ["offlineDay", variantRootPasteIds[0]],
+  "카드 variant 루트를 고른 채 붙이면 원본 variant가 아니라 그 카드 안 맨 위에 넣는다.",
+);
+assert.deepEqual(
+  variantRootPasteDocument.graph.nodes.online.childIds,
+  ["day", "entry"],
+  "원본 variant에는 붙이지 않는다.",
+);
+assert.deepEqual(
+  getStyleOf(variantRootPasteDocument, variantRootPasteIds[0]),
+  { left: 54, top: 64 },
+  "카드 안 같은 자리에서 원본처럼 밀어낸다. variant 루트끼리 캔버스 위치가 달라도 같다.",
+);
+
+const noSelectionDocument = createCardDocument();
+const noSelectionIds = applyStudioPasteCopy(
+  noSelectionDocument,
+  dayCopyPlan.payload,
+  null,
+  { scopeRootNodeId: "offline" },
+);
+assert.equal(
+  noSelectionDocument.graph.nodes[noSelectionIds[0]].parentId,
+  "offline",
+  "고른 노드가 없고 원본이 다른 variant에 있으면 지금 보고 있는 카드에 넣는다.",
+);
+
+const outOfScopeDocument = createCardDocument();
+const outOfScopeIds = applyStudioPasteCopy(
+  outOfScopeDocument,
+  dayCopyPlan.payload,
+  outOfScopeDocument.graph.nodes.day,
+  { scopeRootNodeId: "offline" },
+);
+assert.equal(
+  outOfScopeDocument.graph.nodes[outOfScopeIds[0]].parentId,
+  "offline",
+  "고른 노드가 지금 보고 있는 카드 밖이면 무시하고 그 카드에 넣는다.",
+);
+
+const sameScopeDocument = createCardDocument();
+const sameScopeIds = applyStudioPasteCopy(
+  sameScopeDocument,
+  dayCopyPlan.payload,
+  null,
+  { scopeRootNodeId: "online" },
+);
+assert.deepEqual(
+  sameScopeDocument.graph.nodes.online.childIds,
+  ["day", sameScopeIds[0], "entry"],
+  "원본이 지금 보고 있는 카드 안에 있으면 원본 뒤에 놓는다.",
+);
+
+const inPlaceDocument = createCardDocument();
+const inPlaceIds = applyStudioPasteCopy(
+  inPlaceDocument,
+  dayCopyPlan.payload,
+  inPlaceDocument.graph.nodes.offline,
+  { scopeRootNodeId: "offline", inPlace: true },
+);
+assert.deepEqual(
+  getStyleOf(inPlaceDocument, inPlaceIds[0]),
+  { left: 30, top: 40 },
+  "제자리 붙여넣기는 카드 안 원본과 같은 자리에 놓는다.",
+);
+assert.equal(
+  inPlaceDocument.graph.nodes[inPlaceIds[0]].label,
+  "day Copy",
+  "제자리 붙여넣기도 복제본 이름에 Copy를 붙인다.",
+);
+
+const nestedCopyPlan = planStudioCopyNodes(createCardDocument(), ["time"]);
+if (!nestedCopyPlan.ok) throw new Error("unreachable");
+const nestedInPlaceDocument = createCardDocument();
+const nestedInPlaceIds = applyStudioPasteCopy(
+  nestedInPlaceDocument,
+  nestedCopyPlan.payload,
+  nestedInPlaceDocument.graph.nodes.offlineDay,
+  { scopeRootNodeId: "offline", inPlace: true },
+);
+assert.deepEqual(
+  getStyleOf(nestedInPlaceDocument, nestedInPlaceIds[0]),
+  { left: 105, top: 206 },
+  "묶음 안에서 복사해 다른 깊이에 붙여도 카드 안 같은 자리에 놓는다.",
+);
+
+const cutIntoVariantDocument = createCardDocument();
+const cutIntoVariantPlan = planStudioPasteCut(
+  cutIntoVariantDocument,
+  { kind: "cut", rootNodeIds: ["day"], primaryNodeId: "day" },
+  "offline",
+  "offline",
+);
+assert.equal(cutIntoVariantPlan.ok, true);
+if (!cutIntoVariantPlan.ok) throw new Error("unreachable");
+assert.equal(
+  cutIntoVariantPlan.position,
+  "inside",
+  "잘라낸 노드도 카드 variant 루트를 고르면 그 카드 안에 넣는다.",
+);
+assert.equal(
+  applyStudioPasteCut(cutIntoVariantDocument, cutIntoVariantPlan).ok,
+  true,
+);
+assert.deepEqual(cutIntoVariantDocument.graph.nodes.offline.childIds, [
+  "offlineDay",
+  "day",
+]);
+
+// 범위가 없는 편집기에서 문서 루트 노드를 고르면 원본 부모가 아니라 그 뒤에 붙인다.
+const rootSelectionDocument = createDocument();
+const childCopyPlan = planStudioCopyNodes(rootSelectionDocument, ["child"]);
+if (!childCopyPlan.ok) throw new Error("unreachable");
+const rootSelectionIds = applyStudioPasteCopy(
+  rootSelectionDocument,
+  childCopyPlan.payload,
+  rootSelectionDocument.graph.nodes.loose,
+);
+assert.deepEqual(
+  rootSelectionDocument.graph.rootNodeIds,
+  ["root", "loose", rootSelectionIds[0], "mount"],
+  "고른 노드가 문서 루트에 있으면 원본 부모로 돌아가지 않고 그 뒤에 놓는다.",
+);
+assert.deepEqual(
+  getStyleOf(rootSelectionDocument, rootSelectionIds[0]),
+  { left: 29, top: 29 },
+  "부모가 바뀌어도 캔버스에서 원본 자리에서 밀어낸 곳에 놓는다.",
+);
+
 console.log("Studio clipboard command baseline checks passed.");

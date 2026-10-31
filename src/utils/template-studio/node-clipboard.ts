@@ -6,12 +6,25 @@ import type {
 import { getStudioTopLevelNodeIds } from "@/utils/template-studio/graph-nodes";
 import { createStudioId } from "@/utils/template-studio/id";
 
+/** 부모 좌표계 사이의 거리. */
+export interface StudioClipboardOffset {
+  left: number;
+  top: number;
+}
+
 /** 복사한 부분 그래프. 원본 문서가 바뀌어도 붙여넣을 수 있도록 값을 복제해서 담는다. */
 export interface StudioNodeCopyPayload {
   kind: "copy";
   rootNodeIds: string[];
   nodes: Record<string, StudioGraphNode>;
   styles: Record<string, StudioStyleRecord>;
+  /**
+   * 최상위 노드마다 부모의 0,0이 페이지에서 어디였는지.
+   *
+   * 다른 부모에 붙여넣어도 페이지 안 같은 자리에 놓으려고 복사할 때 기억해 둔다.
+   * 없으면 부모 안 좌표를 그대로 쓴다.
+   */
+  rootOrigins?: Record<string, StudioClipboardOffset>;
 }
 
 /** 잘라낸 노드. 원본을 옮기는 것이므로 id만 기억한다. */
@@ -85,8 +98,9 @@ export const createStudioNodeClipboardPayload = (
 /**
  * payload의 부분 그래프를 문서에 새 id로 넣는다.
  *
- * 최상위 노드만 위치를 밀고 이름에 Copy를 붙인다. entry slot 표시는 복제본에
- * 남기지 않는다. 복제본이 시간표 entry 자리를 다시 차지하면 안 되기 때문이다.
+ * 최상위 노드만 `rootShift`만큼 밀고 이름에 Copy를 붙인다. entry slot 표시는
+ * 복제본에 남기지 않는다. 복제본이 시간표 entry 자리를 다시 차지하면 안 되기
+ * 때문이다.
  *
  * 형제 목록에 넣는 일은 하지 않는다. 넣을 위치는 호출한 쪽이 정한다.
  */
@@ -95,7 +109,11 @@ export const insertStudioClipboardSubtree = (
   payload: StudioNodeCopyPayload,
   sourceNodeId: string,
   parentId: string | null,
-  offsetRoot: boolean,
+  isRoot: boolean,
+  rootShift: StudioClipboardOffset = {
+    left: STUDIO_CLIPBOARD_PASTE_OFFSET,
+    top: STUDIO_CLIPBOARD_PASTE_OFFSET,
+  },
 ): string | null => {
   const sourceNode = payload.nodes[sourceNodeId];
   if (!sourceNode) return null;
@@ -108,15 +126,15 @@ export const insertStudioClipboardSubtree = (
     const sourceStyle = payload.styles[sourceNode.styleId] ?? {};
     draft.styles[nextStyleId] = cloneJson(sourceStyle);
 
-    if (offsetRoot) {
+    if (isRoot && (rootShift.left !== 0 || rootShift.top !== 0)) {
       const nextStyle = draft.styles[nextStyleId];
       const left = typeof nextStyle.left === "number" ? nextStyle.left : 0;
       const top = typeof nextStyle.top === "number" ? nextStyle.top : 0;
 
       draft.styles[nextStyleId] = {
         ...nextStyle,
-        left: left + STUDIO_CLIPBOARD_PASTE_OFFSET,
-        top: top + STUDIO_CLIPBOARD_PASTE_OFFSET,
+        left: left + rootShift.left,
+        top: top + rootShift.top,
       };
     }
   }
@@ -124,7 +142,7 @@ export const insertStudioClipboardSubtree = (
   const nextNode: StudioGraphNode = {
     ...cloneJson(sourceNode),
     id: nextNodeId,
-    label: offsetRoot
+    label: isRoot
       ? getStudioCopiedNodeLabel(sourceNode.label)
       : sourceNode.label,
     parentId,

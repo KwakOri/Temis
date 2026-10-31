@@ -22,6 +22,12 @@ export interface StudioClipboardOptions {
   getDocument: () => StudioTemplateDocument;
   getSelectedNodeIds: () => string[];
   getSelectedNodeId: () => string | null;
+  /**
+   * 붙여넣을 범위의 루트. 카드 편집에서는 지금 보고 있는 variant 루트다.
+   *
+   * 고른 노드가 이 밖에 있으면 이 안에 붙인다.
+   */
+  getPasteScopeNodeId?: () => string | null;
   /** 문서를 바꾼다. 이력은 이 함수가 소유한다. */
   updateDocument: (mutate: (draft: StudioTemplateDocument) => void) => void;
   /** 붙여넣은 노드를 고른다. */
@@ -37,6 +43,8 @@ export interface StudioClipboard {
   copy: () => void;
   cut: () => void;
   paste: () => void;
+  /** 원본과 같은 자리에 붙인다. 잘라낸 노드는 늘 제자리로 옮겨서 `paste`와 같다. */
+  pasteInPlace: () => void;
   /**
    * 잘라내기 대기를 취소한다.
    *
@@ -55,6 +63,7 @@ export function useStudioClipboard({
   getDocument,
   getSelectedNodeIds,
   getSelectedNodeId,
+  getPasteScopeNodeId,
   updateDocument,
   onSelect,
   onStatusMessage,
@@ -66,6 +75,7 @@ export function useStudioClipboard({
     getDocument,
     getSelectedNodeIds,
     getSelectedNodeId,
+    getPasteScopeNodeId,
     updateDocument,
     onSelect,
     onStatusMessage,
@@ -77,6 +87,7 @@ export function useStudioClipboard({
       getDocument,
       getSelectedNodeIds,
       getSelectedNodeId,
+      getPasteScopeNodeId,
       updateDocument,
       onSelect,
       onStatusMessage,
@@ -84,6 +95,7 @@ export function useStudioClipboard({
     };
   }, [
     getDocument,
+    getPasteScopeNodeId,
     getSelectedNodeId,
     getSelectedNodeIds,
     onAfterPaste,
@@ -139,6 +151,7 @@ export function useStudioClipboard({
         options.getDocument(),
         payload,
         options.getSelectedNodeId(),
+        options.getPasteScopeNodeId?.() ?? null,
       );
 
       if (!plan.ok) {
@@ -184,45 +197,53 @@ export function useStudioClipboard({
     [],
   );
 
-  const paste = useCallback(() => {
-    const payload = payloadRef.current;
-    const options = optionsRef.current;
+  const pasteNodes = useCallback(
+    (inPlace: boolean) => {
+      const payload = payloadRef.current;
+      const options = optionsRef.current;
 
-    if (!payload) {
-      options.onStatusMessage("Nothing to paste");
-      return;
-    }
+      if (!payload) {
+        options.onStatusMessage("Nothing to paste");
+        return;
+      }
 
-    if (payload.kind === "cut") {
-      pasteCut(payload);
-      return;
-    }
+      if (payload.kind === "cut") {
+        pasteCut(payload);
+        return;
+      }
 
-    if (!isStudioPasteCopyReady(payload)) {
-      options.onStatusMessage("Paste failed");
-      return;
-    }
+      if (!isStudioPasteCopyReady(payload)) {
+        options.onStatusMessage("Paste failed");
+        return;
+      }
 
-    const selectedNodeId = options.getSelectedNodeId();
-    const selectedNode: StudioGraphNode | null = selectedNodeId
-      ? (options.getDocument().graph.nodes[selectedNodeId] ?? null)
-      : null;
-    const pasted: { rootIds: string[] } = { rootIds: [] };
+      const selectedNodeId = options.getSelectedNodeId();
+      const selectedNode: StudioGraphNode | null = selectedNodeId
+        ? (options.getDocument().graph.nodes[selectedNodeId] ?? null)
+        : null;
+      const pasted: { rootIds: string[] } = { rootIds: [] };
 
-    options.updateDocument((draft) => {
-      pasted.rootIds = applyStudioPasteCopy(draft, payload, selectedNode);
-    });
+      options.updateDocument((draft) => {
+        pasted.rootIds = applyStudioPasteCopy(draft, payload, selectedNode, {
+          scopeRootNodeId: options.getPasteScopeNodeId?.() ?? null,
+          inPlace,
+        });
+      });
 
-    if (pasted.rootIds.length === 0) return;
+      if (pasted.rootIds.length === 0) return;
 
-    options.onSelect(pasted.rootIds, pasted.rootIds.at(-1) ?? null);
-    options.onAfterPaste?.();
-    options.onStatusMessage(
-      `Pasted ${pasted.rootIds.length} ${getStudioSelectionLabel(
-        pasted.rootIds.length,
-      )}`,
-    );
-  }, [pasteCut]);
+      options.onSelect(pasted.rootIds, pasted.rootIds.at(-1) ?? null);
+      options.onAfterPaste?.();
+      options.onStatusMessage(
+        `Pasted ${pasted.rootIds.length} ${getStudioSelectionLabel(
+          pasted.rootIds.length,
+        )}${inPlace ? " in place" : ""}`,
+      );
+    },
+    [pasteCut],
+  );
+  const paste = useCallback(() => pasteNodes(false), [pasteNodes]);
+  const pasteInPlace = useCallback(() => pasteNodes(true), [pasteNodes]);
 
   const cancelCut = useCallback(() => {
     if (payloadRef.current?.kind !== "cut") return false;
@@ -232,5 +253,5 @@ export function useStudioClipboard({
     return true;
   }, []);
 
-  return { cutNodeIds, copy, cut, paste, cancelCut };
+  return { cutNodeIds, copy, cut, paste, pasteInPlace, cancelCut };
 }

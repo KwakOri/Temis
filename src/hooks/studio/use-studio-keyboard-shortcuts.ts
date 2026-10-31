@@ -12,6 +12,7 @@ export interface StudioKeyboardShortcutHandlers {
   copy: () => void;
   cut: () => void;
   paste: () => void;
+  pasteInPlace: () => void;
   duplicate: () => void;
   group: () => void;
   ungroup: () => void;
@@ -82,6 +83,9 @@ export function useStudioKeyboardShortcuts({
           return;
         case "paste":
           handlers.paste();
+          return;
+        case "pasteInPlace":
+          handlers.pasteInPlace();
           return;
         case "duplicate":
           handlers.duplicate();
