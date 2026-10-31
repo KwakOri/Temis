@@ -26,6 +26,20 @@ import {
 } from "@/utils/legacy-template-assets/source-policy";
 
 const Context = createContext<LegacyAssetRuntime | null>(null);
+// Matches ProtectedRoute's spinner so asset loading reads as one continuous loading screen.
+function AssetsLoading() {
+  return (
+    <div
+      role="status"
+      className="flex items-center justify-center min-h-screen"
+    >
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-24 w-24 border-b-2 border-primary"></div>
+        <p className="mt-4 text-dark-gray/70">로딩 중...</p>
+      </div>
+    </div>
+  );
+}
 export function HomepageAssetsProvider({ children }: PropsWithChildren) {
   const [preview, setPreview] = useState(false);
   useEffect(() => {
@@ -88,12 +102,7 @@ export function LegacyTemplateAssetsProvider({
     r2Only || process.env.NEXT_PUBLIC_LEGACY_TEMPLATE_R2_ENABLED === "true";
   const runtime = useLegacyAssetRuntime(owner, enabled && !changes);
   const preview = useLegacyAssetPreview(owner, changes);
-  if (loading && (enabled || changes))
-    return (
-      <p role="status" className="p-5">
-        이미지 권한 확인 중...
-      </p>
-    );
+  if (loading && (enabled || changes)) return <AssetsLoading />;
   const query = changes ? preview : runtime;
   const error =
     previewError ||
@@ -115,11 +124,7 @@ export function LegacyTemplateAssetsProvider({
     query.isPending &&
     (user || owner.ownerKind === "thumbnail")
   )
-    return (
-      <p role="status" className="p-5">
-        이미지 불러오는 중...
-      </p>
-    );
+    return <AssetsLoading />;
   if (r2Only && query.data?.mode !== "r2") {
     return (
       <p role="alert" className="p-5 text-red-700">
