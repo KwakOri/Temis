@@ -24,6 +24,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { signJWT } from "../src/lib/auth/jwt";
 import type { JWTPayload } from "../src/lib/auth/jwt";
 import { supabaseAdminServer } from "../src/lib/supabase-admin-server";
+import { linkTemisArtistToFixture } from "./helpers/temis-artist";
 import { GET as listTemplatesRoute } from "../src/app/api/admin/template-hub/templates/route";
 import { PATCH as saleRoute } from "../src/app/api/admin/template-hub/templates/[id]/sale/route";
 import { PATCH as salesTypeRoute } from "../src/app/api/admin/template-hub/templates/[id]/sales-type/route";
@@ -48,7 +49,6 @@ const assertLocalSupabaseUrl = () => {
   }
 };
 
-const TEMIS_ARTIST_ID = "e5441051-86eb-418c-8051-efd0836a97c6";
 // 실행마다 고유한 접두사를 써서, 병렬/연속 실행이 서로의 fixture와 충돌하지
 // 않게 한다(remediation 05).
 const RUN_ID = randomUUID().slice(0, 8);
@@ -187,18 +187,7 @@ const createFixtures = async (): Promise<Record<string, CreatedFixture>> => {
       if (planError) throw planError;
     }
 
-    if (fixture.withArtist) {
-      const { error: artistLinkError } = await supabaseAdminServer
-        .from("template_artists")
-        .insert({
-          template_id: template.id,
-          artist_id: TEMIS_ARTIST_ID,
-          role: "creator",
-          is_primary: true,
-          display_order: 0,
-        });
-      if (artistLinkError) throw artistLinkError;
-    }
+    if (fixture.withArtist) await linkTemisArtistToFixture(template.id);
 
     created[fixture.key] = { id: template.id, shopTemplateId };
   }
@@ -509,14 +498,7 @@ const assertNoResidueFromPriorRuns = async () => {
       });
       if (planError) throw planError;
 
-      const { error: artistLinkError } = await supabaseAdminServer.from("template_artists").insert({
-        template_id: template.id,
-        artist_id: TEMIS_ARTIST_ID,
-        role: "creator",
-        is_primary: true,
-        display_order: 0,
-      });
-      if (artistLinkError) throw artistLinkError;
+      await linkTemisArtistToFixture(template.id);
 
       return { id: template.id, shopTemplateId: shopTemplate.id };
     };

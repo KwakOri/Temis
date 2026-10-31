@@ -95,9 +95,9 @@ const panelProps: StudioTimetableLayerPanelProps = {
   onFocusDay: noop,
   onLayerDragStart: noop,
   onLayerDragOver: noop,
+  onLayerDragLeave: noop,
   onLayerDragEnd: noop,
   onLayerDrop: noop,
-  onIndicatorDragOver: noop,
 };
 const markup = renderToStaticMarkup(
   <StudioTimetableLayerPanel {...panelProps} />,
@@ -139,6 +139,13 @@ assert.equal(
   (markup.match(/draggable="true"/g) ?? []).length,
   5,
   "최상위 객체와 요일 카드만 집을 수 있다. 묶음의 자식은 부모가 정한 자리에 있어야 한다.",
+);
+assert.deepEqual(
+  [...markup.matchAll(/data-layer-drop-id="([^"]+)"/g)].map(
+    (match) => match[1],
+  ),
+  ["dayCards", "day-card:tue", "day-card:mon", "profile", "board"],
+  "집을 수 있는 행만 드롭 대상이다. 묶음의 자식 위에서는 이웃한 대상 행 기준으로 놓을 자리를 정한다.",
 );
 // --- 종류 아이콘 기준선 ---
 //

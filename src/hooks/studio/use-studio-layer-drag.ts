@@ -17,11 +17,13 @@ import {
 import {
   getStudioLayerDropPosition,
   getStudioLayerPointerRatio,
+  isSameStudioLayerDropState,
   planStudioLayerDrop,
   shouldAutoExpandStudioLayerGroup,
   validateStudioLayerMove,
   type StudioLayerDragState,
   type StudioLayerDropState,
+  type StudioLayerDropTarget,
 } from "@/utils/template-studio/layer-drag";
 import {
   expandStudioCollapsedLayerId,
@@ -62,20 +64,19 @@ export interface StudioLayerDrag {
     event: DragEvent<HTMLElement>,
     nodeId: StudioNodeId,
   ) => void;
-  /** 레이어 행 위를 지날 때. 묶음은 가운데 절반이 안쪽이다. */
+  /**
+   * 목록 위를 지날 때. dragenter와 dragover 모두 여기로 온다. 묶음은 가운데
+   * 절반이 안쪽이다.
+   */
   handleDragOver: (
     event: DragEvent<HTMLElement>,
-    targetNodeId: StudioNodeId,
+    target: StudioLayerDropTarget | null,
   ) => void;
-  /** 행 사이 표시선 위를 지날 때. 위치는 표시선이 정해 놓은 값을 쓴다. */
-  handleIndicatorDragOver: (
-    event: DragEvent<HTMLElement>,
-    targetNodeId: StudioNodeId,
-    position: "before" | "after",
-  ) => void;
+  /** 목록 밖으로 나갔을 때. 표시선과 예약해 둔 자동 펼침을 지운다. */
+  handleDragLeave: () => void;
   handleDrop: (
     event: DragEvent<HTMLElement>,
-    targetNodeId: StudioNodeId,
+    target: StudioLayerDropTarget | null,
   ) => void;
 }
 /**
@@ -87,6 +88,10 @@ export interface StudioLayerDrag {
  *
  * 여러 개를 함께 옮길 때는 고른 것 중 부모가 겹치지 않는 것만 남긴다. 부모와
  * 자식을 같이 집으면 자식이 두 번 옮겨진다.
+ *
+ * 드롭은 행마다 받지 않고 목록 전체가 받는다. 행 사이 틈에서 받지 않으면
+ * 브라우저가 그 자리를 놓을 수 없는 곳으로 보고, 표시선이 보이는데도 놓으면 아무
+ * 일도 일어나지 않는다.
  */
 export function useStudioLayerDrag({
   getDocument,
@@ -108,6 +113,13 @@ export function useStudioLayerDrag({
    * 시작된 직후의 첫 몇 번을 놓친다.
    */
   const dragStateRef = useRef<StudioLayerDragState | null>(null);
+  /**
+   * 표시선을 그린 자리를 상태와 별도로 들고 있는다.
+   *
+   * 놓을 때 상태를 읽으면 마지막 dragover가 아직 반영되지 않은 값을 볼 수 있다.
+   * 같은 자리인지 비교할 때도 이 값을 쓴다.
+   */
+  const dropStateRef = useRef<StudioLayerDropState | null>(null);
   const autoExpandTimerRef = useRef<number | null>(null);
   const autoExpandTargetRef = useRef<string | null>(null);
   /**
@@ -124,15 +136,34 @@ export function useStudioLayerDrag({
     },
     [],
   );
-  const clearDragState = useCallback(() => {
+  /**
+   * 표시선 자리를 바꾼다.
+   *
+   * dragover는 포인터가 멈춰 있어도 계속 들어온다. 같은 자리인데 상태를 바꾸면
+   * 그때마다 편집기 전체가 다시 그려진다.
+   */
+  const updateDropState = useCallback(
+    (nextDropState: StudioLayerDropState | null) => {
+      if (isSameStudioLayerDropState(dropStateRef.current, nextDropState)) {
+        return;
+      }
+      dropStateRef.current = nextDropState;
+      setDropState(nextDropState);
+    },
+    [],
+  );
+  const cancelAutoExpand = useCallback(() => {
     if (autoExpandTimerRef.current !== null) {
       window.clearTimeout(autoExpandTimerRef.current);
       autoExpandTimerRef.current = null;
     }
     autoExpandTargetRef.current = null;
-    dragStateRef.current = null;
-    setDropState(null);
   }, []);
+  const clearDragState = useCallback(() => {
+    cancelAutoExpand();
+    dragStateRef.current = null;
+    updateDropState(null);
+  }, [cancelAutoExpand, updateDropState]);
   const scheduleAutoExpand = useCallback(
     (nodeId: StudioNodeId, shouldExpand: boolean) => {
       if (!shouldExpand) {
@@ -163,18 +194,15 @@ export function useStudioLayerDrag({
     },
     [autoExpandDelayMs, setCollapsedNodeIds],
   );
-  /** 포인터가 가리키는 자리를 행의 크기와 종류로 정한다. */
+  /** 포인터가 가리키는 자리를 대상 행의 크기와 종류로 정한다. */
   const getPointerDropPosition = useCallback(
     (
       event: DragEvent<HTMLElement>,
-      targetNodeId: StudioNodeId,
+      target: StudioLayerDropTarget,
     ): StudioGraphDropPosition =>
       getStudioLayerDropPosition(
-        getStudioLayerPointerRatio(
-          event.clientY,
-          event.currentTarget.getBoundingClientRect(),
-        ),
-        getDocument().graph.nodes[targetNodeId]?.type === "group",
+        getStudioLayerPointerRatio(event.clientY, target.bounds),
+        getDocument().graph.nodes[target.nodeId]?.type === "group",
       ),
     [getDocument],
   );
@@ -205,17 +233,30 @@ export function useStudioLayerDrag({
       event.dataTransfer.effectAllowed = "move";
       event.dataTransfer.setData("text/plain", nodeId);
       dragStateRef.current = { primaryNodeId: nodeId, nodeIds: sourceNodeIds };
-      setDropState(null);
+      updateDropState(null);
     },
-    [getDocument, getSelectedNodeIds, onSelectSingleNode, onStatusMessage],
+    [
+      getDocument,
+      getSelectedNodeIds,
+      onSelectSingleNode,
+      onStatusMessage,
+      updateDropState,
+    ],
   );
   const handleDragOver = useCallback(
-    (event: DragEvent<HTMLElement>, targetNodeId: StudioNodeId) => {
+    (event: DragEvent<HTMLElement>, target: StudioLayerDropTarget | null) => {
       const dragState = dragStateRef.current;
       if (!dragState) return;
+      // 끌고 있는 동안에는 목록 어디서든 받는다. 받지 않은 자리는 브라우저가
+      // 놓을 수 없는 곳으로 보고 놓아도 drop을 보내지 않는다.
       event.preventDefault();
       event.stopPropagation();
-      const position = getPointerDropPosition(event, targetNodeId);
+      if (!target) {
+        event.dataTransfer.dropEffect = "none";
+        return;
+      }
+      const targetNodeId = target.nodeId;
+      const position = getPointerDropPosition(event, target);
       const document = getDocument();
       const validation = validateStudioLayerMove(
         document,
@@ -233,7 +274,7 @@ export function useStudioLayerDrag({
         }),
       );
       event.dataTransfer.dropEffect = validation.ok ? "move" : "none";
-      setDropState({
+      updateDropState({
         nodeId: targetNodeId,
         position,
         blockedReason: validation.ok ? null : validation.reason,
@@ -244,49 +285,31 @@ export function useStudioLayerDrag({
       getDocument,
       getPointerDropPosition,
       scheduleAutoExpand,
+      updateDropState,
     ],
   );
-  const handleIndicatorDragOver = useCallback(
-    (
-      event: DragEvent<HTMLElement>,
-      targetNodeId: StudioNodeId,
-      position: "before" | "after",
-    ) => {
-      const dragState = dragStateRef.current;
-      if (!dragState) return;
-      event.preventDefault();
-      // 표시선은 행 위에 겹쳐 있다. 행의 dragover까지 이어지면 위치가 곧바로
-      // 행 기준으로 덮어써진다.
-      event.stopPropagation();
-      const validation = validateStudioLayerMove(
-        getDocument(),
-        dragState.nodeIds,
-        targetNodeId,
-        position,
-      );
-      // 행 사이에 놓으려는 중이므로 그 묶음을 펼칠 이유가 없다.
-      scheduleAutoExpand(targetNodeId, false);
-      event.dataTransfer.dropEffect = validation.ok ? "move" : "none";
-      setDropState({
-        nodeId: targetNodeId,
-        position,
-        blockedReason: validation.ok ? null : validation.reason,
-      });
-    },
-    [getDocument, scheduleAutoExpand],
-  );
+  const handleDragLeave = useCallback(() => {
+    if (!dragStateRef.current) return;
+    cancelAutoExpand();
+    updateDropState(null);
+  }, [cancelAutoExpand, updateDropState]);
   const handleDrop = useCallback(
-    (event: DragEvent<HTMLElement>, targetNodeId: StudioNodeId) => {
+    (event: DragEvent<HTMLElement>, target: StudioLayerDropTarget | null) => {
       const dragState = dragStateRef.current;
       if (!dragState) return;
       event.preventDefault();
       event.stopPropagation();
+      if (!target) {
+        clearDragState();
+        return;
+      }
+      const targetNodeId = target.nodeId;
       const plan = planStudioLayerDrop(
         getDocument(),
         dragState,
-        dropState,
+        dropStateRef.current,
         targetNodeId,
-        getPointerDropPosition(event, targetNodeId),
+        getPointerDropPosition(event, target),
       );
       if (plan.kind === "blocked") {
         onStatusMessage(plan.reason);
@@ -327,7 +350,6 @@ export function useStudioLayerDrag({
     },
     [
       clearDragState,
-      dropState,
       getDocument,
       getPointerDropPosition,
       onAfterMove,
@@ -342,7 +364,7 @@ export function useStudioLayerDrag({
     clearDragState,
     handleDragStart,
     handleDragOver,
-    handleIndicatorDragOver,
+    handleDragLeave,
     handleDrop,
   };
 }

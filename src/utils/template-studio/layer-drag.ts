@@ -23,6 +23,16 @@ export interface StudioLayerDragState {
   primaryNodeId: StudioNodeId;
   nodeIds: StudioNodeId[];
 }
+/**
+ * 목록이 포인터에 가장 가까운 행으로 찾은 드롭 대상.
+ *
+ * 위/아래/안쪽은 이 행의 크기로 판단한다. 포인터가 행 밖의 틈에 있어도 같은
+ * 기준을 쓰면 행 위쪽 틈은 위, 아래쪽 틈은 아래가 된다.
+ */
+export interface StudioLayerDropTarget {
+  nodeId: StudioNodeId;
+  bounds: { top: number; height: number };
+}
 /** 지금 가리키는 드롭 자리. 표시선과 막힌 표현이 여기서 정해진다. */
 export interface StudioLayerDropState {
   nodeId: StudioNodeId;
@@ -54,6 +64,44 @@ export const getStudioLayerDropPosition = (
   if (offsetRatio > 0.75) return "after";
   return "inside";
 };
+/**
+ * 포인터 높이에 맞는 행을 고른다.
+ *
+ * 행 사이 틈이나 목록 위아래 여백도 가장 가까운 행으로 본다. 틈을 비워 두면
+ * 브라우저가 그 자리를 놓을 수 없는 곳으로 판단해서, 표시선이 보이는데도
+ * 놓으면 아무 일도 일어나지 않는다. 행이 하나도 없으면 -1이다.
+ */
+export const findStudioLayerRowIndexAtPointer = (
+  rows: ReadonlyArray<{ top: number; bottom: number }>,
+  pointerY: number,
+): number => {
+  let nearestIndex = -1;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+  rows.forEach((row, index) => {
+    const distance =
+      pointerY < row.top
+        ? row.top - pointerY
+        : pointerY > row.bottom
+          ? pointerY - row.bottom
+          : 0;
+    if (distance < nearestDistance) {
+      nearestIndex = index;
+      nearestDistance = distance;
+    }
+  });
+  return nearestIndex;
+};
+/** 표시선을 다시 그릴 필요가 있는지 본다. 같은 자리면 상태를 바꾸지 않는다. */
+export const isSameStudioLayerDropState = (
+  current: StudioLayerDropState | null,
+  next: StudioLayerDropState | null,
+): boolean =>
+  current === next ||
+  (current !== null &&
+    next !== null &&
+    current.nodeId === next.nodeId &&
+    current.position === next.position &&
+    (current.blockedReason ?? null) === (next.blockedReason ?? null));
 /**
  * 놓았을 때 쓸 위치를 정한다.
  *

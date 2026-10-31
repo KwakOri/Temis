@@ -10,12 +10,14 @@ import {
   STUDIO_LAYER_AUTO_EXPAND_DELAY_MS,
 } from "@/utils/template-studio/layer-order";
 import {
-  getStudioTimetableLayerDropBlockedReason,
-  getStudioTimetableLayerDropPosition,
+  getStudioTimetableLayerPointerDropState,
+  isSameStudioTimetableLayerDropState,
   planStudioTimetableLayerDrop,
+  resolveStudioTimetableLayerDropState,
   shouldAutoExpandStudioTimetableLayer,
   type StudioTimetableLayerDragState,
   type StudioTimetableLayerDropState,
+  type StudioTimetableLayerDropTarget,
 } from "@/utils/template-studio/timetable-layer-drag";
 export interface StudioTimetableLayerDragOptions {
   /**
@@ -57,23 +59,19 @@ export interface StudioTimetableLayerDrag {
     layerId: string,
     dayId?: StudioTimetableDayId,
   ) => void;
-  /** 레이어 행 위를 지날 때. 행 가운데를 기준으로 위/아래를 정한다. */
+  /**
+   * 목록 위를 지날 때. dragenter와 dragover 모두 여기로 온다. 대상 행의 가운데를
+   * 기준으로 위/아래를 정한다.
+   */
   handleDragOver: (
     event: DragEvent<HTMLElement>,
-    layerId: string,
-    dayId?: StudioTimetableDayId,
+    target: StudioTimetableLayerDropTarget | null,
   ) => void;
-  /** 행 사이 표시선 위를 지날 때. 위치는 표시선이 정해 놓은 값을 쓴다. */
-  handleIndicatorDragOver: (
-    event: DragEvent<HTMLElement>,
-    layerId: string,
-    position: "before" | "after",
-    dayId?: StudioTimetableDayId,
-  ) => void;
+  /** 목록 밖으로 나갔을 때. 표시선과 예약해 둔 자동 펼침을 지운다. */
+  handleDragLeave: () => void;
   handleDrop: (
     event: DragEvent<HTMLElement>,
-    layerId: string,
-    dayId?: StudioTimetableDayId,
+    target: StudioTimetableLayerDropTarget | null,
   ) => void;
 }
 /**
@@ -82,6 +80,10 @@ export interface StudioTimetableLayerDrag {
  * 최상위 객체 순서와 요일 순서는 저장되는 값이 다르므로 집는 순간 어느 쪽인지
  * 정해서 끝까지 그 규칙만 쓴다. 순서를 실제로 바꾸는 일은 문서를 고치는 쪽이
  * 하고, 이 훅은 어디에 놓을 수 있는지와 무엇을 보여줄지만 정한다.
+ *
+ * 드롭은 행마다 받지 않고 목록 전체가 받는다. 행 사이 틈에서 받지 않으면
+ * 브라우저가 그 자리를 놓을 수 없는 곳으로 보고, 표시선이 보이는데도 놓으면 아무
+ * 일도 일어나지 않는다.
  *
  * 판단 로직은 순수 함수로 빼 두었다. 이 저장소에는 DOM 테스트 환경이 없어서
  * 훅을 직접 부를 수 없기 때문이다. 여기 남은 것은 React 상태와 타이머다.
@@ -107,6 +109,13 @@ export function useStudioTimetableLayerDrag({
    * 시작된 직후의 첫 몇 번을 놓친다.
    */
   const dragStateRef = useRef<StudioTimetableLayerDragState | null>(null);
+  /**
+   * 표시선을 그린 자리를 상태와 별도로 들고 있는다.
+   *
+   * 놓을 때 상태를 읽으면 마지막 dragover가 아직 반영되지 않은 값을 볼 수 있다.
+   * 같은 자리인지 비교할 때도 이 값을 쓴다.
+   */
+  const dropStateRef = useRef<StudioTimetableLayerDropState | null>(null);
   const autoExpandTimerRef = useRef<number | null>(null);
   const autoExpandTargetRef = useRef<string | null>(null);
   /**
@@ -123,16 +132,37 @@ export function useStudioTimetableLayerDrag({
     },
     [],
   );
-  const clearDragState = useCallback(() => {
+  /**
+   * 표시선 자리를 바꾼다.
+   *
+   * dragover는 포인터가 멈춰 있어도 계속 들어온다. 같은 자리인데 상태를 바꾸면
+   * 그때마다 편집기 전체가 다시 그려진다.
+   */
+  const updateDropState = useCallback(
+    (nextDropState: StudioTimetableLayerDropState | null) => {
+      if (
+        isSameStudioTimetableLayerDropState(dropStateRef.current, nextDropState)
+      ) {
+        return;
+      }
+      dropStateRef.current = nextDropState;
+      setDropState(nextDropState);
+    },
+    [],
+  );
+  const cancelAutoExpand = useCallback(() => {
     if (autoExpandTimerRef.current !== null) {
       window.clearTimeout(autoExpandTimerRef.current);
       autoExpandTimerRef.current = null;
     }
     autoExpandTargetRef.current = null;
+  }, []);
+  const clearDragState = useCallback(() => {
+    cancelAutoExpand();
     dragStateRef.current = null;
     setDragState(null);
-    setDropState(null);
-  }, []);
+    updateDropState(null);
+  }, [cancelAutoExpand, updateDropState]);
   const scheduleAutoExpand = useCallback(
     (layerId: string, shouldExpand: boolean) => {
       if (!shouldExpand) {
@@ -186,77 +216,68 @@ export function useStudioTimetableLayerDrag({
   const handleDragOver = useCallback(
     (
       event: DragEvent<HTMLElement>,
-      layerId: string,
-      dayId?: StudioTimetableDayId,
+      target: StudioTimetableLayerDropTarget | null,
     ) => {
-      const currentDragState = dragStateRef.current ?? dragState;
+      const currentDragState = dragStateRef.current;
       if (!currentDragState) return;
+      // 끌고 있는 동안에는 목록 어디서든 받는다. 받지 않은 자리는 브라우저가
+      // 놓을 수 없는 곳으로 보고 놓아도 drop을 보내지 않는다.
       event.preventDefault();
-      const bounds = event.currentTarget.getBoundingClientRect();
-      const position = getStudioTimetableLayerDropPosition(
-        event.clientY,
-        bounds,
-      );
-      const blockedReason = getStudioTimetableLayerDropBlockedReason(
+      if (!target) {
+        event.dataTransfer.dropEffect = "none";
+        return;
+      }
+      const nextDropState = getStudioTimetableLayerPointerDropState(
         currentDragState,
-        layerId,
-        dayId,
+        target,
+        event.clientY,
       );
+      const blockedReason = nextDropState.blockedReason ?? null;
       scheduleAutoExpand(
-        layerId,
+        target.layerId,
         shouldAutoExpandStudioTimetableLayer({
-          targetDayId: dayId,
-          targetObjectKind: getLayerObjectKind(layerId),
+          targetDayId: target.dayId,
+          targetObjectKind: getLayerObjectKind(target.layerId),
           blockedReason,
-          collapsed: getCollapsedLayerIds().includes(layerId),
+          collapsed: getCollapsedLayerIds().includes(target.layerId),
         }),
       );
       event.dataTransfer.dropEffect = blockedReason ? "none" : "move";
-      setDropState({ layerId, position, blockedReason });
+      updateDropState(nextDropState);
     },
-    [dragState, getCollapsedLayerIds, getLayerObjectKind, scheduleAutoExpand],
+    [
+      getCollapsedLayerIds,
+      getLayerObjectKind,
+      scheduleAutoExpand,
+      updateDropState,
+    ],
   );
-  const handleIndicatorDragOver = useCallback(
-    (
-      event: DragEvent<HTMLElement>,
-      layerId: string,
-      position: "before" | "after",
-      dayId?: StudioTimetableDayId,
-    ) => {
-      const currentDragState = dragStateRef.current ?? dragState;
-      if (!currentDragState) return;
-      event.preventDefault();
-      // 표시선은 행 위에 겹쳐 있다. 행의 dragover까지 이어지면 위치가 곧바로
-      // 행 기준으로 덮어써진다.
-      event.stopPropagation();
-      const blockedReason = getStudioTimetableLayerDropBlockedReason(
-        currentDragState,
-        layerId,
-        dayId,
-      );
-      // 행 사이에 놓으려는 중이므로 그 묶음을 펼칠 이유가 없다.
-      scheduleAutoExpand(layerId, false);
-      event.dataTransfer.dropEffect = blockedReason ? "none" : "move";
-      setDropState({ layerId, position, blockedReason });
-    },
-    [dragState, scheduleAutoExpand],
-  );
+  const handleDragLeave = useCallback(() => {
+    if (!dragStateRef.current) return;
+    cancelAutoExpand();
+    updateDropState(null);
+  }, [cancelAutoExpand, updateDropState]);
   const handleDrop = useCallback(
     (
       event: DragEvent<HTMLElement>,
-      targetLayerId: string,
-      targetDayId?: StudioTimetableDayId,
+      target: StudioTimetableLayerDropTarget | null,
     ) => {
       event.preventDefault();
-      const currentDragState = dragStateRef.current ?? dragState;
-      const currentDropState = dropState;
+      const currentDragState = dragStateRef.current;
       const plan =
-        currentDragState && currentDropState
+        currentDragState && target
           ? planStudioTimetableLayerDrop(
               currentDragState,
-              currentDropState,
-              targetLayerId,
-              targetDayId,
+              resolveStudioTimetableLayerDropState(
+                dropStateRef.current,
+                getStudioTimetableLayerPointerDropState(
+                  currentDragState,
+                  target,
+                  event.clientY,
+                ),
+              ),
+              target.layerId,
+              target.dayId,
             )
           : { kind: "none" as const };
       // 옮기기 전에 표시선을 먼저 지운다. 문서가 바뀌면 트리가 다시 그려지는데
@@ -270,7 +291,7 @@ export function useStudioTimetableLayerDrag({
         onMoveDayLayer(plan.sourceDayId, plan.targetDayId, plan.position);
       }
     },
-    [clearDragState, dragState, dropState, onMoveDayLayer, onMoveRootLayer],
+    [clearDragState, onMoveDayLayer, onMoveRootLayer],
   );
   return {
     dragState,
@@ -278,7 +299,7 @@ export function useStudioTimetableLayerDrag({
     clearDragState,
     handleDragStart,
     handleDragOver,
-    handleIndicatorDragOver,
+    handleDragLeave,
     handleDrop,
   };
 }

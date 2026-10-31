@@ -62,3 +62,9 @@ public/workbox-*.js.map
 
 # local git worktrees (never committed)
 /.worktrees/
+
+# Claude Code desktop preview launch config (per machine)
+/.claude/launch.json
+
+# local operations playbook (kept out of this public repo)
+/docs/paseo-timetable/

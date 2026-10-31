@@ -39,6 +39,8 @@ export interface StudioTimetableLayerRowProps {
   collapsible?: boolean;
   collapsed?: boolean;
   draggable?: boolean;
+  /** 이 행을 기준으로 놓을 자리를 정할 수 있다. 끌 수 있는 행과 같다. */
+  droppable?: boolean;
   /** 드롭할 수 없는 이유. 있으면 막힌 표현으로 바뀐다. */
   blockedReason?: string | null;
   /** 지금 고른 레이어 id. 이 행의 id와 같으면 선택 표현이 된다. */
@@ -49,9 +51,7 @@ export interface StudioTimetableLayerRowProps {
   /** 선택 외에 더 할 일. 예: 요일 카드에서 미리보기 요일 바꾸기 */
   onSelect?: () => void;
   onDragEnd?: (event: React.DragEvent<HTMLButtonElement>) => void;
-  onDragOver?: (event: React.DragEvent<HTMLButtonElement>) => void;
   onDragStart?: (event: React.DragEvent<HTMLButtonElement>) => void;
-  onDrop?: (event: React.DragEvent<HTMLButtonElement>) => void;
 }
 
 /**
@@ -72,15 +72,14 @@ export function StudioTimetableLayerRow({
   collapsible = false,
   collapsed = false,
   draggable = false,
+  droppable = false,
   blockedReason = null,
   selectedLayerId,
   onSelectLayer,
   onToggleCollapsed,
   onSelect,
   onDragEnd,
-  onDragOver,
   onDragStart,
-  onDrop,
 }: StudioTimetableLayerRowProps) {
   return (
     <StudioLayerRow
@@ -90,6 +89,7 @@ export function StudioTimetableLayerRow({
       depth={depth}
       disabled={disabled}
       draggable={draggable}
+      dropTargetId={droppable ? id : undefined}
       hidden={hidden}
       icon={getStudioTimetableLayerIcon(type)}
       label={label}
@@ -112,9 +112,7 @@ export function StudioTimetableLayerRow({
         ) : undefined
       }
       onDragEnd={onDragEnd}
-      onDragOver={onDragOver}
       onDragStart={onDragStart}
-      onDrop={onDrop}
       onToggleCollapsed={onToggleCollapsed}
       onClick={() => {
         onSelectLayer(id);

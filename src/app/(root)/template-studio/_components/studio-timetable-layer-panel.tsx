@@ -2,6 +2,7 @@
 // jsx: "preserve" 환경의 체크 스크립트가 클래식 변환을 타므로 React 심볼이 필요하다.
 import React, { useMemo } from "react";
 import {
+  findStudioLayerDropTarget,
   StudioLayerDropIndicator,
   StudioLayerPanelFrame,
 } from "@/components/studio/layers/studio-layer-primitives";
@@ -22,7 +23,10 @@ import {
   getStudioTimetableEditingVariantValue,
   type StudioTimetableEditingVariants,
 } from "@/utils/template-studio/timetable-selection";
-import type { StudioTimetableLayerDropState } from "@/utils/template-studio/timetable-layer-drag";
+import type {
+  StudioTimetableLayerDropState,
+  StudioTimetableLayerDropTarget,
+} from "@/utils/template-studio/timetable-layer-drag";
 import { StudioTimetableLayerRow } from "./studio-timetable-layer-row";
 
 /**
@@ -59,22 +63,20 @@ export interface StudioTimetableLayerPanelProps {
     layerId: string,
     dayId?: StudioTimetableDayId,
   ) => void;
+  /**
+   * 목록 위를 지날 때. dragenter와 dragover 모두 여기로 온다. 대상은 포인터에
+   * 가장 가까운 최상위 객체나 요일 카드 행이고, 그런 행이 없으면 null이다.
+   */
   onLayerDragOver: (
     event: React.DragEvent<HTMLElement>,
-    layerId: string,
-    dayId?: StudioTimetableDayId,
+    target: StudioTimetableLayerDropTarget | null,
   ) => void;
+  /** 목록을 벗어났을 때. 표시선을 지운다. */
+  onLayerDragLeave: (event: React.DragEvent<HTMLElement>) => void;
   onLayerDragEnd: () => void;
   onLayerDrop: (
     event: React.DragEvent<HTMLElement>,
-    layerId: string,
-    dayId?: StudioTimetableDayId,
-  ) => void;
-  onIndicatorDragOver: (
-    event: React.DragEvent<HTMLElement>,
-    layerId: string,
-    position: "before" | "after",
-    dayId?: StudioTimetableDayId,
+    target: StudioTimetableLayerDropTarget | null,
   ) => void;
 }
 
@@ -100,20 +102,39 @@ export function StudioTimetableLayerPanel({
   onFocusDay,
   onLayerDragStart,
   onLayerDragOver,
+  onLayerDragLeave,
   onLayerDragEnd,
   onLayerDrop,
-  onIndicatorDragOver,
 }: StudioTimetableLayerPanelProps) {
   const collapsedLayerIdsSet = useMemo(
     () => new Set(collapsedLayerIds),
     [collapsedLayerIds],
   );
+  const dayIdByLayerId = useMemo(
+    () =>
+      new Map(
+        days.map((day) => [getStudioTimetableDayCardLayerId(day.id), day.id]),
+      ),
+    [days],
+  );
 
+  const resolveDropTarget = (
+    event: React.DragEvent<HTMLElement>,
+  ): StudioTimetableLayerDropTarget | null => {
+    const row = findStudioLayerDropTarget(event.currentTarget, event.clientY);
+    if (!row) return null;
+    return {
+      layerId: row.id,
+      dayId: dayIdByLayerId.get(row.id),
+      bounds: row.bounds,
+    };
+  };
+
+  /** 표시선은 `relative` 부모의 위나 아래 가장자리에 겹쳐 그린다. */
   const renderDropIndicator = (
     layerId: string,
     depth: number,
     position: "before" | "after",
-    dayId?: StudioTimetableDayId,
   ) => {
     const isActive =
       dropState?.layerId === layerId && dropState.position === position;
@@ -125,10 +146,6 @@ export function StudioTimetableLayerPanel({
         depth={depth}
         key={`${layerId}:${position}:drop`}
         position={position}
-        onDragOver={(event) =>
-          onIndicatorDragOver(event, layerId, position, dayId)
-        }
-        onDrop={(event) => onLayerDrop(event, layerId, dayId)}
       />
     );
   };
@@ -172,8 +189,8 @@ export function StudioTimetableLayerPanel({
         ? dropState.blockedReason
         : null;
 
-    return (
-      <React.Fragment key={object.id}>
+    const content = (
+      <>
         {isRoot ? renderDropIndicator(object.id, depth, "before") : null}
         <StudioTimetableLayerRow
           blockedReason={blockedReason}
@@ -184,6 +201,7 @@ export function StudioTimetableLayerPanel({
           }
           depth={depth}
           draggable={isRoot}
+          droppable={isRoot}
           hidden={hidden}
           id={object.id}
           key={object.id}
@@ -201,13 +219,9 @@ export function StudioTimetableLayerPanel({
               : undefined
           }
           onDragEnd={isRoot ? onLayerDragEnd : undefined}
-          onDragOver={
-            isRoot ? (event) => onLayerDragOver(event, object.id) : undefined
-          }
           onDragStart={
             isRoot ? (event) => onLayerDragStart(event, object.id) : undefined
           }
-          onDrop={isRoot ? (event) => onLayerDrop(event, object.id) : undefined}
           onSelectLayer={onSelectLayer}
           onToggleCollapsed={
             isGroup ? () => onToggleCollapsed(object.id) : undefined
@@ -222,12 +236,13 @@ export function StudioTimetableLayerPanel({
                 dropState?.layerId === layerId ? dropState.blockedReason : null;
 
               return (
-                <React.Fragment key={day.id}>
-                  {renderDropIndicator(layerId, depth + 1, "before", day.id)}
+                <div className="relative" key={day.id}>
+                  {renderDropIndicator(layerId, depth + 1, "before")}
                   <StudioTimetableLayerRow
                     blockedReason={dayBlockedReason}
                     depth={depth + 1}
                     draggable
+                    droppable
                     hidden={hidden}
                     id={layerId}
                     key={layerId}
@@ -236,18 +251,14 @@ export function StudioTimetableLayerPanel({
                     type="day"
                     typeLabel="instance"
                     onDragEnd={onLayerDragEnd}
-                    onDragOver={(event) =>
-                      onLayerDragOver(event, layerId, day.id)
-                    }
                     onDragStart={(event) =>
                       onLayerDragStart(event, layerId, day.id)
                     }
-                    onDrop={(event) => onLayerDrop(event, layerId, day.id)}
                     onSelectLayer={onSelectLayer}
                     onSelect={() => onFocusDay(day.id)}
                   />
-                  {renderDropIndicator(layerId, depth + 1, "after", day.id)}
-                </React.Fragment>
+                  {renderDropIndicator(layerId, depth + 1, "after")}
+                </div>
               );
             })
           : null}
@@ -257,7 +268,17 @@ export function StudioTimetableLayerPanel({
             )
           : null}
         {isRoot ? renderDropIndicator(object.id, depth, "after") : null}
-      </React.Fragment>
+      </>
+    );
+
+    // 최상위 객체의 아래 표시선은 자식까지 다 그린 뒤에 온다. 묶음 전체를 감싸야
+    // 표시선을 그 끝에 겹쳐 그릴 수 있다.
+    return isRoot ? (
+      <div className="relative grid min-w-0 gap-0.5" key={object.id}>
+        {content}
+      </div>
+    ) : (
+      <React.Fragment key={object.id}>{content}</React.Fragment>
     );
   };
 
@@ -265,6 +286,10 @@ export function StudioTimetableLayerPanel({
     <StudioLayerPanelFrame
       summary={`${document.domains.timetable.rootNodeIds.length} placed objects`}
       title="Timetable Layers"
+      onDragEnter={(event) => onLayerDragOver(event, resolveDropTarget(event))}
+      onDragLeave={onLayerDragLeave}
+      onDragOver={(event) => onLayerDragOver(event, resolveDropTarget(event))}
+      onDrop={(event) => onLayerDrop(event, resolveDropTarget(event))}
     >
       <div className="px-3 pb-2 text-[10px] font-semibold leading-relaxed text-[var(--fg3)]">
         Select a day card to edit Position / Rotate.

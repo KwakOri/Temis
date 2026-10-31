@@ -7,12 +7,14 @@ import { PropsWithChildren } from "react";
 import { usePathname } from "next/navigation";
 import { extractTemplateIdFromPath, shouldValidateTemplateAccess } from "@/utils/routeUtils";
 
+const TEAM_TIME_TABLE_PATH = "/team-time-table";
+
 const TimeTableLayout = ({ children }: PropsWithChildren) => {
   const pathname = usePathname();
 
   // 템플릿 접근 검증이 필요한 경로인지 확인
-  if (shouldValidateTemplateAccess(pathname)) {
-    const templateId = extractTemplateIdFromPath(pathname);
+  if (shouldValidateTemplateAccess(pathname, TEAM_TIME_TABLE_PATH)) {
+    const templateId = extractTemplateIdFromPath(pathname, TEAM_TIME_TABLE_PATH);
 
     if (templateId) {
       return (
