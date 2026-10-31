@@ -93,6 +93,15 @@ assert.deepEqual(
   "저장과 선택, 복사·잘라내기·붙여넣기·복제는 자리를 바꾸지 않는다.",
 );
 assert.deepEqual(
+  [
+    actionOf("v", { ...MOD, shiftKey: true }),
+    actionOf("V", { ...MOD, shiftKey: true }),
+    actionOf("v", { ctrlKey: true, shiftKey: true }),
+  ],
+  ["pasteInPlace", "pasteInPlace", "pasteInPlace"],
+  "Shift를 함께 누르면 원본과 같은 자리에 붙인다.",
+);
+assert.deepEqual(
   [actionOf("g", MOD), actionOf("g", { ...MOD, shiftKey: true })],
   ["group", "ungroup"],
   "묶기와 풀기는 Shift로 갈린다.",
@@ -201,6 +210,7 @@ for (const key of repeatable) {
 for (const [key, modifiers] of [
   ["z", MOD],
   ["v", MOD],
+  ["v", { ...MOD, shiftKey: true }],
   ["d", MOD],
   ["g", MOD],
   ["s", MOD],

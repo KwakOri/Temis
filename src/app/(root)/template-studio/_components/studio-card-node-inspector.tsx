@@ -30,6 +30,7 @@ import {
   isStudioImageNode,
   isStudioInputCompatibleWithNode,
   isStudioTextNode,
+  resolveStudioTextBinding,
 } from "@/utils/template-studio/binding-resolver";
 import {
   getStudioAvailableBuiltinFields,
@@ -49,7 +50,11 @@ import {
 } from "@/utils/template-studio/object-layout";
 import { isStudioStatusCardBackgroundNode } from "@/utils/template-studio/status-card-background";
 import { applyStudioBindingFormatPatch } from "@/utils/template-studio/binding-format";
-import { StudioBuiltinFieldFormatControls } from "@/components/studio/inspector/studio-binding-format-controls";
+import { applyStudioInputTextTemplatePatch } from "@/utils/template-studio/input-text-template";
+import {
+  StudioBuiltinFieldFormatControls,
+  StudioInputTextFormatControls,
+} from "@/components/studio/inspector/studio-binding-format-controls";
 import { StudioTextTypographyControls } from "@/components/studio/inspector/studio-text-typography-controls";
 
 import { StudioDayLabelFormatField } from "./studio-day-label-format-field";
@@ -496,6 +501,33 @@ export const buildStudioCardNodeInspectorSections = ({
                       {selectedNodeBoundInput.id}
                     </span>
                   </div>
+                ) : null}
+
+                {selectedNode.binding?.kind === "inputText" ? (
+                  <StudioInputTextFormatControls
+                    template={selectedNode.binding.textTemplate}
+                    sampleValue={
+                      (runtimeValues
+                        ? resolveStudioTextBinding(
+                            document,
+                            runtimeValues,
+                            {
+                              kind: "inputText",
+                              inputId: selectedNode.binding.inputId,
+                            },
+                            runtimeContext,
+                          )
+                        : "") ||
+                      (selectedNodeBoundInput?.type === "text"
+                        ? selectedNodeBoundInput.placeholder
+                        : undefined)
+                    }
+                    onChange={(textTemplate) =>
+                      updateNode(selectedNode.id, (node) =>
+                        applyStudioInputTextTemplatePatch(node, textTemplate),
+                      )
+                    }
+                  />
                 ) : null}
 
                 {selectedNode.binding?.kind === "selectText" && (

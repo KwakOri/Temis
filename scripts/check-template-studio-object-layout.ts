@@ -23,14 +23,11 @@ import {
 } from "../src/utils/template-studio/preset-registry";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
 import {
-  getStudioCardsGuide,
+  getStudioCardStatusGuide,
   getStudioTimetableGuide,
-  setStudioCardsGuideAsset,
-  setStudioCardsGuideOpacity,
-  setStudioCardsGuideVisibility,
-  setStudioTimetableGuideAsset,
-  setStudioTimetableGuideOpacity,
-  setStudioTimetableGuideVisibility,
+  setStudioGuideAsset,
+  setStudioGuideOpacity,
+  setStudioGuideVisibility,
 } from "../src/utils/template-studio/timetable-guide";
 
 const document = {
@@ -156,44 +153,92 @@ assert.deepEqual(getStudioTimetableGuide(document), {
   visible: false,
   opacity: 0.5,
 });
-assert.deepEqual(getStudioCardsGuide(document), {
+assert.deepEqual(getStudioCardStatusGuide(document, "online"), {
   assetId: null,
   visible: false,
   opacity: 0.5,
 });
 
-setStudioCardsGuideAsset(document, "cards-guide-asset");
-setStudioCardsGuideOpacity(document, 0.35);
-setStudioCardsGuideVisibility(document, false);
-assert.deepEqual(getStudioCardsGuide(document), {
-  assetId: "cards-guide-asset",
+const timetableGuideTarget = { kind: "timetable" } as const;
+const onlineGuideTarget = { kind: "cardStatus", statusId: "online" } as const;
+const offlineGuideTarget = {
+  kind: "cardStatus",
+  statusId: "offline",
+} as const;
+
+setStudioGuideAsset(document, onlineGuideTarget, "online-guide-asset");
+setStudioGuideOpacity(document, onlineGuideTarget, 0.35);
+setStudioGuideVisibility(document, onlineGuideTarget, false);
+assert.deepEqual(getStudioCardStatusGuide(document, "online"), {
+  assetId: "online-guide-asset",
   visible: false,
   opacity: 0.35,
 });
+assert.deepEqual(
+  getStudioCardStatusGuide(document, "offline"),
+  { assetId: null, visible: false, opacity: 0.5 },
+  "카드 가이드는 상태마다 따로 둔다.",
+);
+setStudioGuideAsset(document, offlineGuideTarget, "offline-guide-asset");
+assert.equal(
+  getStudioCardStatusGuide(document, "offline").assetId,
+  "offline-guide-asset",
+);
+assert.equal(
+  getStudioCardStatusGuide(document, "online").assetId,
+  "online-guide-asset",
+);
 assert.deepEqual(getStudioTimetableGuide(document), {
   assetId: null,
   visible: false,
   opacity: 0.5,
 });
 
-setStudioTimetableGuideAsset(document, "guide-asset");
+setStudioGuideAsset(document, timetableGuideTarget, "guide-asset");
 assert.deepEqual(getStudioTimetableGuide(document), {
   assetId: "guide-asset",
   visible: true,
   opacity: 0.5,
 });
 
-setStudioTimetableGuideOpacity(document, 1.5);
+setStudioGuideOpacity(document, timetableGuideTarget, 1.5);
 assert.equal(getStudioTimetableGuide(document).opacity, 1);
-setStudioTimetableGuideOpacity(document, -0.5);
+setStudioGuideOpacity(document, timetableGuideTarget, -0.5);
 assert.equal(getStudioTimetableGuide(document).opacity, 0);
 
-setStudioTimetableGuideVisibility(document, false);
+setStudioGuideVisibility(document, timetableGuideTarget, false);
 assert.equal(getStudioTimetableGuide(document).visible, false);
-assert.deepEqual(getStudioCardsGuide(document), {
-  assetId: "cards-guide-asset",
+assert.deepEqual(getStudioCardStatusGuide(document, "online"), {
+  assetId: "online-guide-asset",
   visible: false,
   opacity: 0.35,
+});
+
+// 이전 문서의 카드 공통 가이드는 Online 카드 가이드로 읽는다.
+const legacyGuideDocument = createSampleStudioDocument();
+legacyGuideDocument.resources = {
+  ...legacyGuideDocument.resources,
+  cardsGuide: { assetId: "legacy-guide", visible: true, opacity: 0.4 },
+};
+assert.deepEqual(getStudioCardStatusGuide(legacyGuideDocument, "online"), {
+  assetId: "legacy-guide",
+  visible: true,
+  opacity: 0.4,
+});
+assert.equal(
+  getStudioCardStatusGuide(legacyGuideDocument, "offline").assetId,
+  null,
+);
+setStudioGuideOpacity(legacyGuideDocument, onlineGuideTarget, 0.7);
+assert.equal(
+  legacyGuideDocument.resources?.cardsGuide,
+  undefined,
+  "Online 가이드를 새 자리에 쓰면 공통 가이드는 지운다.",
+);
+assert.deepEqual(legacyGuideDocument.resources?.cardStatusGuides?.online, {
+  assetId: "legacy-guide",
+  visible: true,
+  opacity: 0.7,
 });
 assert.deepEqual(document.graph.rootNodeIds, graphRootNodeIdsBeforeGuide);
 assert.deepEqual(composition.rootObjectIds, timetableRootObjectIdsBeforeGuide);

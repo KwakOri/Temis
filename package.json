@@ -94,6 +94,8 @@
     "check:studio:timetable-presets": "tsx scripts/check-studio-timetable-presets.ts",
     "check:studio:input-commands": "tsx scripts/check-studio-input-commands.ts",
     "check:studio:clipboard-commands": "tsx scripts/check-studio-clipboard-commands.ts",
+    "check:studio:variant-node-copy": "tsx scripts/check-studio-variant-node-copy.ts",
+    "check:studio:input-text-template": "tsx scripts/check-studio-input-text-template.ts",
     "check:studio:timetable-components": "tsx scripts/check-studio-timetable-components.tsx",
     "check:studio:editor-store": "tsx scripts/check-studio-editor-store.ts",
     "check:studio:inspector-fields": "tsx scripts/check-studio-inspector-fields.tsx",

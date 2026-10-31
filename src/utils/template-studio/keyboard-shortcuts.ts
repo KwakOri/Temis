@@ -7,6 +7,7 @@ export type StudioShortcutAction =
   | "copy"
   | "cut"
   | "paste"
+  | "pasteInPlace"
   | "duplicate"
   | "group"
   | "ungroup"
@@ -108,7 +109,13 @@ export const resolveStudioShortcut = (
     if (key === "a") return { action: "selectAll", allowRepeat: false };
     if (key === "c") return { action: "copy", allowRepeat: false };
     if (key === "x") return { action: "cut", allowRepeat: false };
-    if (key === "v") return { action: "paste", allowRepeat: false };
+    // Shift를 함께 누르면 원본과 같은 자리에 붙인다. 다른 편집 도구와 같은 짝이다.
+    if (key === "v") {
+      return {
+        action: event.shiftKey ? "pasteInPlace" : "paste",
+        allowRepeat: false,
+      };
+    }
     if (key === "d") return { action: "duplicate", allowRepeat: false };
     if (key === "g") {
       return {

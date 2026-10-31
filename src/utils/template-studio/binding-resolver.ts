@@ -14,6 +14,7 @@ import {
   StudioRuntimeContext,
 } from "@/utils/template-studio/input-values";
 import { getStudioTemplateKind } from "@/utils/template-studio/template-kind";
+import { applyStudioInputTextTemplate } from "@/utils/template-studio/input-text-template";
 
 const textBindingKinds = new Set<StudioBinding["kind"]>([
   "staticText",
@@ -159,9 +160,12 @@ export const resolveStudioTextBinding = (
     // it must never become the runtime value submitted by the customer. Keep
     // timetable semantics unchanged by scoping this fallback to thumbnails.
     if (!value && getStudioTemplateKind(document) === "thumbnail") {
-      return input.placeholder ?? "";
+      return applyStudioInputTextTemplate(
+        input.placeholder ?? "",
+        binding.textTemplate,
+      );
     }
-    return value;
+    return applyStudioInputTextTemplate(value, binding.textTemplate);
   }
 
   if (binding.kind === "selectText") {

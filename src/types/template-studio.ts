@@ -127,7 +127,13 @@ export interface StudioTemplateResources {
   webFonts?: StudioWebFontSource[];
   /** Text without an object font inherits this registered family. */
   defaultFontFamily?: string;
+  /** 이전 문서의 카드 공통 가이드. Online 카드 가이드로 읽는다. */
   cardsGuide?: StudioTimetableGuideResource;
+  /** 상태별 카드 가이드. Cards 캔버스는 지금 편집 중인 상태의 가이드를 띄운다. */
+  cardStatusGuides?: Record<
+    StudioTimetableStatusId,
+    StudioTimetableGuideResource
+  >;
   timetableGuide?: StudioTimetableGuideResource;
 }
 
@@ -252,7 +258,12 @@ export interface StudioEntrySlotMeta {
 
 export type StudioBinding =
   | { kind: "staticText"; value: string }
-  | { kind: "inputText"; inputId: StudioInputId }
+  | {
+      kind: "inputText";
+      inputId: StudioInputId;
+      /** 입력값을 `${value}` 자리에 넣는 텍스트 틀. 없으면 입력값만 쓴다. */
+      textTemplate?: string;
+    }
   | {
       kind: "builtinField";
       fieldId: StudioBuiltinFieldId;
