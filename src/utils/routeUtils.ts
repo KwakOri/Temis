@@ -1,9 +1,12 @@
 /**
  * 경로에서 템플릿 ID를 추출하는 유틸리티 함수
  */
-export function extractTemplateIdFromPath(pathname: string): string | null {
-  // /time-table/[template-id] 패턴에서 template-id 추출
-  const match = pathname.match(/\/time-table\/([^\/]+)/);
+export function extractTemplateIdFromPath(
+  pathname: string,
+  basePath = "/time-table"
+): string | null {
+  // [basePath]/[template-id] 패턴에서 template-id 추출 (예: /time-table/..., /team-time-table/...)
+  const match = pathname.match(new RegExp(`^${basePath}/([^/]+)`));
   
   if (!match || !match[1]) {
     return null;
@@ -28,7 +31,10 @@ export function extractTemplateIdFromPath(pathname: string): string | null {
 /**
  * 현재 경로가 템플릿 접근 검증이 필요한지 확인
  */
-export function shouldValidateTemplateAccess(pathname: string): boolean {
-  const templateId = extractTemplateIdFromPath(pathname);
+export function shouldValidateTemplateAccess(
+  pathname: string,
+  basePath = "/time-table"
+): boolean {
+  const templateId = extractTemplateIdFromPath(pathname, basePath);
   return templateId !== null;
 }
