@@ -17,7 +17,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { signJWT } from "../src/lib/auth/jwt";
 import type { JWTPayload } from "../src/lib/auth/jwt";
 import { supabaseAdminServer } from "../src/lib/supabase-admin-server";
-import { resolveTemisArtistId } from "./helpers/temis-artist";
+import { linkTemisArtistToFixture } from "./helpers/temis-artist";
 import { GET as listTemplatesRoute } from "../src/app/api/admin/template-hub/templates/route";
 import type { TemplateHubListResponse } from "../src/types/template-hub";
 
@@ -126,16 +126,7 @@ const createConfiguredFixture = async (spec: ConfiguredSpec): Promise<string> =>
   });
   if (planError) throw planError;
 
-  if (spec.linkArtist) {
-    const { error: artistLinkError } = await supabaseAdminServer.from("template_artists").insert({
-      template_id: template.id,
-      artist_id: await resolveTemisArtistId(),
-      role: "creator",
-      is_primary: true,
-      display_order: 0,
-    });
-    if (artistLinkError) throw artistLinkError;
-  }
+  if (spec.linkArtist) await linkTemisArtistToFixture(template.id);
 
   return template.id;
 };

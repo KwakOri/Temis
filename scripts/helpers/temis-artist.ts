@@ -33,7 +33,42 @@ let temisArtistIdPromise: Promise<string> | null = null;
  *
  * fixture를 여러 개 동시에 만들 때 한 번만 조회하도록 결과를 기억한다.
  */
-export const resolveTemisArtistId = (): Promise<string> => {
+const resolveTemisArtistId = (): Promise<string> => {
   temisArtistIdPromise ??= findTemisArtistId();
   return temisArtistIdPromise;
+};
+
+/**
+ * fixture 템플릿에 테미스 작가를 연결하고, 그 템플릿 전용 로열티 규칙을 만든다.
+ *
+ * 판매 준비 판정은 연결된 작가마다 로열티 규칙(작가 기본값이나 템플릿 전용)을
+ * 요구한다. 운영 복제 DB의 테미스 작가에는 기본 규칙(100%)이 있지만 빈 DB에는
+ * 없어서, 연결만 하면 ready여야 할 fixture가 ROYALTY_MISSING이 된다. 템플릿 전용
+ * 규칙은 템플릿을 지우면 함께 지워지므로 정리할 대상이 늘지 않는다.
+ */
+export const linkTemisArtistToFixture = async (
+  templateId: string,
+): Promise<void> => {
+  const artistId = await resolveTemisArtistId();
+
+  const { error: linkError } = await supabaseAdminServer
+    .from("template_artists")
+    .insert({
+      template_id: templateId,
+      artist_id: artistId,
+      role: "creator",
+      is_primary: true,
+      display_order: 0,
+    });
+  if (linkError) throw linkError;
+
+  const { error: royaltyError } = await supabaseAdminServer
+    .from("artist_royalty_rules")
+    .insert({
+      artist_id: artistId,
+      template_id: templateId,
+      royalty_type: "percentage",
+      royalty_value: 100,
+    });
+  if (royaltyError) throw royaltyError;
 };

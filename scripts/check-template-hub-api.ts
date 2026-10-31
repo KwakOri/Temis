@@ -24,7 +24,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { signJWT } from "../src/lib/auth/jwt";
 import type { JWTPayload } from "../src/lib/auth/jwt";
 import { supabaseAdminServer } from "../src/lib/supabase-admin-server";
-import { resolveTemisArtistId } from "./helpers/temis-artist";
+import { linkTemisArtistToFixture } from "./helpers/temis-artist";
 import { GET as listTemplatesRoute } from "../src/app/api/admin/template-hub/templates/route";
 import { PATCH as saleRoute } from "../src/app/api/admin/template-hub/templates/[id]/sale/route";
 import { PATCH as salesTypeRoute } from "../src/app/api/admin/template-hub/templates/[id]/sales-type/route";
@@ -187,18 +187,7 @@ const createFixtures = async (): Promise<Record<string, CreatedFixture>> => {
       if (planError) throw planError;
     }
 
-    if (fixture.withArtist) {
-      const { error: artistLinkError } = await supabaseAdminServer
-        .from("template_artists")
-        .insert({
-          template_id: template.id,
-          artist_id: await resolveTemisArtistId(),
-          role: "creator",
-          is_primary: true,
-          display_order: 0,
-        });
-      if (artistLinkError) throw artistLinkError;
-    }
+    if (fixture.withArtist) await linkTemisArtistToFixture(template.id);
 
     created[fixture.key] = { id: template.id, shopTemplateId };
   }
@@ -509,14 +498,7 @@ const assertNoResidueFromPriorRuns = async () => {
       });
       if (planError) throw planError;
 
-      const { error: artistLinkError } = await supabaseAdminServer.from("template_artists").insert({
-        template_id: template.id,
-        artist_id: await resolveTemisArtistId(),
-        role: "creator",
-        is_primary: true,
-        display_order: 0,
-      });
-      if (artistLinkError) throw artistLinkError;
+      await linkTemisArtistToFixture(template.id);
 
       return { id: template.id, shopTemplateId: shopTemplate.id };
     };
