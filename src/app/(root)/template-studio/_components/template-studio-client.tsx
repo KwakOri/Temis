@@ -218,6 +218,12 @@ import {
   applyStudioVariantStyle,
   type StudioVariantStyleScope,
 } from "@/utils/template-studio/variant-style-propagation";
+import {
+  copyStudioVariantNodes,
+  type CopyStudioVariantNodesResult,
+  getStudioVariantCopyMessage,
+} from "@/utils/template-studio/variant-node-copy";
+import { getStudioVariantStatusForNode } from "@/utils/template-studio/status-variants";
 import {} from "@/utils/template-studio/text-wrap";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
 import { applyStudioFigmaGridCandidate } from "@/utils/template-studio/figma-import/figma-component-import";
@@ -266,6 +272,7 @@ import {
 import { StudioLayerPanel } from "@/components/studio/layers/studio-layer-panel";
 
 import { StudioApplyStyleDialog } from "./studio-apply-style-dialog";
+import { StudioCopyToStatusesDialog } from "./studio-copy-to-statuses-dialog";
 import { buildStudioCardNodeInspectorSections } from "./studio-card-node-inspector";
 import { StudioInputInspector } from "./studio-input-inspector";
 import { buildStudioTimetableInspectorSections } from "./studio-timetable-inspector";
@@ -753,6 +760,7 @@ export function TemplateStudioClient({
   const [selectedTeamMemberId, setSelectedTeamMemberId] = useState("");
   const [teamMembersManaged, setTeamMembersManaged] = useState(false);
   const [stylePropagationOpen, setStylePropagationOpen] = useState(false);
+  const [statusCopyOpen, setStatusCopyOpen] = useState(false);
   const [fitRequestKey, setFitRequestKey] = useState(0);
   const [nodePicker, setNodePicker] = useState<NodePickerState | null>(null);
   const [pendingImageCrop, setPendingImageCrop] =
@@ -2065,6 +2073,59 @@ export function TemplateStudioClient({
 
     setStylePropagationOpen(false);
     showShortcutStatus(getStudioVariantStyleMessage(outcome));
+  };
+  // 복사 원본은 화면에 보이는 상태가 아니라 고른 노드가 실제로 들어 있는 variant다.
+  const statusCopySourceStatusId =
+    cardEntryComponent && selectedNode
+      ? getStudioVariantStatusForNode(
+          document,
+          cardEntryComponent,
+          selectedNode.id,
+        )
+      : null;
+  const statusCopyTargets =
+    cardEntryComponent && statusCopySourceStatusId
+      ? cardStatusOptions.filter(
+          (status) =>
+            status.id !== statusCopySourceStatusId &&
+            Boolean(cardEntryComponent.variants[status.id]),
+        )
+      : [];
+  const statusCopyCopiesWholeCard = Boolean(
+    cardEntryComponent &&
+      statusCopySourceStatusId &&
+      selectedNodeIds.includes(
+        cardEntryComponent.variants[statusCopySourceStatusId].rootNodeId,
+      ),
+  );
+  const copySelectedNodesToStatuses = (
+    targetStatusIds: StudioTimetableStatusId[],
+  ) => {
+    if (!cardEntryComponent || !statusCopySourceStatusId) return;
+
+    let outcome: CopyStudioVariantNodesResult = {
+      replacedNodeCount: 0,
+      addedNodeCount: 0,
+      skippedNodeCount: 0,
+      copiedStatusIds: [],
+      skippedStatusIds: [],
+    };
+
+    updateDocument((nextDocument) => {
+      const nextComponent =
+        nextDocument.domains?.timetable?.components[cardEntryComponent.id];
+      if (!nextComponent) return;
+
+      outcome = copyStudioVariantNodes(nextDocument, {
+        component: nextComponent,
+        sourceStatusId: statusCopySourceStatusId,
+        sourceNodeIds: selectedNodeIds,
+        targetStatusIds,
+      });
+    });
+
+    setStatusCopyOpen(false);
+    showShortcutStatus(getStudioVariantCopyMessage(outcome));
   };
   const toggleSelectedNodeFitParent = () => {
     if (!selectedNode) return;
@@ -3433,7 +3494,7 @@ export function TemplateStudioClient({
             kind: "block" as const,
             id: "cards:applyStyle",
             content: (
-              <div className="border-b border-[var(--border)] px-4 py-3">
+              <div className="grid gap-2 border-b border-[var(--border)] px-4 py-3">
                 <button
                   className="flex h-8 w-full items-center justify-center gap-2 rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[11px] font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
                   type="button"
@@ -3442,6 +3503,18 @@ export function TemplateStudioClient({
                   <Paintbrush size={13} />
                   Apply style to other statuses...
                 </button>
+                {statusCopyTargets.length > 0 ? (
+                  <button
+                    className="flex h-8 w-full items-center justify-center gap-2 rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[11px] font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
+                    type="button"
+                    onClick={() => setStatusCopyOpen(true)}
+                  >
+                    <Copy size={13} />
+                    {statusCopyCopiesWholeCard
+                      ? "Copy card to other statuses..."
+                      : "Copy layers to other statuses..."}
+                  </button>
+                ) : null}
               </div>
             ),
           },
@@ -4250,6 +4323,26 @@ export function TemplateStudioClient({
                 }))}
                 onApply={applySelectedNodeStyleToStatuses}
                 onClose={() => setStylePropagationOpen(false)}
+              />
+            ) : null}
+            {statusCopyOpen && statusCopySourceStatusId ? (
+              <StudioCopyToStatusesDialog
+                open
+                copiesWholeCard={statusCopyCopiesWholeCard}
+                layerCount={
+                  getStudioTopLevelNodeIds(document, selectedNodeIds).length
+                }
+                sourceStatusLabel={
+                  cardStatusOptions.find(
+                    (status) => status.id === statusCopySourceStatusId,
+                  )?.label ?? statusCopySourceStatusId
+                }
+                statuses={statusCopyTargets.map((status) => ({
+                  id: status.id,
+                  label: status.label,
+                }))}
+                onCopy={copySelectedNodesToStatuses}
+                onClose={() => setStatusCopyOpen(false)}
               />
             ) : null}
             {pendingImageCrop ? (
