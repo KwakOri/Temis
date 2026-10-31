@@ -31,6 +31,12 @@ import {
   getStudioBindingFormatFeatures,
   type StudioBindingFormatPatch,
 } from "@/utils/template-studio/binding-format";
+import {
+  STUDIO_INPUT_TEXT_TEMPLATE_PRESETS,
+  STUDIO_INPUT_TEXT_VALUE_TOKEN,
+  applyStudioInputTextTemplate,
+  normalizeStudioInputTextTemplate,
+} from "@/utils/template-studio/input-text-template";
 import { StudioTemplateFormatEditor } from "./studio-template-format-editor";
 import { StudioFormatActions, StudioFormatModal } from "./studio-format-modal";
 import { formatTime } from "@/utils/time-formatter";
@@ -126,6 +132,50 @@ export function StudioDateFormatControls({
               }))
       }
       onApply={onChange}
+    />
+  );
+}
+
+/**
+ * 입력 텍스트 앞뒤에 붙는 고정 글자를 편집한다.
+ *
+ * 입력값만 쓰는 틀은 `undefined`로 넘겨 바인딩에 남기지 않는다.
+ */
+export function StudioInputTextFormatControls({
+  template,
+  sampleValue,
+  onChange,
+}: {
+  template?: string;
+  /** 미리보기에 넣을 값. 비어 있으면 대신 쓸 예시를 넣는다. */
+  sampleValue?: string;
+  onChange: (template: string | undefined) => void;
+}) {
+  const templateValue = template ?? STUDIO_INPUT_TEXT_VALUE_TOKEN;
+  const previewValue = sampleValue?.trim() ? sampleValue : "입력값";
+  return (
+    <StudioTemplateFormatEditor
+      title="Text Format"
+      summary={
+        STUDIO_INPUT_TEXT_TEMPLATE_PRESETS.find(
+          (preset) => preset.template === templateValue,
+        )?.label ?? "사용자 지정"
+      }
+      template={templateValue}
+      tokens={[
+        {
+          value: STUDIO_INPUT_TEXT_VALUE_TOKEN,
+          label: "입력값",
+          group: "입력",
+        },
+      ]}
+      presets={STUDIO_INPUT_TEXT_TEMPLATE_PRESETS.map((preset) => ({
+        ...preset,
+      }))}
+      preview={(draft) => applyStudioInputTextTemplate(previewValue, draft)}
+      onApply={({ template: nextTemplate }) =>
+        onChange(normalizeStudioInputTextTemplate(nextTemplate))
+      }
     />
   );
 }

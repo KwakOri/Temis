@@ -85,7 +85,7 @@ const getSubtreeNodeIds = (
   return result;
 };
 
-const getEntrySlotIndex = (
+export const getStudioNodeEntrySlotIndex = (
   document: StudioTemplateDocument,
   node: StudioGraphNode,
 ): 0 | 1 | null => {
@@ -123,7 +123,7 @@ const getTargetNodes = ({
     .filter((candidate): candidate is StudioGraphNode => {
       if (!candidate || candidate.meta?.variantSyncKey !== syncKey)
         return false;
-      const targetSlotIndex = getEntrySlotIndex(document, candidate);
+      const targetSlotIndex = getStudioNodeEntrySlotIndex(document, candidate);
       if (
         applyToAllMultiSlots &&
         targetStatusId === "multi" &&
@@ -185,7 +185,10 @@ export const applyStudioVariantStyle = (
       if (!currentSourceNode?.styleId) return;
       const sourceStyle = document.styles[currentSourceNode.styleId];
       if (!sourceStyle) return;
-      const sourceSlotIndex = getEntrySlotIndex(document, currentSourceNode);
+      const sourceSlotIndex = getStudioNodeEntrySlotIndex(
+        document,
+        currentSourceNode,
+      );
       const targetNodes = getTargetNodes({
         applyToAllMultiSlots:
           Boolean(options.applyToAllMultiSlots) && options.scope !== "layout",

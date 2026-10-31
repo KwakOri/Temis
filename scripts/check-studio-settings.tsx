@@ -20,6 +20,7 @@ import { StudioGuideLayerSettings } from "../src/components/studio/settings/stud
 import { StudioWebFontSettings } from "../src/components/studio/settings/studio-web-font-settings";
 import type { StudioTimetableCapabilityKey } from "../src/types/template-studio";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
+import { ensureStudioCapabilityVariant } from "../src/utils/template-studio/status-variants";
 
 const noop = () => {};
 
@@ -208,16 +209,14 @@ const timetableSettingsMarkup = renderToStaticMarkup(
     open
     theme="dark"
     onCardsCanvasChange={noop}
-    onCardsGuideRemove={noop}
-    onCardsGuideUpload={noop}
     onClose={noop}
     onExportJson={noop}
     onReloadTemplate={noop}
     onThemeChange={noop}
     onTimetableCapabilityChange={noop}
     onTimetableCanvasChange={noop}
-    onTimetableGuideRemove={noop}
-    onTimetableGuideUpload={noop}
+    onGuideRemove={noop}
+    onGuideUpload={noop}
     onWebFontsChange={noop}
     figmaImport={{
       candidates: [],
@@ -255,9 +254,13 @@ const TIMETABLE_SETTINGS_BASELINE = [
   ">Cards<",
   'aria-label="Cards canvas background HEX value"',
   'aria-label="Timetable canvas background HEX value"',
-  ">Guide layer<",
-  "Editor-only overlay for cards alignment.",
-  "Editor-only overlay for timetable alignment.",
+  ">Guides<",
+  ">Guide Images<",
+  ">Full timetable<",
+  "Editor-only overlay for the whole timetable canvas.",
+  ">Online card<",
+  ">Offline card<",
+  "Editor-only overlay while editing the Online card.",
   "No guide image selected.",
   "Upload guide",
   "1920 × 1080",
@@ -293,7 +296,7 @@ assert.deepEqual(
   [
     ...timetableSettingsMarkup.matchAll(/id="studio-settings-tab-([a-z]+)"/g),
   ].map((match) => match[1]),
-  ["canvas", "timetable", "fonts", "data", "appearance", "document"],
+  ["canvas", "guides", "timetable", "fonts", "data", "appearance", "document"],
   "시간표 설정의 분류 구성과 순서가 바뀌면 안 된다.",
 );
 
@@ -318,16 +321,14 @@ const renderCapabilitySettings = (
       open
       theme="dark"
       onCardsCanvasChange={noop}
-      onCardsGuideRemove={noop}
-      onCardsGuideUpload={noop}
       onClose={noop}
       onExportJson={noop}
       onReloadTemplate={noop}
       onThemeChange={noop}
       onTimetableCapabilityChange={noop}
       onTimetableCanvasChange={noop}
-      onTimetableGuideRemove={noop}
-      onTimetableGuideUpload={noop}
+      onGuideRemove={noop}
+      onGuideUpload={noop}
       onWebFontsChange={noop}
       figmaImport={{
         candidates: [],
@@ -386,6 +387,88 @@ assert.equal(
   isCapabilityChecked(offlineMemoOnlyMarkup, "Multi Status"),
   false,
   "Offline Memo만 켰을 때 Multi가 켜지면 안 된다.",
+);
+
+// 가이드 탭은 켜 둔 상태에만 카드 가이드 자리를 낸다.
+const renderGuideSettings = (
+  capabilityKeys: StudioTimetableCapabilityKey[],
+) => {
+  const document = createSampleStudioDocument();
+  if (!document.domains?.timetable)
+    throw new Error("샘플에 시간표 도메인 없음");
+  document.domains.timetable.capabilities = {
+    multi: { enabled: capabilityKeys.includes("multi") },
+    offlineMemo: { enabled: capabilityKeys.includes("offlineMemo") },
+  };
+  capabilityKeys.forEach((capabilityKey) =>
+    ensureStudioCapabilityVariant(document, capabilityKey),
+  );
+
+  return renderToStaticMarkup(
+    <StudioSettingsModal
+      activeWorkspaceMode="cards"
+      databaseTargetLabel="local"
+      document={document}
+      initialSectionId="guides"
+      inputCount={4}
+      isReloadDisabled={false}
+      objectCount={12}
+      open
+      theme="dark"
+      onCardsCanvasChange={noop}
+      onClose={noop}
+      onExportJson={noop}
+      onReloadTemplate={noop}
+      onThemeChange={noop}
+      onTimetableCapabilityChange={noop}
+      onTimetableCanvasChange={noop}
+      onGuideRemove={noop}
+      onGuideUpload={noop}
+      onWebFontsChange={noop}
+      figmaImport={{
+        candidates: [],
+        errorMessage: null,
+        figmaUrl: "",
+        isAnalyzing: false,
+        isImporting: false,
+        isRemoteSyncing: false,
+        selectedCandidateId: null,
+        statusMessage: null,
+        onAnalyze: noop,
+        onBindingChange: noop,
+        onCancel: noop,
+        onCandidateSelect: noop,
+        onReviewChange: noop,
+        onUrlChange: noop,
+        onConfirm: noop,
+      }}
+    />,
+  );
+};
+
+assert.ok(
+  !timetableSettingsMarkup.includes(">Multi card<") &&
+    !timetableSettingsMarkup.includes(">Offline Memo card<"),
+  "꺼 둔 상태의 카드 가이드는 보이지 않는다.",
+);
+const allGuideMarkup = renderGuideSettings(["multi", "offlineMemo"]);
+for (const title of [
+  ">Full timetable<",
+  ">Online card<",
+  ">Offline card<",
+  ">Multi card<",
+  ">Offline Memo card<",
+]) {
+  assert.ok(
+    allGuideMarkup.includes(title),
+    `켜 둔 상태의 가이드 자리가 있어야 한다: ${title}`,
+  );
+}
+assert.ok(
+  /aria-selected="true"[^>]*id="studio-settings-tab-guides"|id="studio-settings-tab-guides"[^>]*aria-selected="true"/.test(
+    allGuideMarkup,
+  ),
+  "initialSectionId로 요청한 분류가 열린다.",
 );
 
 // 캔버스 탭의 활성 작업 모드 배지

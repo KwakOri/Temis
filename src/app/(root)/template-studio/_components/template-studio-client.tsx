@@ -211,13 +211,20 @@ import {
   getStudioTimetableCapabilities,
 } from "@/utils/template-studio/timetable-capabilities";
 import {
-  getStudioCardsGuide,
+  getStudioGuide,
   getStudioTimetableGuide,
+  type StudioGuideTarget,
 } from "@/utils/template-studio/timetable-guide";
 import {
   applyStudioVariantStyle,
   type StudioVariantStyleScope,
 } from "@/utils/template-studio/variant-style-propagation";
+import {
+  copyStudioVariantNodes,
+  type CopyStudioVariantNodesResult,
+  getStudioVariantCopyMessage,
+} from "@/utils/template-studio/variant-node-copy";
+import { getStudioVariantStatusForNode } from "@/utils/template-studio/status-variants";
 import {} from "@/utils/template-studio/text-wrap";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
 import { applyStudioFigmaGridCandidate } from "@/utils/template-studio/figma-import/figma-component-import";
@@ -266,6 +273,7 @@ import {
 import { StudioLayerPanel } from "@/components/studio/layers/studio-layer-panel";
 
 import { StudioApplyStyleDialog } from "./studio-apply-style-dialog";
+import { StudioCopyToStatusesDialog } from "./studio-copy-to-statuses-dialog";
 import { buildStudioCardNodeInspectorSections } from "./studio-card-node-inspector";
 import { StudioInputInspector } from "./studio-input-inspector";
 import { buildStudioTimetableInspectorSections } from "./studio-timetable-inspector";
@@ -749,10 +757,14 @@ export function TemplateStudioClient({
     [studioStore],
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsInitialSectionId, setSettingsInitialSectionId] = useState<
+    string | undefined
+  >();
   const connectedTeamBindingsRef = useRef<Record<string, number>>({});
   const [selectedTeamMemberId, setSelectedTeamMemberId] = useState("");
   const [teamMembersManaged, setTeamMembersManaged] = useState(false);
   const [stylePropagationOpen, setStylePropagationOpen] = useState(false);
+  const [statusCopyOpen, setStatusCopyOpen] = useState(false);
   const [fitRequestKey, setFitRequestKey] = useState(0);
   const [nodePicker, setNodePicker] = useState<NodePickerState | null>(null);
   const [pendingImageCrop, setPendingImageCrop] =
@@ -1312,7 +1324,13 @@ export function TemplateStudioClient({
           width: document.canvas.width,
           height: document.canvas.height,
         };
-  const cardsGuide = getStudioCardsGuide(document);
+  // Cards 캔버스는 지금 그리는 상태 카드의 가이드를 띄운다.
+  const cardsGuideTarget: StudioGuideTarget = {
+    kind: "cardStatus",
+    statusId:
+      selectedCardVariantResolution?.resolvedStatusId ?? selectedCardStatusId,
+  };
+  const cardsGuide = getStudioGuide(document, cardsGuideTarget);
   const cardsGuideAsset = cardsGuide.assetId
     ? document.assets[cardsGuide.assetId]
     : null;
@@ -1320,6 +1338,8 @@ export function TemplateStudioClient({
   const timetableGuideAsset = timetableGuide.assetId
     ? document.assets[timetableGuide.assetId]
     : null;
+  const activeGuideTarget: StudioGuideTarget =
+    activeWorkspaceMode === "cards" ? cardsGuideTarget : { kind: "timetable" };
   const activeGuide =
     activeWorkspaceMode === "cards" ? cardsGuide : timetableGuide;
   const activeGuideAsset =
@@ -2066,6 +2086,59 @@ export function TemplateStudioClient({
     setStylePropagationOpen(false);
     showShortcutStatus(getStudioVariantStyleMessage(outcome));
   };
+  // 복사 원본은 화면에 보이는 상태가 아니라 고른 노드가 실제로 들어 있는 variant다.
+  const statusCopySourceStatusId =
+    cardEntryComponent && selectedNode
+      ? getStudioVariantStatusForNode(
+          document,
+          cardEntryComponent,
+          selectedNode.id,
+        )
+      : null;
+  const statusCopyTargets =
+    cardEntryComponent && statusCopySourceStatusId
+      ? cardStatusOptions.filter(
+          (status) =>
+            status.id !== statusCopySourceStatusId &&
+            Boolean(cardEntryComponent.variants[status.id]),
+        )
+      : [];
+  const statusCopyCopiesWholeCard = Boolean(
+    cardEntryComponent &&
+      statusCopySourceStatusId &&
+      selectedNodeIds.includes(
+        cardEntryComponent.variants[statusCopySourceStatusId].rootNodeId,
+      ),
+  );
+  const copySelectedNodesToStatuses = (
+    targetStatusIds: StudioTimetableStatusId[],
+  ) => {
+    if (!cardEntryComponent || !statusCopySourceStatusId) return;
+
+    let outcome: CopyStudioVariantNodesResult = {
+      replacedNodeCount: 0,
+      addedNodeCount: 0,
+      skippedNodeCount: 0,
+      copiedStatusIds: [],
+      skippedStatusIds: [],
+    };
+
+    updateDocument((nextDocument) => {
+      const nextComponent =
+        nextDocument.domains?.timetable?.components[cardEntryComponent.id];
+      if (!nextComponent) return;
+
+      outcome = copyStudioVariantNodes(nextDocument, {
+        component: nextComponent,
+        sourceStatusId: statusCopySourceStatusId,
+        sourceNodeIds: selectedNodeIds,
+        targetStatusIds,
+      });
+    });
+
+    setStatusCopyOpen(false);
+    showShortcutStatus(getStudioVariantCopyMessage(outcome));
+  };
   const toggleSelectedNodeFitParent = () => {
     if (!selectedNode) return;
 
@@ -2389,14 +2462,14 @@ export function TemplateStudioClient({
     onRestoreSelection: restoreSelection,
   });
 
-  const uploadCardsGuide = (file: File) => uploadGuide("cards", file);
-  const uploadTimetableGuide = (file: File) => uploadGuide("timetable", file);
-  const removeCardsGuide = () => removeGuide("cards");
-  const removeTimetableGuide = () => removeGuide("timetable");
   const setActiveGuideVisibility = (visible: boolean) =>
-    setGuideVisibility(activeWorkspaceMode, visible);
+    setGuideVisibility(activeGuideTarget, visible);
   const setActiveGuideOpacity = (opacity: number) =>
-    setGuideOpacity(activeWorkspaceMode, opacity);
+    setGuideOpacity(activeGuideTarget, opacity);
+  const openSettings = (sectionId?: string) => {
+    setSettingsInitialSectionId(sectionId);
+    setSettingsOpen(true);
+  };
 
   const focusTimetableRuntimeDay = useCallback(
     (dayId: StudioTimetableDayId) => {
@@ -2546,6 +2619,7 @@ export function TemplateStudioClient({
     copy: copySelectedNode,
     cut: cutSelectedNode,
     paste: pasteClipboardNode,
+    pasteInPlace: pasteClipboardNodeInPlace,
     cancelCut: cancelNodeCut,
   } = useStudioClipboard({
     getDocument: getDocument,
@@ -2556,6 +2630,10 @@ export function TemplateStudioClient({
     getSelectedNodeId: useCallback(
       () => studioStore.getState().selectedNodeId,
       [studioStore],
+    ),
+    getPasteScopeNodeId: useCallback(
+      () => selectedCardVariantRootId,
+      [selectedCardVariantRootId],
     ),
     updateDocument,
     onSelect: applyNodeSelection,
@@ -2795,6 +2873,9 @@ export function TemplateStudioClient({
         paste: () => {
           if (activeWorkspaceMode === "cards") pasteClipboardNode();
         },
+        pasteInPlace: () => {
+          if (activeWorkspaceMode === "cards") pasteClipboardNodeInPlace();
+        },
         duplicate: duplicateSelectedNode,
         group: () => {
           if (activeWorkspaceMode === "cards") groupSelectedNodes();
@@ -2853,6 +2934,7 @@ export function TemplateStudioClient({
         moveSelectedNodeLayer,
         nudgeSelectedNode,
         pasteClipboardNode,
+        pasteClipboardNodeInPlace,
         redoEditorState,
         saveDatabaseDraft,
         selectAllEditableNodes,
@@ -3424,7 +3506,7 @@ export function TemplateStudioClient({
             kind: "block" as const,
             id: "cards:applyStyle",
             content: (
-              <div className="border-b border-[var(--border)] px-4 py-3">
+              <div className="grid gap-2 border-b border-[var(--border)] px-4 py-3">
                 <button
                   className="flex h-8 w-full items-center justify-center gap-2 rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[11px] font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
                   type="button"
@@ -3433,6 +3515,18 @@ export function TemplateStudioClient({
                   <Paintbrush size={13} />
                   Apply style to other statuses...
                 </button>
+                {statusCopyTargets.length > 0 ? (
+                  <button
+                    className="flex h-8 w-full items-center justify-center gap-2 rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[11px] font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
+                    type="button"
+                    onClick={() => setStatusCopyOpen(true)}
+                  >
+                    <Copy size={13} />
+                    {statusCopyCopiesWholeCard
+                      ? "Copy card to other statuses..."
+                      : "Copy layers to other statuses..."}
+                  </button>
+                ) : null}
               </div>
             ),
           },
@@ -4058,6 +4152,7 @@ export function TemplateStudioClient({
               inputCount={inputs.length}
               isReloadDisabled={!remoteTemplateId || isRemoteSyncing}
               objectCount={activeObjectCount}
+              initialSectionId={settingsInitialSectionId}
               open={settingsOpen}
               theme={theme}
               teamConnection={
@@ -4195,8 +4290,6 @@ export function TemplateStudioClient({
                 ) : undefined
               }
               onCardsCanvasChange={updateCardCanvasSize}
-              onCardsGuideRemove={removeCardsGuide}
-              onCardsGuideUpload={uploadCardsGuide}
               onClose={() => {
                 clearFigmaImportState();
                 setSettingsOpen(false);
@@ -4208,8 +4301,8 @@ export function TemplateStudioClient({
               onThemeChange={setTheme}
               onTimetableCapabilityChange={setTimetableCapability}
               onTimetableCanvasChange={updateTimetableCanvasSize}
-              onTimetableGuideRemove={removeTimetableGuide}
-              onTimetableGuideUpload={uploadTimetableGuide}
+              onGuideRemove={removeGuide}
+              onGuideUpload={uploadGuide}
               onWebFontsChange={updateWebFonts}
               onDefaultFontFamilyChange={updateDefaultFontFamily}
               figmaImport={{
@@ -4241,6 +4334,26 @@ export function TemplateStudioClient({
                 }))}
                 onApply={applySelectedNodeStyleToStatuses}
                 onClose={() => setStylePropagationOpen(false)}
+              />
+            ) : null}
+            {statusCopyOpen && statusCopySourceStatusId ? (
+              <StudioCopyToStatusesDialog
+                open
+                copiesWholeCard={statusCopyCopiesWholeCard}
+                layerCount={
+                  getStudioTopLevelNodeIds(document, selectedNodeIds).length
+                }
+                sourceStatusLabel={
+                  cardStatusOptions.find(
+                    (status) => status.id === statusCopySourceStatusId,
+                  )?.label ?? statusCopySourceStatusId
+                }
+                statuses={statusCopyTargets.map((status) => ({
+                  id: status.id,
+                  label: status.label,
+                }))}
+                onCopy={copySelectedNodesToStatuses}
+                onClose={() => setStatusCopyOpen(false)}
               />
             ) : null}
             {pendingImageCrop ? (
@@ -4349,7 +4462,7 @@ export function TemplateStudioClient({
               width: previewCanvasSize.width,
               height: previewCanvasSize.height,
               title: "Open canvas settings",
-              onClick: () => setSettingsOpen(true),
+              onClick: () => openSettings("canvas"),
             }}
             centerSlot={
               <>
@@ -4386,7 +4499,7 @@ export function TemplateStudioClient({
                   opacity={activeGuide.opacity}
                   visible={Boolean(activeGuide.visible)}
                   onOpacityChange={setActiveGuideOpacity}
-                  onRequestAsset={() => setSettingsOpen(true)}
+                  onRequestAsset={() => openSettings("guides")}
                   onToggleVisible={() =>
                     setActiveGuideVisibility(!activeGuide.visible)
                   }
@@ -4485,7 +4598,7 @@ export function TemplateStudioClient({
             settingsAction={{
               title: "Template settings",
               disabled: isRemoteSyncing,
-              onClick: () => setSettingsOpen(true),
+              onClick: () => openSettings(),
             }}
             shareAction={{
               title: "Open saved preview",

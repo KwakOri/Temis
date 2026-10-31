@@ -2237,17 +2237,19 @@ const validateThumbnailDomain = (
     }
   }
 
-  (["cardsGuide", "timetableGuide"] as const).forEach((resourceKey) => {
-    if (document.resources?.[resourceKey] === undefined) return;
-    diagnostics.push(
-      createDiagnostic(
-        "error",
-        `thumbnail-resource-guide-forbidden:${resourceKey}`,
-        "Thumbnail document has a legacy guide resource",
-        `Thumbnail documents must store guides in domains.thumbnail.guide, not resources.${resourceKey}.`,
-      ),
-    );
-  });
+  (["cardsGuide", "cardStatusGuides", "timetableGuide"] as const).forEach(
+    (resourceKey) => {
+      if (document.resources?.[resourceKey] === undefined) return;
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `thumbnail-resource-guide-forbidden:${resourceKey}`,
+          "Thumbnail document has a legacy guide resource",
+          `Thumbnail documents must store guides in domains.thumbnail.guide, not resources.${resourceKey}.`,
+        ),
+      );
+    },
+  );
 
   const weekDates = thumbnail.weekDates;
   if (!weekDates) return diagnostics;

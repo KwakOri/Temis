@@ -84,6 +84,8 @@ export interface StudioSettingsDialogProps {
    * 썸네일 캔버스를 넣는다.
    */
   domainSections?: StudioSettingsSection[];
+  /** 열릴 때 보여 줄 분류. 없으면 마지막으로 보던 분류를 그대로 연다. */
+  initialSectionId?: string;
   compactMobile?: boolean;
   onClose: () => void;
 }
@@ -101,6 +103,7 @@ export function StudioSettingsDialog({
   description,
   common,
   domainSections = [],
+  initialSectionId,
   compactMobile = false,
   onClose,
 }: StudioSettingsDialogProps) {
@@ -113,9 +116,23 @@ export function StudioSettingsDialog({
     ...domainSections,
     ...buildStudioCommonSettingsSections(common),
   ];
-  const [activeSectionId, setActiveSectionId] = useState(
-    () => sections[0]?.id ?? "",
+  const hasInitialSection = sections.some(
+    (section) => section.id === initialSectionId,
   );
+  const [activeSectionId, setActiveSectionId] = useState(() =>
+    initialSectionId && hasInitialSection
+      ? initialSectionId
+      : (sections[0]?.id ?? ""),
+  );
+  // 닫혀 있다가 열리는 순간에만 요청한 분류로 옮긴다. 렌더 중에 고쳐야 열린
+  // 첫 화면부터 그 분류가 보인다.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open && initialSectionId && hasInitialSection) {
+      setActiveSectionId(initialSectionId);
+    }
+  }
 
   useEffect(() => {
     if (!open) return;

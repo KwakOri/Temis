@@ -1406,6 +1406,7 @@ export function ThumbnailStudioClient({
         copy: clipboard.copy,
         cut: clipboard.cut,
         paste: clipboard.paste,
+        pasteInPlace: clipboard.pasteInPlace,
         duplicate: commands.duplicateNodes,
         group: commands.groupNodes,
         ungroup: commands.ungroupNodes,

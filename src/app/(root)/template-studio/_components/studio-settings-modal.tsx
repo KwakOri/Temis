@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Monitor, Users } from "lucide-react";
+import { CalendarDays, Image as ImageIcon, Monitor, Users } from "lucide-react";
 // jsx: "preserve" 환경의 체크 스크립트가 클래식 변환을 타므로 React 심볼이 필요하다.
 import React from "react";
 
@@ -19,10 +19,14 @@ import type {
 } from "@/types/template-studio";
 import type { StudioFigmaFrameCandidate } from "@/types/template-studio-figma";
 import { STUDIO_TEAM_TIMETABLE_BACKGROUND_NODE_ID } from "@/utils/template-studio/team-timetable";
-import { getStudioTimetableCapabilities } from "@/utils/template-studio/timetable-capabilities";
 import {
-  getStudioCardsGuide,
+  getStudioAvailableTimetableStatuses,
+  getStudioTimetableCapabilities,
+} from "@/utils/template-studio/timetable-capabilities";
+import {
+  getStudioCardStatusGuide,
   getStudioTimetableGuide,
+  type StudioGuideTarget,
 } from "@/utils/template-studio/timetable-guide";
 import {
   getStudioDefaultFontFamily,
@@ -43,6 +47,8 @@ interface StudioSettingsModalProps {
   activeWorkspaceMode: WorkspaceMode;
   databaseTargetLabel: string;
   document: StudioTemplateDocument;
+  /** 열릴 때 보여 줄 분류. 툴바의 가이드 버튼은 Guides를 연다. */
+  initialSectionId?: string;
   inputCount: number;
   isReloadDisabled: boolean;
   objectCount: number;
@@ -54,8 +60,6 @@ interface StudioSettingsModalProps {
     height?: number;
     background?: string;
   }) => void;
-  onCardsGuideRemove: () => void;
-  onCardsGuideUpload: (file: File) => void;
   onClose: () => void;
   onExportJson: () => void;
   onReloadTemplate: () => void;
@@ -69,8 +73,8 @@ interface StudioSettingsModalProps {
     height?: number;
     backgroundColor?: string;
   }) => void;
-  onTimetableGuideRemove: () => void;
-  onTimetableGuideUpload: (file: File) => void;
+  onGuideRemove: (target: StudioGuideTarget) => void;
+  onGuideUpload: (target: StudioGuideTarget, file: File) => void;
   onWebFontsChange: (sources: StudioWebFontSource[]) => void;
   onDefaultFontFamilyChange?: (family: string | undefined) => void;
   figmaImport: {
@@ -120,6 +124,7 @@ export function StudioSettingsModal({
   activeWorkspaceMode,
   databaseTargetLabel,
   document,
+  initialSectionId,
   inputCount,
   isReloadDisabled,
   objectCount,
@@ -127,16 +132,14 @@ export function StudioSettingsModal({
   theme,
   teamConnection,
   onCardsCanvasChange,
-  onCardsGuideRemove,
-  onCardsGuideUpload,
   onClose,
   onExportJson,
   onReloadTemplate,
   onThemeChange,
   onTimetableCapabilityChange,
   onTimetableCanvasChange,
-  onTimetableGuideRemove,
-  onTimetableGuideUpload,
+  onGuideRemove,
+  onGuideUpload,
   onWebFontsChange,
   onDefaultFontFamilyChange,
   figmaImport,
@@ -145,14 +148,22 @@ export function StudioSettingsModal({
   const timetableCapabilities = getStudioTimetableCapabilities(
     document.domains?.timetable,
   );
-  const cardsGuide = getStudioCardsGuide(document);
-  const cardsGuideAsset = cardsGuide.assetId
-    ? document.assets[cardsGuide.assetId]
-    : null;
   const timetableGuide = getStudioTimetableGuide(document);
   const timetableGuideAsset = timetableGuide.assetId
     ? document.assets[timetableGuide.assetId]
     : null;
+  // Online, Offline과 켜 둔 Multi, Offline Memo 상태마다 카드 가이드를 하나씩 둔다.
+  const cardGuideStatuses = getStudioAvailableTimetableStatuses(document).map(
+    (status) => {
+      const guide = getStudioCardStatusGuide(document, status.id);
+      return {
+        status,
+        assetLabel: guide.assetId
+          ? (document.assets[guide.assetId]?.label ?? null)
+          : null,
+      };
+    },
+  );
 
   const setActiveCanvasPreset = (width: number, height: number) => {
     if (activeWorkspaceMode === "timetable") {
@@ -204,13 +215,6 @@ export function StudioSettingsModal({
                 onChange={(background) => onCardsCanvasChange({ background })}
               />
             </label>
-            <StudioGuideLayerSettings
-              assetLabel={cardsGuideAsset?.label ?? null}
-              description="Editor-only overlay for cards alignment."
-              removeAriaLabel="Remove cards guide"
-              onRemove={onCardsGuideRemove}
-              onUpload={onCardsGuideUpload}
-            />
           </div>
 
           <div className="grid gap-2 rounded-xl border border-[var(--field-border)] bg-[var(--field)]/40 p-3">
@@ -252,13 +256,6 @@ export function StudioSettingsModal({
                     />
                   </label>
                 )}
-                <StudioGuideLayerSettings
-                  assetLabel={timetableGuideAsset?.label ?? null}
-                  description="Editor-only overlay for timetable alignment."
-                  removeAriaLabel="Remove timetable guide"
-                  onRemove={onTimetableGuideRemove}
-                  onUpload={onTimetableGuideUpload}
-                />
               </>
             ) : (
               <p className="text-xs font-semibold text-[var(--fg3)]">
@@ -282,6 +279,65 @@ export function StudioSettingsModal({
               </button>
             ))}
           </div>
+        </>
+      ),
+    },
+    {
+      id: "guides",
+      label: "Guides",
+      description: "Editor-only overlays",
+      navIcon: ImageIcon,
+      content: (
+        <>
+          <div className="flex items-center gap-2">
+            <ImageIcon size={14} className="text-[var(--accent)]" />
+            <h3 className="text-xs font-bold text-[var(--fg)]">Guide Images</h3>
+          </div>
+
+          {timetableCanvas ? (
+            <div className="grid gap-2 rounded-xl border border-[var(--field-border)] bg-[var(--field)]/40 p-3">
+              <div className="text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--fg3)]">
+                Timetable
+              </div>
+              <StudioGuideLayerSettings
+                assetLabel={timetableGuideAsset?.label ?? null}
+                title="Full timetable"
+                description="Editor-only overlay for the whole timetable canvas."
+                removeAriaLabel="Remove timetable guide"
+                onRemove={() => onGuideRemove({ kind: "timetable" })}
+                onUpload={(file) => onGuideUpload({ kind: "timetable" }, file)}
+              />
+            </div>
+          ) : null}
+
+          {cardGuideStatuses.length > 0 ? (
+            <div className="grid gap-2 rounded-xl border border-[var(--field-border)] bg-[var(--field)]/40 p-3">
+              <div className="text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--fg3)]">
+                Cards
+              </div>
+              {cardGuideStatuses.map(({ status, assetLabel }) => {
+                const target: StudioGuideTarget = {
+                  kind: "cardStatus",
+                  statusId: status.id,
+                };
+                return (
+                  <StudioGuideLayerSettings
+                    assetLabel={assetLabel}
+                    description={`Editor-only overlay while editing the ${status.label} card.`}
+                    key={status.id}
+                    removeAriaLabel={`Remove ${status.label} card guide`}
+                    title={`${status.label} card`}
+                    onRemove={() => onGuideRemove(target)}
+                    onUpload={(file) => onGuideUpload(target, file)}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-xs font-semibold text-[var(--fg3)]">
+              This document has no Timetable domain.
+            </p>
+          )}
         </>
       ),
     },
@@ -387,6 +443,7 @@ export function StudioSettingsModal({
       }}
       description="Template document settings"
       domainSections={domainSections}
+      initialSectionId={initialSectionId}
       open={open}
       title="Settings"
       onClose={onClose}

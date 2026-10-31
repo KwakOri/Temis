@@ -34,6 +34,7 @@ import {
   resolveStudioAssetSlot,
   resolveStudioTextBinding,
 } from "@/utils/template-studio/binding-resolver";
+import { applyStudioInputTextTemplate } from "@/utils/template-studio/input-text-template";
 import { getStudioTimetableDayComponent } from "@/utils/template-studio/component-sets";
 import { getStudioTimetableWeekdayOrder } from "@/utils/template-studio/timetable-day-order";
 import { getStudioTimetableOrderedDayIds } from "@/utils/template-studio/timetable-commands";
@@ -739,7 +740,12 @@ const resolveTimetableObjectText = (
   );
   if (!value && object.binding?.kind === "inputText") {
     const input = document.inputs[object.binding.inputId];
-    return input?.type === "text" ? (input.placeholder ?? "") : "";
+    return input?.type === "text"
+      ? applyStudioInputTextTemplate(
+          input.placeholder ?? "",
+          object.binding.textTemplate,
+        )
+      : "";
   }
   return getLocalizedStudioPresetDefaultText(copy, value || object.label);
 };
