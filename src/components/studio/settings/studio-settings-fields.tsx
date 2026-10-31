@@ -37,6 +37,8 @@ export function StudioSettingsNumberField({
 export interface StudioGuideLayerSettingsProps {
   /** 등록된 가이드 에셋 이름. 없으면 빈 상태로 표시한다. */
   assetLabel: string | null;
+  /** 가이드가 여러 개인 화면에서 어느 가이드인지 보여 주는 제목. */
+  title?: string;
   description: string;
   removeAriaLabel: string;
   accept?: string;
@@ -52,6 +54,7 @@ export interface StudioGuideLayerSettingsProps {
  */
 export function StudioGuideLayerSettings({
   assetLabel,
+  title = "Guide layer",
   description,
   removeAriaLabel,
   accept = "image/*",
@@ -64,7 +67,7 @@ export function StudioGuideLayerSettings({
       <div className="flex items-start justify-between gap-3">
         <span className="grid gap-0.5">
           <span className="text-[11px] font-bold text-[var(--fg)]">
-            Guide layer
+            {title}
           </span>
           <span className="text-[10px] font-medium leading-4 text-[var(--fg3)]">
             {description}

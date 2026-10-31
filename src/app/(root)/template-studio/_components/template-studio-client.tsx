@@ -211,8 +211,9 @@ import {
   getStudioTimetableCapabilities,
 } from "@/utils/template-studio/timetable-capabilities";
 import {
-  getStudioCardsGuide,
+  getStudioGuide,
   getStudioTimetableGuide,
+  type StudioGuideTarget,
 } from "@/utils/template-studio/timetable-guide";
 import {
   applyStudioVariantStyle,
@@ -756,6 +757,9 @@ export function TemplateStudioClient({
     [studioStore],
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsInitialSectionId, setSettingsInitialSectionId] = useState<
+    string | undefined
+  >();
   const connectedTeamBindingsRef = useRef<Record<string, number>>({});
   const [selectedTeamMemberId, setSelectedTeamMemberId] = useState("");
   const [teamMembersManaged, setTeamMembersManaged] = useState(false);
@@ -1320,7 +1324,13 @@ export function TemplateStudioClient({
           width: document.canvas.width,
           height: document.canvas.height,
         };
-  const cardsGuide = getStudioCardsGuide(document);
+  // Cards 캔버스는 지금 그리는 상태 카드의 가이드를 띄운다.
+  const cardsGuideTarget: StudioGuideTarget = {
+    kind: "cardStatus",
+    statusId:
+      selectedCardVariantResolution?.resolvedStatusId ?? selectedCardStatusId,
+  };
+  const cardsGuide = getStudioGuide(document, cardsGuideTarget);
   const cardsGuideAsset = cardsGuide.assetId
     ? document.assets[cardsGuide.assetId]
     : null;
@@ -1328,6 +1338,8 @@ export function TemplateStudioClient({
   const timetableGuideAsset = timetableGuide.assetId
     ? document.assets[timetableGuide.assetId]
     : null;
+  const activeGuideTarget: StudioGuideTarget =
+    activeWorkspaceMode === "cards" ? cardsGuideTarget : { kind: "timetable" };
   const activeGuide =
     activeWorkspaceMode === "cards" ? cardsGuide : timetableGuide;
   const activeGuideAsset =
@@ -2450,14 +2462,14 @@ export function TemplateStudioClient({
     onRestoreSelection: restoreSelection,
   });
 
-  const uploadCardsGuide = (file: File) => uploadGuide("cards", file);
-  const uploadTimetableGuide = (file: File) => uploadGuide("timetable", file);
-  const removeCardsGuide = () => removeGuide("cards");
-  const removeTimetableGuide = () => removeGuide("timetable");
   const setActiveGuideVisibility = (visible: boolean) =>
-    setGuideVisibility(activeWorkspaceMode, visible);
+    setGuideVisibility(activeGuideTarget, visible);
   const setActiveGuideOpacity = (opacity: number) =>
-    setGuideOpacity(activeWorkspaceMode, opacity);
+    setGuideOpacity(activeGuideTarget, opacity);
+  const openSettings = (sectionId?: string) => {
+    setSettingsInitialSectionId(sectionId);
+    setSettingsOpen(true);
+  };
 
   const focusTimetableRuntimeDay = useCallback(
     (dayId: StudioTimetableDayId) => {
@@ -4140,6 +4152,7 @@ export function TemplateStudioClient({
               inputCount={inputs.length}
               isReloadDisabled={!remoteTemplateId || isRemoteSyncing}
               objectCount={activeObjectCount}
+              initialSectionId={settingsInitialSectionId}
               open={settingsOpen}
               theme={theme}
               teamConnection={
@@ -4277,8 +4290,6 @@ export function TemplateStudioClient({
                 ) : undefined
               }
               onCardsCanvasChange={updateCardCanvasSize}
-              onCardsGuideRemove={removeCardsGuide}
-              onCardsGuideUpload={uploadCardsGuide}
               onClose={() => {
                 clearFigmaImportState();
                 setSettingsOpen(false);
@@ -4290,8 +4301,8 @@ export function TemplateStudioClient({
               onThemeChange={setTheme}
               onTimetableCapabilityChange={setTimetableCapability}
               onTimetableCanvasChange={updateTimetableCanvasSize}
-              onTimetableGuideRemove={removeTimetableGuide}
-              onTimetableGuideUpload={uploadTimetableGuide}
+              onGuideRemove={removeGuide}
+              onGuideUpload={uploadGuide}
               onWebFontsChange={updateWebFonts}
               onDefaultFontFamilyChange={updateDefaultFontFamily}
               figmaImport={{
@@ -4451,7 +4462,7 @@ export function TemplateStudioClient({
               width: previewCanvasSize.width,
               height: previewCanvasSize.height,
               title: "Open canvas settings",
-              onClick: () => setSettingsOpen(true),
+              onClick: () => openSettings("canvas"),
             }}
             centerSlot={
               <>
@@ -4488,7 +4499,7 @@ export function TemplateStudioClient({
                   opacity={activeGuide.opacity}
                   visible={Boolean(activeGuide.visible)}
                   onOpacityChange={setActiveGuideOpacity}
-                  onRequestAsset={() => setSettingsOpen(true)}
+                  onRequestAsset={() => openSettings("guides")}
                   onToggleVisible={() =>
                     setActiveGuideVisibility(!activeGuide.visible)
                   }
@@ -4587,7 +4598,7 @@ export function TemplateStudioClient({
             settingsAction={{
               title: "Template settings",
               disabled: isRemoteSyncing,
-              onClick: () => setSettingsOpen(true),
+              onClick: () => openSettings(),
             }}
             shareAction={{
               title: "Open saved preview",

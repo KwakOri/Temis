@@ -37,12 +37,10 @@ import {
   type StudioCardStatusBackgroundPreset,
 } from "@/utils/template-studio/preset-registry";
 import {
-  setStudioCardsGuideAsset,
-  setStudioCardsGuideOpacity,
-  setStudioCardsGuideVisibility,
-  setStudioTimetableGuideAsset,
-  setStudioTimetableGuideOpacity,
-  setStudioTimetableGuideVisibility,
+  setStudioGuideAsset,
+  setStudioGuideOpacity,
+  setStudioGuideVisibility,
+  type StudioGuideTarget,
 } from "@/utils/template-studio/timetable-guide";
 import {
   addStudioTimetableEntry,
@@ -1074,7 +1072,7 @@ export function useTimetableObjectCommands({
   );
 
   const uploadGuide = useCallback(
-    (workspaceMode: StudioAdapterWorkspaceMode, file: File) => {
+    (target: StudioGuideTarget, file: File) => {
       const reader = new FileReader();
       reader.onload = () => {
         const imageSrc = String(reader.result ?? "");
@@ -1082,13 +1080,11 @@ export function useTimetableObjectCommands({
         createTemplateAssetFromDataUrl(
           file,
           imageSrc,
-          workspaceMode === "cards" ? "Cards Guide" : "Timetable Guide",
+          target.kind === "cardStatus"
+            ? `${target.statusId} Card Guide`
+            : "Timetable Guide",
           (nextDocument, assetId) => {
-            if (workspaceMode === "cards") {
-              setStudioCardsGuideAsset(nextDocument, assetId);
-            } else {
-              setStudioTimetableGuideAsset(nextDocument, assetId);
-            }
+            setStudioGuideAsset(nextDocument, target, assetId);
           },
         );
       };
@@ -1098,17 +1094,13 @@ export function useTimetableObjectCommands({
   );
 
   const removeGuide = useCallback(
-    (workspaceMode: StudioAdapterWorkspaceMode) => {
+    (target: StudioGuideTarget) => {
       updateDocument((nextDocument) => {
-        if (workspaceMode === "cards") {
-          setStudioCardsGuideAsset(nextDocument, null);
-        } else {
-          setStudioTimetableGuideAsset(nextDocument, null);
-        }
+        setStudioGuideAsset(nextDocument, target, null);
       });
       onStatusMessage(
-        workspaceMode === "cards"
-          ? "Removed cards guide"
+        target.kind === "cardStatus"
+          ? `Removed ${target.statusId} card guide`
           : "Removed timetable guide",
       );
     },
@@ -1116,14 +1108,10 @@ export function useTimetableObjectCommands({
   );
 
   const setGuideVisibility = useCallback(
-    (workspaceMode: StudioAdapterWorkspaceMode, visible: boolean) => {
+    (target: StudioGuideTarget, visible: boolean) => {
       updateDocument(
         (nextDocument) => {
-          if (workspaceMode === "cards") {
-            setStudioCardsGuideVisibility(nextDocument, visible);
-          } else {
-            setStudioTimetableGuideVisibility(nextDocument, visible);
-          }
+          setStudioGuideVisibility(nextDocument, target, visible);
         },
         { history: false },
       );
@@ -1132,14 +1120,10 @@ export function useTimetableObjectCommands({
   );
 
   const setGuideOpacity = useCallback(
-    (workspaceMode: StudioAdapterWorkspaceMode, opacity: number) => {
+    (target: StudioGuideTarget, opacity: number) => {
       updateDocument(
         (nextDocument) => {
-          if (workspaceMode === "cards") {
-            setStudioCardsGuideOpacity(nextDocument, opacity);
-          } else {
-            setStudioTimetableGuideOpacity(nextDocument, opacity);
-          }
+          setStudioGuideOpacity(nextDocument, target, opacity);
         },
         { history: false },
       );
