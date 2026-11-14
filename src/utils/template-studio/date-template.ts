@@ -86,6 +86,10 @@ export const STUDIO_WEEK_DATE_TEMPLATE_TOKENS = [
   "${start.YY}",
   "${start.MM}",
   "${start.M}",
+  "${start.monthName}",
+  "${start.monthShort}",
+  "${start.monthNameUpper}",
+  "${start.monthShortUpper}",
   "${start.DD}",
   "${start.D}",
   "${start.weekdayShort}",
@@ -93,6 +97,10 @@ export const STUDIO_WEEK_DATE_TEMPLATE_TOKENS = [
   "${end.YY}",
   "${end.MM}",
   "${end.M}",
+  "${end.monthName}",
+  "${end.monthShort}",
+  "${end.monthNameUpper}",
+  "${end.monthShortUpper}",
   "${end.DD}",
   "${end.D}",
   "${end.weekdayShort}",
@@ -103,6 +111,10 @@ export const STUDIO_SINGLE_DATE_TEMPLATE_TOKENS = [
   "${YY}",
   "${MM}",
   "${M}",
+  "${monthName}",
+  "${monthShort}",
+  "${monthNameUpper}",
+  "${monthShortUpper}",
   "${DD}",
   "${D}",
   "${weekday}",
@@ -115,6 +127,36 @@ type StudioWeekDateFormatPresetId =
   (typeof STUDIO_WEEK_DATE_FORMAT_PRESETS)[number]["id"];
 type StudioSingleDateFormatPresetId =
   (typeof STUDIO_SINGLE_DATE_FORMAT_PRESETS)[number]["id"];
+
+const MONTH_LABELS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
+const MONTH_SHORT_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
 
 const WEEKDAY_LABELS = [
   "Sunday",
@@ -298,6 +340,16 @@ const formatStudioDateToken = (
   if (token === "YY") return parts.year.slice(-2);
   if (token === "M") return String(Number(parts.month));
   if (token === "MM") return parts.month;
+  if (token === "monthName") return MONTH_LABELS[Number(parts.month) - 1];
+  if (token === "monthShort") {
+    return MONTH_SHORT_LABELS[Number(parts.month) - 1];
+  }
+  if (token === "monthNameUpper") {
+    return MONTH_LABELS[Number(parts.month) - 1].toUpperCase();
+  }
+  if (token === "monthShortUpper") {
+    return MONTH_SHORT_LABELS[Number(parts.month) - 1].toUpperCase();
+  }
   if (token === "D") return String(Number(parts.day));
   if (token === "DD") return parts.day;
   if (token === "weekday") return WEEKDAY_LABELS[weekdayIndex];

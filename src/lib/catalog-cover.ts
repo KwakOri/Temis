@@ -9,7 +9,7 @@ export const CATALOG_COVER_ALLOWED_TYPES = [
   "image/webp",
 ] as const;
 
-type CatalogCoverMimeType = (typeof CATALOG_COVER_ALLOWED_TYPES)[number];
+export type CatalogCoverMimeType = (typeof CATALOG_COVER_ALLOWED_TYPES)[number];
 
 export interface CatalogCoverUploadMetadata {
   name: string;
@@ -106,6 +106,23 @@ export const createCatalogCoverKey = (
   mimeType: CatalogCoverMimeType,
 ): string =>
   `${getCatalogCoverR2Prefix()}/${templateId}/${randomUUID()}.${extensionByMimeType[mimeType]}`;
+
+/**
+ * presigned 업로드를 완료할 때 key가 현재 prefix의 해당 템플릿 폴더 바로 아래
+ * 객체인지 확인한다. 다른 템플릿이나 prefix 밖의 객체는 대표 이미지로 연결하지 않는다.
+ */
+export const isCatalogCoverKeyForTemplate = (
+  fileKey: string,
+  templateId: string,
+): boolean => {
+  const templatePrefix = `${getCatalogCoverR2Prefix()}/${templateId}/`;
+  if (!fileKey.startsWith(templatePrefix) || fileKey.includes("..")) {
+    return false;
+  }
+
+  const fileName = fileKey.slice(templatePrefix.length);
+  return fileName.length > 0 && !fileName.includes("/");
+};
 
 /**
  * 관리 대상 catalog cover URL에서만 R2 key를 추출한다.

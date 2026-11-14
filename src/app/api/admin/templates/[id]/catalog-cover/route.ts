@@ -1,62 +1,24 @@
+import { verifyJWT } from "@/lib/auth/jwt";
 import { requireAdmin } from "@/lib/auth/middleware";
 import {
-  CATALOG_COVER_ALLOWED_TYPES,
-  createCatalogCoverKey,
   getManagedCatalogCoverKey,
   validateCatalogCoverUpload,
 } from "@/lib/catalog-cover";
-import { deleteFileFromR2, getFileUrl, uploadFileToR2Key } from "@/lib/r2";
+import { deleteFileFromR2, getFileUrl } from "@/lib/r2";
 import { supabaseAdminServer as supabase } from "@/lib/supabase-admin-server";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  cleanupUploadedKey,
+  getStudioCatalogTemplate,
+  readCatalogCoverUploadToken,
+  requirePublicUrl,
+  verifyUploadedCatalogCover,
+} from "./_service";
 
-type CatalogCoverTemplate = {
-  id: string;
-  thumbnail_url: string | null;
-  template_engine: string | null;
-  template_kind: string | null;
-};
-
-const getTemplate = async (templateId: string) => {
-  const { data, error } = await supabase
-    .from("templates")
-    .select("id, thumbnail_url, template_engine, template_kind")
-    .eq("id", templateId)
-    .single();
-
-  if (error || !data) {
-    return null;
-  }
-
-  return data as CatalogCoverTemplate;
-};
-
-const isStudioCatalogTemplate = (template: CatalogCoverTemplate) =>
-  template.template_engine === "studio" &&
-  (template.template_kind === "timetable" ||
-    template.template_kind === "thumbnail");
-
-const requirePublicUrl = () => {
-  const publicUrl = (
-    process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL ||
-    process.env.CLOUDFLARE_R2_PUBLIC_URL ||
-    ""
-  ).trim();
-
-  if (!publicUrl) {
-    throw new Error("CLOUDFLARE_R2_PUBLIC_URL env is required.");
-  }
-};
-
-const cleanupUploadedKey = async (fileKey: string | null) => {
-  if (!fileKey) return;
-
-  try {
-    await deleteFileFromR2(fileKey);
-  } catch (error) {
-    console.error("Catalog cover orphan cleanup failed:", { fileKey, error });
-  }
-};
-
+/**
+ * presign 단계에서 브라우저가 R2에 직접 올린 대표 이미지를 템플릿에 연결한다.
+ * 연결하지 못하면 올라간 객체를 정리한다.
+ */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -71,51 +33,59 @@ export async function POST(
 
   try {
     const { id: templateId } = await params;
-    const template = await getTemplate(templateId);
+    const body = (await request.json().catch(() => null)) as {
+      token?: unknown;
+    } | null;
+    const payload =
+      typeof body?.token === "string" ? await verifyJWT(body.token) : null;
+    const upload = payload
+      ? readCatalogCoverUploadToken(
+          payload,
+          adminCheck.user.userId,
+          templateId,
+        )
+      : null;
 
-    if (!template) {
+    if (!upload) {
       return NextResponse.json(
-        { error: "템플릿을 찾을 수 없습니다." },
-        { status: 404 },
-      );
-    }
-
-    if (!isStudioCatalogTemplate(template)) {
-      return NextResponse.json(
-        {
-          error:
-            "Studio 시간표 또는 썸네일 템플릿만 대표 이미지를 등록할 수 있습니다.",
-        },
+        { error: "유효하지 않은 대표 이미지 업로드 정보입니다." },
         { status: 400 },
       );
     }
 
-    const formData = await request.formData();
-    const file = formData.get("file");
+    uploadedKey = upload.fileKey;
 
-    if (!(file instanceof File)) {
-      return NextResponse.json(
-        { error: "대표 이미지 파일이 필요합니다." },
-        { status: 400 },
-      );
+    const template = await getStudioCatalogTemplate(
+      templateId,
+      "Studio 시간표 또는 썸네일 템플릿만 대표 이미지를 등록할 수 있습니다.",
+    );
+
+    if (template instanceof NextResponse) {
+      return template;
     }
 
-    const validation = validateCatalogCoverUpload({
-      name: file.name,
-      size: file.size,
-      type: file.type,
-    });
+    const previousKey = getManagedCatalogCoverKey(template.thumbnail_url);
+    if (previousKey === upload.fileKey) {
+      // 이미 연결된 업로드를 다시 완료하면 현재 대표 이미지를 정리 대상으로 보지 않는다.
+      uploadedKey = null;
+      return NextResponse.json({
+        template: { id: template.id, thumbnail_url: template.thumbnail_url },
+        cleanupWarning: false,
+      });
+    }
+
+    const validation = validateCatalogCoverUpload(upload);
     if (!validation.isValid) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
     requirePublicUrl();
-    const mimeType = file.type as (typeof CATALOG_COVER_ALLOWED_TYPES)[number];
-    uploadedKey = createCatalogCoverKey(templateId, mimeType);
-    const buffer = Buffer.from(await file.arrayBuffer());
-    await uploadFileToR2Key(buffer, uploadedKey, mimeType);
+    const verificationError = await verifyUploadedCatalogCover(upload);
+    if (verificationError) {
+      return NextResponse.json({ error: verificationError }, { status: 400 });
+    }
 
-    const newUrl = getFileUrl(uploadedKey);
+    const newUrl = getFileUrl(upload.fileKey);
     const { data: updatedTemplate, error: updateError } = await supabase
       .from("templates")
       .update({
@@ -130,9 +100,8 @@ export async function POST(
       throw updateError ?? new Error("대표 이미지 URL 저장에 실패했습니다.");
     }
 
-    const previousKey = getManagedCatalogCoverKey(template.thumbnail_url);
     let cleanupWarning = false;
-    if (previousKey && previousKey !== uploadedKey) {
+    if (previousKey) {
       try {
         await deleteFileFromR2(previousKey);
       } catch (error) {
@@ -151,12 +120,13 @@ export async function POST(
       cleanupWarning,
     });
   } catch (error) {
-    await cleanupUploadedKey(uploadedKey);
     console.error("Catalog cover upload error:", error);
     return NextResponse.json(
       { error: "대표 이미지 업로드 중 오류가 발생했습니다." },
       { status: 500 },
     );
+  } finally {
+    await cleanupUploadedKey(uploadedKey);
   }
 }
 
@@ -172,23 +142,13 @@ export async function DELETE(
 
   try {
     const { id: templateId } = await params;
-    const template = await getTemplate(templateId);
+    const template = await getStudioCatalogTemplate(
+      templateId,
+      "Studio 시간표 또는 썸네일 템플릿만 대표 이미지를 관리할 수 있습니다.",
+    );
 
-    if (!template) {
-      return NextResponse.json(
-        { error: "템플릿을 찾을 수 없습니다." },
-        { status: 404 },
-      );
-    }
-
-    if (!isStudioCatalogTemplate(template)) {
-      return NextResponse.json(
-        {
-          error:
-            "Studio 시간표 또는 썸네일 템플릿만 대표 이미지를 관리할 수 있습니다.",
-        },
-        { status: 400 },
-      );
+    if (template instanceof NextResponse) {
+      return template;
     }
 
     const previousKey = getManagedCatalogCoverKey(template.thumbnail_url);

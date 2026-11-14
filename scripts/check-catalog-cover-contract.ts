@@ -5,6 +5,7 @@ import {
   CATALOG_COVER_TEST_ROOT_PREFIX,
   createCatalogCoverKey,
   getManagedCatalogCoverKey,
+  isCatalogCoverKeyForTemplate,
   isCatalogCoverTestPrefix,
   validateCatalogCoverUpload,
 } from "../src/lib/catalog-cover";
@@ -50,6 +51,35 @@ try {
     getManagedCatalogCoverKey(`${publicUrl}/${productionKey}`, publicUrl),
     productionKey,
   );
+  assert.equal(isCatalogCoverKeyForTemplate(productionKey, templateId), true);
+  assert.equal(
+    isCatalogCoverKeyForTemplate(
+      productionKey,
+      "f0400002-0402-0402-0402-040202020202",
+    ),
+    false,
+  );
+  assert.equal(
+    isCatalogCoverKeyForTemplate(
+      `${CATALOG_COVER_FOLDER}/${templateId}/nested/cover.png`,
+      templateId,
+    ),
+    false,
+  );
+  assert.equal(
+    isCatalogCoverKeyForTemplate(
+      `${CATALOG_COVER_FOLDER}/${templateId}/../cover.png`,
+      templateId,
+    ),
+    false,
+  );
+  assert.equal(
+    isCatalogCoverKeyForTemplate(
+      `uploads/custom-orders/${templateId}/cover.png`,
+      templateId,
+    ),
+    false,
+  );
 
   const testPrefix = `${CATALOG_COVER_TEST_ROOT_PREFIX}/contract-check`;
   assert.equal(isCatalogCoverTestPrefix(testPrefix), true);
@@ -73,6 +103,8 @@ try {
     getManagedCatalogCoverKey(`${publicUrl}/${productionKey}`, publicUrl),
     null,
   );
+  assert.equal(isCatalogCoverKeyForTemplate(testKey, templateId), true);
+  assert.equal(isCatalogCoverKeyForTemplate(productionKey, templateId), false);
 
   delete process.env.CATALOG_COVER_R2_PREFIX;
   assert.equal(
