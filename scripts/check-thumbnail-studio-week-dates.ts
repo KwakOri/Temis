@@ -69,6 +69,23 @@ assert.equal(
 );
 assert.equal(
   resolveStudioDateRangeText({
+    startDate: "2026-04-27",
+    dayCount: 7,
+    template:
+      "${start.monthNameUpper} ${start.D} - ${end.monthShortUpper} ${end.D}",
+  }),
+  "APRIL 27 - MAY 3",
+);
+assert.equal(
+  resolveStudioSingleDateText({
+    date: "2026-09-01",
+    format: "custom",
+    template: "${monthShortUpper} ${DD} ${monthNameUpper}",
+  }),
+  "SEP 01 SEPTEMBER",
+);
+assert.equal(
+  resolveStudioDateRangeText({
     startDate: "2026-07-01",
     dayCount: 1,
     format: "localized",

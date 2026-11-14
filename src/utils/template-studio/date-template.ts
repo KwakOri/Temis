@@ -88,6 +88,8 @@ export const STUDIO_WEEK_DATE_TEMPLATE_TOKENS = [
   "${start.M}",
   "${start.monthName}",
   "${start.monthShort}",
+  "${start.monthNameUpper}",
+  "${start.monthShortUpper}",
   "${start.DD}",
   "${start.D}",
   "${start.weekdayShort}",
@@ -97,6 +99,8 @@ export const STUDIO_WEEK_DATE_TEMPLATE_TOKENS = [
   "${end.M}",
   "${end.monthName}",
   "${end.monthShort}",
+  "${end.monthNameUpper}",
+  "${end.monthShortUpper}",
   "${end.DD}",
   "${end.D}",
   "${end.weekdayShort}",
@@ -109,6 +113,8 @@ export const STUDIO_SINGLE_DATE_TEMPLATE_TOKENS = [
   "${M}",
   "${monthName}",
   "${monthShort}",
+  "${monthNameUpper}",
+  "${monthShortUpper}",
   "${DD}",
   "${D}",
   "${weekday}",
@@ -337,6 +343,12 @@ const formatStudioDateToken = (
   if (token === "monthName") return MONTH_LABELS[Number(parts.month) - 1];
   if (token === "monthShort") {
     return MONTH_SHORT_LABELS[Number(parts.month) - 1];
+  }
+  if (token === "monthNameUpper") {
+    return MONTH_LABELS[Number(parts.month) - 1].toUpperCase();
+  }
+  if (token === "monthShortUpper") {
+    return MONTH_SHORT_LABELS[Number(parts.month) - 1].toUpperCase();
   }
   if (token === "D") return String(Number(parts.day));
   if (token === "DD") return parts.day;
