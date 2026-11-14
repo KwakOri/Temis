@@ -4,6 +4,7 @@ import { resolveStudioTextBinding } from "../src/utils/template-studio/binding-r
 import {
   getStudioDateFormatMode,
   resolveStudioDateRangeText,
+  resolveStudioSingleDateText,
   STUDIO_WEEK_DATE_LONG_TEMPLATE,
 } from "../src/utils/template-studio/date-template";
 import { createStudioInitialRuntimeValues } from "../src/utils/template-studio/input-values";
@@ -48,6 +49,23 @@ assert.equal(
     template: "${start.YYYY}/${start.MM}/${start.DD} → ${end.MM}/${end.DD}",
   }),
   "2026/07/01 → 07/07",
+);
+assert.equal(
+  resolveStudioDateRangeText({
+    startDate: "2026-04-27",
+    dayCount: 7,
+    template:
+      "${start.monthName} ${start.D} - ${end.monthShort} ${end.D}, ${end.YYYY}",
+  }),
+  "April 27 - May 3, 2026",
+);
+assert.equal(
+  resolveStudioSingleDateText({
+    date: "2026-12-05",
+    format: "custom",
+    template: "${monthShort}. ${DD} / ${monthName}",
+  }),
+  "Dec. 05 / December",
 );
 assert.equal(
   resolveStudioDateRangeText({
