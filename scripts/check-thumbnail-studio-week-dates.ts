@@ -12,7 +12,11 @@ import { migrateStudioTemplateDocument } from "../src/utils/template-studio/migr
 import { validateStudioRuntimeValuesForDocument } from "../src/utils/template-studio/timetable-runtime";
 import { validateStudioDocument } from "../src/utils/template-studio/validator";
 import { createThumbnailStudioDocument } from "../src/utils/thumbnail-studio/document-factory";
-import { ensureThumbnailWeekDatesContract } from "../src/utils/thumbnail-studio/week-dates";
+import {
+  ensureThumbnailWeekDatesContract,
+  getThumbnailLocalIsoDate,
+  withThumbnailCurrentDate,
+} from "../src/utils/thumbnail-studio/week-dates";
 
 assert.equal(getStudioDateFormatMode("week.date_range"), "range");
 assert.equal(getStudioDateFormatMode("day.date"), "single");
@@ -255,6 +259,36 @@ assert.equal(
 assert.equal(
   validateStudioRuntimeValuesForDocument(document, runtimeValues).length,
   0,
+);
+
+// 런타임은 문서에 저장된 날짜 기본값 대신 에디터를 연 날짜로 시작한다.
+assert.equal(
+  getThumbnailLocalIsoDate(new Date(2026, 0, 5, 23, 59)),
+  "2026-01-05",
+);
+const storedDefaultValues = createStudioInitialRuntimeValues(document);
+assert.equal(storedDefaultValues.global[inputId], "2024-02-28");
+const todayValues = withThumbnailCurrentDate(
+  document,
+  storedDefaultValues,
+  new Date(2026, 10, 17, 9, 30),
+);
+assert.equal(todayValues.global[inputId], "2026-11-17");
+assert.equal(storedDefaultValues.global[inputId], "2024-02-28");
+assert.equal(
+  resolveStudioTextBinding(
+    document,
+    todayValues,
+    document.graph.nodes.first.binding,
+  ),
+  "2026.11.17",
+);
+const documentWithoutDates = createThumbnailStudioDocument();
+const valuesWithoutDates =
+  createStudioInitialRuntimeValues(documentWithoutDates);
+assert.equal(
+  withThumbnailCurrentDate(documentWithoutDates, valuesWithoutDates),
+  valuesWithoutDates,
 );
 
 const legacyDocument = createThumbnailStudioDocument();
