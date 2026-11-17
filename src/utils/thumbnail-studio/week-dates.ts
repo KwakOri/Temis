@@ -1,5 +1,6 @@
 import type {
   StudioInputDefinition,
+  StudioRuntimeValues,
   StudioTemplateDocument,
   StudioThumbnailWeekDates,
 } from "@/types/template-studio";
@@ -9,16 +10,15 @@ import { parseStudioIsoDateParts } from "@/utils/template-studio/date-template";
 export const THUMBNAIL_WEEK_DATES_START_INPUT_ID = "week-start-date";
 export const THUMBNAIL_WEEK_DATES_DEFAULT_LOCALE = "ko-KR";
 
-const getLocalIsoDate = (): string => {
-  const date = new Date();
-  return [date.getFullYear(), date.getMonth() + 1, date.getDate()]
+/** 브라우저 로컬 시간대 기준 날짜를 YYYY-MM-DD로 반환한다. */
+export const getThumbnailLocalIsoDate = (date = new Date()): string =>
+  [date.getFullYear(), date.getMonth() + 1, date.getDate()]
     .map((value, index) =>
       index === 0
         ? String(value).padStart(4, "0")
         : String(value).padStart(2, "0"),
     )
     .join("-");
-};
 
 const getNextInputId = (
   document: StudioTemplateDocument,
@@ -36,7 +36,7 @@ const createThumbnailWeekStartDateInput = (inputId: string) => ({
   scope: "global" as const,
   label: "Date",
   description: "The date displayed on the thumbnail.",
-  defaultValue: getLocalIsoDate(),
+  defaultValue: getThumbnailLocalIsoDate(),
   required: true,
   presentation: {
     control: "date" as const,
@@ -121,3 +121,35 @@ export const ensureThumbnailWeekDatesContract = (
 
 export const isStudioIsoDateInputValue = (value: string | undefined): boolean =>
   Boolean(parseStudioIsoDateParts(value));
+
+/**
+ * 썸네일 런타임은 문서에 저장된 날짜 기본값(관리자가 Week Dates 객체를 만든 날)
+ * 대신 사용자가 에디터를 연 날짜로 시작한다. 서버 시간대와 어긋나지 않도록
+ * 브라우저에서 호출한다.
+ */
+export const withThumbnailCurrentDate = (
+  document: StudioTemplateDocument,
+  values: StudioRuntimeValues,
+  date = new Date(),
+): StudioRuntimeValues => {
+  const weekDatesInputId = getThumbnailWeekDatesInputId(document);
+  const dateInputIds = Object.values(document.inputs)
+    .filter(
+      (input) =>
+        isTextInput(input) &&
+        input.scope === "global" &&
+        (input.id === weekDatesInputId ||
+          input.presentation?.control === "date"),
+    )
+    .map((input) => input.id);
+  if (dateInputIds.length === 0) return values;
+
+  const today = getThumbnailLocalIsoDate(date);
+  return {
+    ...values,
+    global: {
+      ...values.global,
+      ...Object.fromEntries(dateInputIds.map((inputId) => [inputId, today])),
+    },
+  };
+};

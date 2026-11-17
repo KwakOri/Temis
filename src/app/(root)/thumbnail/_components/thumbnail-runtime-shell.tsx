@@ -22,6 +22,7 @@ import {
 } from "@/utils/template-studio/png-export";
 import { getStudioRuntimeInputValue } from "@/utils/template-studio/input-values";
 import { getThumbnailStudioInputDefinitions } from "@/utils/thumbnail-studio/input-order";
+import { withThumbnailCurrentDate } from "@/utils/thumbnail-studio/week-dates";
 import { ThumbnailRuntimeForm } from "./thumbnail-runtime-form";
 import { useThumbnailUserImages } from "./use-thumbnail-user-images";
 import { useThumbnailImageHistory } from "./use-thumbnail-image-history";
@@ -65,8 +66,13 @@ export function ThumbnailRuntimeShell({
   backHref = "/my-page",
 }: ThumbnailRuntimeShellProps) {
   const exportRootRef = useRef<HTMLDivElement | null>(null);
+  // 날짜 input은 문서에 저장된 기본값이 아니라 에디터를 연 오늘 날짜로 시작한다.
+  const sessionInitialRuntimeValues = useMemo(
+    () => withThumbnailCurrentDate(document, initialRuntimeValues),
+    [document, initialRuntimeValues],
+  );
   const [runtimeValues, setRuntimeValues] = useState(() =>
-    cloneRuntimeValues(initialRuntimeValues),
+    cloneRuntimeValues(sessionInitialRuntimeValues),
   );
   const imageHistory = useThumbnailImageHistory(() =>
     createThumbnailRuntimeImageOverrides(document),
@@ -177,13 +183,13 @@ export function ThumbnailRuntimeShell({
 
   useEffect(() => {
     clearImageHistory();
-    setRuntimeValues(cloneRuntimeValues(initialRuntimeValues));
+    setRuntimeValues(cloneRuntimeValues(sessionInitialRuntimeValues));
     setRuntimeImageOverrides(createThumbnailRuntimeImageOverrides(document));
     setActiveImage(null);
     setExportError(null);
   }, [
     document,
-    initialRuntimeValues,
+    sessionInitialRuntimeValues,
     revisionNo,
     storageOwnerId,
     templateId,
@@ -335,7 +341,7 @@ export function ThumbnailRuntimeShell({
 
   const resetRuntime = () => {
     clearImageHistory();
-    setRuntimeValues(cloneRuntimeValues(initialRuntimeValues));
+    setRuntimeValues(cloneRuntimeValues(sessionInitialRuntimeValues));
     setRuntimeImageOverrides(createThumbnailRuntimeImageOverrides(document));
     setActiveImage(null);
     setExportError(null);
@@ -394,7 +400,7 @@ export function ThumbnailRuntimeShell({
         </StudioRuntimePreviewWorkspace>
         <ThumbnailRuntimeForm
           document={document}
-          initialRuntimeValues={initialRuntimeValues}
+          initialRuntimeValues={sessionInitialRuntimeValues}
           runtimeImageOverrides={runtimeImageOverrides}
           runtimeValues={runtimeValues}
           setRuntimeImageOverrides={setRuntimeImageOverrides}
